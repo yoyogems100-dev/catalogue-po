@@ -1,0 +1,148 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import MultiSelect from '@/components/MultiSelect';
+
+type Shape = { id: number; name: string };
+type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
+type Category = { id: number; num: number; name: string };
+type CatShape = { category_id: number; shape_id: number };
+
+export default function ShapesClient({
+  shapes,
+  sizes,
+  categories,
+  catShapes
+}: {
+  shapes: Shape[];
+  sizes: Size[];
+  categories: Category[];
+  catShapes: CatShape[];
+}) {
+  const router = useRouter();
+  const [newShape, setNewShape] = useState('');
+  const [expandedSizes, setExpandedSizes] = useState<number | null>(null);
+  const [expandedCats, setExpandedCats] = useState<number | null>(null);
+  const [newSize, setNewSize] = useState('');
+  const [newWeight, setNewWeight] = useState('');
+
+  async function addShape() {
+    if (!newShape.trim()) return;
+    await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape }) });
+    setNewShape('');
+    router.refresh();
+  }
+
+  async function deleteShape(id: number) {
+    if (!confirm('Delete this shape and all its sizes? Photos tagged with it will keep the photo but lose the shape tag.')) return;
+    await fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    router.refresh();
+  }
+
+  async function addSize(shapeId: number) {
+    if (!newSize.trim()) return;
+    await fetch('/api/shape-sizes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shape_id: shapeId, size_mm: newSize, weight_ct: newWeight ? parseFloat(newWeight) : null })
+    });
+    setNewSize('');
+    setNewWeight('');
+    router.refresh();
+  }
+
+  async function deleteSize(id: number) {
+    await fetch('/api/shape-sizes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    router.refresh();
+  }
+
+  async function toggleCategory(shapeId: number, categoryId: number, currentlyLinked: boolean) {
+    const res = await fetch('/api/category-links/shape', {
+      method: currentlyLinked ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_id: categoryId, shape_id: shapeId })
+    });
+    if (!res.ok) throw new Error('Failed to update link');
+    router.refresh();
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, maxWidth: 420 }}>
+        <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} />
+        <button className="btn" onClick={addShape}>Add shape</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
+        </thead>
+        <tbody>
+          {shapes.map((s) => {
+            const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id);
+            const linkedCatIds = catShapes.filter((cs) => cs.shape_id === s.id).map((cs) => cs.category_id);
+            const sizesOpen = expandedSizes === s.id;
+            const catsOpen = expandedCats === s.id;
+            return (
+              <>
+                <tr key={s.id}>
+                  <td>{s.name}</td>
+                  <td>
+                    <button className="btn-ghost" onClick={() => { setExpandedSizes(sizesOpen ? null : s.id); setExpandedCats(null); }}>
+                      {shapeSizes.length} sizes {sizesOpen ? '▲' : '▼'}
+                    </button>
+                  </td>
+                  <td>
+                    <button className="btn-ghost" onClick={() => { setExpandedCats(catsOpen ? null : s.id); setExpandedSizes(null); }}>
+                      {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
+                    </button>
+                  </td>
+                  <td><button className="btn-danger" onClick={() => deleteShape(s.id)}>Delete</button></td>
+                </tr>
+                {sizesOpen && (
+                  <tr key={`${s.id}-sizes`}>
+                    <td colSpan={4} style={{ background: '#faf8f3' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                        {shapeSizes.map((sz) => (
+                          <span key={sz.id} className="tag-chip">
+                            {sz.size_mm} mm{sz.weight_ct ? ` · ${sz.weight_ct}ct` : ''}
+                            <span style={{ cursor: 'pointer', color: '#a3341f' }} onClick={() => deleteSize(sz.id)}>&times;</span>
+                          </span>
+                        ))}
+                        {shapeSizes.length === 0 && <span style={{ fontSize: 12, color: '#8a8370' }}>No sizes yet.</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, maxWidth: 420 }}>
+                        <input type="text" placeholder="Size, e.g. 6x8" value={newSize} onChange={(e) => setNewSize(e.target.value)} />
+                        <input type="text" placeholder="Carat wt (optional)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} style={{ maxWidth: 130 }} />
+                        <button className="btn" onClick={() => addSize(s.id)}>Add</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {catsOpen && (
+                  <tr key={`${s.id}-cats`}>
+                    <td colSpan={4} style={{ background: '#faf8f3' }}>
+                      <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 8 }}>
+                        Which categories should offer "{s.name}" as a shape option. This is the same link used on each
+                        category's own page -- edit from whichever side is more convenient.
+                      </p>
+                      <div style={{ maxWidth: 420 }}>
+                        <MultiSelect
+                          options={categories.map((c) => ({ id: c.id, name: c.name }))}
+                          selectedIds={linkedCatIds}
+                          onToggle={(catId, active) => toggleCategory(s.id, catId, active)}
+                          placeholder="Not linked to any category"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
+            );
+          })}
+        </tbody>
+      </table>
+    </>
+  );
+}
