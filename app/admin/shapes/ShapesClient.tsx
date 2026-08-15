@@ -40,6 +40,19 @@ export default function ShapesClient({
     router.refresh();
   }
 
+  async function renameShape(id: number, name: string) {
+    const res = await fetch('/api/shapes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to rename shape');
+    }
+    router.refresh();
+  }
+
   async function addSize(shapeId: number) {
     if (!newSize.trim()) return;
     await fetch('/api/shape-sizes', {
@@ -87,7 +100,7 @@ export default function ShapesClient({
             return (
               <>
                 <tr key={s.id}>
-                  <td>{s.name}</td>
+                  <td><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
                     <button className="btn-ghost" onClick={() => { setExpandedSizes(sizesOpen ? null : s.id); setExpandedCats(null); }}>
                       {shapeSizes.length} sizes {sizesOpen ? '▲' : '▼'}
@@ -144,5 +157,48 @@ export default function ShapesClient({
         </tbody>
       </table>
     </>
+  );
+}
+
+function ShapeNameCell({ shape, onRename }: { shape: Shape; onRename: (id: number, name: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(shape.name);
+
+  async function save() {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === shape.name) {
+      setValue(shape.name);
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    await onRename(shape.id, trimmed);
+  }
+
+  if (!editing) {
+    return (
+      <span
+        onClick={() => { setValue(shape.name); setEditing(true); }}
+        style={{ cursor: 'pointer', borderBottom: '1px dashed var(--line)' }}
+        title="Click to rename"
+      >
+        {shape.name}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { setValue(shape.name); setEditing(false); }
+      }}
+      style={{ fontSize: 13, padding: '3px 6px', maxWidth: 180 }}
+    />
   );
 }

@@ -110,6 +110,13 @@ table { width: 100%; border-collapse: collapse; background: #fff; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); }
 
+.admin-cover-thumb {
+  width: 44px; height: 44px; border-radius: 6px; overflow: hidden; background: #f1ede2;
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+}
+.admin-cover-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.admin-cover-thumb span { font-size: 8px; color: #8a8370; text-align: center; line-height: 1.2; padding: 2px; }
+
 .tag-chip {
   display: inline-flex; align-items: center; gap: 6px; background: #f1ede2;
   border: 1px solid var(--line); padding: 4px 10px; font-size: 12px; border-radius: 2px; margin: 2px;
@@ -315,6 +322,26 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .wa-enquire:hover { background: #1EBE57; }
+
+/* Multi-photo selection mode (enquire about several stones at once) */
+.photo-select-check {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+  background: rgba(18,35,63,0.35); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.photo-select-check svg { width: 13px; height: 13px; display: none; }
+.photo-select-check.checked { background: var(--gold); border-color: var(--gold); }
+.photo-select-check.checked svg { display: block; }
+
+.multi-enquire-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  background: var(--ink); color: #fff; padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.25); font-size: 13px;
+}
+.multi-enquire-clear { color: #fff; border-color: rgba(255,255,255,0.35); background: transparent; }
+.multi-enquire-clear:hover { border-color: #fff; }
 
 /* Footer */
 .site-footer { background: var(--ink); color: #cbd3e0; padding: 36px 20px 0; margin-top: 20px; }

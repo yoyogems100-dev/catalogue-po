@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { photoUrl } from '@/lib/photos';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
 
@@ -40,11 +41,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
 
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
-    url: p.storage_path
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${p.storage_path}`
-      : p.drive_id
-      ? `https://lh3.googleusercontent.com/d/${p.drive_id}=w400`
-      : null,
+    url: photoUrl(p, 400),
     shape_id: p.shape_id,
     shape_size_id: p.shape_size_id,
     color_id: p.color_id,

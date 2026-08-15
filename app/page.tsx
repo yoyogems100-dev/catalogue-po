@@ -1,5 +1,6 @@
 import { supabasePublic } from '@/lib/supabase-public';
 import { getSettings } from '@/lib/settings';
+import { photoUrl } from '@/lib/photos';
 import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
@@ -43,14 +44,6 @@ async function getData() {
   const shapeIdsByCategory = idsBy(catShapes, 'shape_id');
   const colorIdsByCategory = idsBy(catColors, 'color_id');
 
-  function photoUrl(p: any) {
-    return p.storage_path
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${p.storage_path}`
-      : p.drive_id
-      ? `https://lh3.googleusercontent.com/d/${p.drive_id}=w500`
-      : null;
-  }
-
   const firstPhotoByCategory: Record<number, any> = {};
   (photos || []).forEach((p: any) => {
     if (!firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
@@ -64,7 +57,7 @@ async function getData() {
     const colorIds = colorIdsByCategory[c.id] || [];
     return {
       ...c,
-      thumb: thumbPhoto ? photoUrl(thumbPhoto) : null,
+      thumb: thumbPhoto ? photoUrl(thumbPhoto, 500) : null,
       shapeIds,
       colorIds,
       shapeCount: shapeIds.length,
