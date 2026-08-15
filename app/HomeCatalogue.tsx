@@ -79,9 +79,12 @@ export default function HomeCatalogue({
             ].filter(Boolean);
             return (
               <Link key={cat.id} href={`/category/${cat.slug}`}>
-                <div className="cat-card facet">
+                <div className="cat-card">
                   <div className="cat-thumb">
                     {cat.thumb ? <img src={cat.thumb} alt={cat.name} /> : null}
+                    {cat.shapeCount > 0 && (
+                      <span className="cat-badge">{cat.shapeCount} shape{cat.shapeCount !== 1 ? 's' : ''}</span>
+                    )}
                   </div>
                   <div className="cat-info">
                     <h3>{cat.name}</h3>

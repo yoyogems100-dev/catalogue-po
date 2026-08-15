@@ -2,7 +2,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 import { getSettings } from '@/lib/settings';
 import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
-import HeaderLogo from '@/components/HeaderLogo';
+import HomeHero from '@/components/HomeHero';
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
@@ -84,15 +84,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <div className="topbar">
-        <HeaderLogo height={30} />
-      </div>
-      <div className="hero">
-        <div className="eyebrow">Digital Catalogue</div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderLogo height={110} />
-        </div>
-      </div>
+      <HomeHero />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} />
       </div>
