@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { WordMark } from '@/components/Logo';
 
@@ -35,6 +36,14 @@ export default function Footer({ settings }: { settings: Record<string, string> 
               {settings.instagram_handle || 'Instagram'}
             </a>
           )}
+        </div>
+
+        <div className="footer-col">
+          <div className="footer-heading">Account</div>
+          <Link href="/account/orders" className="footer-link">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M4 12h16M4 17h10" /></svg>
+            My Orders
+          </Link>
         </div>
       </div>
       <div className="footer-bottom container">&copy; {year} YOYO GEMS. All rights reserved.</div>

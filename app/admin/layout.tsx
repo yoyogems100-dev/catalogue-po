@@ -9,6 +9,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="admin-nav">
         <div style={{ marginBottom: 20 }} className="admin-nav-logo"><WordMark height={20} color="#FAF8F3" /></div>
         <Link href="/admin">Dashboard</Link>
+        <Link href="/admin/orders">Orders</Link>
         <Link href="/admin/categories">Categories</Link>
         <Link href="/admin/shapes">Shapes</Link>
         <Link href="/admin/colors">Colors</Link>

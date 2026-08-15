@@ -343,9 +343,48 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .multi-enquire-clear { color: #fff; border-color: rgba(255,255,255,0.35); background: transparent; }
 .multi-enquire-clear:hover { border-color: #fff; }
 
+/* Order milestone stepper (customer + admin order views) */
+.order-stepper { display: flex; align-items: flex-start; overflow-x: auto; padding: 6px 0 4px; }
+.stepper-step { display: flex; flex-direction: column; align-items: center; position: relative; flex: 1 0 84px; }
+.stepper-step .stepper-line {
+  position: absolute; top: 6px; left: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0;
+}
+.stepper-step.done .stepper-line { background: var(--gold); }
+.stepper-step .stepper-dot {
+  width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--line); z-index: 1;
+}
+.stepper-step.done .stepper-dot { background: var(--gold); border-color: var(--gold); }
+.stepper-step.current .stepper-dot { background: var(--navy); border-color: var(--navy); box-shadow: 0 0 0 4px rgba(27,58,107,0.15); }
+.stepper-step .stepper-label { font-size: 10.5px; color: #8a8370; margin-top: 6px; text-align: center; white-space: nowrap; }
+.stepper-step.done .stepper-label, .stepper-step.current .stepper-label { color: var(--ink); font-weight: 500; }
+
+.order-stepper-compact { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.order-stepper-compact .stepper-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: inline-block; flex-shrink: 0;
+}
+.order-stepper-compact .stepper-dot.done { background: var(--gold); }
+.order-stepper-compact .stepper-dot.current { background: var(--navy); }
+.stepper-current-label { font-size: 11px; color: var(--ink); margin-left: 6px; font-weight: 500; white-space: nowrap; }
+
+/* Customer account -- order list + detail */
+.account-order-row { display: block; padding: 16px; cursor: pointer; transition: border-color 0.15s; }
+.account-order-row:hover { border-color: var(--gold); }
+.account-order-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.account-order-id { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--ink); }
+.account-order-date { font-size: 12px; color: #8a8370; }
+.account-order-row-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12.5px; color: #8a8370; }
+
+.payment-badge {
+  display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500;
+}
+.payment-pending { background: #f4e6d0; color: #8a5a1f; }
+.payment-partial { background: #dde6f4; color: #1B3A6B; }
+.payment-paid { background: #d9f0e0; color: #1a6b3a; }
+
 /* Footer */
 .site-footer { background: var(--ink); color: #cbd3e0; padding: 36px 20px 0; margin-top: 20px; }
-.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 28px; padding-bottom: 28px; }
+.footer-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 28px; padding-bottom: 28px; }
 .footer-col { display: flex; flex-direction: column; gap: 8px; }
 .footer-heading { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 2px; }
 .footer-tagline { font-size: 12.5px; font-style: italic; color: #9fb0cc; margin-top: 4px; line-height: 1.5; max-width: 260px; }
