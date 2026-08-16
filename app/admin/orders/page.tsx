@@ -31,7 +31,10 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <h1>Orders</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h1>Orders</h1>
+        <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
         <Link href="/admin/orders" className={`tag-chip ${!statusFilter ? 'active' : ''}`}>All</Link>
         {ORDER_MILESTONES.map((m) => (
