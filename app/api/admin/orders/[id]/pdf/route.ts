@@ -57,6 +57,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const settings = await getSettings();
 
+  // renderToBuffer's TS signature expects a ReactElement<DocumentProps> specifically
+  // (the <Document> element itself), not a wrapping component's element -- cast needed
+  // purely to satisfy the type checker, no behavior change.
   const buffer = await renderToBuffer(
     React.createElement(OrderPdfDocument, {
       data: {
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         contactWhatsapp: settings.whatsapp_number || null,
         contactLocation: settings.location || null
       }
-    })
+    }) as any
   );
 
   const path = `order-pdfs/order-${orderId}.pdf`;
