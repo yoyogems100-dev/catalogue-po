@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCustomerId } from '@/lib/customer-auth';
 
 type CartItem = {
   categoryId: number;
@@ -75,13 +76,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   }
 
-  let customerId: number | null = null;
-  if (contactPhone) {
+  // A logged-in customer's session always wins over whatever (optional) phone
+  // number they typed into the form -- otherwise an order placed while logged
+  // in but with that field left blank, or filled in with a differently
+  // formatted number, would never show up on their own /account/orders.
+  let customerId: number | null = getCustomerId();
+
+  if (!customerId && contactPhone) {
     const digits = contactPhone.replace(/\D/g, '');
     const { data: existing } = await supabaseAdmin.from('customers').select('id').eq('phone', digits).maybeSingle();
     if (existing) {
       customerId = existing.id;
-      if (contactName) await supabaseAdmin.from('customers').update({ name: contactName }).eq('id', existing.id);
     } else {
       const { data: created, error } = await supabaseAdmin
         .from('customers')
@@ -90,6 +95,10 @@ export async function POST(req: NextRequest) {
         .single();
       if (!error && created) customerId = created.id;
     }
+  }
+
+  if (customerId && contactName) {
+    await supabaseAdmin.from('customers').update({ name: contactName }).eq('id', customerId);
   }
 
   const message = buildMessage(cart, requestType, contactName, comment);
