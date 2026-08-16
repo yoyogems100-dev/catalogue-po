@@ -15,6 +15,7 @@ type Item = {
   colorName: string;
   colorHex: string;
   quantity: number;
+  unitPrice: number | null;
 };
 type CategoryOption = {
   shapes: { id: number; name: string }[];
@@ -31,10 +32,15 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function money(n: number) {
+  return `₹${n.toLocaleString('en-IN')}`;
+}
+
 export default function OrderAdminClient({
   orderId,
   status,
   paymentStatus,
+  pdfUrl,
   createdAt,
   comment,
   requestType,
@@ -49,6 +55,7 @@ export default function OrderAdminClient({
   orderId: number;
   status: string;
   paymentStatus: string;
+  pdfUrl: string | null;
   createdAt: string;
   comment: string | null;
   requestType: string | null;
@@ -74,7 +81,15 @@ export default function OrderAdminClient({
   const [newLines, setNewLines] = useState<NewLine[]>([]);
   const [savingItems, setSavingItems] = useState(false);
 
+  const [prices, setPrices] = useState<Record<number, string>>(
+    Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))
+  );
+  const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
+  const hasPricing = items.some((i) => prices[i.id]);
+  const grandTotal = items.reduce((sum, i) => sum + (parseFloat(prices[i.id]) || 0) * i.quantity, 0);
 
   async function updateStatus() {
     setBusy(true);
@@ -123,6 +138,27 @@ export default function OrderAdminClient({
     fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
   }
 
+  async function savePrice(itemId: number, value: string) {
+    await fetch(`/api/admin/orders/${orderId}/prices`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prices: [{ itemId, unitPrice: value }] })
+    });
+  }
+
+  async function generatePdf() {
+    setGeneratingPdf(true);
+    const res = await fetch(`/api/admin/orders/${orderId}/pdf`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setGeneratingPdf(false);
+    if (res.ok && data.url) {
+      setCurrentPdfUrl(data.url);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } else {
+      setToast(data.error || 'Failed to generate PDF.');
+    }
+  }
+
   function addNewLine() {
     const firstCat = orderCategories[0];
     if (!firstCat) return;
@@ -162,9 +198,19 @@ export default function OrderAdminClient({
   }
 
   // Uses the saved status, not the (possibly unsaved) dropdown selection --
-  // notifying should always reflect what's actually on record.
+  // notifying should always reflect what's actually on record. When a PDF has been
+  // generated, its link is included so the customer can view/download it -- no manual
+  // file attachment needed, since wa.me only supports pre-filled text.
+  const isQuotation = requestType === 'Request Quotation';
   const manualWaUrl = customer?.phone
-    ? buildWhatsAppUrl(customer.phone, `Hi ${customer.name || ''}, your YOYO GEMS order #${orderId} status has been updated to: ${milestoneLabel(status)}. Log in to your account to view full details.`)
+    ? buildWhatsAppUrl(
+        customer.phone,
+        [
+          `Hi ${customer.name || ''}, your YOYO GEMS ${isQuotation ? 'quotation' : 'order'} #${orderId} status has been updated to: ${milestoneLabel(status)}.`,
+          currentPdfUrl ? `\n${isQuotation ? 'View your quotation' : 'View your order summary'}: ${currentPdfUrl}` : '',
+          '\nLog in to your account to view full details.'
+        ].join('')
+      )
     : null;
 
   const timeline = [
@@ -176,7 +222,7 @@ export default function OrderAdminClient({
     <div style={{ marginTop: 16 }}>
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#8a8370' }}>
-          Placed {fmtDate(createdAt)} · {requestType || 'Place Order'}
+          Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType || 'Place Order'}</strong>
           {customer && <> · {customer.name || contactName || 'No name'} · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
@@ -219,14 +265,26 @@ export default function OrderAdminClient({
           </div>
         </div>
         <div>
-          <h3 className="section-label">Notify customer</h3>
+          <h3 className="section-label">{isQuotation ? 'Quotation PDF' : 'Order PDF'}</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>Notify via WhatsApp</button>
+            <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
+              {generatingPdf ? 'Generating…' : 'Generate PDF'}
+            </button>
+            {currentPdfUrl && (
+              <a href={currentPdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost" style={{ display: 'inline-block' }}>
+                View last PDF
+              </a>
+            )}
           </div>
-          <p style={{ fontSize: 11, color: '#8a8370', marginTop: 6 }}>
-            Opens WhatsApp with the current status pre-filled -- send whenever you choose, independent of when the status was changed.
-          </p>
         </div>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h3 className="section-label">Notify customer</h3>
+        <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>Notify via WhatsApp</button>
+        <p style={{ fontSize: 11, color: '#8a8370', marginTop: 6 }}>
+          Opens WhatsApp with the current status (and PDF link, if generated) pre-filled -- send whenever you choose, independent of when the status was changed.
+        </p>
       </section>
 
       {toast && <p style={{ fontSize: 12.5, color: 'var(--gold)', marginBottom: 16 }}>{toast}</p>}
@@ -240,9 +298,10 @@ export default function OrderAdminClient({
             </button>
           )}
         </div>
+        <p style={{ fontSize: 11.5, color: '#8a8370', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
         <table>
           <thead>
-            <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{editing && <th></th>}</tr>
+            <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
           </thead>
           <tbody>
             {items.filter((i) => !removedIds.has(i.id)).map((i) => (
@@ -269,6 +328,20 @@ export default function OrderAdminClient({
                     i.quantity
                   )}
                 </td>
+                <td>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Optional"
+                    value={prices[i.id] || ''}
+                    onChange={(e) => setPrices({ ...prices, [i.id]: e.target.value.replace(/[^\d.]/g, '') })}
+                    onBlur={(e) => savePrice(i.id, e.target.value)}
+                    style={{ maxWidth: 90, fontSize: 13 }}
+                  />
+                </td>
+                {hasPricing && (
+                  <td>{prices[i.id] ? money((parseFloat(prices[i.id]) || 0) * i.quantity) : '—'}</td>
+                )}
                 {editing && (
                   <td>
                     <button type="button" className="btn-danger" onClick={() => setRemovedIds(new Set([...removedIds, i.id]))}>Remove</button>
@@ -310,6 +383,8 @@ export default function OrderAdminClient({
                       style={{ maxWidth: 80, fontSize: 13 }}
                     />
                   </td>
+                  <td />
+                  {hasPricing && <td />}
                   <td>
                     <button type="button" className="btn-danger" onClick={() => removeNewLine(l.tempId)}>Remove</button>
                   </td>
@@ -317,6 +392,15 @@ export default function OrderAdminClient({
               );
             })}
           </tbody>
+          {hasPricing && (
+            <tfoot>
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 500 }}>Grand total</td>
+                <td style={{ fontWeight: 700, color: 'var(--ink)' }}>{money(grandTotal)}</td>
+                {editing && <td />}
+              </tr>
+            </tfoot>
+          )}
         </table>
 
         {editing && (

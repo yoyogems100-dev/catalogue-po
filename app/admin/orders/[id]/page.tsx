@@ -7,7 +7,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_status, created_at, comment, request_type, contact_name, customer_id, whatsapp_message')
+    .select('id, status, payment_status, created_at, comment, request_type, contact_name, customer_id, whatsapp_message, pdf_url')
     .eq('id', orderId)
     .single();
 
@@ -16,7 +16,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   }
 
   const { data: customer } = order.customer_id
-    ? await supabaseAdmin.from('customers').select('id, name, phone, email, phone_verified').eq('id', order.customer_id).single()
+    ? await supabaseAdmin.from('customers').select('id, name, phone, email, phone_verified, company').eq('id', order.customer_id).single()
     : { data: null };
 
   const { data: customerOrderHistory } = customer
@@ -30,7 +30,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, color_id, quantity')
+    .select('id, category_id, shape_id, shape_size_id, color_id, quantity, unit_price')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -60,7 +60,8 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     sizeMm: sizeMap[it.shape_size_id] || '—',
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
-    quantity: it.quantity
+    quantity: it.quantity,
+    unitPrice: it.unit_price != null ? Number(it.unit_price) : null
   }));
 
   // For editing: fetch each order category's linked shapes/sizes/colors, so admin
@@ -125,6 +126,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
         orderId={order.id}
         status={order.status}
         paymentStatus={order.payment_status}
+        pdfUrl={order.pdf_url}
         createdAt={order.created_at}
         comment={order.comment}
         requestType={order.request_type}
