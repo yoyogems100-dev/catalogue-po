@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ORDER_MILESTONES } from '@/lib/order-milestones';
+import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import Link from 'next/link';
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: { status?: string } }) {
@@ -51,9 +51,12 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             return (
               <tr key={o.id}>
                 <td>{o.id}</td>
-                <td>{cust?.name || o.contact_name || '—'}{cust?.phone ? ` · ${cust.phone}` : ''}</td>
+                <td>
+                  {cust ? (cust.name || cust.phone || '—') : (o.contact_name || '—')}
+                  {cust?.name && cust?.phone ? ` · ${cust.phone}` : ''}
+                </td>
                 <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
-                <td>{o.status}</td>
+                <td>{milestoneLabel(o.status)}</td>
                 <td><span className={`payment-badge payment-${o.payment_status}`}>{o.payment_status}</span></td>
                 <td>{s.lines}</td>
                 <td>{s.pieces}</td>

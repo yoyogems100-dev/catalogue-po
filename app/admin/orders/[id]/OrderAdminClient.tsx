@@ -2,13 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 
-type Item = { id: number; categoryName: string; shapeName: string; sizeMm: string; colorName: string; colorHex: string; quantity: number };
+type Item = {
+  id: number;
+  categoryId: number;
+  categoryName: string;
+  shapeName: string;
+  sizeMm: string;
+  colorName: string;
+  colorHex: string;
+  quantity: number;
+};
+type CategoryOption = {
+  shapes: { id: number; name: string }[];
+  colors: { id: number; name: string; hex: string | null }[];
+  sizes: { id: number; shapeId: number; sizeMm: string }[];
+};
+type NewLine = { tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
 type HistoryEntry = { id: number; status: string; changed_at: string; message_sent: boolean };
 type Note = { id: number; author_type: string; message: string; internal_only: boolean; created_at: string };
 type Customer = { id: number; name: string | null; phone: string | null; email: string | null; phone_verified: boolean } | null;
+type CustomerOrder = { id: number; status: string; created_at: string };
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -23,7 +40,9 @@ export default function OrderAdminClient({
   requestType,
   contactName,
   customer,
+  customerOrderHistory,
   items,
+  categoryOptions,
   history,
   notes
 }: {
@@ -35,7 +54,9 @@ export default function OrderAdminClient({
   requestType: string | null;
   contactName: string | null;
   customer: Customer;
+  customerOrderHistory: CustomerOrder[];
   items: Item[];
+  categoryOptions: Record<number, CategoryOption>;
   history: HistoryEntry[];
   notes: Note[];
 }) {
@@ -46,6 +67,14 @@ export default function OrderAdminClient({
   const [internalOnly, setInternalOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+
+  const [editing, setEditing] = useState(false);
+  const [quantities, setQuantities] = useState<Record<number, number>>(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
+  const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
+  const [newLines, setNewLines] = useState<NewLine[]>([]);
+  const [savingItems, setSavingItems] = useState(false);
+
+  const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
 
   async function updateStatus() {
     setBusy(true);
@@ -95,6 +124,44 @@ export default function OrderAdminClient({
     else setToast(data.error || 'WhatsApp send failed.');
   }
 
+  function addNewLine() {
+    const firstCat = orderCategories[0];
+    if (!firstCat) return;
+    setNewLines([
+      ...newLines,
+      { tempId: `${Date.now()}-${Math.random().toString(16).slice(2)}`, categoryId: firstCat[0], shapeId: '', sizeId: '', colorId: '', quantity: '' }
+    ]);
+  }
+
+  function updateNewLine(tempId: string, patch: Partial<NewLine>) {
+    setNewLines(newLines.map((l) => (l.tempId === tempId ? { ...l, ...patch } : l)));
+  }
+
+  function removeNewLine(tempId: string) {
+    setNewLines(newLines.filter((l) => l.tempId !== tempId));
+  }
+
+  async function saveItemEdits() {
+    const updates = items
+      .filter((i) => !removedIds.has(i.id) && quantities[i.id] !== i.quantity)
+      .map((i) => ({ id: i.id, quantity: quantities[i.id] }));
+
+    const validNewItems = newLines
+      .filter((l) => l.shapeId && l.sizeId && l.colorId && parseInt(l.quantity, 10) > 0)
+      .map((l) => ({ categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
+
+    setSavingItems(true);
+    const res = await fetch(`/api/admin/orders/${orderId}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates, removedIds: Array.from(removedIds), newItems: validNewItems })
+    });
+    setSavingItems(false);
+
+    if (res.ok) { setEditing(false); router.refresh(); }
+    else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to save changes.'); }
+  }
+
   const manualWaUrl = customer?.phone
     ? buildWhatsAppUrl(customer.phone, `Hi ${customer.name || ''}, your YOYO GEMS order #${orderId} status has been updated to: ${milestoneLabel(statusValue)}. Log in to your account to view full details.`)
     : null;
@@ -112,6 +179,21 @@ export default function OrderAdminClient({
           {customer && <> · {customer.name || contactName || 'No name'} · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
+
+        {customer && customerOrderHistory.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <span style={{ fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              This customer's other orders
+            </span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+              {customerOrderHistory.map((o) => (
+                <Link key={o.id} href={`/admin/orders/${o.id}`} className="tag-chip">
+                  #{o.id} · {milestoneLabel(o.status)}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="link-row" style={{ marginBottom: 24 }}>
@@ -151,11 +233,20 @@ export default function OrderAdminClient({
       {toast && <p style={{ fontSize: 12.5, color: 'var(--gold)', marginBottom: 16 }}>{toast}</p>}
 
       <section style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Line items</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Line items</h3>
+          {!editing && (
+            <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>
+              Edit (offline/phone request)
+            </button>
+          )}
+        </div>
         <table>
-          <thead><tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th></tr></thead>
+          <thead>
+            <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{editing && <th></th>}</tr>
+          </thead>
           <tbody>
-            {items.map((i) => (
+            {items.filter((i) => !removedIds.has(i.id)).map((i) => (
               <tr key={i.id}>
                 <td>{i.categoryName}</td>
                 <td>{i.shapeName}</td>
@@ -166,11 +257,82 @@ export default function OrderAdminClient({
                     {i.colorName}
                   </span>
                 </td>
-                <td>{i.quantity}</td>
+                <td>
+                  {editing ? (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={quantities[i.id]}
+                      onChange={(e) => setQuantities({ ...quantities, [i.id]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
+                      style={{ maxWidth: 80, fontSize: 13 }}
+                    />
+                  ) : (
+                    i.quantity
+                  )}
+                </td>
+                {editing && (
+                  <td>
+                    <button type="button" className="btn-danger" onClick={() => setRemovedIds(new Set([...removedIds, i.id]))}>Remove</button>
+                  </td>
+                )}
               </tr>
             ))}
+            {editing && newLines.map((l) => {
+              const opts = categoryOptions[l.categoryId];
+              const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
+              return (
+                <tr key={l.tempId}>
+                  <td>{orderCategories.find(([id]) => id === l.categoryId)?.[1]}</td>
+                  <td>
+                    <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
+                      <option value="">Choose shape</option>
+                      {opts?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={l.sizeId} onChange={(e) => updateNewLine(l.tempId, { sizeId: e.target.value ? Number(e.target.value) : '' })} disabled={!l.shapeId} style={{ fontSize: 12 }}>
+                      <option value="">Choose size</option>
+                      {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
+                      <option value="">Choose color</option>
+                      {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Qty"
+                      value={l.quantity}
+                      onChange={(e) => updateNewLine(l.tempId, { quantity: e.target.value.replace(/\D/g, '') })}
+                      style={{ maxWidth: 80, fontSize: 13 }}
+                    />
+                  </td>
+                  <td>
+                    <button type="button" className="btn-danger" onClick={() => removeNewLine(l.tempId)}>Remove</button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+
+        {editing && (
+          <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-ghost" onClick={addNewLine} disabled={orderCategories.length === 0}>+ Add line</button>
+            <button type="button" className="btn" onClick={saveItemEdits} disabled={savingItems}>{savingItems ? 'Saving…' : 'Save changes'}</button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => { setEditing(false); setQuantities(Object.fromEntries(items.map((i) => [i.id, i.quantity]))); setRemovedIds(new Set()); setNewLines([]); }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </section>
 
       <section>

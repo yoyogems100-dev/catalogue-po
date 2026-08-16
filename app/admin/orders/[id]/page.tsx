@@ -19,6 +19,15 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     ? await supabaseAdmin.from('customers').select('id, name, phone, email, phone_verified').eq('id', order.customer_id).single()
     : { data: null };
 
+  const { data: customerOrderHistory } = customer
+    ? await supabaseAdmin
+        .from('orders')
+        .select('id, status, created_at')
+        .eq('customer_id', customer.id)
+        .neq('id', orderId)
+        .order('created_at', { ascending: false })
+    : { data: [] };
+
   const { data: items } = await supabaseAdmin
     .from('order_items')
     .select('id, category_id, shape_id, shape_size_id, color_id, quantity')
@@ -45,6 +54,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
+    categoryId: it.category_id,
     categoryName: catMap[it.category_id] || '—',
     shapeName: shapeMap[it.shape_id] || '—',
     sizeMm: sizeMap[it.shape_size_id] || '—',
@@ -52,6 +62,48 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     quantity: it.quantity
   }));
+
+  // For editing: fetch each order category's linked shapes/sizes/colors, so admin
+  // can add a new line within a category already on this order (offline/phone
+  // requests) -- same pattern as the customer editor, but admin can always edit
+  // regardless of status.
+  let categoryOptions: Record<number, { shapes: { id: number; name: string }[]; colors: { id: number; name: string; hex: string | null }[]; sizes: { id: number; shapeId: number; sizeMm: string }[] }> = {};
+  if (categoryIds.length > 0) {
+    const [{ data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
+      supabaseAdmin.from('category_shapes').select('category_id, shape_id').in('category_id', categoryIds),
+      supabaseAdmin.from('category_colors').select('category_id, color_id').in('category_id', categoryIds),
+      supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id').in('category_id', categoryIds)
+    ]);
+
+    const allShapeIds = [...new Set((catShapes || []).map((r: any) => r.shape_id))];
+    const allColorIds = [...new Set((catColors || []).map((r: any) => r.color_id))];
+    const allSizeIds = [...new Set((catSizes || []).map((r: any) => r.shape_size_id))];
+
+    const [{ data: allShapes }, { data: allColors }, { data: allSizes }] = await Promise.all([
+      allShapeIds.length ? supabaseAdmin.from('shapes').select('id, name').in('id', allShapeIds) : Promise.resolve({ data: [] }),
+      allColorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value').in('id', allColorIds) : Promise.resolve({ data: [] }),
+      allSizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm').in('id', allSizeIds) : Promise.resolve({ data: [] })
+    ]);
+
+    const shapeById = Object.fromEntries((allShapes || []).map((s: any) => [s.id, s]));
+    const colorById = Object.fromEntries((allColors || []).map((c: any) => [c.id, c]));
+    const sizeById = Object.fromEntries((allSizes || []).map((s: any) => [s.id, s]));
+
+    categoryOptions = Object.fromEntries(
+      categoryIds.map((cid: number) => [
+        cid,
+        {
+          shapes: (catShapes || []).filter((r: any) => r.category_id === cid).map((r: any) => shapeById[r.shape_id]).filter(Boolean),
+          colors: (catColors || [])
+            .filter((r: any) => r.category_id === cid)
+            .map((r: any) => colorById[r.color_id])
+            .filter(Boolean)
+            .map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
+          sizes: (catSizes || []).filter((r: any) => r.category_id === cid).map((r: any) => sizeById[r.shape_size_id]).filter(Boolean).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }))
+        }
+      ])
+    );
+  }
 
   const { data: history } = await supabaseAdmin
     .from('order_status_history')
@@ -78,7 +130,9 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
         requestType={order.request_type}
         contactName={order.contact_name}
         customer={customer}
+        customerOrderHistory={customerOrderHistory || []}
         items={itemsFormatted}
+        categoryOptions={categoryOptions}
         history={history || []}
         notes={notes || []}
       />
