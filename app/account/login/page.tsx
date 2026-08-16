@@ -7,11 +7,12 @@ import { FullLogo } from '@/components/Logo';
 export default function CustomerLoginPage() {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
-  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [needsName, setNeedsName] = useState(false);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
+  const [displayCode, setDisplayCode] = useState<string | null>(null);
   const router = useRouter();
 
   async function requestOtp(e: React.FormEvent) {
@@ -21,17 +22,15 @@ export default function CustomerLoginPage() {
     const res = await fetch('/api/account/otp/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, channel })
+      body: JSON.stringify({ phone })
     });
     const data = await res.json().catch(() => ({}));
     setSending(false);
     if (res.ok) {
       setStep('code');
-      // Only ever set when the code wasn't actually delivered (WhatsApp
-      // template not live yet, or SMS which is stubbed) -- lets you test
-      // the login flow without a working delivery channel.
-      setDevCode(data.devCode || null);
-      if (data.devCode) setCode(data.devCode);
+      setDisplayCode(data.code);
+      setCode(data.code);
+      setNeedsName(!!data.needsName);
     } else {
       setError(data.error || 'Failed to send code. Please try again.');
     }
@@ -44,7 +43,7 @@ export default function CustomerLoginPage() {
     const res = await fetch('/api/account/otp/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, code })
+      body: JSON.stringify({ phone, code, name: needsName ? name : undefined })
     });
     setSending(false);
     if (res.ok) {
@@ -71,42 +70,37 @@ export default function CustomerLoginPage() {
             autoFocus
             style={{ marginBottom: 14 }}
           />
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <input type="radio" name="channel" checked={channel === 'whatsapp'} onChange={() => setChannel('whatsapp')} />
-              Get code via WhatsApp
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <input type="radio" name="channel" checked={channel === 'sms'} onChange={() => setChannel('sms')} />
-              Get code via SMS
-            </label>
-          </div>
           {error && <p style={{ color: '#a3341f', fontSize: 12.5, marginBottom: 10 }}>{error}</p>}
           <button type="submit" className="btn" style={{ width: '100%' }} disabled={sending}>
-            {sending ? 'Sending…' : 'Send code'}
+            {sending ? 'Sending…' : 'Get code'}
           </button>
         </form>
       ) : (
         <form onSubmit={verifyOtp}>
-          <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14 }}>
-            Enter the 6-digit code sent to {phone} via {channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
-          </p>
-          {/* WORKAROUND: only renders when the API returns devCode, which only happens
-              when the code wasn't actually delivered. Self-disables once WhatsApp
-              sending goes live -- see the WORKAROUND note in otp/request/route.ts. */}
-          {devCode && (
+          {displayCode && (
             <p style={{ fontSize: 12.5, background: '#f4e6d0', color: '#8a5a1f', padding: '8px 10px', marginBottom: 14, borderRadius: 4 }}>
-              Testing mode -- {channel === 'whatsapp' ? 'WhatsApp sending' : 'SMS'} isn't live yet, so it wasn't actually sent.
-              Your code: <strong>{devCode}</strong> (pre-filled below).
+              Your verification code: <strong>{displayCode}</strong> (pre-filled below).
             </p>
           )}
+          {needsName && (
+            <>
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your name</label>
+              <input
+                type="text"
+                placeholder="e.g. Rajesh Kumar"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{ marginBottom: 14 }}
+              />
+            </>
+          )}
+          <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>6-digit code</label>
           <input
             type="text"
             inputMode="numeric"
             placeholder="6-digit code"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            autoFocus
             style={{ marginBottom: 14, letterSpacing: 4, textAlign: 'center', fontSize: 18 }}
           />
           {error && <p style={{ color: '#a3341f', fontSize: 12.5, marginBottom: 10 }}>{error}</p>}
@@ -117,7 +111,7 @@ export default function CustomerLoginPage() {
             type="button"
             className="btn-ghost"
             style={{ width: '100%', marginTop: 8 }}
-            onClick={() => { setStep('phone'); setCode(''); setError(''); setDevCode(null); }}
+            onClick={() => { setStep('phone'); setCode(''); setError(''); setDisplayCode(null); }}
           >
             &larr; Use a different number
           </button>

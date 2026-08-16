@@ -113,15 +113,14 @@ export default function OrderAdminClient({
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to add note.'); }
   }
 
-  async function notifyAuto() {
-    setBusy(true);
-    const res = await fetch(`/api/admin/orders/${orderId}/notify`, { method: 'POST' });
-    const data = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) setToast(data.error || 'Failed to notify customer.');
-    else if (data.stubbed) setToast('WhatsApp API not live yet -- code was logged server-side instead of sent.');
-    else if (data.ok) { setToast('Customer notified via WhatsApp.'); router.refresh(); }
-    else setToast(data.error || 'WhatsApp send failed.');
+  // Notifying is a separate, manual action the admin triggers whenever they choose --
+  // not tied to the moment the status is changed. Opens a pre-filled wa.me link for
+  // the admin to send themselves, then marks it on record (best-effort; there's no
+  // way to confirm the message was actually sent, only that this was clicked).
+  function notifyViaWhatsApp() {
+    if (!manualWaUrl) return;
+    window.open(manualWaUrl, '_blank', 'noopener,noreferrer');
+    fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
   }
 
   function addNewLine() {
@@ -162,8 +161,10 @@ export default function OrderAdminClient({
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to save changes.'); }
   }
 
+  // Uses the saved status, not the (possibly unsaved) dropdown selection --
+  // notifying should always reflect what's actually on record.
   const manualWaUrl = customer?.phone
-    ? buildWhatsAppUrl(customer.phone, `Hi ${customer.name || ''}, your YOYO GEMS order #${orderId} status has been updated to: ${milestoneLabel(statusValue)}. Log in to your account to view full details.`)
+    ? buildWhatsAppUrl(customer.phone, `Hi ${customer.name || ''}, your YOYO GEMS order #${orderId} status has been updated to: ${milestoneLabel(status)}. Log in to your account to view full details.`)
     : null;
 
   const timeline = [
@@ -220,13 +221,11 @@ export default function OrderAdminClient({
         <div>
           <h3 className="section-label">Notify customer</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-ghost" onClick={notifyAuto} disabled={busy || !customer?.phone}>Notify via WhatsApp</button>
-            {manualWaUrl && (
-              <a href={manualWaUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost" style={{ display: 'inline-block' }}>
-                Open WhatsApp manually
-              </a>
-            )}
+            <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>Notify via WhatsApp</button>
           </div>
+          <p style={{ fontSize: 11, color: '#8a8370', marginTop: 6 }}>
+            Opens WhatsApp with the current status pre-filled -- send whenever you choose, independent of when the status was changed.
+          </p>
         </div>
       </section>
 

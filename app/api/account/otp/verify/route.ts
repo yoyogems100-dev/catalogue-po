@@ -3,9 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { customerCookieName, signCustomerToken } from '@/lib/customer-auth';
 
 export async function POST(req: NextRequest) {
-  const { phone, code } = await req.json();
+  const { phone, code, name } = await req.json();
   const digits = (phone || '').replace(/\D/g, '');
   const trimmedCode = (code || '').trim();
+  const trimmedName = (name || '').trim();
 
   if (digits.length < 10 || trimmedCode.length !== 6) {
     return NextResponse.json({ error: 'Invalid phone or code' }, { status: 400 });
@@ -27,19 +28,18 @@ export async function POST(req: NextRequest) {
 
   await supabaseAdmin.from('otp_codes').update({ consumed: true }).eq('id', otp.id);
 
-  const { data: existing } = await supabaseAdmin.from('customers').select('id').eq('phone', digits).maybeSingle();
+  const { data: existing } = await supabaseAdmin.from('customers').select('id, name').eq('phone', digits).maybeSingle();
 
   let customerId: number;
   if (existing) {
     customerId = existing.id;
-    await supabaseAdmin
-      .from('customers')
-      .update({ phone_verified: true, last_login_at: new Date().toISOString() })
-      .eq('id', customerId);
+    const patch: Record<string, any> = { phone_verified: true, last_login_at: new Date().toISOString() };
+    if (trimmedName && !existing.name) patch.name = trimmedName;
+    await supabaseAdmin.from('customers').update(patch).eq('id', customerId);
   } else {
     const { data: created, error } = await supabaseAdmin
       .from('customers')
-      .insert({ phone: digits, phone_verified: true, last_login_at: new Date().toISOString() })
+      .insert({ phone: digits, name: trimmedName || null, phone_verified: true, last_login_at: new Date().toISOString() })
       .select('id')
       .single();
     if (error || !created) {

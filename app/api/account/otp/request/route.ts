@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 
+// OTP delivery is on-screen only, by design (not a stopgap) -- see
+// app/account/login/page.tsx. There's no WhatsApp/SMS channel to pick since
+// neither actually sends anything; lib/wasarthi.ts is kept dormant in case
+// real WhatsApp Business API sending is wired up later, but this route
+// doesn't call it.
 export async function POST(req: NextRequest) {
-  const { phone, channel } = await req.json();
-
-  if (channel !== 'whatsapp' && channel !== 'sms') {
-    return NextResponse.json({ error: 'Invalid channel' }, { status: 400 });
-  }
+  const { phone } = await req.json();
 
   const digits = (phone || '').replace(/\D/g, '');
   if (digits.length < 10) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supabaseAdmin.from('otp_codes').insert({
     phone: digits,
     code,
-    channel,
+    channel: 'whatsapp',
     expires_at: expiresAt,
     consumed: false
   });
@@ -32,23 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // WORKAROUND: devCode lets the login flow be tested without a working delivery
-  // channel. It's only ever set when the code was NOT actually sent -- for WhatsApp
-  // that's automatic (sendWhatsAppTemplate returns stubbed:true until
-  // WHATSAPP_OTP_ENABLED=true, at which point this branch stops firing and devCode
-  // stays null with no code change needed here). For SMS it's always set, since
-  // there's no provider wired yet -- that part only goes away once one is chosen
-  // (see TODO below), which is a separate, unrelated piece of work.
-  let devCode: string | null = null;
+  const { data: existingCustomer } = await supabaseAdmin.from('customers').select('name').eq('phone', digits).maybeSingle();
 
-  if (channel === 'whatsapp') {
-    const result = await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
-    if (result.stubbed) devCode = code;
-  } else {
-    // TODO: wire to SMS provider once chosen (e.g. MSG91, Twilio).
-    console.log(`[SMS stub] would send OTP ${code} to ${digits}`);
-    devCode = code;
-  }
-
-  return NextResponse.json({ ok: true, devCode });
+  return NextResponse.json({ ok: true, code, needsName: !existingCustomer?.name });
 }
