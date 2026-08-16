@@ -32,11 +32,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // devCode is only ever returned when the code was NOT actually delivered
-  // (WhatsApp template not live yet, or SMS -- which is always stubbed for
-  // now) so the login flow can still be tested end-to-end. Once a real
-  // channel is live, sendWhatsAppTemplate returns stubbed: false and this
-  // stays null -- the code is never echoed back over the wire in that case.
+  // WORKAROUND: devCode lets the login flow be tested without a working delivery
+  // channel. It's only ever set when the code was NOT actually sent -- for WhatsApp
+  // that's automatic (sendWhatsAppTemplate returns stubbed:true until
+  // WHATSAPP_OTP_ENABLED=true, at which point this branch stops firing and devCode
+  // stays null with no code change needed here). For SMS it's always set, since
+  // there's no provider wired yet -- that part only goes away once one is chosen
+  // (see TODO below), which is a separate, unrelated piece of work.
   let devCode: string | null = null;
 
   if (channel === 'whatsapp') {

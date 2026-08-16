@@ -12,6 +12,11 @@
 // Sending is gated behind WHATSAPP_OTP_ENABLED (defaults to disabled) until
 // WASARTHI_API_URL / WASARTHI_API_KEY are confirmed set and the templates below
 // are confirmed approved. While disabled, this logs what would have been sent.
+//
+// TO GO LIVE: set WHATSAPP_OTP_ENABLED=true (plus WASARTHI_API_URL / WASARTHI_API_KEY)
+// in Vercel env vars. That's it -- no code change needed, the stub branch below just
+// stops being reached. Nothing here needs deleting once it's confirmed working; it's
+// dead code at that point but harmless to leave.
 
 type SendResult = { ok: boolean; stubbed: boolean; error?: string };
 
@@ -24,6 +29,8 @@ export async function sendWhatsAppTemplate(
   const digits = phone.replace(/\D/g, '');
   const withCountryCode = digits.length === 10 ? `91${digits}` : digits;
 
+  // WORKAROUND: stub path while WHATSAPP_OTP_ENABLED is unset/false. Logs instead of
+  // sending. Flip the env var to switch to real sending -- see note above.
   if (process.env.WHATSAPP_OTP_ENABLED !== 'true') {
     console.log(`[WhatsApp stub] would send template "${templateName}" to ${withCountryCode} with params: ${JSON.stringify(params)}`);
     return { ok: true, stubbed: true };
@@ -73,9 +80,9 @@ export async function sendWhatsAppTemplate(
   }
 }
 
-// TODO: replace with the exact approved template names from the Clixrio dashboard
-// once confirmed -- Clixrio may auto-generate or modify the names typed at submission.
+// Confirmed approved template names (Clixrio dashboard). Env var override is kept
+// only in case a name ever needs to change without a redeploy.
 export const WHATSAPP_TEMPLATES = {
-  otp: process.env.WASARTHI_OTP_TEMPLATE_NAME || 'yoyo_gems_otp',
-  orderStatus: process.env.WASARTHI_ORDER_STATUS_TEMPLATE_NAME || 'yoyo_gems_order_status'
+  otp: process.env.WASARTHI_OTP_TEMPLATE_NAME || 'yoyo_otp_login',
+  orderStatus: process.env.WASARTHI_ORDER_STATUS_TEMPLATE_NAME || 'yoyo_order_status_update'
 };

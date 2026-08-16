@@ -91,6 +91,9 @@ export default function CustomerLoginPage() {
           <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14 }}>
             Enter the 6-digit code sent to {phone} via {channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
           </p>
+          {/* WORKAROUND: only renders when the API returns devCode, which only happens
+              when the code wasn't actually delivered. Self-disables once WhatsApp
+              sending goes live -- see the WORKAROUND note in otp/request/route.ts. */}
           {devCode && (
             <p style={{ fontSize: 12.5, background: '#f4e6d0', color: '#8a5a1f', padding: '8px 10px', marginBottom: 14, borderRadius: 4 }}>
               Testing mode -- {channel === 'whatsapp' ? 'WhatsApp sending' : 'SMS'} isn't live yet, so it wasn't actually sent.
