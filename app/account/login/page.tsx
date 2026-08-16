@@ -11,6 +11,7 @@ export default function CustomerLoginPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const router = useRouter();
 
   async function requestOtp(e: React.FormEvent) {
@@ -22,11 +23,16 @@ export default function CustomerLoginPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, channel })
     });
+    const data = await res.json().catch(() => ({}));
     setSending(false);
     if (res.ok) {
       setStep('code');
+      // Only ever set when the code wasn't actually delivered (WhatsApp
+      // template not live yet, or SMS which is stubbed) -- lets you test
+      // the login flow without a working delivery channel.
+      setDevCode(data.devCode || null);
+      if (data.devCode) setCode(data.devCode);
     } else {
-      const data = await res.json().catch(() => ({}));
       setError(data.error || 'Failed to send code. Please try again.');
     }
   }
@@ -85,6 +91,12 @@ export default function CustomerLoginPage() {
           <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14 }}>
             Enter the 6-digit code sent to {phone} via {channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.
           </p>
+          {devCode && (
+            <p style={{ fontSize: 12.5, background: '#f4e6d0', color: '#8a5a1f', padding: '8px 10px', marginBottom: 14, borderRadius: 4 }}>
+              Testing mode -- {channel === 'whatsapp' ? 'WhatsApp sending' : 'SMS'} isn't live yet, so it wasn't actually sent.
+              Your code: <strong>{devCode}</strong> (pre-filled below).
+            </p>
+          )}
           <input
             type="text"
             inputMode="numeric"
@@ -102,7 +114,7 @@ export default function CustomerLoginPage() {
             type="button"
             className="btn-ghost"
             style={{ width: '100%', marginTop: 8 }}
-            onClick={() => { setStep('phone'); setCode(''); setError(''); }}
+            onClick={() => { setStep('phone'); setCode(''); setError(''); setDevCode(null); }}
           >
             &larr; Use a different number
           </button>

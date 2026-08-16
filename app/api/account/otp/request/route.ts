@@ -32,12 +32,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  // devCode is only ever returned when the code was NOT actually delivered
+  // (WhatsApp template not live yet, or SMS -- which is always stubbed for
+  // now) so the login flow can still be tested end-to-end. Once a real
+  // channel is live, sendWhatsAppTemplate returns stubbed: false and this
+  // stays null -- the code is never echoed back over the wire in that case.
+  let devCode: string | null = null;
+
   if (channel === 'whatsapp') {
-    await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
+    const result = await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
+    if (result.stubbed) devCode = code;
   } else {
     // TODO: wire to SMS provider once chosen (e.g. MSG91, Twilio).
     console.log(`[SMS stub] would send OTP ${code} to ${digits}`);
+    devCode = code;
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, devCode });
 }
