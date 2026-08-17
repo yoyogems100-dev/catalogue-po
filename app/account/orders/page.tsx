@@ -4,10 +4,23 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import OrderStepper from '@/components/OrderStepper';
+import ProfileGate from './ProfileGate';
 
 export default async function AccountOrdersPage() {
   const customerId = getCustomerId();
   if (!customerId) redirect('/account/login');
+
+  const { data: customer } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
+  if (!customer?.name) {
+    return (
+      <>
+        <AccountHeader />
+        <div className="container" style={{ padding: '28px 20px 80px' }}>
+          <ProfileGate />
+        </div>
+      </>
+    );
+  }
 
   const { data: orders } = await supabaseAdmin
     .from('orders')

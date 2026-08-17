@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
+import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 
 export async function POST(req: NextRequest) {
@@ -15,29 +16,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   }
 
-  // A logged-in customer's session always wins over whatever (optional) phone
-  // number they typed into the form -- otherwise an order placed while logged
-  // in but with that field left blank, or filled in with a differently
-  // formatted number, would never show up on their own /account/orders.
+  // Placing an order never requires auth -- this phone field is optional and
+  // unverified, just used to address a notification about this one order (Phase 3
+  // Part 0). A logged-in session still wins when present, purely so the order shows
+  // up in their own history automatically; it's not a requirement to place one.
   let customerId: number | null = getCustomerId();
 
   if (!customerId && contactPhone) {
-    const digits = contactPhone.replace(/\D/g, '');
-    const { data: existing } = await supabaseAdmin.from('customers').select('id').eq('phone', digits).maybeSingle();
-    if (existing) {
-      customerId = existing.id;
-    } else {
-      const { data: created, error } = await supabaseAdmin
-        .from('customers')
-        .insert({ phone: digits, name: contactName || null })
-        .select('id')
-        .single();
-      if (!error && created) customerId = created.id;
-    }
+    const identity = await findOrCreateCustomer({ phone: contactPhone });
+    customerId = identity.id;
   }
 
+  // Never overwrite a name that's already on file (e.g. from Phase 3 profile
+  // completion) -- only fill it in if the customer genuinely has none yet.
   if (customerId && contactName) {
-    await supabaseAdmin.from('customers').update({ name: contactName }).eq('id', customerId);
+    const { data: existing } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
+    if (!existing?.name) {
+      await supabaseAdmin.from('customers').update({ name: contactName }).eq('id', customerId);
+    }
   }
 
   const message = buildOrderMessage(cart, requestType, contactName, comment);

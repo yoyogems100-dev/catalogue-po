@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 
 export async function POST(req: NextRequest) {
@@ -29,23 +30,17 @@ export async function POST(req: NextRequest) {
   } else if (newCustomerPhone) {
     const digits = newCustomerPhone.replace(/\D/g, '');
     if (digits.length < 10) return NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 });
-    const { data: existing } = await supabaseAdmin.from('customers').select('id, name').eq('phone', digits).maybeSingle();
-    if (existing) {
-      customerId = existing.id;
-      contactName = existing.name;
-      if (newCustomerName) {
-        await supabaseAdmin.from('customers').update({ name: newCustomerName }).eq('id', existing.id);
-        contactName = newCustomerName;
-      }
-    } else {
-      const { data: created, error } = await supabaseAdmin
-        .from('customers')
-        .insert({ phone: digits, name: newCustomerName || null })
-        .select('id')
-        .single();
-      if (error || !created) return NextResponse.json({ error: error?.message || 'Failed to create customer' }, { status: 400 });
-      customerId = created.id;
-      contactName = newCustomerName || null;
+
+    const identity = await findOrCreateCustomer({ phone: digits });
+    customerId = identity.id;
+    contactName = identity.name;
+
+    // Admin explicitly typed a name here -- treat it as authoritative (this is the
+    // backend-created-customer path from Part 0; setting it now is the equivalent
+    // of profile completion, not a loose guess like the public order form's field).
+    if (newCustomerName) {
+      await supabaseAdmin.from('customers').update({ name: newCustomerName }).eq('id', customerId);
+      contactName = newCustomerName;
     }
   }
 

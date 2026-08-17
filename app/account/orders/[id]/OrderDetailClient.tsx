@@ -172,6 +172,7 @@ export default function OrderDetailClient({
           </div>
         </div>
 
+        <div style={{ overflowX: 'auto' }}>
         <table>
           <thead>
             <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{editing && <th></th>}</tr>
@@ -263,6 +264,7 @@ export default function OrderDetailClient({
             })}
           </tbody>
         </table>
+        </div>
 
         {editing && (
           <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>

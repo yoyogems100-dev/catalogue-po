@@ -1,9 +1,19 @@
 import { supabasePublic } from '@/lib/supabase-public';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
+import { getCustomerId } from '@/lib/customer-auth';
 import CategoryTabs from './CategoryTabs';
 import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
+import AccountMenu from '@/components/AccountMenu';
 import Link from 'next/link';
+
+async function getAccountState() {
+  const customerId = getCustomerId();
+  if (!customerId) return { loggedIn: false, customerName: null };
+  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
+  return { loggedIn: true, customerName: data?.name || null };
+}
 
 export const revalidate = 30;
 
@@ -61,7 +71,7 @@ async function getCategoryData(slug: string) {
 }
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
-  const [data, settings] = await Promise.all([getCategoryData(params.slug), getSettings()]);
+  const [data, settings, account] = await Promise.all([getCategoryData(params.slug), getSettings(), getAccountState()]);
 
   if (!data) {
     return (
@@ -76,6 +86,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     <>
       <div className="topbar">
         <Link href="/"><HeaderLogo height={28} /></Link>
+        <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <Link href="/" style={{ fontSize: 13, color: 'var(--navy)' }}>&larr; All categories</Link>

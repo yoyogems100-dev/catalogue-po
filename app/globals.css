@@ -33,11 +33,26 @@ a { color: inherit; text-decoration: none; }
 }
 .brandmark { font-family: 'Playfair Display', serif; font-weight: 600; letter-spacing: 1.5px; font-size: 16px; color: var(--ink); }
 
+/* Account menu (header icon: sign-in popover when logged out, My Orders when in) */
+.account-menu { position: relative; }
+.account-menu-trigger {
+  display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
+  color: #fff; font-size: 13px; padding: 8px; min-height: 44px; min-width: 44px; justify-content: center;
+}
+.account-menu-trigger:hover { color: var(--gold-soft); }
+.account-menu-backdrop { position: fixed; inset: 0; z-index: 55; }
+.account-menu-popover {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 60;
+  width: 300px; max-width: calc(100vw - 32px);
+  background: #fff; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
 .hero {
   background: linear-gradient(160deg, var(--ink), var(--navy) 70%);
   color: var(--ivory); text-align: center; padding: 52px 20px 40px;
 }
 .hero.hero-compact { padding: 34px 20px 28px; }
+.hero-top-row { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 .hero .eyebrow { font-size: 10.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 20px; }
 .hero.hero-compact .eyebrow { margin-bottom: 14px; }
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
@@ -63,9 +78,11 @@ a { color: inherit; text-decoration: none; }
 .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
 .btn-danger { background: #a3341f; color: #fff; border: none; padding: 8px 14px; font-size: 12px; cursor: pointer; }
 
-input[type="text"], input[type="password"], select, textarea {
+input[type="text"], input[type="password"], input[type="tel"], input[type="email"], input[type="number"], select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%;
 }
+
+html, body { overflow-x: hidden; }
 
 .card { background: #fff; border: 0.5px solid var(--line); border-radius: 6px; }
 
@@ -396,6 +413,22 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 
 /* ---------- MOBILE ---------- */
 @media (max-width: 780px) {
+  /* Bug A: iOS Safari auto-zooms the viewport when a focused input/select/textarea
+     has font-size under 16px, and won't zoom back out on its own. This single rule
+     eliminates it site-wide. Needs !important -- author-stylesheet !important beats
+     even inline styles (several inputs set font-size inline), and there are many
+     more-specific selectors below setting smaller sizes that this must still win over. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Bug B: tables aren't fluid and don't wrap -- scope overflow to the content area
+     instead of letting a wide table force page-level horizontal scroll. Covers every
+     admin table (categories/shapes/orders/etc, all render inside .admin-main). */
+  .admin-main { overflow-x: auto; }
+
+  /* Comfortable tap targets (44px guideline) on primary interactive elements */
+  .btn, .btn-ghost { min-height: 44px; padding: 12px 18px; }
+  .tag-chip { padding: 8px 14px; }
+
   .admin-shell { grid-template-columns: 1fr; }
   .admin-nav {
     display: flex; align-items: center; gap: 4px; overflow-x: auto; padding: 12px 10px;
@@ -406,7 +439,8 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .admin-nav form { margin-top: 0 !important; margin-left: auto; flex-shrink: 0; }
   .admin-main { padding: 16px; }
   .admin-main h1 { font-size: 19px; }
-  .link-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  /* 3 equal columns was still too cramped for a select+button pair each on a phone */
+  .link-row { grid-template-columns: 1fr; gap: 14px; }
   .section-label { font-size: 10px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ms-trigger { padding: 8px 6px; }
   .ms-preview-stack { display: none; }
@@ -417,6 +451,10 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .ms-panel { width: min(260px, 92vw); left: 50%; right: auto; transform: translateX(-50%); }
   .link-row > div:first-child .ms-panel { left: 0; transform: none; }
   .link-row > div:last-child .ms-panel { left: auto; right: 0; transform: none; }
+  /* Same class of bug as .ms-panel above -- icon-select-panel (homepage/category
+     shape+color filters) had no mobile clamp at all and could run off either edge
+     depending on which filter in the row opened it. */
+  .icon-select-panel { left: auto; right: 0; width: min(240px, calc(100vw - 28px)); }
   table { font-size: 12.5px; }
   th, td { padding: 8px 6px; }
   .grid-cats { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
@@ -443,9 +481,18 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .po-add-form { grid-template-columns: 1fr 1fr; gap: 8px; }
   .po-item-list { max-height: none; }
   .po-item-row { padding: 8px; gap: 6px; }
-  .po-item-row input.po-cart-qty { width: 46px; flex: 0 0 46px; padding: 5px 2px; font-size: 12px; }
+  /* Widened from 46px -- too narrow once the 16px-minimum font-size rule above
+     applies here too (a 4-5 digit qty no longer fit comfortably at the old width) */
+  .po-item-row input.po-cart-qty { width: 58px; flex: 0 0 58px; padding: 5px 2px; }
   .po-send-row { grid-template-columns: 1fr; gap: 4px; }
   .cat-tabs { gap: 4px; }
   .cat-tab { font-size: 12.5px; margin-right: 10px; padding: 8px 2px; }
   [style*="grid-template-columns: repeat(auto-fill, minmax(220px"] { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
+}
+
+/* Narrow phones (iPhone SE/mini and similar, ~375-390px): the order form's
+   shape/color/size/qty picker is the highest-traffic mobile interaction, so give
+   it the full width per field here instead of squeezing two into a row. */
+@media (max-width: 480px) {
+  .po-add-form { grid-template-columns: 1fr; }
 }

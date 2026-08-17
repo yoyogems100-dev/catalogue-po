@@ -1,9 +1,18 @@
 import { supabasePublic } from '@/lib/supabase-public';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { photoUrl } from '@/lib/photos';
+import { getCustomerId } from '@/lib/customer-auth';
 import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
+
+async function getAccountState() {
+  const customerId = getCustomerId();
+  if (!customerId) return { loggedIn: false, customerName: null };
+  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
+  return { loggedIn: true, customerName: data?.name || null };
+}
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
@@ -73,11 +82,11 @@ async function getData() {
 }
 
 export default async function HomePage() {
-  const [{ categories, allShapes, allColors }, settings] = await Promise.all([getData(), getSettings()]);
+  const [{ categories, allShapes, allColors }, settings, account] = await Promise.all([getData(), getSettings(), getAccountState()]);
 
   return (
     <>
-      <HomeHero />
+      <HomeHero loggedIn={account.loggedIn} customerName={account.customerName} />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} />
       </div>
