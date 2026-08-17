@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 
-// OTP delivery is on-screen only, by design (not a stopgap) -- see
-// app/account/login/page.tsx. There's no WhatsApp/SMS channel to pick since
-// neither actually sends anything; lib/wasarthi.ts is kept dormant in case
-// real WhatsApp Business API sending is wired up later, but this route
-// doesn't call it.
+// The code is always shown on-screen (Phase 3 decision, permanent, not a
+// fallback) so login never depends on delivery succeeding. Sending a real
+// WhatsApp copy on top of that is best-effort: awaited so logs are useful for
+// debugging the integration, but its result never blocks or changes the
+// response -- a failed/misconfigured send must not lock anyone out of login.
 export async function POST(req: NextRequest) {
   const { phone } = await req.json();
 
@@ -33,6 +34,12 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: existingCustomer } = await supabaseAdmin.from('customers').select('name').eq('phone', digits).maybeSingle();
+
+  try {
+    await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
+  } catch (err) {
+    console.error('WhatsApp OTP send threw unexpectedly:', err);
+  }
 
   return NextResponse.json({ ok: true, code, needsName: !existingCustomer?.name });
 }
