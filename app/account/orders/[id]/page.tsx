@@ -127,8 +127,14 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     <>
       <AccountHeader />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <Link href="/account/orders" style={{ fontSize: 13, color: 'var(--navy)' }}>&larr; All orders</Link>
-        <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '10px 0 16px' }}>Order #{order.id}</h1>
+        <nav className="breadcrumb-nav">
+          <Link href="/">&#127968; Home</Link>
+          <span className="breadcrumb-sep">/</span>
+          <Link href="/account/orders">My Orders</Link>
+          <span className="breadcrumb-sep">/</span>
+          <span className="breadcrumb-current">Order #{order.id}</span>
+        </nav>
+        <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 16px' }}>Order #{order.id}</h1>
 
         <div className="po-card" style={{ marginBottom: 20 }}>
           <OrderStepper status={order.status} />

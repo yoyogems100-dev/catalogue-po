@@ -44,6 +44,11 @@ export default async function AccountOrdersPage() {
     <>
       <AccountHeader />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
+        <nav className="breadcrumb-nav">
+          <Link href="/">&#127968; Home</Link>
+          <span className="breadcrumb-sep">/</span>
+          <span className="breadcrumb-current">My Orders</span>
+        </nav>
         <h1 style={{ fontSize: 26, color: 'var(--ink)', marginBottom: 18 }}>My Orders</h1>
 
         {(orders || []).length === 0 ? (
