@@ -34,8 +34,13 @@ export async function POST(req: NextRequest) {
     .update({ phone_verified: true, last_login_at: new Date().toISOString() })
     .eq('id', identity.id);
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(customerCookieName(), signCustomerToken(identity.id), {
+  const token = signCustomerToken(identity.id);
+
+  // Token is always included in the body too -- the web client ignores it (cookie is
+  // what it actually uses), the mobile app can't use cookies naturally so it stores
+  // this in expo-secure-store and sends it back as Authorization: Bearer <token>.
+  const res = NextResponse.json({ ok: true, token, customerId: identity.id });
+  res.cookies.set(customerCookieName(), token, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',

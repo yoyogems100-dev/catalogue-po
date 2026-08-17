@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
   const identity = await verifyToken(token);
   if (!identity) return NextResponse.json({ error: 'Invalid or expired link' }, { status: 400 });
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(customerCookieName(), signCustomerToken(identity.id), {
+  const signedToken = signCustomerToken(identity.id);
+  const res = NextResponse.json({ ok: true, token: signedToken, customerId: identity.id });
+  res.cookies.set(customerCookieName(), signedToken, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
