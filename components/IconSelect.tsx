@@ -34,8 +34,16 @@ type Props = SingleProps | MultiProps;
 // filters on category listing pages) or a checkbox multi-select mode (values +
 // placeholder, used by POSelector so one order line can cover several
 // shapes/colors at once).
+//
+// Branches on props.multiple with explicit casts rather than relying on
+// automatic discriminated-union narrowing -- TS doesn't narrow reliably here
+// because the discriminant (`multiple`) is optional on one side of the union.
 export default function IconSelect(props: Props) {
   const { options, leading = 'none', searchable = options.length > 6 } = props;
+  const isMulti = props.multiple === true;
+  const single = props as SingleProps;
+  const multi = props as MultiProps;
+
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -68,19 +76,24 @@ export default function IconSelect(props: Props) {
 
   let triggerLabel: string;
   let selected: Option | null = null;
-  if (props.multiple) {
-    if (props.values.length === 0) triggerLabel = props.placeholder;
-    else if (props.values.length === 1) triggerLabel = options.find((o) => o.id === props.values[0])?.name || props.placeholder;
-    else triggerLabel = `${props.values.length} selected`;
+  if (isMulti) {
+    if (multi.values.length === 0) triggerLabel = multi.placeholder;
+    else if (multi.values.length === 1) triggerLabel = options.find((o) => o.id === multi.values[0])?.name || multi.placeholder;
+    else triggerLabel = `${multi.values.length} selected`;
   } else {
-    selected = props.value === 'all' ? null : options.find((o) => o.id === props.value) || null;
-    triggerLabel = selected ? selected.name : props.allLabel;
+    selected = single.value === 'all' ? null : options.find((o) => o.id === single.value) || null;
+    triggerLabel = selected ? selected.name : single.allLabel;
   }
 
   function toggleValue(id: number) {
-    if (!props.multiple) return;
-    const next = props.values.includes(id) ? props.values.filter((v) => v !== id) : [...props.values, id];
-    props.onChange(next);
+    if (!isMulti) return;
+    const next = multi.values.includes(id) ? multi.values.filter((v) => v !== id) : [...multi.values, id];
+    multi.onChange(next);
+  }
+
+  function pickSingle(id: number) {
+    single.onChange(id);
+    setOpen(false);
   }
 
   return (
@@ -105,24 +118,24 @@ export default function IconSelect(props: Props) {
             />
           )}
 
-          {!props.multiple && (
+          {!isMulti && (
             <div
-              className={`icon-select-row ${props.value === 'all' ? 'active' : ''}`}
-              onClick={() => { props.onChange('all'); setOpen(false); }}
+              className={`icon-select-row ${single.value === 'all' ? 'active' : ''}`}
+              onClick={() => { single.onChange('all'); setOpen(false); }}
             >
-              {props.allLabel}
+              {single.allLabel}
             </div>
           )}
 
           {filtered.map((o) => {
-            const isActive = props.multiple ? props.values.includes(o.id) : props.value === o.id;
+            const isActive = isMulti ? multi.values.includes(o.id) : single.value === o.id;
             return (
               <div
                 key={o.id}
                 className={`icon-select-row ${isActive ? 'active' : ''}`}
-                onClick={() => (props.multiple ? toggleValue(o.id) : (() => { props.onChange(o.id); setOpen(false); })())}
+                onClick={() => (isMulti ? toggleValue(o.id) : pickSingle(o.id))}
               >
-                {props.multiple && (
+                {isMulti && (
                   <input type="checkbox" checked={isActive} readOnly className="icon-select-checkbox" />
                 )}
                 <Leading o={o} />
