@@ -167,8 +167,33 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
+  const linkedShapes = allShapes.filter((s) => linkedShapeIds.includes(s.id));
+  const linkedColors = allColors.filter((c) => linkedColorIds.includes(c.id));
+  const linkedSizes = allSizes.filter((sz) => linkedSizeIds.includes(sz.id));
+
   return (
     <div style={{ marginTop: 20 }}>
+      {/* At-a-glance summary of everything linked to this category -- the dropdowns
+          below only show counts/previews until opened, this spells it out in one look. */}
+      <section className="cat-summary-panel" style={{ marginBottom: 20 }}>
+        <div>
+          <span className="cat-summary-label">{linkedShapes.length} Shape{linkedShapes.length === 1 ? '' : 's'}</span>
+          <p className="cat-summary-value">{linkedShapes.length ? linkedShapes.map((s) => s.name).join(', ') : 'None linked yet'}</p>
+        </div>
+        <div>
+          <span className="cat-summary-label">{linkedColors.length} Color{linkedColors.length === 1 ? '' : 's'}</span>
+          <p className="cat-summary-value">{linkedColors.length ? linkedColors.map((c) => c.name).join(', ') : 'None linked yet'}</p>
+        </div>
+        <div>
+          <span className="cat-summary-label">{linkedSizes.length} Size{linkedSizes.length === 1 ? '' : 's'}</span>
+          <p className="cat-summary-value">
+            {linkedSizes.length
+              ? linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
+              : 'None linked yet'}
+          </p>
+        </div>
+      </section>
+
       {/* Shapes+sizes, Colors, Tags -- all compact dropdowns in one row to minimize page scroll */}
       <section style={{ marginBottom: 24 }}>
         <div className="link-row">

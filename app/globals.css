@@ -179,6 +179,13 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* Shared multiselect dropdown styling (MultiSelect + ShapeSizeSelect) */
 .link-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 20px; align-items: start; }
 .section-label { font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; font-weight: 500; }
+
+.cat-summary-panel {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  background: #faf8f3; border: 1px solid var(--line); padding: 14px 18px;
+}
+.cat-summary-label { display: block; font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; margin-bottom: 4px; }
+.cat-summary-value { font-size: 12.5px; color: var(--charcoal); line-height: 1.5; margin: 0; }
 .ms-trigger {
   border: 1px solid var(--line); background: #fff; padding: 9px 10px; cursor: pointer;
   display: flex; gap: 6px; align-items: center; justify-content: space-between; min-height: 20px;
@@ -508,6 +515,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .admin-main h1 { font-size: 19px; }
   /* 3 equal columns was still too cramped for a select+button pair each on a phone */
   .link-row { grid-template-columns: 1fr; gap: 14px; }
+  .cat-summary-panel { grid-template-columns: 1fr; gap: 10px; }
   .section-label { font-size: 10px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ms-trigger { padding: 8px 6px; }
   .ms-preview-stack { display: none; }

@@ -74,10 +74,21 @@ export default function ShapesClient({
 
   async function addSize(shapeId: number) {
     if (!newSize.trim()) return;
+    // Comma or newline separated input adds every size in one action (e.g.
+    // "0.8, 1.0, 1.1, 1.5") -- a single value still works exactly as before.
+    const values = newSize.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    // The weight field only applies when adding a single size -- different
+    // sizes genuinely weigh different amounts, so a bulk batch can't share
+    // one carat value. Bulk-added sizes come in with weight_ct null; edit
+    // each individually afterward if needed.
+    const sizes = values.map((size_mm) => ({
+      size_mm,
+      weight_ct: values.length === 1 && newWeight ? parseFloat(newWeight) : null
+    }));
     const res = await fetch('/api/shape-sizes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shape_id: shapeId, size_mm: newSize, weight_ct: newWeight ? parseFloat(newWeight) : null })
+      body: JSON.stringify({ shape_id: shapeId, sizes })
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -154,8 +165,13 @@ export default function ShapesClient({
                         {shapeSizes.length === 0 && <span style={{ fontSize: 12, color: '#8a8370' }}>No sizes yet.</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 8, maxWidth: 420 }}>
-                        <input type="text" placeholder="Size, e.g. 6x8" value={newSize} onChange={(e) => setNewSize(e.target.value)} />
-                        <input type="text" placeholder="Carat wt (optional)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} style={{ maxWidth: 130 }} />
+                        <input
+                          type="text"
+                          placeholder="Size, e.g. 6x8 -- or 0.8, 1.0, 1.1 for bulk"
+                          value={newSize}
+                          onChange={(e) => setNewSize(e.target.value)}
+                        />
+                        <input type="text" placeholder="Carat wt (single size only)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} style={{ maxWidth: 160 }} />
                         <button className="btn" onClick={() => addSize(s.id)}>Add</button>
                       </div>
                     </td>
