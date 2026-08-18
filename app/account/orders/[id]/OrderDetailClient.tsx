@@ -16,6 +16,7 @@ type Item = {
   colorName: string;
   colorHex: string;
   quantity: number;
+  requestType: string;
 };
 
 type CategoryOption = {
@@ -127,8 +128,14 @@ export default function OrderDetailClient({
     }
 
     items.forEach((item) => {
+      const requestType = item.requestType || 'Place Order';
       const existing = cart.find(
-        (c) => c.categoryId === item.categoryId && c.shapeId === item.shapeId && c.sizeId === item.sizeId && c.colorId === item.colorId
+        (c) =>
+          c.categoryId === item.categoryId &&
+          c.shapeId === item.shapeId &&
+          c.sizeId === item.sizeId &&
+          c.colorId === item.colorId &&
+          c.requestType === requestType
       );
       if (existing) {
         existing.qty += item.quantity;
@@ -144,7 +151,8 @@ export default function OrderDetailClient({
           colorId: item.colorId,
           colorName: item.colorName,
           colorHex: item.colorHex,
-          qty: item.quantity
+          qty: item.quantity,
+          requestType
         });
       }
     });
@@ -155,8 +163,12 @@ export default function OrderDetailClient({
       // storage full/disabled -- nothing we can do, cart just won't persist
     }
 
-    const firstSlug = items[0]?.categorySlug;
-    if (firstSlug) router.push(`/category/${firstSlug}`);
+    // Cart items span whatever categories the original order used -- Quick
+    // Order shows/edits the full shared cart across categories, unlike a
+    // single category page, so it's the right landing spot regardless of how
+    // many categories this order touched (the old behavior only ever jumped
+    // to the first one, silently losing the rest from view).
+    router.push('/account/quick-order');
   }
 
   return (
