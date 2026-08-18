@@ -8,8 +8,13 @@ export async function POST(req: NextRequest) {
   if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const cart: OrderCartItem[] = Array.isArray(body.cart) ? body.cart : [];
   const requestType: string = body.requestType || 'Place Order';
+  // Admin's order builder still picks one type for the whole order (no per-line
+  // UI there yet) -- stamp it onto every item so buildOrderMessage's per-line
+  // grouping still works the same as the single-type case.
+  const cart: OrderCartItem[] = Array.isArray(body.cart)
+    ? body.cart.map((item: OrderCartItem) => ({ ...item, requestType }))
+    : [];
   const comment: string = (body.comment || '').trim();
   const existingCustomerId: number | null = body.customerId ? Number(body.customerId) : null;
   const newCustomerPhone: string = (body.newCustomerPhone || '').trim();
@@ -44,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const message = buildOrderMessage(cart, requestType, contactName || '', comment);
+  const message = buildOrderMessage(cart, contactName || '', comment);
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
@@ -69,7 +74,8 @@ export async function POST(req: NextRequest) {
     shape_id: item.shapeId,
     shape_size_id: item.sizeId,
     color_id: item.colorId,
-    quantity: item.qty
+    quantity: item.qty,
+    request_type: item.requestType
   }));
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);

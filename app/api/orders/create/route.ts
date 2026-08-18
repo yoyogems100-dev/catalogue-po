@@ -6,8 +6,9 @@ import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const cart: OrderCartItem[] = Array.isArray(body.cart) ? body.cart : [];
-  const requestType: string = body.requestType || 'Place Order';
+  const cart: OrderCartItem[] = Array.isArray(body.cart)
+    ? body.cart.map((item: OrderCartItem) => ({ ...item, requestType: item.requestType || 'Place Order' }))
+    : [];
   const contactName: string = (body.contactName || '').trim();
   const contactPhone: string = (body.contactPhone || '').trim();
   const comment: string = (body.comment || '').trim();
@@ -36,14 +37,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const message = buildOrderMessage(cart, requestType, contactName, comment);
+  const message = buildOrderMessage(cart, contactName, comment);
+
+  // Order-level request_type is a summary for admin filtering/badges -- "Mixed"
+  // when the cart has both Place Order and Request Quotation lines, since each
+  // line now carries its own type (order_items.request_type is the source of truth).
+  const distinctTypes = new Set(cart.map((i) => i.requestType));
+  const orderLevelRequestType = distinctTypes.size > 1 ? 'Mixed' : cart[0]?.requestType || 'Place Order';
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .insert({
       customer_id: customerId,
       status: 'placed',
-      request_type: requestType,
+      request_type: orderLevelRequestType,
       contact_name: contactName || null,
       comment: comment || null,
       whatsapp_message: message
@@ -64,7 +71,8 @@ export async function POST(req: NextRequest) {
     // is null for those, so the free-text label is persisted here instead.
     custom_size: item.sizeId == null ? item.sizeMm : null,
     color_id: item.colorId,
-    quantity: item.qty
+    quantity: item.qty,
+    request_type: item.requestType
   }));
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);

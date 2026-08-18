@@ -7,6 +7,8 @@ type ShapeRef = { id: number; name: string; iconKey?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
 
+type RequestType = 'Place Order' | 'Request Quotation';
+
 type CartItem = {
   id: string;
   categoryId: number;
@@ -19,6 +21,7 @@ type CartItem = {
   colorName: string;
   colorHex: string;
   qty: number;
+  requestType: RequestType;
 };
 
 const CART_KEY = 'yoyo_po_cart_v2';
@@ -68,7 +71,9 @@ export default function POSelector({
   const [rangeMin, setRangeMin] = useState('');
   const [rangeMax, setRangeMax] = useState('');
   const [pickQty, setPickQty] = useState('');
-  const [requestType, setRequestType] = useState('Place Order');
+  // Per-line, not per-order -- one requirement can mix Place Order and Request
+  // Quotation lines. Defaults to Place Order, the more common/actionable case.
+  const [pickRequestType, setPickRequestType] = useState<RequestType>('Place Order');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [comment, setComment] = useState('');
@@ -159,7 +164,8 @@ export default function POSelector({
         i.categoryId === item.categoryId &&
         i.shapeId === item.shapeId &&
         i.colorId === item.colorId &&
-        i.sizeId === item.sizeId
+        i.sizeId === item.sizeId &&
+        i.requestType === item.requestType
     );
     if (existing) {
       return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
@@ -198,7 +204,8 @@ export default function POSelector({
             colorId: color.id,
             colorName: color.name,
             colorHex: color.hex || '#ccc',
-            qty: qtyNum
+            qty: qtyNum,
+            requestType: pickRequestType
           };
           next = mergeIntoCart(next, item);
           added++;
@@ -217,6 +224,10 @@ export default function POSelector({
     setCart(cart.map((i) => (i.id === id ? { ...i, qty: Math.max(1, qty) } : i)));
   }
 
+  function updateItemRequestType(id: string, requestType: RequestType) {
+    setCart(cart.map((i) => (i.id === id ? { ...i, requestType } : i)));
+  }
+
   function removeItem(id: string) {
     setCart(cart.filter((i) => i.id !== id));
   }
@@ -231,7 +242,7 @@ export default function POSelector({
       const res = await fetch('/api/orders/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart, requestType, contactName, contactPhone, comment })
+        body: JSON.stringify({ cart, contactName, contactPhone, comment })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save order');
@@ -327,6 +338,24 @@ export default function POSelector({
             />
           </div>
         </div>
+
+        <div className="po-type-toggle">
+          <button
+            type="button"
+            className={pickRequestType === 'Place Order' ? 'active' : ''}
+            onClick={() => setPickRequestType('Place Order')}
+          >
+            Place Order
+          </button>
+          <button
+            type="button"
+            className={pickRequestType === 'Request Quotation' ? 'active' : ''}
+            onClick={() => setPickRequestType('Request Quotation')}
+          >
+            Request Quotation
+          </button>
+        </div>
+
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
@@ -352,6 +381,14 @@ export default function POSelector({
                     {item.colorName}
                   </span>
                 </div>
+                <select
+                  className="po-item-type-select"
+                  value={item.requestType}
+                  onChange={(e) => updateItemRequestType(item.id, e.target.value as RequestType)}
+                >
+                  <option>Place Order</option>
+                  <option>Request Quotation</option>
+                </select>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -367,13 +404,6 @@ export default function POSelector({
 
         <div className="po-send-box">
           <div className="po-send-row">
-            <label>
-              Request type
-              <select value={requestType} onChange={(e) => setRequestType(e.target.value)}>
-                <option>Place Order</option>
-                <option>Request Quotation</option>
-              </select>
-            </label>
             <label>
               Name / company
               <input type="text" placeholder="Optional" value={contactName} onChange={(e) => setContactName(e.target.value)} />

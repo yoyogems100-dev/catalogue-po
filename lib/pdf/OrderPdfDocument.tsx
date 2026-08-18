@@ -7,6 +7,7 @@ export type PdfItem = {
   colorName: string;
   quantity: number;
   unitPrice: number | null;
+  requestType: string;
 };
 
 export type PdfOrderData = {
@@ -84,8 +85,8 @@ const styles = StyleSheet.create({
   }
 });
 
-const COLS_NO_PRICE = { category: 0.26, shape: 0.22, size: 0.14, color: 0.2, qty: 0.18 };
-const COLS_WITH_PRICE = { category: 0.2, shape: 0.16, size: 0.11, color: 0.15, qty: 0.12, price: 0.13, total: 0.13 };
+const COLS_NO_PRICE = { type: 0.1, category: 0.22, shape: 0.2, size: 0.13, color: 0.17, qty: 0.18 };
+const COLS_WITH_PRICE = { type: 0.08, category: 0.16, shape: 0.14, size: 0.1, color: 0.13, qty: 0.12, price: 0.13, total: 0.14 };
 
 function money(n: number) {
   return `Rs. ${n.toLocaleString('en-IN')}`;
@@ -95,7 +96,13 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
   const hasPricing = data.items.some((i) => i.unitPrice != null);
   const grandTotal = hasPricing ? data.items.reduce((sum, i) => sum + (i.unitPrice || 0) * i.quantity, 0) : null;
   const cols: Record<string, number> = hasPricing ? COLS_WITH_PRICE : COLS_NO_PRICE;
-  const docTitle = data.requestType === 'Request Quotation' ? 'Quotation' : 'Order Summary';
+  const distinctTypes = new Set(data.items.map((i) => i.requestType));
+  const docTitle =
+    distinctTypes.size > 1
+      ? 'Order Summary & Quotation'
+      : data.requestType === 'Request Quotation'
+      ? 'Quotation'
+      : 'Order Summary';
 
   return (
     <Document>
@@ -129,6 +136,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
 
         <View style={styles.table}>
           <View style={styles.tableHeaderRow}>
+            <Text style={[styles.tableHeaderCell, { width: `${cols.type * 100}%` }]}>Type</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.category * 100}%` }]}>Category</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.size * 100}%` }]}>Size</Text>
@@ -139,6 +147,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           </View>
           {data.items.map((item, i) => (
             <View key={i} style={styles.tableRow}>
+              <Text style={[styles.cell, { width: `${cols.type * 100}%` }]}>{item.requestType === 'Request Quotation' ? 'RQ' : 'Order'}</Text>
               <Text style={[styles.cell, { width: `${cols.category * 100}%` }]}>{item.categoryName}</Text>
               <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}</Text>
               <Text style={[styles.cell, { width: `${cols.size * 100}%` }]}>{item.sizeMm} mm</Text>

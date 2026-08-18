@@ -16,6 +16,7 @@ type Item = {
   colorHex: string;
   quantity: number;
   unitPrice: number | null;
+  requestType: string;
 };
 type CategoryOption = {
   shapes: { id: number; name: string }[];
@@ -301,11 +302,19 @@ export default function OrderAdminClient({
         <p style={{ fontSize: 11.5, color: '#8a8370', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
         <table>
           <thead>
-            <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
+            <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
           </thead>
           <tbody>
             {items.filter((i) => !removedIds.has(i.id)).map((i) => (
               <tr key={i.id}>
+                <td>
+                  <span
+                    className={`payment-badge ${i.requestType === 'Request Quotation' ? 'payment-pending' : 'payment-paid'}`}
+                    style={{ fontSize: 10 }}
+                  >
+                    {i.requestType === 'Request Quotation' ? 'RQ' : 'Order'}
+                  </span>
+                </td>
                 <td>{i.categoryName}</td>
                 <td>{i.shapeName}</td>
                 <td>{i.sizeMm} mm</td>

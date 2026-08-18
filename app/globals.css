@@ -314,6 +314,14 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-add-size-btn:hover { background: var(--ink); }
 
 .po-add-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+.po-type-toggle { display: flex; gap: 0; margin-bottom: 12px; border: 1px solid var(--line); width: fit-content; }
+.po-type-toggle button {
+  background: #fff; border: none; padding: 8px 14px; font-size: 12px; cursor: pointer; color: var(--charcoal);
+  border-right: 1px solid var(--line);
+}
+.po-type-toggle button:last-child { border-right: none; }
+.po-type-toggle button.active { background: var(--navy); color: #fff; }
+
 .po-add-line-btn {
   width: 100%; background: var(--navy); color: #fff; border: none; padding: 11px; font-size: 13px;
   letter-spacing: 0.3px; cursor: pointer; font-weight: 500;
@@ -326,6 +334,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .po-item-main strong { font-size: 12.5px; color: var(--ink); }
 .po-item-main span { font-size: 11px; color: #8a8370; display: flex; align-items: center; gap: 5px; }
+.po-item-type-select { font-size: 11px; padding: 5px 6px; flex: 0 0 auto; max-width: 118px; }
 
 .po-cart-card { position: relative; }
 .po-cart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -341,7 +350,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-remove-btn:hover { background: #f0c9c4; }
 
 .po-send-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-.po-send-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.po-send-row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
 .po-send-row label, .po-block-label { display: block; font-size: 12px; color: var(--charcoal); margin-bottom: 12px; }
 .po-send-row label select, .po-send-row label input, .po-block-label input, .po-block-label textarea { margin-top: 5px; }
 .po-optional { color: #8a8370; font-weight: 400; font-size: 11px; }

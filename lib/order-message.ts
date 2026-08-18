@@ -8,20 +8,10 @@ export type OrderCartItem = {
   colorId: number;
   colorName: string;
   qty: number;
+  requestType: string;
 };
 
-export function buildOrderMessage(cart: OrderCartItem[], requestType: string, contactName: string, comment: string) {
-  const rows = cart.map((item) => ({
-    category: item.categoryName,
-    shape: item.shapeName,
-    size: item.sizeMm,
-    color: item.colorName,
-    qty: String(item.qty)
-  }));
-
-  const uniqueCategories = [...new Set(rows.map((r) => r.category))];
-  const title = uniqueCategories.length === 1 ? uniqueCategories[0] : 'YOYO GEMS Requirement';
-
+function formatTable(rows: { category: string; shape: string; size: string; color: string; qty: string }[]) {
   const w = (key: keyof (typeof rows)[number], label: string) =>
     Math.max(label.length, ...rows.map((r) => r[key].length));
   const catW = w('category', 'Category');
@@ -37,20 +27,49 @@ export function buildOrderMessage(cart: OrderCartItem[], requestType: string, co
   const lines = rows.map(
     (r) => `${pad(r.category, catW)}  ${pad(r.shape, shapeW)}  ${pad(r.size, sizeW)}  ${pad(r.color, colorW)}  ${pad(r.qty, qtyW, false)}`
   );
+  return ['```', header, divider, ...lines, '```'].join('\n');
+}
+
+// Groups lines by their own requestType instead of assuming one type for the
+// whole cart -- a single WhatsApp send can now mix Place Order and Request
+// Quotation lines. Place Order is shown first (it's the default and the more
+// actionable of the two), Request Quotation second, and a section header is
+// only added when both types are actually present.
+export function buildOrderMessage(cart: OrderCartItem[], contactName: string, comment: string) {
+  const toRow = (item: OrderCartItem) => ({
+    category: item.categoryName,
+    shape: item.shapeName,
+    size: item.sizeMm,
+    color: item.colorName,
+    qty: String(item.qty)
+  });
+
+  const placeOrderItems = cart.filter((i) => i.requestType !== 'Request Quotation');
+  const quotationItems = cart.filter((i) => i.requestType === 'Request Quotation');
+  const mixed = placeOrderItems.length > 0 && quotationItems.length > 0;
+
+  const uniqueCategories = [...new Set(cart.map((i) => i.categoryName))];
+  const title = uniqueCategories.length === 1 ? uniqueCategories[0] : 'YOYO GEMS Requirement';
+
+  const sections: string[] = [];
+  if (placeOrderItems.length > 0) {
+    if (mixed) sections.push('*PLACE ORDER*');
+    sections.push(formatTable(placeOrderItems.map(toRow)));
+  }
+  if (quotationItems.length > 0) {
+    if (mixed) sections.push('*REQUEST QUOTATION*');
+    sections.push(formatTable(quotationItems.map(toRow)));
+  }
 
   return [
     'Hello YOYO GEMS,',
     '',
     `*${title}*`,
-    `Request Type: ${requestType}`,
+    mixed ? '' : `Request Type: ${cart[0]?.requestType || 'Place Order'}`,
     contactName ? `Name / Company: ${contactName}` : '',
     '',
     'Requirement:',
-    '```',
-    header,
-    divider,
-    ...lines,
-    '```',
+    ...sections,
     '',
     comment ? `Additional Comment: ${comment}` : '',
     '',
