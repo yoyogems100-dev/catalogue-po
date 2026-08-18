@@ -261,6 +261,10 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   font-size: 10.5px; text-transform: none; letter-spacing: 0; font-weight: 400;
   color: var(--navy); text-decoration: underline;
 }
+.po-range-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.po-range-row input { min-width: 0; flex: 1 1 0; }
+.po-range-row span { font-size: 11px; color: #8a8370; flex-shrink: 0; }
+.po-range-row .po-inline-link { margin-left: 0; flex-shrink: 0; white-space: nowrap; }
 .po-search { margin-bottom: 16px; }
 
 .po-shape-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }

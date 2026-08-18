@@ -59,13 +59,14 @@ export default function POSelector({
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  // Multi-select: an order line can now cover several shapes and/or colors at
-  // once -- "Add line" fans out into one cart line per shape x color combo.
+  // Multi-select: an order line can now cover several shapes, colors, and
+  // sizes at once -- "Add line" fans out into one cart line per
+  // shape x color x size combination.
   const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
-  const [pickSizeMm, setPickSizeMm] = useState<string | 'all'>('all');
-  const [customSizeMode, setCustomSizeMode] = useState(false);
-  const [customSizeText, setCustomSizeText] = useState('');
+  const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
+  const [rangeMin, setRangeMin] = useState('');
+  const [rangeMax, setRangeMax] = useState('');
   const [pickQty, setPickQty] = useState('');
   const [requestType, setRequestType] = useState('Place Order');
   const [contactName, setContactName] = useState('');
@@ -105,13 +106,50 @@ export default function POSelector({
       const shapeIdsCovered = new Set(rows.map((r) => r.shape_id));
       if (pickShapeIds.every((id) => shapeIdsCovered.has(id))) common.push({ sizeMm, rows });
     });
-    return common;
+    // Numeric sizes first in ascending order, non-numeric (e.g. "6x8") after --
+    // makes the range quick-pick predictable and the list easy to scan.
+    return common.sort((a, b) => {
+      const na = parseFloat(a.sizeMm);
+      const nb = parseFloat(b.sizeMm);
+      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
+      if (Number.isNaN(na)) return 1;
+      if (Number.isNaN(nb)) return -1;
+      return na - nb;
+    });
   }, [sizes, pickShapeIds]);
 
+  const sizeOptions = useMemo(
+    () => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })),
+    [sizesForShapes]
+  );
+
+  function applyRange() {
+    const min = parseFloat(rangeMin);
+    const max = parseFloat(rangeMax);
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      setToast('Enter both a min and max size in mm.');
+      return;
+    }
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    const matchIdxs = sizesForShapes
+      .map((g, i) => ({ i, val: parseFloat(g.sizeMm) }))
+      .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
+      .map((g) => g.i);
+
+    if (matchIdxs.length === 0) {
+      setToast(`No existing sizes between ${lo}-${hi}mm for these shapes -- add that size in Admin first.`);
+      return;
+    }
+    setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
+    setToast(`Selected ${matchIdxs.length} size${matchIdxs.length > 1 ? 's' : ''} between ${lo}-${hi}mm`);
+    setRangeMin('');
+    setRangeMax('');
+  }
+
   const qtyNum = parseInt(pickQty, 10) || 0;
-  const hasSize = customSizeMode ? customSizeText.trim().length > 0 : pickSizeMm !== 'all';
-  const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && hasSize && qtyNum > 0;
-  const comboCount = pickShapeIds.length * pickColorIds.length;
+  const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0;
+  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
   const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
@@ -121,7 +159,7 @@ export default function POSelector({
         i.categoryId === item.categoryId &&
         i.shapeId === item.shapeId &&
         i.colorId === item.colorId &&
-        (item.sizeId != null ? i.sizeId === item.sizeId : i.sizeMm === item.sizeMm)
+        i.sizeId === item.sizeId
     );
     if (existing) {
       return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
@@ -131,7 +169,7 @@ export default function POSelector({
 
   function addLine() {
     if (!canAdd) {
-      setToast('Pick at least one shape, one color, a size, and enter quantity first.');
+      setToast('Pick at least one shape, color and size, and enter quantity first.');
       return;
     }
 
@@ -144,42 +182,34 @@ export default function POSelector({
       for (const colorId of pickColorIds) {
         const color = colors.find((c) => c.id === colorId);
         if (!color) continue;
-
-        let sizeId: number | null = null;
-        let sizeMm: string;
-        if (customSizeMode) {
-          sizeMm = customSizeText.trim();
-        } else {
-          const match = sizesForShapes.find((g) => g.sizeMm === pickSizeMm)?.rows.find((r) => r.shape_id === shapeId);
+        for (const sizeIdx of pickSizeIdxs) {
+          const group = sizesForShapes[sizeIdx];
+          const match = group?.rows.find((r) => r.shape_id === shapeId);
           if (!match) continue; // shouldn't happen -- sizesForShapes is already the cross-shape intersection
-          sizeId = match.id;
-          sizeMm = match.size_mm;
-        }
 
-        const item: CartItem = {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          categoryId,
-          categoryName,
-          shapeId: shape.id,
-          shapeName: shape.name,
-          sizeId,
-          sizeMm,
-          colorId: color.id,
-          colorName: color.name,
-          colorHex: color.hex || '#ccc',
-          qty: qtyNum
-        };
-        next = mergeIntoCart(next, item);
-        added++;
+          const item: CartItem = {
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            categoryId,
+            categoryName,
+            shapeId: shape.id,
+            shapeName: shape.name,
+            sizeId: match.id,
+            sizeMm: match.size_mm,
+            colorId: color.id,
+            colorName: color.name,
+            colorHex: color.hex || '#ccc',
+            qty: qtyNum
+          };
+          next = mergeIntoCart(next, item);
+          added++;
+        }
       }
     }
 
     setCart(next);
     setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
     // Reset only size + qty so the same shape/color picks can be reused for the next size quickly
-    setPickSizeMm('all');
-    setCustomSizeMode(false);
-    setCustomSizeText('');
+    setPickSizeIdxs([]);
     setPickQty('');
   }
 
@@ -233,7 +263,7 @@ export default function POSelector({
               multiple
               options={shapes}
               values={pickShapeIds}
-              onChange={(v) => { setPickShapeIds(v); setPickSizeMm('all'); }}
+              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
               placeholder="Choose shape(s)"
               leading="icon"
             />
@@ -250,42 +280,39 @@ export default function POSelector({
             />
           </div>
           <div>
-            <label className="po-label">
-              Size (mm)
-              {!customSizeMode && (
-                <button type="button" className="po-inline-link" onClick={() => { setCustomSizeMode(true); setPickSizeMm('all'); }}>
-                  Custom range?
-                </button>
-              )}
-            </label>
-            {customSizeMode ? (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
+            <IconSelect
+              multiple
+              options={sizeOptions}
+              values={pickSizeIdxs}
+              onChange={setPickSizeIdxs}
+              placeholder={
+                pickShapeIds.length === 0
+                  ? 'Pick a shape first'
+                  : sizeOptions.length === 0
+                  ? 'No common size for these shapes'
+                  : 'Choose size(s)'
+              }
+            />
+            {pickShapeIds.length > 0 && (
+              <div className="po-range-row">
                 <input
                   type="text"
-                  placeholder="e.g. 0.7-1.5"
-                  value={customSizeText}
-                  onChange={(e) => setCustomSizeText(e.target.value)}
-                  style={{ flex: 1 }}
+                  inputMode="decimal"
+                  placeholder="Min mm"
+                  value={rangeMin}
+                  onChange={(e) => setRangeMin(e.target.value)}
                 />
-                <button type="button" className="po-inline-link" onClick={() => { setCustomSizeMode(false); setCustomSizeText(''); }}>
-                  Use list
-                </button>
+                <span>to</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Max mm"
+                  value={rangeMax}
+                  onChange={(e) => setRangeMax(e.target.value)}
+                />
+                <button type="button" className="po-inline-link" onClick={applyRange}>Select range</button>
               </div>
-            ) : (
-              <select
-                value={pickSizeMm}
-                onChange={(e) => setPickSizeMm(e.target.value)}
-                disabled={pickShapeIds.length === 0}
-              >
-                <option value="all">
-                  {pickShapeIds.length === 0
-                    ? 'Pick a shape first'
-                    : sizesForShapes.length === 0
-                    ? 'No common size for these shapes'
-                    : 'Choose size'}
-                </option>
-                {sizesForShapes.map((g) => <option key={g.sizeMm} value={g.sizeMm}>{g.sizeMm} mm</option>)}
-              </select>
             )}
           </div>
           <div>
@@ -312,7 +339,7 @@ export default function POSelector({
         </div>
 
         {cart.length === 0 ? (
-          <div className="po-empty po-empty-cart">No lines added yet. Fill the form above and tap "Add line to order" -- pick multiple shapes/colors at once to add several lines in one go.</div>
+          <div className="po-empty po-empty-cart">No lines added yet. Fill the form above and tap "Add line to order" -- pick multiple shapes/colors/sizes at once (or use the size range) to add several lines in one go.</div>
         ) : (
           <div className="po-item-list">
             {cart.map((item) => (
