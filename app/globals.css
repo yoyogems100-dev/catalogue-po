@@ -164,6 +164,25 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .tag-chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
+/* /browse page: tag filter row + category-grouped photo grid */
+.browse-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+.tag-chip-filter {
+  display: inline-block; background: #fff; border: 1px solid var(--line); color: var(--charcoal);
+  padding: 8px 14px; font-size: 12.5px; text-decoration: none; border-radius: 20px; min-height: 36px; line-height: 20px;
+}
+.tag-chip-filter:hover { border-color: var(--gold); }
+.tag-chip-filter.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+.browse-category-section { margin-bottom: 30px; }
+.browse-category-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.browse-category-head h2 { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--ink); margin: 0; }
+.browse-category-head a { font-size: 12.5px; color: var(--navy); text-decoration: none; }
+.browse-category-head a:hover { text-decoration: underline; }
+.browse-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.browse-photo-tile { display: block; aspect-ratio: 1; overflow: hidden; background: #f1ede2; border: 1px solid var(--line); }
+.browse-photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
+.browse-photo-tile:hover img { transform: scale(1.05); }
+
 .login-box { max-width: 340px; margin: 100px auto; padding: 32px; }
 
 /* Logo */
@@ -181,7 +200,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .section-label { font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; font-weight: 500; }
 
 .cat-summary-panel {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
   background: #faf8f3; border: 1px solid var(--line); padding: 14px 18px;
 }
 .cat-summary-label { display: block; font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; margin-bottom: 4px; }

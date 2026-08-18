@@ -85,10 +85,13 @@ export default function CategoryAdminClient({
 
   async function createTag(global: boolean) {
     if (!newTagName.trim()) return;
+    // Always pass categoryId -- a tag created while looking at a category
+    // should be linked here regardless of whether it's also global (usable
+    // elsewhere) or category-specific (usable only here).
     await fetch('/api/tags', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newTagName, is_global: global, category_id: global ? undefined : categoryId })
+      body: JSON.stringify({ name: newTagName, is_global: global, category_id: categoryId })
     });
     setNewTagName('');
     router.refresh();
@@ -170,6 +173,7 @@ export default function CategoryAdminClient({
   const linkedShapes = allShapes.filter((s) => linkedShapeIds.includes(s.id));
   const linkedColors = allColors.filter((c) => linkedColorIds.includes(c.id));
   const linkedSizes = allSizes.filter((sz) => linkedSizeIds.includes(sz.id));
+  const linkedTags = allTags.filter((t) => linkedTagIds.includes(t.id));
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -191,6 +195,10 @@ export default function CategoryAdminClient({
               ? linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
               : 'None linked yet'}
           </p>
+        </div>
+        <div>
+          <span className="cat-summary-label">{linkedTags.length} Tag{linkedTags.length === 1 ? '' : 's'}</span>
+          <p className="cat-summary-value">{linkedTags.length ? linkedTags.map((t) => t.name).join(', ') : 'None linked yet'}</p>
         </div>
       </section>
 

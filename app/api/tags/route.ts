@@ -12,7 +12,11 @@ export async function POST(req: NextRequest) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // If created from within a category (not global), link it immediately
+  // Link it to the category it was created from, whether global or not --
+  // previously this only happened for non-global ("Here only") tags, so
+  // clicking "Global" from inside a category created the tag in the master
+  // list but silently left it unlinked here, requiring a separate manual
+  // link step even though the admin was already looking at this category.
   if (category_id) {
     await supabaseAdmin.from('category_tags').insert({ category_id, tag_id: tag.id });
   }

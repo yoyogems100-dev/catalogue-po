@@ -1,6 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import BulkLinkClient from './BulkLinkClient';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function BulkLinkPage() {
   const [{ data: shapes }, { data: colors }, { data: categories }] = await Promise.all([
     supabaseAdmin.from('shapes').select('id, name').order('sort_order').order('name'),

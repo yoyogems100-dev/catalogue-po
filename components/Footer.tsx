@@ -40,6 +40,10 @@ export default function Footer({ settings }: { settings: Record<string, string> 
 
         <div className="footer-col">
           <div className="footer-heading">Account</div>
+          <Link href="/browse" className="footer-link">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
+            Browse by Tag
+          </Link>
           <Link href="/account/orders" className="footer-link">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M4 12h16M4 17h10" /></svg>
             My Orders

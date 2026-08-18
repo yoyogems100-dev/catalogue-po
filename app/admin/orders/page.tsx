@@ -2,6 +2,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import Link from 'next/link';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// (searchParams usage likely already forces this dynamic, but making it
+// explicit removes any doubt.)
+export const dynamic = 'force-dynamic';
+
 export default async function AdminOrdersPage({ searchParams }: { searchParams: { status?: string } }) {
   const statusFilter = searchParams.status;
 

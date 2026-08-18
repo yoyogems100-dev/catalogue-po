@@ -1,6 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import ShapesClient from './ShapesClient';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function ShapesPage() {
   const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }] = await Promise.all([
     supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),

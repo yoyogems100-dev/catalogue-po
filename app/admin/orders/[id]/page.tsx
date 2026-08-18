@@ -2,6 +2,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
   const orderId = Number(params.id);
 

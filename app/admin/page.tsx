@@ -1,6 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDashboard() {
   const [{ count: catCount }, { count: photoCount }, { count: shapeCount }, { count: colorCount }, { count: tagCount }] = await Promise.all([
     supabaseAdmin.from('categories').select('*', { count: 'exact', head: true }),

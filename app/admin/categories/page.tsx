@@ -2,6 +2,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import Link from 'next/link';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function CategoriesListPage() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),

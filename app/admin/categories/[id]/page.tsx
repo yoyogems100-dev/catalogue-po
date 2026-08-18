@@ -3,6 +3,9 @@ import { photoUrl } from '@/lib/photos';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function CategoryAdminPage({ params }: { params: { id: string } }) {
   const categoryId = Number(params.id);
 

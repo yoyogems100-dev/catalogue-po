@@ -1,6 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import ColorsClient from './ColorsClient';
 
+// See app/admin/tags/page.tsx for why this is needed on every admin page.
+export const dynamic = 'force-dynamic';
+
 export default async function ColorsPage() {
   const [{ data: colors }, { data: categories }, { data: catColors }] = await Promise.all([
     supabaseAdmin.from('colors').select('id, name, hex_value, sort_order').order('sort_order').order('name'),
