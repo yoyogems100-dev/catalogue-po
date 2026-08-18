@@ -10,7 +10,7 @@ type Item = {
   categorySlug: string;
   shapeId: number;
   shapeName: string;
-  sizeId: number;
+  sizeId: number | null;
   sizeMm: string;
   colorId: number;
   colorName: string;

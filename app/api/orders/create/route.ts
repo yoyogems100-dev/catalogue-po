@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
     category_id: item.categoryId,
     shape_id: item.shapeId,
     shape_size_id: item.sizeId,
+    // Custom size ranges (e.g. "0.7-1.5") don't have a shape_sizes row -- sizeId
+    // is null for those, so the free-text label is persisted here instead.
+    custom_size: item.sizeId == null ? item.sizeMm : null,
     color_id: item.colorId,
     quantity: item.qty
   }));

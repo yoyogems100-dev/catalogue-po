@@ -57,11 +57,15 @@ a { color: inherit; text-decoration: none; }
 }
 
 .hero {
+  position: relative;
   background: linear-gradient(160deg, var(--ink), var(--navy) 70%);
   color: var(--ivory); text-align: center; padding: 52px 20px 40px;
 }
-.hero.hero-compact { padding: 34px 20px 28px; }
-.hero-top-row { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.hero.hero-compact { padding: 18px 20px 28px; }
+/* Absolutely positioned so the account icon doesn't reserve a full row of
+   height above the eyebrow label -- it used to add ~50px of empty-looking
+   navy space above "DIGITAL CATALOGUE" on its own. */
+.hero-top-row { position: absolute; top: 10px; right: 14px; z-index: 5; margin-bottom: 0; }
 .hero .eyebrow { font-size: 10.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 20px; }
 .hero.hero-compact .eyebrow { margin-bottom: 14px; }
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
@@ -210,6 +214,13 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
 .icon-select-row:hover { background: #faf8f3; }
 .icon-select-row.active { background: #f1ede2; font-weight: 500; }
+.icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
+.icon-select-search {
+  width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px;
+  font-size: 12.5px; position: sticky; top: 0; background: #fff;
+}
+.icon-select-search:focus { outline: none; border-bottom-color: var(--gold); }
+.icon-select-empty { padding: 10px 12px; font-size: 12px; color: #8a8370; }
 
 /* Homepage search + filter bar */
 .home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
@@ -245,6 +256,11 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-card { background: #fff; border: 1px solid var(--line); padding: 20px; }
 .po-heading { font-size: 19px; color: var(--ink); margin-bottom: 12px; }
 .po-label { display: block; font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 500; }
+.po-inline-link {
+  background: none; border: none; cursor: pointer; margin-left: 8px; padding: 0;
+  font-size: 10.5px; text-transform: none; letter-spacing: 0; font-weight: 400;
+  color: var(--navy); text-decoration: underline;
+}
 .po-search { margin-bottom: 16px; }
 
 .po-shape-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -478,7 +494,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .home-filter-row .icon-select { min-width: 0; flex: 1 1 45%; }
   .home-filter-row .icon-select-trigger { padding: 8px 10px; }
   .hero { padding: 32px 16px 26px; }
-  .hero.hero-compact { padding: 24px 16px 20px; }
+  .hero.hero-compact { padding: 16px 16px 20px; }
   .hero img { height: 60px !important; }
   .hero.hero-compact img { height: 52px !important; }
   .topbar { padding: 10px 14px; }

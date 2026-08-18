@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('category_id, shape_id, shape_size_id, color_id, quantity, unit_price')
+    .select('category_id, shape_id, shape_size_id, custom_size, color_id, quantity, unit_price')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const pdfItems: PdfItem[] = (items || []).map((it: any) => ({
     categoryName: catMap[it.category_id] || '—',
     shapeName: shapeMap[it.shape_id] || '—',
-    sizeMm: sizeMap[it.shape_size_id] || '—',
+    sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorName: colorMap[it.color_id] || '—',
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null

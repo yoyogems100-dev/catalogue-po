@@ -13,7 +13,7 @@ type CartItem = {
   categoryName: string;
   shapeId: number;
   shapeName: string;
-  sizeId: number;
+  sizeId: number | null;
   sizeMm: string;
   colorId: number;
   colorName: string;
@@ -59,9 +59,13 @@ export default function POSelector({
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [pickShapeId, setPickShapeId] = useState<number | 'all'>('all');
-  const [pickColorId, setPickColorId] = useState<number | 'all'>('all');
-  const [pickSizeId, setPickSizeId] = useState<number | 'all'>('all');
+  // Multi-select: an order line can now cover several shapes and/or colors at
+  // once -- "Add line" fans out into one cart line per shape x color combo.
+  const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
+  const [pickColorIds, setPickColorIds] = useState<number[]>([]);
+  const [pickSizeMm, setPickSizeMm] = useState<string | 'all'>('all');
+  const [customSizeMode, setCustomSizeMode] = useState(false);
+  const [customSizeText, setCustomSizeText] = useState('');
   const [pickQty, setPickQty] = useState('');
   const [requestType, setRequestType] = useState('Place Order');
   const [contactName, setContactName] = useState('');
@@ -85,50 +89,97 @@ export default function POSelector({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const sizesForShape = useMemo(
-    () => (pickShapeId === 'all' ? [] : sizes.filter((sz) => sz.shape_id === pickShapeId)),
-    [sizes, pickShapeId]
-  );
+  // Only sizes shared by every currently-selected shape -- so any size picked
+  // here is guaranteed to have a matching shape_sizes row for each shape in
+  // the combo, and "Add line" never has to silently skip a shape.
+  const sizesForShapes = useMemo(() => {
+    if (pickShapeIds.length === 0) return [];
+    const bySizeMm = new Map<string, Size[]>();
+    sizes.forEach((sz) => {
+      if (!pickShapeIds.includes(sz.shape_id)) return;
+      if (!bySizeMm.has(sz.size_mm)) bySizeMm.set(sz.size_mm, []);
+      bySizeMm.get(sz.size_mm)!.push(sz);
+    });
+    const common: { sizeMm: string; rows: Size[] }[] = [];
+    bySizeMm.forEach((rows, sizeMm) => {
+      const shapeIdsCovered = new Set(rows.map((r) => r.shape_id));
+      if (pickShapeIds.every((id) => shapeIdsCovered.has(id))) common.push({ sizeMm, rows });
+    });
+    return common;
+  }, [sizes, pickShapeIds]);
 
   const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = pickShapeId !== 'all' && pickColorId !== 'all' && pickSizeId !== 'all' && qtyNum > 0;
+  const hasSize = customSizeMode ? customSizeText.trim().length > 0 : pickSizeMm !== 'all';
+  const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && hasSize && qtyNum > 0;
+  const comboCount = pickShapeIds.length * pickColorIds.length;
 
   const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
-  function addLine() {
-    if (!canAdd) {
-      setToast('Pick shape, color, size and enter quantity first.');
-      return;
-    }
-    const shape = shapes.find((s) => s.id === pickShapeId)!;
-    const color = colors.find((c) => c.id === pickColorId)!;
-    const size = sizes.find((s) => s.id === pickSizeId)!;
-
-    const existing = cart.find(
-      (i) => i.categoryId === categoryId && i.shapeId === shape.id && i.sizeId === size.id && i.colorId === color.id
+  function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
+    const existing = current.find(
+      (i) =>
+        i.categoryId === item.categoryId &&
+        i.shapeId === item.shapeId &&
+        i.colorId === item.colorId &&
+        (item.sizeId != null ? i.sizeId === item.sizeId : i.sizeMm === item.sizeMm)
     );
     if (existing) {
-      setCart(cart.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + qtyNum } : i)));
-      setToast(`Updated ${shape.name} ${size.size_mm}mm ${color.name} quantity`);
-    } else {
-      const item: CartItem = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        categoryId,
-        categoryName,
-        shapeId: shape.id,
-        shapeName: shape.name,
-        sizeId: size.id,
-        sizeMm: size.size_mm,
-        colorId: color.id,
-        colorName: color.name,
-        colorHex: color.hex || '#ccc',
-        qty: qtyNum
-      };
-      setCart([...cart, item]);
-      setToast(`Added ${shape.name} ${size.size_mm}mm ${color.name}`);
+      return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
     }
-    // Reset only size + qty so the same shape/color can be reused for the next size quickly
-    setPickSizeId('all');
+    return [...current, item];
+  }
+
+  function addLine() {
+    if (!canAdd) {
+      setToast('Pick at least one shape, one color, a size, and enter quantity first.');
+      return;
+    }
+
+    let next = cart;
+    let added = 0;
+
+    for (const shapeId of pickShapeIds) {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape) continue;
+      for (const colorId of pickColorIds) {
+        const color = colors.find((c) => c.id === colorId);
+        if (!color) continue;
+
+        let sizeId: number | null = null;
+        let sizeMm: string;
+        if (customSizeMode) {
+          sizeMm = customSizeText.trim();
+        } else {
+          const match = sizesForShapes.find((g) => g.sizeMm === pickSizeMm)?.rows.find((r) => r.shape_id === shapeId);
+          if (!match) continue; // shouldn't happen -- sizesForShapes is already the cross-shape intersection
+          sizeId = match.id;
+          sizeMm = match.size_mm;
+        }
+
+        const item: CartItem = {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          categoryId,
+          categoryName,
+          shapeId: shape.id,
+          shapeName: shape.name,
+          sizeId,
+          sizeMm,
+          colorId: color.id,
+          colorName: color.name,
+          colorHex: color.hex || '#ccc',
+          qty: qtyNum
+        };
+        next = mergeIntoCart(next, item);
+        added++;
+      }
+    }
+
+    setCart(next);
+    setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
+    // Reset only size + qty so the same shape/color picks can be reused for the next size quickly
+    setPickSizeMm('all');
+    setCustomSizeMode(false);
+    setCustomSizeText('');
     setPickQty('');
   }
 
@@ -177,29 +228,65 @@ export default function POSelector({
         <h2 className="po-heading">Add to Order</h2>
         <div className="po-add-form">
           <div>
-            <label className="po-label">Shape</label>
+            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
+              multiple
               options={shapes}
-              value={pickShapeId}
-              onChange={(v) => { setPickShapeId(v); setPickSizeId('all'); }}
-              allLabel="Choose shape"
+              values={pickShapeIds}
+              onChange={(v) => { setPickShapeIds(v); setPickSizeMm('all'); }}
+              placeholder="Choose shape(s)"
               leading="icon"
             />
           </div>
           <div>
-            <label className="po-label">Color</label>
-            <IconSelect options={colors} value={pickColorId} onChange={setPickColorId} allLabel="Choose color" leading="swatch" />
+            <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
+            <IconSelect
+              multiple
+              options={colors}
+              values={pickColorIds}
+              onChange={setPickColorIds}
+              placeholder="Choose color(s)"
+              leading="swatch"
+            />
           </div>
           <div>
-            <label className="po-label">Size (mm)</label>
-            <select
-              value={pickSizeId}
-              onChange={(e) => setPickSizeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              disabled={pickShapeId === 'all'}
-            >
-              <option value="all">{pickShapeId === 'all' ? 'Pick a shape first' : 'Choose size'}</option>
-              {sizesForShape.map((sz) => <option key={sz.id} value={sz.id}>{sz.size_mm} mm</option>)}
-            </select>
+            <label className="po-label">
+              Size (mm)
+              {!customSizeMode && (
+                <button type="button" className="po-inline-link" onClick={() => { setCustomSizeMode(true); setPickSizeMm('all'); }}>
+                  Custom range?
+                </button>
+              )}
+            </label>
+            {customSizeMode ? (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. 0.7-1.5"
+                  value={customSizeText}
+                  onChange={(e) => setCustomSizeText(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button type="button" className="po-inline-link" onClick={() => { setCustomSizeMode(false); setCustomSizeText(''); }}>
+                  Use list
+                </button>
+              </div>
+            ) : (
+              <select
+                value={pickSizeMm}
+                onChange={(e) => setPickSizeMm(e.target.value)}
+                disabled={pickShapeIds.length === 0}
+              >
+                <option value="all">
+                  {pickShapeIds.length === 0
+                    ? 'Pick a shape first'
+                    : sizesForShapes.length === 0
+                    ? 'No common size for these shapes'
+                    : 'Choose size'}
+                </option>
+                {sizesForShapes.map((g) => <option key={g.sizeMm} value={g.sizeMm}>{g.sizeMm} mm</option>)}
+              </select>
+            )}
           </div>
           <div>
             <label className="po-label">Qty (pcs)</label>
@@ -214,7 +301,7 @@ export default function POSelector({
           </div>
         </div>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
-          + Add line to order
+          + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
       </section>
 
@@ -225,7 +312,7 @@ export default function POSelector({
         </div>
 
         {cart.length === 0 ? (
-          <div className="po-empty po-empty-cart">No lines added yet. Fill the form above and tap "Add line to order" -- repeat for each shape/color/size combo.</div>
+          <div className="po-empty po-empty-cart">No lines added yet. Fill the form above and tap "Add line to order" -- pick multiple shapes/colors at once to add several lines in one go.</div>
         ) : (
           <div className="po-item-list">
             {cart.map((item) => (

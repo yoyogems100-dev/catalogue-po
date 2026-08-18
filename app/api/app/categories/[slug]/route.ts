@@ -25,8 +25,8 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
   const sizeIds = (linkedSizeIds || []).map((r: any) => r.shape_size_id);
 
   const [{ data: shapes }, { data: colors }, { data: sizes }] = await Promise.all([
-    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key').in('id', shapeIds) : Promise.resolve({ data: [] }),
-    colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value').in('id', colorIds) : Promise.resolve({ data: [] }),
+    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key').in('id', shapeIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
+    colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value').in('id', colorIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
 

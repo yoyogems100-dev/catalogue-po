@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, color_id, quantity')
+    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     shapeId: it.shape_id,
     shapeName: shapeMap[it.shape_id] || '—',
     sizeId: it.shape_size_id,
-    sizeMm: sizeMap[it.shape_size_id] || '—',
+    sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorId: it.color_id,
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',

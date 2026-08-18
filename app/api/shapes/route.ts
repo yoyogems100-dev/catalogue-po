@@ -5,7 +5,10 @@ export async function POST(req: NextRequest) {
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
   const { data, error } = await supabaseAdmin.from('shapes').insert({ name: name.trim() }).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    const message = error.code === '23505' ? 'A shape with this name already exists.' : error.message;
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
   return NextResponse.json(data);
 }
 

@@ -3,7 +3,7 @@ import ShapesClient from './ShapesClient';
 
 export default async function ShapesPage() {
   const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }] = await Promise.all([
-    supabaseAdmin.from('shapes').select('id, name').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').order('id'),
     supabaseAdmin.from('categories').select('id, num, name').order('num'),
     supabaseAdmin.from('category_shapes').select('category_id, shape_id')

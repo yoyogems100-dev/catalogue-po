@@ -30,7 +30,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, color_id, quantity, unit_price')
+    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity, unit_price')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -57,7 +57,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     categoryId: it.category_id,
     categoryName: catMap[it.category_id] || '—',
     shapeName: shapeMap[it.shape_id] || '—',
-    sizeMm: sizeMap[it.shape_size_id] || '—',
+    sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     quantity: it.quantity,

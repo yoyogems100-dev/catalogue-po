@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 
-// The code is always shown on-screen (Phase 3 decision, permanent, not a
-// fallback) so login never depends on delivery succeeding. Sending a real
-// WhatsApp copy on top of that is best-effort: awaited so logs are useful for
-// debugging the integration, but its result never blocks or changes the
-// response -- a failed/misconfigured send must not lock anyone out of login.
+// Real WhatsApp delivery is confirmed working (Phase 4), so the on-screen/
+// prefilled code fallback is now conditional, not permanent: it's only
+// returned when the real send didn't happen or didn't succeed, so login
+// never fully locks out on a delivery outage. When WhatsApp delivery
+// succeeds, the customer must actually read the code from WhatsApp --
+// that's the point of requiring verification at all.
 export async function POST(req: NextRequest) {
   const { phone } = await req.json();
 
@@ -35,11 +36,17 @@ export async function POST(req: NextRequest) {
 
   const { data: existingCustomer } = await supabaseAdmin.from('customers').select('name').eq('phone', digits).maybeSingle();
 
+  let delivered = false;
   try {
-    await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
+    const result = await sendWhatsAppTemplate(digits, WHATSAPP_TEMPLATES.otp, [code]);
+    delivered = result.ok && !result.stubbed;
   } catch (err) {
     console.error('WhatsApp OTP send threw unexpectedly:', err);
   }
 
-  return NextResponse.json({ ok: true, code, needsName: !existingCustomer?.name });
+  return NextResponse.json({
+    ok: true,
+    code: delivered ? undefined : code,
+    needsName: !existingCustomer?.name
+  });
 }

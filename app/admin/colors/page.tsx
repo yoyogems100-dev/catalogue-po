@@ -3,7 +3,7 @@ import ColorsClient from './ColorsClient';
 
 export default async function ColorsPage() {
   const [{ data: colors }, { data: categories }, { data: catColors }] = await Promise.all([
-    supabaseAdmin.from('colors').select('id, name, hex_value').order('name'),
+    supabaseAdmin.from('colors').select('id, name, hex_value, sort_order').order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name').order('num'),
     supabaseAdmin.from('category_colors').select('category_id, color_id')
   ]);

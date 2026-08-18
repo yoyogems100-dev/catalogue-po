@@ -31,8 +31,8 @@ async function getData() {
     supabasePublic.from('category_shapes').select('category_id, shape_id'),
     supabasePublic.from('category_colors').select('category_id, color_id'),
     supabasePublic.from('category_shape_sizes').select('category_id'),
-    supabasePublic.from('shapes').select('id, name, icon_key').order('name'),
-    supabasePublic.from('colors').select('id, name, hex_value').order('name')
+    supabasePublic.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
+    supabasePublic.from('colors').select('id, name, hex_value').order('sort_order').order('name')
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {

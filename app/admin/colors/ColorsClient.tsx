@@ -24,11 +24,16 @@ export default function ColorsClient({
 
   async function add() {
     if (!newColor.trim()) return;
-    await fetch('/api/colors', {
+    const res = await fetch('/api/colors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newColor, hex_value: newHex })
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to add color -- a color with this name may already exist.');
+      return;
+    }
     setNewColor('');
     setNewHex('#B0AFAC');
     router.refresh();
@@ -59,6 +64,20 @@ export default function ColorsClient({
     router.refresh();
   }
 
+  async function moveColor(id: number, direction: 'up' | 'down') {
+    const res = await fetch('/api/colors/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color_id: id, direction })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to reorder color');
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, maxWidth: 480, alignItems: 'center' }}>
@@ -73,12 +92,16 @@ export default function ColorsClient({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {colors.map((c) => {
+        {colors.map((c, index) => {
           const linkedCatIds = catColors.filter((cc) => cc.color_id === c.id).map((cc) => cc.category_id);
           const catsOpen = expandedCats === c.id;
           return (
             <div key={c.id} className="card" style={{ padding: '8px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
+                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === colors.length - 1}>&darr;</button>
+                </span>
                 <input
                   type="color"
                   value={c.hex_value || '#B0AFAC'}

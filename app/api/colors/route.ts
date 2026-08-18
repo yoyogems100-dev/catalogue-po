@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
     .insert({ name: name.trim(), hex_value: hex_value || '#B0AFAC' })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    const message = error.code === '23505' ? 'A color with this name already exists.' : error.message;
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
   return NextResponse.json(data);
 }
 

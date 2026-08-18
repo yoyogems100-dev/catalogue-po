@@ -19,8 +19,8 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     { data: photos }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').eq('id', categoryId).single(),
-    supabaseAdmin.from('shapes').select('id, name, icon_key').order('name'),
-    supabaseAdmin.from('colors').select('id, name, hex_value').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
+    supabaseAdmin.from('colors').select('id, name, hex_value').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
     supabaseAdmin.from('category_shapes').select('shape_id').eq('category_id', categoryId),

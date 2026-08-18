@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ShapeIcon from './ShapeIcon';
 
 type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null };
@@ -25,11 +25,21 @@ export default function MultiSelect({
   // Local optimistic copy so clicks reflect instantly instead of waiting on a
   // server round-trip + page refresh -- fixes selections that appeared "stuck".
   const [localIds, setLocalIds] = useState<number[]>(selectedIds);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLocalIds(selectedIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds.join(',')]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [open]);
 
   const selected = options.filter((o) => localIds.includes(o.id));
   const filtered = useMemo(
@@ -53,7 +63,7 @@ export default function MultiSelect({
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} ref={rootRef}>
       <div className="ms-trigger" onClick={() => setOpen((v) => !v)}>
         <span className="ms-trigger-main">
           {leading !== 'none' && selected.length > 0 && (

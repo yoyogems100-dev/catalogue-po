@@ -29,8 +29,27 @@ export default function ShapesClient({
 
   async function addShape() {
     if (!newShape.trim()) return;
-    await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape }) });
+    const res = await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape }) });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to add shape -- a shape with this name may already exist.');
+      return;
+    }
     setNewShape('');
+    router.refresh();
+  }
+
+  async function moveShape(id: number, direction: 'up' | 'down') {
+    const res = await fetch('/api/shapes/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shape_id: id, direction })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to reorder shape');
+      return;
+    }
     router.refresh();
   }
 
@@ -55,11 +74,16 @@ export default function ShapesClient({
 
   async function addSize(shapeId: number) {
     if (!newSize.trim()) return;
-    await fetch('/api/shape-sizes', {
+    const res = await fetch('/api/shape-sizes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shape_id: shapeId, size_mm: newSize, weight_ct: newWeight ? parseFloat(newWeight) : null })
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to add size.');
+      return;
+    }
     setNewSize('');
     setNewWeight('');
     router.refresh();
@@ -89,10 +113,10 @@ export default function ShapesClient({
 
       <table>
         <thead>
-          <tr><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
+          <tr><th>Order</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
-          {shapes.map((s) => {
+          {shapes.map((s, index) => {
             const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id);
             const linkedCatIds = catShapes.filter((cs) => cs.shape_id === s.id).map((cs) => cs.category_id);
             const sizesOpen = expandedSizes === s.id;
@@ -100,6 +124,10 @@ export default function ShapesClient({
             return (
               <>
                 <tr key={s.id}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
+                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === shapes.length - 1}>&darr;</button>
+                  </td>
                   <td><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
                     <button className="btn-ghost" onClick={() => { setExpandedSizes(sizesOpen ? null : s.id); setExpandedCats(null); }}>
@@ -115,7 +143,7 @@ export default function ShapesClient({
                 </tr>
                 {sizesOpen && (
                   <tr key={`${s.id}-sizes`}>
-                    <td colSpan={4} style={{ background: '#faf8f3' }}>
+                    <td colSpan={5} style={{ background: '#faf8f3' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                         {shapeSizes.map((sz) => (
                           <span key={sz.id} className="tag-chip">
@@ -135,7 +163,7 @@ export default function ShapesClient({
                 )}
                 {catsOpen && (
                   <tr key={`${s.id}-cats`}>
-                    <td colSpan={4} style={{ background: '#faf8f3' }}>
+                    <td colSpan={5} style={{ background: '#faf8f3' }}>
                       <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 8 }}>
                         Which categories should offer "{s.name}" as a shape option. This is the same link used on each
                         category's own page -- edit from whichever side is more convenient.

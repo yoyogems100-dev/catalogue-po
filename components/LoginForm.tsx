@@ -45,8 +45,10 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       const data = await res.json().catch(() => ({}));
       setSending(false);
       if (res.ok) {
-        setDevDisplay(data.code);
-        setCode(data.code);
+        // data.code is only present when real WhatsApp delivery didn't happen/succeed --
+        // a fallback for outages, not a shortcut around verification. Never auto-fill the
+        // input: the customer must read the code off WhatsApp and type it in themselves.
+        setDevDisplay(data.code || null);
         setNeedsName(!!data.needsName);
         setStep('verify');
       } else {
@@ -145,7 +147,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         <form onSubmit={verifyPhone}>
           {devDisplay && (
             <p style={{ fontSize: 12.5, background: '#f4e6d0', color: '#8a5a1f', padding: '8px 10px', marginBottom: 14, borderRadius: 4 }}>
-              Your verification code: <strong>{devDisplay}</strong> (pre-filled below).
+              WhatsApp delivery didn't go through this time. Your code: <strong>{devDisplay}</strong> -- enter it below.
             </p>
           )}
           <input
