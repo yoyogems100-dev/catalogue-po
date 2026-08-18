@@ -13,6 +13,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin/categories">Categories</Link>
         <Link href="/admin/shapes">Shapes</Link>
         <Link href="/admin/colors">Colors</Link>
+        <Link href="/admin/color-palettes">Color Palettes</Link>
+        <Link href="/admin/size-palettes">Size Palettes</Link>
         <Link href="/admin/bulk-link">Bulk Link</Link>
         <Link href="/admin/tags">Tags</Link>
         <Link href="/" target="_blank">View public site &rarr;</Link>

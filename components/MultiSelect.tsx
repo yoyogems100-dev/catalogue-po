@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import ShapeIcon from './ShapeIcon';
 
 type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null };
+type Palette = { id: number; name: string; memberIds: number[] };
 
 export default function MultiSelect({
   options,
@@ -11,7 +12,8 @@ export default function MultiSelect({
   onToggle,
   leading = 'none',
   placeholder = 'Nothing selected',
-  emptyHint
+  emptyHint,
+  palettes
 }: {
   options: Option[];
   selectedIds: number[];
@@ -19,6 +21,8 @@ export default function MultiSelect({
   leading?: 'swatch' | 'icon' | 'none';
   placeholder?: string;
   emptyHint?: string;
+  /** Quick-select groups shown above the option list -- checking one selects every member at once. */
+  palettes?: Palette[];
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,6 +66,18 @@ export default function MultiSelect({
     }
   }
 
+  // Selecting a palette adds every member not already selected; unchecking a
+  // fully-selected palette removes every member. Individual colors within it
+  // can still be toggled normally afterward either way.
+  async function applyPalette(palette: Palette) {
+    const isFullySelected = palette.memberIds.length > 0 && palette.memberIds.every((id) => localIds.includes(id));
+    for (const id of palette.memberIds) {
+      const isSel = localIds.includes(id);
+      if (isFullySelected && isSel) await handleToggle(id, true);
+      else if (!isFullySelected && !isSel) await handleToggle(id, false);
+    }
+  }
+
   return (
     <div style={{ position: 'relative' }} ref={rootRef}>
       <div className="ms-trigger" onClick={() => setOpen((v) => !v)}>
@@ -90,6 +106,20 @@ export default function MultiSelect({
             autoFocus
             className="ms-search"
           />
+          {palettes && palettes.length > 0 && (
+            <div className="ms-palette-section">
+              {palettes.map((p) => {
+                const fullySelected = p.memberIds.length > 0 && p.memberIds.every((id) => localIds.includes(id));
+                return (
+                  <div key={p.id} className={`ms-row ms-palette-row ${fullySelected ? 'ms-row-active' : ''}`} onClick={() => applyPalette(p)}>
+                    <input type="checkbox" checked={fullySelected} readOnly />
+                    <strong>{p.name}</strong>
+                    <span className="ms-palette-count">{p.memberIds.length}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {filtered.length === 0 && <div style={{ padding: 12, fontSize: 12, color: '#8a8370' }}>{emptyHint || 'No matches.'}</div>}
           {filtered.map((o) => {
             const isSel = localIds.includes(o.id);

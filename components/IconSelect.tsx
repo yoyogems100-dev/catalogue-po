@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import ShapeIcon from './ShapeIcon';
 
 type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null };
+type Palette = { id: number; name: string; memberIds: number[] };
 
 type CommonProps = {
   options: Option[];
@@ -24,6 +25,8 @@ type MultiProps = CommonProps & {
   values: number[];
   onChange: (v: number[]) => void;
   placeholder: string;
+  /** Quick-select groups (e.g. a color/size palette) shown above the option list. */
+  palettes?: Palette[];
 };
 
 type Props = SingleProps | MultiProps;
@@ -91,6 +94,15 @@ export default function IconSelect(props: Props) {
     multi.onChange(next);
   }
 
+  function applyPalette(palette: Palette) {
+    if (!isMulti) return;
+    const fullySelected = palette.memberIds.length > 0 && palette.memberIds.every((id) => multi.values.includes(id));
+    const next = fullySelected
+      ? multi.values.filter((v) => !palette.memberIds.includes(v))
+      : [...new Set([...multi.values, ...palette.memberIds])];
+    multi.onChange(next);
+  }
+
   function pickSingle(id: number) {
     single.onChange(id);
     setOpen(false);
@@ -116,6 +128,25 @@ export default function IconSelect(props: Props) {
               onChange={(e) => setSearch(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             />
+          )}
+
+          {isMulti && multi.palettes && multi.palettes.length > 0 && (
+            <div className="icon-select-palette-section">
+              {multi.palettes.map((p) => {
+                const fullySelected = p.memberIds.length > 0 && p.memberIds.every((id) => multi.values.includes(id));
+                return (
+                  <div
+                    key={p.id}
+                    className={`icon-select-row icon-select-palette-row ${fullySelected ? 'active' : ''}`}
+                    onClick={() => applyPalette(p)}
+                  >
+                    <input type="checkbox" checked={fullySelected} readOnly className="icon-select-checkbox" />
+                    <strong>{p.name}</strong>
+                    <span className="icon-select-palette-count">{p.memberIds.length}</span>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {!isMulti && (

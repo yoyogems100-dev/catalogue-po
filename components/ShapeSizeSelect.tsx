@@ -27,6 +27,8 @@ export default function ShapeSizeSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expandedShapeId, setExpandedShapeId] = useState<number | null>(null);
+  const [rangeMin, setRangeMin] = useState('');
+  const [rangeMax, setRangeMax] = useState('');
 
   // Local optimistic copies so clicks reflect instantly instead of waiting on
   // a server round-trip + page refresh -- fixes selections that appeared "stuck".
@@ -71,6 +73,33 @@ export default function ShapeSizeSelect({
     const sizesForShape = allSizes.filter((sz) => sz.shape_id === shapeId).map((sz) => sz.id);
     setLocalSizeIds((cur) => [...cur.filter((id) => !sizesForShape.includes(id)), ...sizeIds]);
     onBulkSizes(shapeId, sizeIds);
+  }
+
+  // Only matches a plain "1" / "1.5" style value, same reasoning as
+  // POSelector's size range: a compound size like "6x8" shouldn't be swept
+  // into a numeric range by parseFloat reading it as 6.
+  function strictSizeNum(s: string): number {
+    return /^\d+(\.\d+)?$/.test(s.trim()) ? parseFloat(s) : NaN;
+  }
+
+  function applyRange(shapeId: number) {
+    const min = parseFloat(rangeMin);
+    const max = parseFloat(rangeMax);
+    if (Number.isNaN(min) || Number.isNaN(max)) return;
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    const sizesForShape = allSizes.filter((sz) => sz.shape_id === shapeId);
+    const matchIds = sizesForShape
+      .filter((sz) => {
+        const v = strictSizeNum(sz.size_mm);
+        return !Number.isNaN(v) && v >= lo && v <= hi;
+      })
+      .map((sz) => sz.id);
+    if (matchIds.length === 0) return;
+    const merged = [...new Set([...localSizeIds.filter((id) => sizesForShape.some((sz) => sz.id === id)), ...matchIds])];
+    handleBulkSizes(shapeId, merged);
+    setRangeMin('');
+    setRangeMax('');
   }
 
   return (
@@ -131,9 +160,29 @@ export default function ShapeSizeSelect({
                       <span style={{ fontSize: 11, color: '#8a8370' }}>No sizes defined for this shape yet.</span>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                           <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => handleBulkSizes(shape.id, sizesForShape.map((sz) => sz.id))}>All</button>
                           <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => handleBulkSizes(shape.id, [])}>None</button>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Min"
+                            value={rangeMin}
+                            onChange={(e) => setRangeMin(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width: 42, fontSize: 10.5, padding: '3px 5px' }}
+                          />
+                          <span style={{ fontSize: 10, color: '#8a8370' }}>to</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Max"
+                            value={rangeMax}
+                            onChange={(e) => setRangeMax(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width: 42, fontSize: 10.5, padding: '3px 5px' }}
+                          />
+                          <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => applyRange(shape.id)}>Range</button>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                           {sizesForShape.map((sz) => {

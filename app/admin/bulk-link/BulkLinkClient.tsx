@@ -10,11 +10,13 @@ type Category = { id: number; num: number; name: string };
 export default function BulkLinkClient({
   shapes,
   colors,
-  categories
+  categories,
+  colorPalettes
 }: {
   shapes: Shape[];
   colors: ColorRow[];
   categories: Category[];
+  colorPalettes?: { id: number; name: string; memberIds: number[] }[];
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>([]);
   const [colorIds, setColorIds] = useState<number[]>([]);
@@ -73,6 +75,7 @@ export default function BulkLinkClient({
           onToggle={(id, active) => setColorIds(active ? colorIds.filter((x) => x !== id) : [...colorIds, id])}
           leading="swatch"
           placeholder="Choose colors to link"
+          palettes={colorPalettes}
         />
       </div>
 

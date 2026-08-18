@@ -67,7 +67,42 @@ async function getCategoryData(slug: string) {
   const shapesFormatted = (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: s.ref_photo_url }));
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 
-  return { category, shapes: shapesFormatted, colors: colorsFormatted, tags: tags || [], sizes: sizes || [], photos: photosWithUrl };
+  // Palettes: only ones with at least one member actually offered in this
+  // category, and only those members -- a palette listing a color/size this
+  // category doesn't carry would just add a phantom selection.
+  const [{ data: colorPalettesRaw }, { data: colorPaletteItems }, { data: sizePalettesRaw }, { data: sizePaletteItems }] = await Promise.all([
+    supabasePublic.from('color_palettes').select('id, name').order('sort_order').order('name'),
+    supabasePublic.from('color_palette_items').select('palette_id, color_id'),
+    supabasePublic.from('size_palettes').select('id, name').order('sort_order').order('name'),
+    supabasePublic.from('size_palette_items').select('palette_id, size_mm')
+  ]);
+  const colorIdSet = new Set(colorIds);
+  const colorPalettes = (colorPalettesRaw || [])
+    .map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      memberIds: (colorPaletteItems || []).filter((i: any) => i.palette_id === p.id && colorIdSet.has(i.color_id)).map((i: any) => i.color_id)
+    }))
+    .filter((p) => p.memberIds.length > 0);
+  const sizeMmSet = new Set((sizes || []).map((s: any) => s.size_mm));
+  const sizePalettes = (sizePalettesRaw || [])
+    .map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      sizeMms: (sizePaletteItems || []).filter((i: any) => i.palette_id === p.id && sizeMmSet.has(i.size_mm)).map((i: any) => i.size_mm)
+    }))
+    .filter((p) => p.sizeMms.length > 0);
+
+  return {
+    category,
+    shapes: shapesFormatted,
+    colors: colorsFormatted,
+    tags: tags || [],
+    sizes: sizes || [],
+    photos: photosWithUrl,
+    colorPalettes,
+    sizePalettes
+  };
 }
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
@@ -100,6 +135,8 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           tags={data.tags}
           sizes={data.sizes}
           photos={data.photos}
+          colorPalettes={data.colorPalettes}
+          sizePalettes={data.sizePalettes}
         />
       </div>
       <Footer settings={settings} />

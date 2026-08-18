@@ -32,7 +32,8 @@ export default function CategoryAdminClient({
   linkedTagIds,
   linkedSizeIds,
   thumbnailPhotoId,
-  photos
+  photos,
+  colorPalettes
 }: {
   categoryId: number;
   allShapes: ShapeRef[];
@@ -45,6 +46,7 @@ export default function CategoryAdminClient({
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
+  colorPalettes?: { id: number; name: string; memberIds: number[] }[];
 }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
@@ -225,6 +227,7 @@ export default function CategoryAdminClient({
               onToggle={(id, active) => toggleLink('color', id, active)}
               leading="swatch"
               placeholder="No colors selected"
+              palettes={colorPalettes}
             />
           </div>
           <div>

@@ -19,7 +19,9 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     { data: linkedColors },
     { data: linkedTags },
     { data: linkedSizes },
-    { data: photos }
+    { data: photos },
+    { data: colorPalettesRaw },
+    { data: colorPaletteItems }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
@@ -35,12 +37,20 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
       .select('id, storage_path, drive_id, shape_id, shape_size_id, color_id, product_code, notes, photo_tags(tag_id)')
       .eq('category_id', categoryId)
       .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
+      .order('id', { ascending: true }),
+    supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
+    supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
   ]);
 
   if (!category) {
     return <p>Category not found. <Link href="/admin/categories">&larr; Back</Link></p>;
   }
+
+  const colorPalettes = (colorPalettesRaw || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    memberIds: (colorPaletteItems || []).filter((i: any) => i.palette_id === p.id).map((i: any) => i.color_id)
+  })).filter((p) => p.memberIds.length > 0);
 
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
@@ -69,6 +79,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
         linkedSizeIds={(linkedSizes || []).map((r: any) => r.shape_size_id)}
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
+        colorPalettes={colorPalettes}
       />
     </>
   );

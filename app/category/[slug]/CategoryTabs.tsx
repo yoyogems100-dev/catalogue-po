@@ -15,6 +15,9 @@ type Photo = {
   tag_ids: number[];
 };
 
+type Palette = { id: number; name: string; memberIds: number[] };
+type SizePalette = { id: number; name: string; sizeMms: string[] };
+
 export default function CategoryTabs({
   categoryId,
   categoryName,
@@ -23,7 +26,9 @@ export default function CategoryTabs({
   colors,
   tags,
   sizes,
-  photos
+  photos,
+  colorPalettes,
+  sizePalettes
 }: {
   categoryId: number;
   categoryName: string;
@@ -33,6 +38,8 @@ export default function CategoryTabs({
   tags: Ref[];
   sizes: Size[];
   photos: Photo[];
+  colorPalettes?: Palette[];
+  sizePalettes?: SizePalette[];
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
 
@@ -55,6 +62,8 @@ export default function CategoryTabs({
           shapes={shapes}
           colors={colors}
           sizes={sizes}
+          colorPalettes={colorPalettes}
+          sizePalettes={sizePalettes}
         />
       ) : (
         <CategoryClient
