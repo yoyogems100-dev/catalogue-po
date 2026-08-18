@@ -24,6 +24,13 @@ type CartItem = {
   requestType: RequestType;
 };
 
+// Only matches a plain "1" / "1.5" style value -- parseFloat alone would also
+// read "2x4" as 2, which would make a compound (WxH) size wrongly match a
+// numeric range select or sort alongside genuinely round sizes.
+function strictSizeNum(s: string): number {
+  return /^\d+(\.\d+)?$/.test(s.trim()) ? parseFloat(s) : NaN;
+}
+
 const CART_KEY = 'yoyo_po_cart_v2';
 
 function loadCart(): CartItem[] {
@@ -114,8 +121,8 @@ export default function POSelector({
     // Numeric sizes first in ascending order, non-numeric (e.g. "6x8") after --
     // makes the range quick-pick predictable and the list easy to scan.
     return common.sort((a, b) => {
-      const na = parseFloat(a.sizeMm);
-      const nb = parseFloat(b.sizeMm);
+      const na = strictSizeNum(a.sizeMm);
+      const nb = strictSizeNum(b.sizeMm);
       if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
       if (Number.isNaN(na)) return 1;
       if (Number.isNaN(nb)) return -1;
@@ -138,7 +145,7 @@ export default function POSelector({
     const lo = Math.min(min, max);
     const hi = Math.max(min, max);
     const matchIdxs = sizesForShapes
-      .map((g, i) => ({ i, val: parseFloat(g.sizeMm) }))
+      .map((g, i) => ({ i, val: strictSizeNum(g.sizeMm) }))
       .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
       .map((g) => g.i);
 
