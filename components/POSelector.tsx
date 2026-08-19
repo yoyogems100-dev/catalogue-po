@@ -53,7 +53,6 @@ function saveCart(cart: CartItem[]) {
 }
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
-type SizePalette = { id: number; name: string; sizeMms: string[] };
 
 export default function POSelector({
   categoryId,
@@ -62,8 +61,7 @@ export default function POSelector({
   shapes,
   colors,
   sizes,
-  colorPalettes,
-  sizePalettes
+  colorPalettes
 }: {
   categoryId: number;
   categoryName: string;
@@ -72,7 +70,6 @@ export default function POSelector({
   colors: ColorRef[];
   sizes: Size[];
   colorPalettes?: ColorPalette[];
-  sizePalettes?: SizePalette[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -141,21 +138,6 @@ export default function POSelector({
     () => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })),
     [sizesForShapes]
   );
-
-  // Resolve each size palette's raw size_mm list to indexes into the current
-  // sizesForShapes -- recomputed whenever the selected shapes change, since
-  // that's what sizesForShapes itself depends on. A palette entry with no
-  // match for the current shape selection just contributes nothing.
-  const resolvedSizePalettes = useMemo(() => {
-    if (!sizePalettes || sizePalettes.length === 0) return [];
-    return sizePalettes
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        memberIds: sizesForShapes.reduce<number[]>((acc, g, i) => (p.sizeMms.includes(g.sizeMm) ? [...acc, i] : acc), [])
-      }))
-      .filter((p) => p.memberIds.length > 0);
-  }, [sizePalettes, sizesForShapes]);
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -334,7 +316,6 @@ export default function POSelector({
                   ? 'No common size for these shapes'
                   : 'Choose size(s)'
               }
-              palettes={resolvedSizePalettes}
             />
             {pickShapeIds.length > 0 && (
               <div className="po-range-row">

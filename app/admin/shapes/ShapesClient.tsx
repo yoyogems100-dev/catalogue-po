@@ -9,25 +9,20 @@ type Shape = { id: number; name: string };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 type Category = { id: number; num: number; name: string };
 type CatShape = { category_id: number; shape_id: number };
-type SizePalette = { id: number; name: string; sizeMms: string[] };
 
 export default function ShapesClient({
   shapes,
   sizes,
   categories,
-  catShapes,
-  sizePalettes
+  catShapes
 }: {
   shapes: Shape[];
   sizes: Size[];
   categories: Category[];
   catShapes: CatShape[];
-  sizePalettes: SizePalette[];
 }) {
   const router = useRouter();
   const [newShape, setNewShape] = useState('');
-  const [newPaletteName, setNewPaletteName] = useState('');
-  const [newPaletteSizes, setNewPaletteSizes] = useState<Record<number, string>>({});
   const [expandedSizes, setExpandedSizes] = useState<number | null>(null);
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newSize, setNewSize] = useState('');
@@ -148,55 +143,6 @@ export default function ShapesClient({
     router.refresh();
   }
 
-  async function addPalette() {
-    if (!newPaletteName.trim()) return;
-    const res = await fetch('/api/size-palettes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newPaletteName })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add palette.');
-      return;
-    }
-    setNewPaletteName('');
-    router.refresh();
-  }
-
-  async function removePalette(id: number) {
-    if (!confirm('Delete this palette? It stops appearing as a quick-select everywhere.')) return;
-    await fetch('/api/size-palettes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    router.refresh();
-  }
-
-  async function addPaletteSizes(paletteId: number) {
-    const text = newPaletteSizes[paletteId] || '';
-    if (!text.trim()) return;
-    const paletteSizeValues = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-    const res = await fetch('/api/size-palettes/items', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ palette_id: paletteId, sizes: paletteSizeValues })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add sizes.');
-      return;
-    }
-    setNewPaletteSizes((cur) => ({ ...cur, [paletteId]: '' }));
-    router.refresh();
-  }
-
-  async function removePaletteSize(paletteId: number, sizeMm: string) {
-    await fetch('/api/size-palettes/items', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ palette_id: paletteId, size_mm: sizeMm })
-    });
-    router.refresh();
-  }
-
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 420 }}>
@@ -301,49 +247,6 @@ export default function ShapesClient({
           )}
         </tbody>
       </table>
-
-      <section style={{ marginTop: 36 }}>
-        <h2 style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>Size Palettes</h2>
-        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14, maxWidth: 640 }}>
-          Group commonly-used sizes into named sets (e.g. "Melee Range") -- wherever a size dropdown supports
-          palettes, checking one auto-selects every matching size for whichever shape is currently active (only
-          sizes that actually exist for that shape get selected; the rest are simply skipped).
-        </p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18, maxWidth: 480 }}>
-          <input type="text" placeholder="New palette name, e.g. Melee Range" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPalette()} />
-          <button className="btn" onClick={addPalette} style={{ whiteSpace: 'nowrap' }}>Add palette</button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}>
-          {sizePalettes.map((p) => (
-            <div key={p.id} className="card" style={{ padding: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePalette(p.id)}>Delete</button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                {p.sizeMms.map((sz) => (
-                  <span key={sz} className="tag-chip">
-                    {sz}mm
-                    <span style={{ cursor: 'pointer', color: '#a3341f' }} onClick={() => removePaletteSize(p.id, sz)}>&times;</span>
-                  </span>
-                ))}
-                {p.sizeMms.length === 0 && <span style={{ fontSize: 12, color: '#8a8370' }}>No sizes yet.</span>}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="0.8, 1.0, 1.1, 1.5 -- comma separated"
-                  value={newPaletteSizes[p.id] || ''}
-                  onChange={(e) => setNewPaletteSizes((cur) => ({ ...cur, [p.id]: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && addPaletteSizes(p.id)}
-                />
-                <button className="btn" onClick={() => addPaletteSizes(p.id)}>Add</button>
-              </div>
-            </div>
-          ))}
-          {sizePalettes.length === 0 && <p style={{ fontSize: 13, color: '#8a8370' }}>No palettes yet -- add one above.</p>}
-        </div>
-      </section>
     </>
   );
 }
