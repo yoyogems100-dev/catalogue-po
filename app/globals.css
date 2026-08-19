@@ -54,6 +54,9 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
   color: #fff; font-size: 13px; padding: 8px; min-height: 44px; min-width: 44px; justify-content: center;
 }
+/* A long business name shouldn't be able to push "My Orders" or the logo
+   off a narrow screen -- clip it instead of letting the topbar overflow. */
+.account-menu-trigger span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-menu-trigger:hover { color: var(--gold-soft); }
 .account-menu-backdrop { position: fixed; inset: 0; z-index: 55; }
 .account-menu-popover {
@@ -542,7 +545,8 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .admin-main { overflow-x: auto; }
 
   /* Comfortable tap targets (44px guideline) on primary interactive elements */
-  .btn, .btn-ghost { min-height: 44px; padding: 12px 18px; }
+  .btn, .btn-ghost, .btn-danger { min-height: 44px; padding: 12px 18px; }
+  .po-cart-head { flex-wrap: wrap; gap: 8px; }
   .tag-chip { padding: 8px 14px; }
 
   .admin-shell { grid-template-columns: 1fr; }

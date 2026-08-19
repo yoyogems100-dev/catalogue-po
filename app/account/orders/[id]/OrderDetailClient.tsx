@@ -275,7 +275,7 @@ export default function OrderDetailClient({
   return (
     <>
       <section style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <h2 style={{ fontSize: 16, color: 'var(--ink)' }}>Line items</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn-ghost" onClick={reorder}>Reorder as new</button>

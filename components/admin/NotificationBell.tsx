@@ -102,7 +102,7 @@ export default function NotificationBell() {
           <div
             className="card"
             style={{
-              position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 60, width: 320,
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 60, width: 'min(320px, 92vw)',
               maxHeight: 420, overflowY: 'auto', background: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,0.18)'
             }}
           >
