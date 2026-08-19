@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function CategoriesListPage() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
-    supabaseAdmin.from('photos').select('id, category_id, storage_path, drive_id, sort_order').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabaseAdmin.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabaseAdmin.from('category_shapes').select('category_id'),
     supabaseAdmin.from('category_colors').select('category_id'),
     supabaseAdmin.from('category_shape_sizes').select('category_id')
@@ -20,13 +20,18 @@ export default async function CategoriesListPage() {
     return counts;
   }
 
-  const photoCounts = countBy(photos);
+  // A dedicated cover-only upload isn't a catalogue stone -- it doesn't
+  // count toward "N photos" and never stands in as the fallback cover for
+  // a category that hasn't explicitly set one (thumbnail_photo_id lookup
+  // below still finds it fine either way).
+  const galleryPhotos = (photos || []).filter((p: any) => !p.is_cover_only);
+  const photoCounts = countBy(galleryPhotos);
   const shapeCounts = countBy(catShapes);
   const colorCounts = countBy(catColors);
   const sizeCounts = countBy(catSizes);
 
   const firstPhotoByCategory: Record<number, any> = {};
-  (photos || []).forEach((p: any) => {
+  galleryPhotos.forEach((p: any) => {
     if (!firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
   });
   const photoById: Record<number, any> = {};

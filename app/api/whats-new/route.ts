@@ -11,6 +11,7 @@ export async function GET() {
     supabasePublic
       .from('photos')
       .select('id, category_id, storage_path, drive_id, created_at')
+      .eq('is_cover_only', false)
       .order('created_at', { ascending: false })
       .limit(20)
   ]);

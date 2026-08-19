@@ -22,6 +22,7 @@ type Photo = {
   product_code: string | null;
   notes: string | null;
   tag_ids: number[];
+  isCoverOnly: boolean;
 };
 
 export default function CategoryAdminClient({
@@ -54,25 +55,35 @@ export default function CategoryAdminClient({
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
 
+  // The gallery grid (and the photo count/Explore Photos) never includes a
+  // dedicated cover-only upload -- it's a distinct image, not a catalogue
+  // stone. The cover photo itself is whichever photo is the thumbnail,
+  // cover-only or not.
+  const galleryPhotos = localPhotos.filter((p) => !p.isCoverOnly);
+  const coverPhoto = localPhotos.find((p) => p.id === thumbnailPhotoId) || null;
+
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
-    const prev = localPhotos;
-    const next = moveItem(localPhotos, from, to);
-    setLocalPhotos(next);
+    const prevAll = localPhotos;
+    const next = moveItem(galleryPhotos, from, to);
+    const coverOnly = localPhotos.filter((p) => p.isCoverOnly);
+    setLocalPhotos([...next, ...coverOnly]);
     const res = await fetch('/api/photos/reorder-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_id: categoryId, orderedIds: next.map((p) => p.id) })
     });
     if (!res.ok) {
-      setLocalPhotos(prev);
+      setLocalPhotos(prevAll);
       alert('Failed to save the new photo order.');
       return;
     }
@@ -150,6 +161,22 @@ export default function CategoryAdminClient({
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    router.refresh();
+  }
+
+  // A dedicated cover photo -- doesn't need to be a real stone in the
+  // catalogue, so it's excluded from Explore Photos and the photo count,
+  // and it's auto-set as the thumbnail as soon as it uploads.
+  async function handleCoverUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingCover(true);
+    const fd = new FormData();
+    fd.append('file', files[0]);
+    fd.append('category_id', String(categoryId));
+    fd.append('is_cover_only', 'true');
+    await fetch('/api/photos/upload', { method: 'POST', body: fd });
+    setUploadingCover(false);
+    if (coverInputRef.current) coverInputRef.current.value = '';
     router.refresh();
   }
 
@@ -312,6 +339,42 @@ export default function CategoryAdminClient({
         </div>
       </section>
 
+      {/* Cover photo -- can be a dedicated image, not necessarily one of the
+          catalogue stones in the gallery below. */}
+      <section style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Cover photo</h3>
+        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 8 }}>
+          Shown on the homepage tile. Upload a dedicated image here, or use "Set cover" on any photo in the gallery
+          below -- either way it won't count toward the gallery/Explore Photos.
+        </p>
+        <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
+        {uploadingCover && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+        {coverPhoto && (
+          <div style={{ marginTop: 14, maxWidth: 240 }}>
+            <PhotoRow
+              photo={coverPhoto}
+              index={0}
+              total={1}
+              isThumbnail
+              shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
+              colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
+              tags={allTags.filter((t) => linkedTagIds.includes(t.id))}
+              sizes={allSizes.filter((sz) => linkedSizeIds.includes(sz.id))}
+              onUpdate={updatePhoto}
+              onDelete={coverPhoto.isCoverOnly ? deletePhoto : undefined}
+              onSetThumbnail={setThumbnail}
+              onMove={() => {}}
+              onCreateTag={createPhotoTag}
+              dragHandleProps={{}}
+              dropTargetProps={{}}
+              isDragging={false}
+              isDragOver={false}
+              hideMoveControls
+            />
+          </div>
+        )}
+      </section>
+
       {/* Upload */}
       <section style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
@@ -331,17 +394,17 @@ export default function CategoryAdminClient({
 
       {/* Photo grid with per-photo tagging */}
       <section>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{localPhotos.length} photos</h3>
+        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
         <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
           "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-          {localPhotos.map((p, i) => (
+          {galleryPhotos.map((p, i) => (
             <PhotoRow
               key={p.id}
               photo={p}
               index={i}
-              total={localPhotos.length}
+              total={galleryPhotos.length}
               isThumbnail={thumbnailPhotoId === p.id}
               shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
               colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
@@ -391,7 +454,8 @@ function PhotoRow({
   dragHandleProps,
   dropTargetProps,
   isDragging,
-  isDragOver
+  isDragOver,
+  hideMoveControls
 }: {
   photo: Photo;
   index: number;
@@ -402,7 +466,7 @@ function PhotoRow({
   tags: Tag[];
   sizes: Size[];
   onUpdate: (id: number, patch: { shapeIds?: number[]; sizeIds?: number[]; colorIds?: number[]; product_code?: string; notes?: string }, tagIds?: number[]) => void;
-  onDelete: (id: number) => void;
+  onDelete?: (id: number) => void;
   onSetThumbnail: (id: number) => void;
   onMove: (id: number, direction: 'left' | 'right') => void;
   onCreateTag: (name: string) => Promise<{ id: number; name: string } | null>;
@@ -410,6 +474,7 @@ function PhotoRow({
   dropTargetProps: HTMLAttributes<HTMLElement>;
   isDragging: boolean;
   isDragOver: boolean;
+  hideMoveControls?: boolean;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -463,11 +528,6 @@ function PhotoRow({
     onUpdate(photo.id, {}, next);
   }
 
-  const shapeNames = shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
-  const sizeNames = sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
-  const colorNames = colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
-  const tagNames = tagIds.map((id) => tags.find((t) => t.id === id)?.name).filter(Boolean);
-
   return (
     <div
       className={`card ${isDragOver ? 'drag-over-card' : ''}`}
@@ -476,14 +536,16 @@ function PhotoRow({
     >
       <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative' }}>
         {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-        <span
-          {...dragHandleProps}
-          className="drag-handle"
-          title="Drag to reorder"
-          style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '2px 6px' }}
-        >
-          &#9776;
-        </span>
+        {!hideMoveControls && (
+          <span
+            {...dragHandleProps}
+            className="drag-handle"
+            title="Drag to reorder"
+            style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '2px 6px' }}
+          >
+            &#9776;
+          </span>
+        )}
         {isThumbnail && (
           <span style={{ position: 'absolute', bottom: 6, left: 6, background: 'var(--gold)', color: '#fff', fontSize: 10, padding: '3px 7px', letterSpacing: 0.5 }}>
             COVER
@@ -497,16 +559,48 @@ function PhotoRow({
       </div>
       <div style={{ padding: 10 }}>
         <div className="photo-controls">
-          <button onClick={() => onMove(photo.id, 'left')} disabled={index === 0}>&larr;</button>
+          {!hideMoveControls && <button onClick={() => onMove(photo.id, 'left')} disabled={index === 0}>&larr;</button>}
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
-          <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>
+          {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
-        {(shapeNames.length > 0 || sizeNames.length > 0 || colorNames.length > 0 || tagNames.length > 0) && (
+        {(shapeIds.length > 0 || sizeIds.length > 0 || colorIds.length > 0 || tagIds.length > 0) && (
           <div className="admin-cat-card-tags" style={{ marginBottom: 8 }}>
-            {shapeNames.map((n) => <span key={`sh-${n}`} className="tag-chip-mini">{n}</span>)}
-            {sizeNames.map((n) => <span key={`sz-${n}`} className="tag-chip-mini">{n}</span>)}
-            {colorNames.map((n) => <span key={`co-${n}`} className="tag-chip-mini">{n}</span>)}
-            {tagNames.map((n) => <span key={`tg-${n}`} className="tag-chip-mini">{n}</span>)}
+            {shapeIds.map((id) => {
+              const name = shapes.find((s) => s.id === id)?.name;
+              return name ? (
+                <span key={`sh-${id}`} className="tag-chip-mini">
+                  {name}
+                  <span className="tag-chip-mini-x" onClick={() => updateShapes(shapeIds.filter((v) => v !== id))}>&times;</span>
+                </span>
+              ) : null;
+            })}
+            {sizeIds.map((id) => {
+              const size = sizes.find((s) => s.id === id);
+              return size ? (
+                <span key={`sz-${id}`} className="tag-chip-mini">
+                  {size.size_mm}mm
+                  <span className="tag-chip-mini-x" onClick={() => updateSizes(sizeIds.filter((v) => v !== id))}>&times;</span>
+                </span>
+              ) : null;
+            })}
+            {colorIds.map((id) => {
+              const name = colors.find((c) => c.id === id)?.name;
+              return name ? (
+                <span key={`co-${id}`} className="tag-chip-mini">
+                  {name}
+                  <span className="tag-chip-mini-x" onClick={() => updateColors(colorIds.filter((v) => v !== id))}>&times;</span>
+                </span>
+              ) : null;
+            })}
+            {tagIds.map((id) => {
+              const name = tags.find((t) => t.id === id)?.name;
+              return name ? (
+                <span key={`tg-${id}`} className="tag-chip-mini">
+                  {name}
+                  <span className="tag-chip-mini-x" onClick={() => toggleTag(id)}>&times;</span>
+                </span>
+              ) : null;
+            })}
           </div>
         )}
 
@@ -592,7 +686,7 @@ function PhotoRow({
           onBlur={() => onUpdate(photo.id, { notes })}
           style={{ marginBottom: 8, fontSize: 12 }}
         />
-        <button className="btn-danger" style={{ width: '100%' }} onClick={() => onDelete(photo.id)}>Delete photo</button>
+        {onDelete && <button className="btn-danger" style={{ width: '100%' }} onClick={() => onDelete(photo.id)}>Delete photo</button>}
       </div>
     </div>
   );

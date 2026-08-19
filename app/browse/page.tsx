@@ -39,7 +39,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: { tag
     const { data: taggedPhotoIds } = await supabasePublic.from('photo_tags').select('photo_id').eq('tag_id', selectedTagId);
     const photoIds = (taggedPhotoIds || []).map((r: any) => r.photo_id);
     const { data: photos } = photoIds.length
-      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id').in('id', photoIds)
+      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id').in('id', photoIds).eq('is_cover_only', false)
       : { data: [] };
 
     const byCategory: Record<number, { id: number; url: string | null }[]> = {};
@@ -54,14 +54,14 @@ export default async function BrowsePage({ searchParams }: { searchParams: { tag
   } else {
     // Default view: one cover/default photo per category, every category visible at once.
     const { data: photos } = categoryIds.length
-      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order').in('category_id', categoryIds).order('sort_order')
+      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').in('category_id', categoryIds).order('sort_order')
       : { data: [] };
 
     const firstPhotoByCategory: Record<number, any> = {};
     const photoById: Record<number, any> = {};
     (photos || []).forEach((p: any) => {
       photoById[p.id] = p;
-      if (!firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
+      if (!p.is_cover_only && !firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
     });
 
     sections = (categories || [])

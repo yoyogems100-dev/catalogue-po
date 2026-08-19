@@ -45,12 +45,15 @@ async function getCategoryData(slug: string) {
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : { data: [] }
   ]);
 
+  // is_cover_only excludes dedicated cover-photo uploads -- they're not
+  // catalogue stones, so they never belong in Explore Photos.
   const { data: photos } = await supabasePublic
     .from('photos')
     .select(
       'id, storage_path, drive_id, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
     )
     .eq('category_id', category.id)
+    .eq('is_cover_only', false)
     .order('sort_order');
 
   const photosWithUrl = (photos || []).map((p: any) => ({

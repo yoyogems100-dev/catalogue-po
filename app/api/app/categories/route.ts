@@ -7,7 +7,7 @@ import { photoUrl } from '@/lib/photos';
 export async function GET() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
-    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabasePublic.from('category_shapes').select('category_id'),
     supabasePublic.from('category_colors').select('category_id'),
     supabasePublic.from('category_shape_sizes').select('category_id')
@@ -25,7 +25,7 @@ export async function GET() {
 
   const firstPhotoByCategory: Record<number, any> = {};
   (photos || []).forEach((p: any) => {
-    if (!firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
+    if (!p.is_cover_only && !firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
   });
   const photoById: Record<number, any> = {};
   (photos || []).forEach((p: any) => { photoById[p.id] = p; });

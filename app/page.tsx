@@ -27,7 +27,7 @@ async function getData() {
     { data: allColors }
   ] = await Promise.all([
     supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
-    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabasePublic.from('category_shapes').select('category_id, shape_id'),
     supabasePublic.from('category_colors').select('category_id, color_id'),
     supabasePublic.from('category_shape_sizes').select('category_id'),
@@ -53,9 +53,12 @@ async function getData() {
   const shapeIdsByCategory = idsBy(catShapes, 'shape_id');
   const colorIdsByCategory = idsBy(catColors, 'color_id');
 
+  // A dedicated cover-only upload never stands in as the fallback thumbnail
+  // for a category that hasn't explicitly set one -- explicit lookups by
+  // thumbnail_photo_id below still find it fine either way.
   const firstPhotoByCategory: Record<number, any> = {};
   (photos || []).forEach((p: any) => {
-    if (!firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
+    if (!p.is_cover_only && !firstPhotoByCategory[p.category_id]) firstPhotoByCategory[p.category_id] = p;
   });
   const photoById: Record<number, any> = {};
   (photos || []).forEach((p: any) => { photoById[p.id] = p; });

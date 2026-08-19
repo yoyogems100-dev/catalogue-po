@@ -199,6 +199,7 @@ html, body { overflow-x: hidden; }
   border: 1px solid var(--line); padding: 2px 7px; font-size: 10px; border-radius: 2px; color: var(--charcoal);
   white-space: nowrap;
 }
+.tag-chip-mini-x { cursor: pointer; color: #a3341f; font-weight: 600; }
 
 .cat-row-actions { display: inline-flex; gap: 6px; white-space: nowrap; }
 .cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
