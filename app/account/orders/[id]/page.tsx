@@ -65,46 +65,14 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
 
   const canEdit = order.status === 'placed' || order.status === 'confirmed';
 
-  // For editing: fetch each order category's linked shapes/sizes/colors, so the
-  // customer can add a new line within a category already on this order --
-  // mirrors POSelector's per-category options without pulling in the whole catalog.
-  let categoryOptions: Record<number, { shapes: { id: number; name: string }[]; colors: { id: number; name: string; hex: string | null }[]; sizes: { id: number; shapeId: number; sizeMm: string }[] }> = {};
-  if (canEdit && categoryIds.length > 0) {
-    const [{ data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
-      supabaseAdmin.from('category_shapes').select('category_id, shape_id').in('category_id', categoryIds),
-      supabaseAdmin.from('category_colors').select('category_id, color_id').in('category_id', categoryIds),
-      supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id').in('category_id', categoryIds)
-    ]);
-
-    const allShapeIds = [...new Set((catShapes || []).map((r: any) => r.shape_id))];
-    const allColorIds = [...new Set((catColors || []).map((r: any) => r.color_id))];
-    const allSizeIds = [...new Set((catSizes || []).map((r: any) => r.shape_size_id))];
-
-    const [{ data: allShapes }, { data: allColors }, { data: allSizes }] = await Promise.all([
-      allShapeIds.length ? supabaseAdmin.from('shapes').select('id, name').in('id', allShapeIds) : Promise.resolve({ data: [] }),
-      allColorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value').in('id', allColorIds) : Promise.resolve({ data: [] }),
-      allSizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm').in('id', allSizeIds) : Promise.resolve({ data: [] })
-    ]);
-
-    const shapeById = Object.fromEntries((allShapes || []).map((s: any) => [s.id, s]));
-    const colorById = Object.fromEntries((allColors || []).map((c: any) => [c.id, c]));
-    const sizeById = Object.fromEntries((allSizes || []).map((s: any) => [s.id, s]));
-
-    categoryOptions = Object.fromEntries(
-      categoryIds.map((cid: number) => [
-        cid,
-        {
-          shapes: (catShapes || []).filter((r: any) => r.category_id === cid).map((r: any) => shapeById[r.shape_id]).filter(Boolean),
-          colors: (catColors || [])
-            .filter((r: any) => r.category_id === cid)
-            .map((r: any) => colorById[r.color_id])
-            .filter(Boolean)
-            .map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
-          sizes: (catSizes || []).filter((r: any) => r.category_id === cid).map((r: any) => sizeById[r.shape_size_id]).filter(Boolean).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }))
-        }
-      ])
-    );
-  }
+  // "Add to order" can pull in any category, not just ones already on this
+  // order -- shape/color/size options for whichever category gets picked are
+  // fetched on demand client-side via /api/app/categories/[slug], same as
+  // Quick Order's builder did.
+  const { data: allCategoriesRaw } = canEdit
+    ? await supabaseAdmin.from('categories').select('id, name, slug').order('num')
+    : { data: [] };
+  const allCategories = (allCategoriesRaw || []).map((c: any) => ({ id: c.id, name: c.name, slug: c.slug }));
 
   const { data: history } = await supabaseAdmin
     .from('order_status_history')
@@ -146,7 +114,7 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
           status={order.status}
           canEdit={canEdit}
           items={itemsFormatted}
-          categoryOptions={categoryOptions}
+          allCategories={allCategories}
           timeline={timeline}
         />
       </div>

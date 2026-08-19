@@ -37,7 +37,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       shape_id: n.shapeId,
       shape_size_id: n.sizeId,
       color_id: n.colorId,
-      quantity: n.quantity
+      quantity: n.quantity,
+      request_type: n.requestType || 'Place Order'
     }));
 
   if (validNewItems.length > 0) {

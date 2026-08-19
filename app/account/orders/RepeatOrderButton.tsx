@@ -19,9 +19,9 @@ type RepeatItem = {
 };
 
 // Inline "repeat this order" shortcut for a row on the orders LIST page (the
-// per-order detail page has its own equivalent). Lands on Quick Order, which
-// shows/edits the shared cart across every category -- same reasoning as the
-// detail page's reorder button.
+// per-order detail page has its own equivalent). The cart is shared across
+// every category page via the same localStorage key, so landing on the
+// homepage lets the customer pick which category to review/add to.
 export default function RepeatOrderButton({ orderId, items }: { orderId: number; items: RepeatItem[] }) {
   const router = useRouter();
 
@@ -74,7 +74,7 @@ export default function RepeatOrderButton({ orderId, items }: { orderId: number;
       // storage full/disabled -- nothing we can do, cart just won't persist
     }
 
-    router.push('/account/quick-order');
+    router.push('/');
   }
 
   return (

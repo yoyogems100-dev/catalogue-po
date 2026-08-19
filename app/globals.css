@@ -44,6 +44,12 @@ a { color: inherit; text-decoration: none; }
 
 /* Account menu (header icon: sign-in popover when logged out, My Orders when in) */
 .account-menu { position: relative; }
+.account-menu-loggedin { display: flex; align-items: center; gap: 4px; }
+.account-menu-orders-link {
+  color: #fff; font-size: 13px; padding: 8px 10px; min-height: 44px; display: flex; align-items: center;
+  white-space: nowrap;
+}
+.account-menu-orders-link:hover { color: var(--gold-soft); }
 .account-menu-trigger {
   display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
   color: #fff; font-size: 13px; padding: 8px; min-height: 44px; min-width: 44px; justify-content: center;

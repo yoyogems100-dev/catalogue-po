@@ -17,11 +17,12 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
   const router = useRouter();
 
   if (loggedIn) {
-    // Popover instead of a direct link -- Quick Order needed a second
-    // destination alongside My Orders, and this keeps both reachable from
-    // every page that renders AccountMenu without touching each page's header.
+    // My Orders sits directly in the header, not behind a click -- it's the
+    // single most-used destination once logged in, so it shouldn't need a
+    // popover to reach. The popover (name + logout) is still one click away.
     return (
-      <div className="account-menu">
+      <div className="account-menu account-menu-loggedin">
+        <Link href="/account/orders" className="account-menu-orders-link">My Orders</Link>
         <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)}>
           <UserIcon />
           <span>{customerName || 'Account'}</span>
@@ -31,7 +32,6 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
             <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
             <div className="account-menu-popover card">
               <div className="account-menu-links">
-                <Link href="/account/quick-order" onClick={() => setOpen(false)}>Quick Order</Link>
                 <Link href="/account/orders" onClick={() => setOpen(false)}>My Orders</Link>
               </div>
               <form action="/api/account/logout" method="post">
