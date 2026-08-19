@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   const { category_id, tag_id } = await req.json();
-  const { error } = await supabaseAdmin.from('category_tags').insert({ category_id, tag_id });
+  const { error } = await supabaseAdmin.from('category_tags').upsert({ category_id, tag_id }, { onConflict: 'category_id,tag_id', ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

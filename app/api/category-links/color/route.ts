@@ -3,7 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   const { category_id, color_id } = await req.json();
-  const { error } = await supabaseAdmin.from('category_colors').insert({ category_id, color_id });
+  // upsert + ignoreDuplicates -- re-adding a link that already exists (e.g.
+  // applying a palette quick-select where some members are already linked)
+  // is a no-op instead of a unique-constraint error, which used to revert
+  // that one row's checkbox client-side even though nothing was wrong.
+  const { error } = await supabaseAdmin.from('category_colors').upsert({ category_id, color_id }, { onConflict: 'category_id,color_id', ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
