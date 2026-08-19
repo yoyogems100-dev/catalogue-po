@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
+type BadgeType = 'shapes' | 'colors' | 'sizes' | 'none';
+
 type Row = {
   id: number;
   num: number;
@@ -14,7 +16,15 @@ type Row = {
   shapeCount: number;
   sizeCount: number;
   colorCount: number;
+  badgeType: BadgeType;
 };
+
+const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
+  { value: 'shapes', label: 'Shapes' },
+  { value: 'colors', label: 'Colors' },
+  { value: 'sizes', label: 'Sizes' },
+  { value: 'none', label: 'None' }
+];
 
 const CameraIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -44,6 +54,20 @@ function TagStack({ c }: { c: Row }) {
       <span className="tag-chip-mini">{c.sizeCount} sizes</span>
       <span className="tag-chip-mini">{c.colorCount} colors</span>
     </div>
+  );
+}
+
+function BadgeSelect({ value, onChange }: { value: BadgeType; onChange: (v: BadgeType) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as BadgeType)}
+      onClick={(e) => e.stopPropagation()}
+      title="Which count shows as the badge on this category's homepage tile"
+      style={{ fontSize: 10.5, padding: '2px 4px', maxWidth: 100 }}
+    >
+      {BADGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>Badge: {o.label}</option>)}
+    </select>
   );
 }
 
@@ -109,6 +133,20 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     router.refresh();
   }
 
+  async function setBadgeType(id: number, badge_type: BadgeType) {
+    setLocalRows((cur) => cur.map((r) => (r.id === id ? { ...r, badgeType: badge_type } : r)));
+    const res = await fetch('/api/categories', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, badge_type })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to update badge');
+    }
+    router.refresh();
+  }
+
   async function deleteCategory(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This also deletes all its photos and shape/color/size links. Past orders keep their line items. This cannot be undone.`)) return;
     const res = await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
@@ -147,7 +185,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       {view === 'list' ? (
         <table>
           <thead>
-            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th><CameraIcon />/Tags</th><th></th></tr>
+            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th><CameraIcon />/Tags</th><th>Badge</th><th></th></tr>
           </thead>
           <tbody>
             {visibleRows.map((c) => {
@@ -173,6 +211,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   </td>
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
                   <td><TagStack c={c} /></td>
+                  <td>
+                    <BadgeSelect value={c.badgeType} onChange={(v) => setBadgeType(c.id, v)} />
+                  </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
                       <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
@@ -183,7 +224,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
             )}
           </tbody>
         </table>
@@ -205,6 +246,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     <span className="tag-chip-mini">{c.sizeCount} sizes</span>
                     <span className="tag-chip-mini">{c.colorCount} colors</span>
                   </div>
+                  <BadgeSelect value={c.badgeType} onChange={(v) => setBadgeType(c.id, v)} />
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>

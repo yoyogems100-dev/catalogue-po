@@ -123,6 +123,22 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
+  // "Other" free text on a photo's tag field creates a real category-scoped
+  // tag (so it's reusable on other photos too, same list the Tags dropdown
+  // pulls from) and returns it so the caller can attach it to that photo
+  // immediately, without waiting on the router.refresh() round trip.
+  async function createPhotoTag(name: string): Promise<{ id: number; name: string } | null> {
+    const res = await fetch('/api/tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, is_global: false, category_id: categoryId })
+    });
+    if (!res.ok) return null;
+    const tag = await res.json();
+    router.refresh();
+    return tag;
+  }
+
   async function handleUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -335,6 +351,7 @@ export default function CategoryAdminClient({
               onDelete={deletePhoto}
               onSetThumbnail={setThumbnail}
               onMove={movePhoto}
+              onCreateTag={createPhotoTag}
               dragHandleProps={dragHandleProps(i)}
               dropTargetProps={dropTargetProps(i)}
               isDragging={dragIndex === i}
@@ -346,6 +363,16 @@ export default function CategoryAdminClient({
     </div>
   );
 }
+
+type FieldType = 'shape' | 'size' | 'color' | 'tags' | 'other';
+
+const FIELD_OPTIONS: { value: FieldType; label: string }[] = [
+  { value: 'shape', label: 'Shape' },
+  { value: 'size', label: 'Size' },
+  { value: 'color', label: 'Color' },
+  { value: 'tags', label: 'Tags' },
+  { value: 'other', label: 'Other' }
+];
 
 function PhotoRow({
   photo,
@@ -360,6 +387,7 @@ function PhotoRow({
   onDelete,
   onSetThumbnail,
   onMove,
+  onCreateTag,
   dragHandleProps,
   dropTargetProps,
   isDragging,
@@ -377,6 +405,7 @@ function PhotoRow({
   onDelete: (id: number) => void;
   onSetThumbnail: (id: number) => void;
   onMove: (id: number, direction: 'left' | 'right') => void;
+  onCreateTag: (name: string) => Promise<{ id: number; name: string } | null>;
   dragHandleProps: HTMLAttributes<HTMLElement>;
   dropTargetProps: HTMLAttributes<HTMLElement>;
   isDragging: boolean;
@@ -388,6 +417,9 @@ function PhotoRow({
   const [tagIds, setTagIds] = useState<number[]>(photo.tag_ids);
   const [productCode, setProductCode] = useState(photo.product_code || '');
   const [notes, setNotes] = useState(photo.notes || '');
+  const [field, setField] = useState<FieldType>('shape');
+  const [otherText, setOtherText] = useState('');
+  const [creatingTag, setCreatingTag] = useState(false);
 
   // Union (not intersection) of sizes across every selected shape -- a photo
   // can show more than one shape, and each shape's sizes are still worth
@@ -417,6 +449,24 @@ function PhotoRow({
     setTagIds(next);
     onUpdate(photo.id, {}, next);
   }
+
+  async function addOtherTag() {
+    const name = otherText.trim();
+    if (!name) return;
+    setCreatingTag(true);
+    const tag = await onCreateTag(name);
+    setCreatingTag(false);
+    if (!tag) return;
+    setOtherText('');
+    const next = [...tagIds, tag.id];
+    setTagIds(next);
+    onUpdate(photo.id, {}, next);
+  }
+
+  const shapeNames = shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
+  const sizeNames = sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
+  const colorNames = colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
+  const tagNames = tagIds.map((id) => tags.find((t) => t.id === id)?.name).filter(Boolean);
 
   return (
     <div
@@ -451,35 +501,81 @@ function PhotoRow({
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
           <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>
         </div>
-        <div style={{ marginBottom: 6 }}>
-          <IconSelect
-            multiple
-            options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
-            values={shapeIds}
-            onChange={updateShapes}
-            placeholder="No shapes"
-            leading="icon"
-          />
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <IconSelect
-            multiple
-            options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
-            values={sizeIds}
-            onChange={updateSizes}
-            placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
-          />
-        </div>
+        {(shapeNames.length > 0 || sizeNames.length > 0 || colorNames.length > 0 || tagNames.length > 0) && (
+          <div className="admin-cat-card-tags" style={{ marginBottom: 8 }}>
+            {shapeNames.map((n) => <span key={`sh-${n}`} className="tag-chip-mini">{n}</span>)}
+            {sizeNames.map((n) => <span key={`sz-${n}`} className="tag-chip-mini">{n}</span>)}
+            {colorNames.map((n) => <span key={`co-${n}`} className="tag-chip-mini">{n}</span>)}
+            {tagNames.map((n) => <span key={`tg-${n}`} className="tag-chip-mini">{n}</span>)}
+          </div>
+        )}
+
+        <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ marginBottom: 4, fontSize: 12 }}>
+          {FIELD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
         <div style={{ marginBottom: 8 }}>
-          <IconSelect
-            multiple
-            options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
-            values={colorIds}
-            onChange={updateColors}
-            placeholder="No colors"
-            leading="swatch"
-          />
+          {field === 'shape' && (
+            <IconSelect
+              multiple
+              options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
+              values={shapeIds}
+              onChange={updateShapes}
+              placeholder="No shapes"
+              leading="icon"
+            />
+          )}
+          {field === 'size' && (
+            <IconSelect
+              multiple
+              options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
+              values={sizeIds}
+              onChange={updateSizes}
+              placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
+            />
+          )}
+          {field === 'color' && (
+            <IconSelect
+              multiple
+              options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
+              values={colorIds}
+              onChange={updateColors}
+              placeholder="No colors"
+              leading="swatch"
+            />
+          )}
+          {field === 'tags' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No tags on this category yet -- add one via "Other".</span>}
+              {tags.map((t) => (
+                <span
+                  key={t.id}
+                  className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
+                  style={{ cursor: 'pointer', fontSize: 11 }}
+                  onClick={() => toggleTag(t.id)}
+                >
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          )}
+          {field === 'other' && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="text"
+                placeholder="New tag, e.g. Brilliant Cut"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
+                style={{ fontSize: 12 }}
+              />
+              <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={addOtherTag} disabled={creatingTag}>
+                {creatingTag ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+          )}
         </div>
+
         <input
           type="text"
           placeholder="Product code"
@@ -496,18 +592,6 @@ function PhotoRow({
           onBlur={() => onUpdate(photo.id, { notes })}
           style={{ marginBottom: 8, fontSize: 12 }}
         />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-          {tags.map((t) => (
-            <span
-              key={t.id}
-              className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
-              style={{ cursor: 'pointer', fontSize: 11 }}
-              onClick={() => toggleTag(t.id)}
-            >
-              {t.name}
-            </span>
-          ))}
-        </div>
         <button className="btn-danger" style={{ width: '100%' }} onClick={() => onDelete(photo.id)}>Delete photo</button>
       </div>
     </div>

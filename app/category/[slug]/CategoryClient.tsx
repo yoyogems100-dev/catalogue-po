@@ -15,7 +15,41 @@ type Photo = {
   tag_ids: number[];
 };
 
+const CART_KEY = 'yoyo_po_cart_v2';
+// Default quantity for a one-click add from a photo -- same field the
+// customer would otherwise type into the "Raise Purchase Order" tab's Qty
+// box, adjustable there afterward. This just needs a sane starting point.
+const DEFAULT_QTY = 100;
+
+function loadCart(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(CART_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(cart: any[]) {
+  try {
+    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  } catch {
+    // storage full/disabled -- nothing we can do here
+  }
+}
+
+const CartIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 7h2l1.5 9.5a2 2 0 0 0 2 1.5h7a2 2 0 0 0 2-1.66L20 9H7" />
+    <circle cx="10" cy="20" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="17" cy="20" r="1.4" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export default function CategoryClient({
+  categoryId,
   categoryName,
   whatsappNumber,
   shapes,
@@ -24,6 +58,7 @@ export default function CategoryClient({
   sizes,
   photos
 }: {
+  categoryId: number;
   categoryName: string;
   whatsappNumber?: string;
   shapes: Ref[];
@@ -32,6 +67,67 @@ export default function CategoryClient({
   sizes: Size[];
   photos: Photo[];
 }) {
+  const [addFeedback, setAddFeedback] = useState<Record<number, string>>({});
+
+  // A photo can be tagged with more than one shape/color/size (e.g. one
+  // photo standing in for a size range) -- adding it fans out into one cart
+  // line per combination, same as the multi-select "Add line" builders
+  // elsewhere. Written into the same localStorage cart POSelector reads, so
+  // it shows up under "Your Requirement" the moment the customer switches
+  // to the "Raise Purchase Order" tab.
+  function addPhotoToCart(photo: Photo) {
+    if (photo.shapeIds.length === 0 || photo.colorIds.length === 0 || photo.sizeIds.length === 0) {
+      setAddFeedback((cur) => ({ ...cur, [photo.id]: 'Not tagged with a shape/color/size yet.' }));
+      setTimeout(() => setAddFeedback((cur) => { const next = { ...cur }; delete next[photo.id]; return next; }), 2500);
+      return;
+    }
+
+    const cart = loadCart();
+    let addedCount = 0;
+    let firstLine = '';
+
+    photo.shapeIds.forEach((shapeId) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape) return;
+      photo.colorIds.forEach((colorId) => {
+        const color = colors.find((c) => c.id === colorId);
+        if (!color) return;
+        photo.sizeIds.forEach((sizeId) => {
+          const size = sizes.find((s) => s.id === sizeId);
+          if (!size) return;
+          const existing = cart.find(
+            (i) => i.categoryId === categoryId && i.shapeId === shapeId && i.sizeId === sizeId && i.colorId === colorId
+          );
+          if (existing) {
+            existing.qty += DEFAULT_QTY;
+          } else {
+            cart.push({
+              id: `${Date.now()}-${Math.random().toString(16).slice(2)}-${addedCount}`,
+              categoryId,
+              categoryName,
+              shapeId,
+              shapeName: shape.name,
+              sizeId,
+              sizeMm: size.size_mm,
+              colorId,
+              colorName: color.name,
+              colorHex: color.hex || '#ccc',
+              qty: DEFAULT_QTY,
+              requestType: 'Place Order'
+            });
+          }
+          addedCount++;
+          if (addedCount === 1) firstLine = `${color.name} · ${size.size_mm}mm ${shape.name}`;
+        });
+      });
+    });
+
+    saveCart(cart);
+    const message = addedCount === 1 ? `${firstLine} — ${DEFAULT_QTY} pcs added` : `${addedCount} lines added to your requirement`;
+    setAddFeedback((cur) => ({ ...cur, [photo.id]: message }));
+    setTimeout(() => setAddFeedback((cur) => { const next = { ...cur }; delete next[photo.id]; return next; }), 2500);
+  }
+
   const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
   const [colorFilter, setColorFilter] = useState<number | 'all'>('all');
   const [sizeFilter, setSizeFilter] = useState<number | 'all'>('all');
@@ -60,13 +156,6 @@ export default function CategoryClient({
     const sizeNames = photo.sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
     const colorNames = photo.colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
     return [...shapeNames, ...sizeNames, ...colorNames].join(', ');
-  }
-
-  function enquiryUrl(photo: Photo) {
-    if (!whatsappNumber) return null;
-    const details = detailsFor(photo);
-    const message = `Hi YOYO GEMS, I'm interested in this stone from ${categoryName}${details ? ` (${details})` : ''}.`;
-    return buildWhatsAppUrl(whatsappNumber, message);
   }
 
   function toggleSelect(id: number) {
@@ -142,8 +231,8 @@ export default function CategoryClient({
       ) : (
         <div className="grid-photos">
           {filtered.map((p, i) => {
-            const waUrl = enquiryUrl(p);
             const isSelected = selectedIds.has(p.id);
+            const feedback = addFeedback[p.id];
             return (
               <div
                 key={p.id}
@@ -157,12 +246,17 @@ export default function CategoryClient({
                     <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="4,12 9,17 20,6" /></svg>
                   </div>
                 )}
-                {!selectMode && waUrl && (
-                  <a href={waUrl} target="_blank" rel="noopener noreferrer" className="wa-enquire" onClick={(e) => e.stopPropagation()}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.13h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.36c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.55-3.7 8.21-8.25 8.21Zm4.52-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.4-.12-.56.13-.17.25-.65.81-.79.97-.15.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.87.86-.87 2.09 0 1.23.9 2.42 1.02 2.59.12.17 1.77 2.7 4.28 3.79.6.26 1.06.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28Z"/></svg>
-                    <span>Enquire</span>
-                  </a>
+                {!selectMode && (
+                  <button
+                    type="button"
+                    className="photo-add-cart"
+                    title="Add to requirement"
+                    onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
+                  >
+                    <CartIcon />
+                  </button>
                 )}
+                {feedback && <div className="photo-add-feedback">{feedback}</div>}
               </div>
             );
           })}

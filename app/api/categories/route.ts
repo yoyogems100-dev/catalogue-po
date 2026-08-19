@@ -40,10 +40,24 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(data);
 }
 
+const BADGE_TYPES = ['shapes', 'colors', 'sizes', 'none'];
+
 export async function PATCH(req: NextRequest) {
-  const { id, name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
-  const { data, error } = await supabaseAdmin.from('categories').update({ name: name.trim() }).eq('id', id).select().single();
+  const { id, name, badge_type } = await req.json();
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const updates: Record<string, string> = {};
+  if (name !== undefined) {
+    if (!name.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+    updates.name = name.trim();
+  }
+  if (badge_type !== undefined) {
+    if (!BADGE_TYPES.includes(badge_type)) return NextResponse.json({ error: 'Invalid badge_type' }, { status: 400 });
+    updates.badge_type = badge_type;
+  }
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+
+  const { data, error } = await supabaseAdmin.from('categories').update(updates).eq('id', id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json(data);
 }

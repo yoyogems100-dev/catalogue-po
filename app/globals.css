@@ -483,14 +483,20 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .qo-past-order-row span { font-size: 11px; color: #8a8370; }
 
 /* WhatsApp enquiry button on public photo cards */
-.wa-enquire {
+.photo-add-cart {
   position: absolute; bottom: 8px; right: 8px; z-index: 2;
-  display: flex; align-items: center; gap: 5px;
-  background: #25D366; color: #fff; border: none; padding: 6px 10px;
-  font-size: 11px; font-weight: 500; letter-spacing: 0.2px; text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(18,35,63,0.4); color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
-.wa-enquire:hover { background: #1EBE57; }
+.photo-add-cart:hover { background: rgba(18,35,63,0.7); }
+.photo-add-feedback {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  background: rgba(18,35,63,0.3); color: #fff; font-size: 11px; font-weight: 500;
+  padding: 6px 8px; text-align: center; line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
 
 /* Multi-photo selection mode (enquire about several stones at once) */
 .photo-select-check {
@@ -647,7 +653,6 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .container { padding: 0 14px; }
   .login-box { margin: 40px auto; max-width: 90vw; padding: 24px; }
   .footer-grid { grid-template-columns: 1fr; gap: 22px; }
-  .wa-enquire span { display: none; }
   .po-card { padding: 14px; }
   .po-add-form { grid-template-columns: 1fr 1fr; gap: 8px; }
   .po-item-list { max-height: none; }

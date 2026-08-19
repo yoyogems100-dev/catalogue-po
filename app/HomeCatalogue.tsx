@@ -16,6 +16,7 @@ type Category = {
   shapeCount: number;
   colorCount: number;
   sizeCount: number;
+  badgeType: 'shapes' | 'colors' | 'sizes' | 'none';
 };
 
 export default function HomeCatalogue({
@@ -77,13 +78,19 @@ export default function HomeCatalogue({
               cat.sizeCount > 0 ? `${cat.sizeCount} size${cat.sizeCount !== 1 ? 's' : ''}` : null,
               cat.colorCount > 0 ? `${cat.colorCount} color${cat.colorCount !== 1 ? 's' : ''}` : null
             ].filter(Boolean);
+            // Which count shows as the badge over the thumbnail is chosen per
+            // category in admin (Categories -> Badge dropdown) -- defaults to
+            // shapes, but a category of loose stones in one shape might make
+            // more sense badged by color count instead, for example.
+            const badgeCount = cat.badgeType === 'colors' ? cat.colorCount : cat.badgeType === 'sizes' ? cat.sizeCount : cat.badgeType === 'shapes' ? cat.shapeCount : 0;
+            const badgeLabel = cat.badgeType === 'colors' ? 'color' : cat.badgeType === 'sizes' ? 'size' : 'shape';
             return (
               <Link key={cat.id} href={`/category/${cat.slug}`}>
                 <div className="cat-card">
                   <div className="cat-thumb">
                     {cat.thumb ? <img src={cat.thumb} alt={cat.name} /> : null}
-                    {cat.shapeCount > 0 && (
-                      <span className="cat-badge">{cat.shapeCount} shape{cat.shapeCount !== 1 ? 's' : ''}</span>
+                    {cat.badgeType !== 'none' && badgeCount > 0 && (
+                      <span className="cat-badge">{badgeCount} {badgeLabel}{badgeCount !== 1 ? 's' : ''}</span>
                     )}
                   </div>
                   <div className="cat-info">
