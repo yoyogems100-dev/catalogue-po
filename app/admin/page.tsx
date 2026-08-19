@@ -5,9 +5,8 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
-  const [{ count: catCount }, { count: photoCount }, { count: shapeCount }, { count: colorCount }, { count: tagCount }] = await Promise.all([
+  const [{ count: catCount }, { count: shapeCount }, { count: colorCount }, { count: tagCount }] = await Promise.all([
     supabaseAdmin.from('categories').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('photos').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('shapes').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('colors').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('tags').select('*', { count: 'exact', head: true })
@@ -15,7 +14,6 @@ export default async function AdminDashboard() {
 
   const stats = [
     { label: 'Categories', value: catCount, href: '/admin/categories' },
-    { label: 'Photos', value: photoCount, href: '/admin/categories' },
     { label: 'Shapes', value: shapeCount, href: '/admin/shapes' },
     { label: 'Colors', value: colorCount, href: '/admin/colors' },
     { label: 'Tags', value: tagCount, href: '/admin/tags' }

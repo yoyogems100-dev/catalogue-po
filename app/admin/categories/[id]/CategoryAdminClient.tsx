@@ -51,6 +51,7 @@ export default function CategoryAdminClient({
   colorPalettes?: { id: number; name: string; memberIds: number[] }[];
 }) {
   const router = useRouter();
+  const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
@@ -199,31 +200,44 @@ export default function CategoryAdminClient({
   const linkedSizes = allSizes.filter((sz) => linkedSizeIds.includes(sz.id));
   const linkedTags = allTags.filter((t) => linkedTagIds.includes(t.id));
 
+  function toggleSummary(key: string) {
+    setExpandedSummary((cur) => ({ ...cur, [key]: !cur[key] }));
+  }
+
+  const summaryBlocks: { key: string; label: string; count: number; text: string }[] = [
+    { key: 'shapes', label: 'Shape', count: linkedShapes.length, text: linkedShapes.map((s) => s.name).join(', ') },
+    { key: 'colors', label: 'Color', count: linkedColors.length, text: linkedColors.map((c) => c.name).join(', ') },
+    {
+      key: 'sizes',
+      label: 'Size',
+      count: linkedSizes.length,
+      text: linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
+    },
+    { key: 'tags', label: 'Tag', count: linkedTags.length, text: linkedTags.map((t) => t.name).join(', ') }
+  ];
+
   return (
     <div style={{ marginTop: 20 }}>
-      {/* At-a-glance summary of everything linked to this category -- the dropdowns
-          below only show counts/previews until opened, this spells it out in one look. */}
+      {/* At-a-glance summary of everything linked to this category -- collapsed to just
+          the counts by default (the full name lists were overwhelming at a glance on
+          categories with dozens of shapes/colors/sizes), click a count to expand it. */}
       <section className="cat-summary-panel" style={{ marginBottom: 20 }}>
-        <div>
-          <span className="cat-summary-label">{linkedShapes.length} Shape{linkedShapes.length === 1 ? '' : 's'}</span>
-          <p className="cat-summary-value">{linkedShapes.length ? linkedShapes.map((s) => s.name).join(', ') : 'None linked yet'}</p>
-        </div>
-        <div>
-          <span className="cat-summary-label">{linkedColors.length} Color{linkedColors.length === 1 ? '' : 's'}</span>
-          <p className="cat-summary-value">{linkedColors.length ? linkedColors.map((c) => c.name).join(', ') : 'None linked yet'}</p>
-        </div>
-        <div>
-          <span className="cat-summary-label">{linkedSizes.length} Size{linkedSizes.length === 1 ? '' : 's'}</span>
-          <p className="cat-summary-value">
-            {linkedSizes.length
-              ? linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
-              : 'None linked yet'}
-          </p>
-        </div>
-        <div>
-          <span className="cat-summary-label">{linkedTags.length} Tag{linkedTags.length === 1 ? '' : 's'}</span>
-          <p className="cat-summary-value">{linkedTags.length ? linkedTags.map((t) => t.name).join(', ') : 'None linked yet'}</p>
-        </div>
+        {summaryBlocks.map((b) => {
+          const expanded = !!expandedSummary[b.key];
+          return (
+            <div key={b.key}>
+              <button
+                type="button"
+                className="cat-summary-label cat-summary-toggle"
+                onClick={() => toggleSummary(b.key)}
+                disabled={b.count === 0}
+              >
+                {b.count} {b.label}{b.count === 1 ? '' : 's'} {b.count > 0 && (expanded ? '▲' : '▼')}
+              </button>
+              {expanded && <p className="cat-summary-value">{b.count ? b.text : 'None linked yet'}</p>}
+            </div>
+          );
+        })}
       </section>
 
       {/* Shapes+sizes, Colors, Tags -- all compact dropdowns in one row to minimize page scroll */}
