@@ -39,3 +39,21 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json(data);
 }
+
+export async function PATCH(req: NextRequest) {
+  const { id, name } = await req.json();
+  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+  const { data, error } = await supabaseAdmin.from('categories').update({ name: name.trim() }).eq('id', id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json(data);
+}
+
+// Cascades to the category's photos and shape/color/size/tag links (FK
+// on delete cascade); order_items.category_id is set null so past orders
+// keep their line items instead of being deleted.
+export async function DELETE(req: NextRequest) {
+  const { id } = await req.json();
+  const { error } = await supabaseAdmin.from('categories').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}

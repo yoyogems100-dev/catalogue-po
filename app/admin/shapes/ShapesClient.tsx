@@ -32,11 +32,16 @@ export default function ShapesClient({
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newSize, setNewSize] = useState('');
   const [newWeight, setNewWeight] = useState('');
+  const [search, setSearch] = useState('');
 
   // Local optimistic copy so a drag reflects instantly instead of waiting on
   // the reorder-all round trip + router.refresh().
   const [localShapes, setLocalShapes] = useState(shapes);
   useEffect(() => setLocalShapes(shapes), [shapes]);
+
+  const visibleShapes = search.trim()
+    ? localShapes.filter((s) => s.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : localShapes;
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
     const prev = localShapes;
@@ -194,9 +199,12 @@ export default function ShapesClient({
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, maxWidth: 420 }}>
-        <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 420 }}>
+        <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addShape()} />
         <button className="btn" onClick={addShape}>Add shape</button>
+      </div>
+      <div style={{ marginBottom: 16, maxWidth: 280 }}>
+        <input type="text" placeholder="Search shapes..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <table>
@@ -204,23 +212,29 @@ export default function ShapesClient({
           <tr><th>Order</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
-          {localShapes.map((s, index) => {
+          {visibleShapes.map((s) => {
+            const index = localShapes.findIndex((ls) => ls.id === s.id);
             const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id);
             const linkedCatIds = catShapes.filter((cs) => cs.shape_id === s.id).map((cs) => cs.category_id);
             const sizesOpen = expandedSizes === s.id;
             const catsOpen = expandedCats === s.id;
+            const dragProps = search.trim() ? {} : dropTargetProps(index);
             return (
               <>
                 <tr
                   key={s.id}
-                  {...dropTargetProps(index)}
-                  className={overIndex === index ? 'drag-over-row' : ''}
-                  style={{ opacity: dragIndex === index ? 0.4 : 1 }}
+                  {...dragProps}
+                  className={!search.trim() && overIndex === index ? 'drag-over-row' : ''}
+                  style={{ opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
                 >
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
-                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
-                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === localShapes.length - 1}>&darr;</button>
+                    {!search.trim() && (
+                      <>
+                        <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
+                        <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
+                        <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === localShapes.length - 1}>&darr;</button>
+                      </>
+                    )}
                   </td>
                   <td><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
@@ -253,6 +267,7 @@ export default function ShapesClient({
                           placeholder="Size, e.g. 6x8 -- or 0.8, 1.0, 1.1 for bulk"
                           value={newSize}
                           onChange={(e) => setNewSize(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && addSize(s.id)}
                         />
                         <input type="text" placeholder="Carat wt (single size only)" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} style={{ maxWidth: 160 }} />
                         <button className="btn" onClick={() => addSize(s.id)}>Add</button>
@@ -281,6 +296,9 @@ export default function ShapesClient({
               </>
             );
           })}
+          {visibleShapes.length === 0 && (
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No shapes match "{search}".</td></tr>
+          )}
         </tbody>
       </table>
 
@@ -292,7 +310,7 @@ export default function ShapesClient({
           sizes that actually exist for that shape get selected; the rest are simply skipped).
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, maxWidth: 480 }}>
-          <input type="text" placeholder="New palette name, e.g. Melee Range" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} />
+          <input type="text" placeholder="New palette name, e.g. Melee Range" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPalette()} />
           <button className="btn" onClick={addPalette} style={{ whiteSpace: 'nowrap' }}>Add palette</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}>
@@ -317,6 +335,7 @@ export default function ShapesClient({
                   placeholder="0.8, 1.0, 1.1, 1.5 -- comma separated"
                   value={newPaletteSizes[p.id] || ''}
                   onChange={(e) => setNewPaletteSizes((cur) => ({ ...cur, [p.id]: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && addPaletteSizes(p.id)}
                 />
                 <button className="btn" onClick={() => addPaletteSizes(p.id)}>Add</button>
               </div>

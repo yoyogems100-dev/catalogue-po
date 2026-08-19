@@ -26,9 +26,14 @@ export default function ColorsClient({
   const [newHex, setNewHex] = useState('#B0AFAC');
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newPaletteName, setNewPaletteName] = useState('');
+  const [search, setSearch] = useState('');
 
   const [localColors, setLocalColors] = useState(colors);
   useEffect(() => setLocalColors(colors), [colors]);
+
+  const visibleColors = search.trim()
+    ? localColors.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : localColors;
 
   async function addPalette() {
     if (!newPaletteName.trim()) return;
@@ -111,6 +116,19 @@ export default function ColorsClient({
     router.refresh();
   }
 
+  async function renameColor(id: number, name: string) {
+    const res = await fetch('/api/colors', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to rename color');
+    }
+    router.refresh();
+  }
+
   async function toggleCategory(colorId: number, categoryId: number, currentlyLinked: boolean) {
     const res = await fetch('/api/category-links/color', {
       method: currentlyLinked ? 'DELETE' : 'POST',
@@ -137,8 +155,8 @@ export default function ColorsClient({
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, maxWidth: 480, alignItems: 'center' }}>
-        <input type="text" placeholder="New color name" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 480, alignItems: 'center' }}>
+        <input type="text" placeholder="New color name" value={newColor} onChange={(e) => setNewColor(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <input
           type="color"
           value={newHex}
@@ -147,24 +165,31 @@ export default function ColorsClient({
         />
         <button className="btn" onClick={add} style={{ whiteSpace: 'nowrap' }}>Add color</button>
       </div>
+      <div style={{ marginBottom: 16, maxWidth: 280 }}>
+        <input type="text" placeholder="Search colors..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {localColors.map((c, index) => {
+        {visibleColors.map((c) => {
+          const index = localColors.findIndex((lc) => lc.id === c.id);
           const linkedCatIds = catColors.filter((cc) => cc.color_id === c.id).map((cc) => cc.category_id);
           const catsOpen = expandedCats === c.id;
+          const dragProps = search.trim() ? {} : dropTargetProps(index);
           return (
             <div
               key={c.id}
-              className={`card ${overIndex === index ? 'drag-over-card' : ''}`}
-              style={{ padding: '8px 12px', opacity: dragIndex === index ? 0.4 : 1 }}
-              {...dropTargetProps(index)}
+              className={`card ${!search.trim() && overIndex === index ? 'drag-over-card' : ''}`}
+              style={{ padding: '8px 12px', opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
+              {...dragProps}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
-                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
-                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === localColors.length - 1}>&darr;</button>
-                </span>
+                {!search.trim() && (
+                  <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
+                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
+                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === localColors.length - 1}>&darr;</button>
+                  </span>
+                )}
                 <input
                   type="color"
                   value={c.hex_value || '#B0AFAC'}
@@ -172,7 +197,9 @@ export default function ColorsClient({
                   title="Click to change hex"
                   style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
                 />
-                <span style={{ fontSize: 13.5, minWidth: 140, flex: '1 1 140px' }}>{c.name}</span>
+                <span style={{ minWidth: 140, flex: '1 1 140px' }}>
+                  <NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
+                </span>
                 <span style={{ fontSize: 11, color: '#8a8370', fontFamily: 'monospace' }}>{c.hex_value}</span>
                 <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => { setExpandedCats(catsOpen ? null : c.id); }}>
                   {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
@@ -195,6 +222,7 @@ export default function ColorsClient({
             </div>
           );
         })}
+        {visibleColors.length === 0 && <p style={{ fontSize: 13, color: '#8a8370' }}>No colors match "{search}".</p>}
       </div>
 
       <section style={{ marginTop: 36 }}>
@@ -205,7 +233,7 @@ export default function ColorsClient({
           still be unchecked afterward).
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, maxWidth: 480 }}>
-          <input type="text" placeholder="New palette name, e.g. Excellent Star CP" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} />
+          <input type="text" placeholder="New palette name, e.g. Excellent Star CP" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPalette()} />
           <button className="btn" onClick={addPalette} style={{ whiteSpace: 'nowrap' }}>Add palette</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}>
@@ -228,5 +256,48 @@ export default function ColorsClient({
         </div>
       </section>
     </>
+  );
+}
+
+function NameCell({ value, onSave }: { value: string; onSave: (name: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+
+  async function save() {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed === value) {
+      setText(value);
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    await onSave(trimmed);
+  }
+
+  if (!editing) {
+    return (
+      <span
+        onClick={() => { setText(value); setEditing(true); }}
+        style={{ cursor: 'pointer', borderBottom: '1px dashed var(--line)', fontSize: 13.5 }}
+        title="Click to rename"
+      >
+        {value}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { setText(value); setEditing(false); }
+      }}
+      style={{ fontSize: 13, padding: '3px 6px', maxWidth: 180 }}
+    />
   );
 }
