@@ -47,7 +47,9 @@ async function getCategoryData(slug: string) {
 
   const { data: photos } = await supabasePublic
     .from('photos')
-    .select('id, storage_path, drive_id, shape_id, shape_size_id, color_id, photo_tags(tag_id)')
+    .select(
+      'id, storage_path, drive_id, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
+    )
     .eq('category_id', category.id)
     .order('sort_order');
 
@@ -58,9 +60,9 @@ async function getCategoryData(slug: string) {
       : p.drive_id
       ? `https://lh3.googleusercontent.com/d/${p.drive_id}=w800`
       : null,
-    shape_id: p.shape_id,
-    shape_size_id: p.shape_size_id,
-    color_id: p.color_id,
+    shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
+    sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
+    colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
     tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id)
   }));
 

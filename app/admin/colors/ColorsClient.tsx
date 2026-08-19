@@ -8,23 +8,59 @@ import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 type ColorRow = { id: number; name: string; hex_value: string | null };
 type Category = { id: number; num: number; name: string };
 type CatColor = { category_id: number; color_id: number };
+type Palette = { id: number; name: string; colorIds: number[] };
 
 export default function ColorsClient({
   colors,
   categories,
-  catColors
+  catColors,
+  palettes
 }: {
   colors: ColorRow[];
   categories: Category[];
   catColors: CatColor[];
+  palettes: Palette[];
 }) {
   const router = useRouter();
   const [newColor, setNewColor] = useState('');
   const [newHex, setNewHex] = useState('#B0AFAC');
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
+  const [newPaletteName, setNewPaletteName] = useState('');
 
   const [localColors, setLocalColors] = useState(colors);
   useEffect(() => setLocalColors(colors), [colors]);
+
+  async function addPalette() {
+    if (!newPaletteName.trim()) return;
+    const res = await fetch('/api/color-palettes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newPaletteName })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to add palette.');
+      return;
+    }
+    setNewPaletteName('');
+    router.refresh();
+  }
+
+  async function removePalette(id: number) {
+    if (!confirm('Delete this palette? It stops appearing as a quick-select everywhere -- the colors themselves are unaffected.')) return;
+    await fetch('/api/color-palettes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    router.refresh();
+  }
+
+  async function togglePaletteColor(paletteId: number, colorId: number, currentlyIn: boolean) {
+    const res = await fetch('/api/color-palettes/items', {
+      method: currentlyIn ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ palette_id: paletteId, color_id: colorId })
+    });
+    if (!res.ok) throw new Error('Failed to update palette');
+    router.refresh();
+  }
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
     const prev = localColors;
@@ -160,6 +196,37 @@ export default function ColorsClient({
           );
         })}
       </div>
+
+      <section style={{ marginTop: 36 }}>
+        <h2 style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>Color Palettes</h2>
+        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14, maxWidth: 640 }}>
+          Group colors into named sets (e.g. "Excellent Star CP") -- palettes show up as one-click quick-selects at
+          the top of color dropdowns everywhere, checking every color in the set at once (individual colors can
+          still be unchecked afterward).
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18, maxWidth: 480 }}>
+          <input type="text" placeholder="New palette name, e.g. Excellent Star CP" value={newPaletteName} onChange={(e) => setNewPaletteName(e.target.value)} />
+          <button className="btn" onClick={addPalette} style={{ whiteSpace: 'nowrap' }}>Add palette</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}>
+          {palettes.map((p) => (
+            <div key={p.id} className="card" style={{ padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <strong style={{ fontSize: 14 }}>{p.name}</strong>
+                <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePalette(p.id)}>Delete</button>
+              </div>
+              <MultiSelect
+                options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex_value }))}
+                selectedIds={p.colorIds}
+                onToggle={(colorId, active) => togglePaletteColor(p.id, colorId, active)}
+                leading="swatch"
+                placeholder="No colors in this palette yet"
+              />
+            </div>
+          ))}
+          {palettes.length === 0 && <p style={{ fontSize: 13, color: '#8a8370' }}>No palettes yet -- add one above.</p>}
+        </div>
+      </section>
     </>
   );
 }

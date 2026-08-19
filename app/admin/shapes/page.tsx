@@ -5,12 +5,22 @@ import ShapesClient from './ShapesClient';
 export const dynamic = 'force-dynamic';
 
 export default async function ShapesPage() {
-  const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }] = await Promise.all([
-    supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),
-    supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').order('id'),
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
-    supabaseAdmin.from('category_shapes').select('category_id, shape_id')
-  ]);
+  const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }, { data: sizePalettesRaw }, { data: sizePaletteItems }] =
+    await Promise.all([
+      supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),
+      supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').order('id'),
+      supabaseAdmin.from('categories').select('id, num, name').order('num'),
+      supabaseAdmin.from('category_shapes').select('category_id, shape_id'),
+      supabaseAdmin.from('size_palettes').select('id, name').order('sort_order').order('name'),
+      supabaseAdmin.from('size_palette_items').select('palette_id, size_mm')
+    ]);
+
+  const byPalette: Record<number, string[]> = {};
+  (sizePaletteItems || []).forEach((i: any) => {
+    if (!byPalette[i.palette_id]) byPalette[i.palette_id] = [];
+    byPalette[i.palette_id].push(i.size_mm);
+  });
+  const sizePalettes = (sizePalettesRaw || []).map((p: any) => ({ id: p.id, name: p.name, sizeMms: byPalette[p.id] || [] }));
 
   return (
     <>
@@ -25,6 +35,7 @@ export default async function ShapesPage() {
         sizes={sizes || []}
         categories={categories || []}
         catShapes={catShapes || []}
+        sizePalettes={sizePalettes}
       />
     </>
   );

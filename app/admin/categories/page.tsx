@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
-import Link from 'next/link';
+import CategoriesClient from './CategoriesClient';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -37,35 +37,21 @@ export default async function CategoriesListPage() {
     return cover ? photoUrl(cover, 80) : null;
   }
 
+  const rows = (categories || []).map((c) => ({
+    id: c.id,
+    num: c.num,
+    name: c.name,
+    coverUrl: coverUrl(c),
+    photoCount: photoCounts[c.id] || 0,
+    shapeCount: shapeCounts[c.id] || 0,
+    sizeCount: sizeCounts[c.id] || 0,
+    colorCount: colorCounts[c.id] || 0
+  }));
+
   return (
     <>
       <h1>Categories</h1>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Cover</th><th>Category</th><th>Photos</th><th>Shapes</th><th>Sizes</th><th>Colors</th><th></th></tr>
-        </thead>
-        <tbody>
-          {(categories || []).map((c) => {
-            const cover = coverUrl(c);
-            return (
-              <tr key={c.id}>
-                <td>{String(c.num).padStart(2, '0')}</td>
-                <td>
-                  <div className="admin-cover-thumb">
-                    {cover ? <img src={cover} alt="" /> : <span>No photo</span>}
-                  </div>
-                </td>
-                <td>{c.name}</td>
-                <td>{photoCounts[c.id] || 0}</td>
-                <td>{shapeCounts[c.id] || 0}</td>
-                <td>{sizeCounts[c.id] || 0}</td>
-                <td>{colorCounts[c.id] || 0}</td>
-                <td><Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <CategoriesClient rows={rows} />
     </>
   );
 }

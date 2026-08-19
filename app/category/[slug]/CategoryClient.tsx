@@ -9,9 +9,9 @@ type Size = { id: number; shape_id: number; size_mm: string };
 type Photo = {
   id: number;
   url: string | null;
-  shape_id: number | null;
-  shape_size_id: number | null;
-  color_id: number | null;
+  shapeIds: number[];
+  sizeIds: number[];
+  colorIds: number[];
   tag_ids: number[];
 };
 
@@ -47,19 +47,19 @@ export default function CategoryClient({
 
   const filtered = useMemo(() => {
     return photos.filter((p) => {
-      if (shapeFilter !== 'all' && p.shape_id !== shapeFilter) return false;
-      if (colorFilter !== 'all' && p.color_id !== colorFilter) return false;
-      if (sizeFilter !== 'all' && p.shape_size_id !== sizeFilter) return false;
+      if (shapeFilter !== 'all' && !p.shapeIds.includes(shapeFilter)) return false;
+      if (colorFilter !== 'all' && !p.colorIds.includes(colorFilter)) return false;
+      if (sizeFilter !== 'all' && !p.sizeIds.includes(sizeFilter)) return false;
       if (tagFilter !== 'all' && !p.tag_ids.includes(tagFilter)) return false;
       return true;
     });
   }, [photos, shapeFilter, colorFilter, sizeFilter, tagFilter]);
 
   function detailsFor(photo: Photo) {
-    const shape = shapes.find((s) => s.id === photo.shape_id);
-    const size = sizes.find((s) => s.id === photo.shape_size_id);
-    const color = colors.find((c) => c.id === photo.color_id);
-    return [shape?.name, size ? `${size.size_mm}mm` : null, color?.name].filter(Boolean).join(', ');
+    const shapeNames = photo.shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
+    const sizeNames = photo.sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
+    const colorNames = photo.colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
+    return [...shapeNames, ...sizeNames, ...colorNames].join(', ');
   }
 
   function enquiryUrl(photo: Photo) {

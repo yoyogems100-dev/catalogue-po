@@ -34,7 +34,9 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     supabaseAdmin.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId),
     supabaseAdmin
       .from('photos')
-      .select('id, storage_path, drive_id, shape_id, shape_size_id, color_id, product_code, notes, photo_tags(tag_id)')
+      .select(
+        'id, storage_path, drive_id, product_code, notes, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
+      )
       .eq('category_id', categoryId)
       .order('sort_order', { ascending: true })
       .order('id', { ascending: true }),
@@ -55,9 +57,9 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 400),
-    shape_id: p.shape_id,
-    shape_size_id: p.shape_size_id,
-    color_id: p.color_id,
+    shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
+    sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
+    colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
     product_code: p.product_code,
     notes: p.notes,
     tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id)

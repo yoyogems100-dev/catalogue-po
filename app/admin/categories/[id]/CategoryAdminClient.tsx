@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import IconSelect from '@/components/IconSelect';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
@@ -15,9 +16,9 @@ type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number |
 type Photo = {
   id: number;
   url: string | null;
-  shape_id: number | null;
-  shape_size_id: number | null;
-  color_id: number | null;
+  shapeIds: number[];
+  sizeIds: number[];
+  colorIds: number[];
   product_code: string | null;
   notes: string | null;
   tag_ids: number[];
@@ -162,11 +163,23 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
-  async function updatePhoto(photoId: number, patch: Partial<Pick<Photo, 'shape_id' | 'shape_size_id' | 'color_id' | 'product_code' | 'notes'>>, tagIds?: number[]) {
+  async function updatePhoto(
+    photoId: number,
+    patch: { shapeIds?: number[]; sizeIds?: number[]; colorIds?: number[]; product_code?: string; notes?: string },
+    tagIds?: number[]
+  ) {
     await fetch('/api/photos/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: photoId, ...patch, tag_ids: tagIds })
+      body: JSON.stringify({
+        id: photoId,
+        shape_ids: patch.shapeIds,
+        shape_size_ids: patch.sizeIds,
+        color_ids: patch.colorIds,
+        product_code: patch.product_code,
+        notes: patch.notes,
+        tag_ids: tagIds
+      })
     });
     router.refresh();
   }
@@ -356,11 +369,11 @@ function PhotoRow({
   index: number;
   total: number;
   isThumbnail: boolean;
-  shapes: Ref[];
-  colors: Ref[];
+  shapes: ShapeRef[];
+  colors: ColorRef[];
   tags: Tag[];
   sizes: Size[];
-  onUpdate: (id: number, patch: Partial<Photo>, tagIds?: number[]) => void;
+  onUpdate: (id: number, patch: { shapeIds?: number[]; sizeIds?: number[]; colorIds?: number[]; product_code?: string; notes?: string }, tagIds?: number[]) => void;
   onDelete: (id: number) => void;
   onSetThumbnail: (id: number) => void;
   onMove: (id: number, direction: 'left' | 'right') => void;
@@ -369,14 +382,35 @@ function PhotoRow({
   isDragging: boolean;
   isDragOver: boolean;
 }) {
-  const [shapeId, setShapeId] = useState(photo.shape_id ?? '');
-  const [sizeId, setSizeId] = useState(photo.shape_size_id ?? '');
-  const [colorId, setColorId] = useState(photo.color_id ?? '');
+  const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
+  const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
+  const [colorIds, setColorIds] = useState<number[]>(photo.colorIds);
   const [tagIds, setTagIds] = useState<number[]>(photo.tag_ids);
   const [productCode, setProductCode] = useState(photo.product_code || '');
   const [notes, setNotes] = useState(photo.notes || '');
 
-  const availableSizes = sizes.filter((s) => String(s.shape_id) === String(shapeId));
+  // Union (not intersection) of sizes across every selected shape -- a photo
+  // can show more than one shape, and each shape's sizes are still worth
+  // offering rather than only the sizes they'd all have in common.
+  const availableSizes = sizes.filter((s) => shapeIds.includes(s.shape_id));
+
+  function updateShapes(next: number[]) {
+    setShapeIds(next);
+    // Drop any selected size that no longer belongs to a still-selected shape.
+    const validSizeIds = sizeIds.filter((id) => sizes.some((s) => s.id === id && next.includes(s.shape_id)));
+    setSizeIds(validSizeIds);
+    onUpdate(photo.id, { shapeIds: next, sizeIds: validSizeIds });
+  }
+
+  function updateSizes(next: number[]) {
+    setSizeIds(next);
+    onUpdate(photo.id, { sizeIds: next });
+  }
+
+  function updateColors(next: number[]) {
+    setColorIds(next);
+    onUpdate(photo.id, { colorIds: next });
+  }
 
   function toggleTag(id: number) {
     const next = tagIds.includes(id) ? tagIds.filter((t) => t !== id) : [...tagIds, id];
@@ -417,31 +451,35 @@ function PhotoRow({
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
           <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>
         </div>
-        <select
-          value={shapeId}
-          onChange={(e) => { const v = e.target.value ? Number(e.target.value) : ''; setShapeId(v); setSizeId(''); onUpdate(photo.id, { shape_id: v || null, shape_size_id: null }); }}
-          style={{ marginBottom: 6, fontSize: 12 }}
-        >
-          <option value="">No shape</option>
-          {shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select
-          value={sizeId}
-          onChange={(e) => { const v = e.target.value ? Number(e.target.value) : ''; setSizeId(v); onUpdate(photo.id, { shape_size_id: v || null }); }}
-          style={{ marginBottom: 6, fontSize: 12 }}
-          disabled={!shapeId}
-        >
-          <option value="">No size</option>
-          {availableSizes.map((s) => <option key={s.id} value={s.id}>{s.size_mm} mm</option>)}
-        </select>
-        <select
-          value={colorId}
-          onChange={(e) => { const v = e.target.value ? Number(e.target.value) : ''; setColorId(v); onUpdate(photo.id, { color_id: v || null }); }}
-          style={{ marginBottom: 8, fontSize: 12 }}
-        >
-          <option value="">No color</option>
-          {colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <div style={{ marginBottom: 6 }}>
+          <IconSelect
+            multiple
+            options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
+            values={shapeIds}
+            onChange={updateShapes}
+            placeholder="No shapes"
+            leading="icon"
+          />
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <IconSelect
+            multiple
+            options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
+            values={sizeIds}
+            onChange={updateSizes}
+            placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
+          />
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <IconSelect
+            multiple
+            options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
+            values={colorIds}
+            onChange={updateColors}
+            placeholder="No colors"
+            leading="swatch"
+          />
+        </div>
         <input
           type="text"
           placeholder="Product code"
