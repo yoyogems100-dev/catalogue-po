@@ -108,10 +108,6 @@ a { color: inherit; text-decoration: none; }
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
 .hero-divider { width: 36px; height: 1px; background: var(--gold-soft); margin: 22px auto 0; }
 .hero.hero-compact .hero-divider { margin-top: 14px; }
-.hero-tagline { font-size: 13.5px; color: rgba(250,248,243,0.72); max-width: 44ch; margin: 16px auto 0; line-height: 1.6; }
-.hero-stats { display: flex; justify-content: center; gap: 32px; margin-top: 26px; }
-.hero-stat b { display: block; font-size: 20px; color: #fff; }
-.hero-stat span { font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase; color: rgba(250,248,243,0.5); }
 
 .topbar-floating {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
