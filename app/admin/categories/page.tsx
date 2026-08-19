@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function CategoriesListPage() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
     supabaseAdmin.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabaseAdmin.from('category_shapes').select('category_id'),
     supabaseAdmin.from('category_colors').select('category_id'),
@@ -50,8 +50,7 @@ export default async function CategoriesListPage() {
     photoCount: photoCounts[c.id] || 0,
     shapeCount: shapeCounts[c.id] || 0,
     sizeCount: sizeCounts[c.id] || 0,
-    colorCount: colorCounts[c.id] || 0,
-    badgeTypes: (c.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]
+    colorCount: colorCounts[c.id] || 0
   }));
 
   return (

@@ -25,6 +25,13 @@ type Photo = {
   isCoverOnly: boolean;
 };
 
+type BadgeType = 'shapes' | 'colors' | 'sizes';
+const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
+  { value: 'shapes', label: 'Shapes' },
+  { value: 'colors', label: 'Colors' },
+  { value: 'sizes', label: 'Sizes' }
+];
+
 export default function CategoryAdminClient({
   categoryId,
   allShapes,
@@ -37,7 +44,8 @@ export default function CategoryAdminClient({
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
-  colorPalettes
+  colorPalettes,
+  badgeTypes
 }: {
   categoryId: number;
   allShapes: ShapeRef[];
@@ -51,6 +59,7 @@ export default function CategoryAdminClient({
   thumbnailPhotoId: number | null;
   photos: Photo[];
   colorPalettes?: { id: number; name: string; memberIds: number[] }[];
+  badgeTypes: BadgeType[];
 }) {
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
@@ -61,6 +70,7 @@ export default function CategoryAdminClient({
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [localBadgeTypes, setLocalBadgeTypes] = useState<BadgeType[]>(badgeTypes);
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
@@ -161,6 +171,21 @@ export default function CategoryAdminClient({
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    router.refresh();
+  }
+
+  async function toggleBadgeType(type: BadgeType) {
+    const next = localBadgeTypes.includes(type) ? localBadgeTypes.filter((t) => t !== type) : [...localBadgeTypes, type];
+    setLocalBadgeTypes(next);
+    const res = await fetch('/api/categories', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: categoryId, badge_types: next })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to update tags');
+    }
     router.refresh();
   }
 
@@ -346,6 +371,22 @@ export default function CategoryAdminClient({
           <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Cover photo</h3>
           <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
           {uploadingCover && <span style={{ fontSize: 12.5 }}>Uploading…</span>}
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11.5, color: '#8a8370' }}>Homepage tags:</span>
+            <div className="cat-badge-toggle">
+              {BADGE_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  className={localBadgeTypes.includes(o.value) ? 'active' : ''}
+                  onClick={() => toggleBadgeType(o.value)}
+                  title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </span>
         </div>
         {coverPhoto && (
           <PhotoRow

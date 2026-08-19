@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
-type BadgeType = 'shapes' | 'colors' | 'sizes';
-
 type Row = {
   id: number;
   num: number;
@@ -16,21 +14,7 @@ type Row = {
   shapeCount: number;
   sizeCount: number;
   colorCount: number;
-  badgeTypes: BadgeType[];
 };
-
-const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
-  { value: 'shapes', label: 'Shapes' },
-  { value: 'colors', label: 'Colors' },
-  { value: 'sizes', label: 'Sizes' }
-];
-
-const CameraIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
-    <circle cx="12" cy="13" r="3.5" />
-  </svg>
-);
 
 const ListIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -45,39 +29,8 @@ const GridIcon = () => (
   </svg>
 );
 
-function TagStack({ c }: { c: Row }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <span className="tag-chip-mini"><CameraIcon /> {c.photoCount}</span>
-      <span className="tag-chip-mini">{c.shapeCount} shapes</span>
-      <span className="tag-chip-mini">{c.sizeCount} sizes</span>
-      <span className="tag-chip-mini">{c.colorCount} colors</span>
-    </div>
-  );
-}
-
-// Which tags show over this category's image on the homepage, and how many
-// -- toggling each on/off independently, order fixed to shapes/colors/sizes
-// so display order doesn't depend on click order.
-function BadgeSelect({ value, onChange }: { value: BadgeType[]; onChange: (v: BadgeType[]) => void }) {
-  function toggle(type: BadgeType) {
-    onChange(value.includes(type) ? value.filter((t) => t !== type) : [...value, type]);
-  }
-  return (
-    <div className="cat-badge-toggle" onClick={(e) => e.stopPropagation()}>
-      {BADGE_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          className={value.includes(o.value) ? 'active' : ''}
-          onClick={() => toggle(o.value)}
-          title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+function statsLine(c: Row) {
+  return `${c.photoCount} photos · ${c.shapeCount} shapes · ${c.sizeCount} sizes · ${c.colorCount} colors`;
 }
 
 export default function CategoriesClient({ rows }: { rows: Row[] }) {
@@ -142,20 +95,6 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     router.refresh();
   }
 
-  async function setBadgeTypes(id: number, badge_types: BadgeType[]) {
-    setLocalRows((cur) => cur.map((r) => (r.id === id ? { ...r, badgeTypes: badge_types } : r)));
-    const res = await fetch('/api/categories', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, badge_types })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to update tags');
-    }
-    router.refresh();
-  }
-
   async function deleteCategory(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This also deletes all its photos and shape/color/size links. Past orders keep their line items. This cannot be undone.`)) return;
     const res = await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
@@ -187,14 +126,14 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       </div>
       <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
         {view === 'list'
-          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it.'
-          : 'Click a category name to rename it.'}
+          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it. Manage a category to set its homepage tag.'
+          : 'Click a category name to rename it. Manage a category to set its homepage tag.'}
       </p>
 
       {view === 'list' ? (
         <table>
           <thead>
-            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th>Stats</th><th>Tags</th><th></th></tr>
+            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th>Stats</th><th></th></tr>
           </thead>
           <tbody>
             {visibleRows.map((c) => {
@@ -219,10 +158,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     </div>
                   </td>
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
-                  <td><TagStack c={c} /></td>
-                  <td>
-                    <BadgeSelect value={c.badgeTypes} onChange={(v) => setBadgeTypes(c.id, v)} />
-                  </td>
+                  <td style={{ fontSize: 12.5, color: '#8a8370' }}>{statsLine(c)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
                       <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
@@ -233,7 +169,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
             )}
           </tbody>
         </table>
@@ -249,13 +185,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <div className="admin-cat-card-name">
                     <NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} />
                   </div>
-                  <div className="admin-cat-card-tags">
-                    <span className="tag-chip-mini"><CameraIcon /> {c.photoCount}</span>
-                    <span className="tag-chip-mini">{c.shapeCount} shapes</span>
-                    <span className="tag-chip-mini">{c.sizeCount} sizes</span>
-                    <span className="tag-chip-mini">{c.colorCount} colors</span>
-                  </div>
-                  <BadgeSelect value={c.badgeTypes} onChange={(v) => setBadgeTypes(c.id, v)} />
+                  <div style={{ fontSize: 11.5, color: '#8a8370' }}>{statsLine(c)}</div>
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>

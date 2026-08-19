@@ -23,7 +23,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     { data: colorPalettesRaw },
     { data: colorPaletteItems }
   ] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
@@ -83,6 +83,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
         colorPalettes={colorPalettes}
+        badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       />
     </>
   );
