@@ -9,7 +9,23 @@
   --charcoal: #3A3F44;
   --line: rgba(28, 45, 80, 0.12);
   --facet: 14px;
+  --facet-sm: 7px;
+  /* Pale gold for solid fills that sit on the dark navy/ink background --
+     regular --gold reads muddy against navy since both are dark. Text
+     accents, hairlines, and small marks on light backgrounds keep --gold. */
+  --ivory-gold: #EAE0C8;
+  --ivory-gold-deep: #DDCFA6;
+  --ivory-gold-text: #1B3A6B;
 }
+
+/* Clipped-corner "cut gemstone" motif, applied via clip-path (not
+   border-radius) to major surfaces -- cards, category tiles, buttons. Two
+   sizes: --facet for big surfaces, --facet-sm for buttons/small tiles. */
+.facet, .facet-sm {
+  clip-path: polygon(0 var(--fct), var(--fct) 0, 100% 0, 100% calc(100% - var(--fct)), calc(100% - var(--fct)) 100%, 0 100%);
+}
+.facet { --fct: var(--facet); }
+.facet-sm { --fct: var(--facet-sm); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: var(--ivory); color: var(--charcoal); font-family: 'Jost', sans-serif; }
@@ -17,10 +33,6 @@ h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
 img { display: block; max-width: 100%; }
 button, input, select, textarea { font-family: inherit; }
 a { color: inherit; text-decoration: none; }
-
-.facet {
-  clip-path: polygon(0 var(--facet), var(--facet) 0, 100% 0, 100% calc(100% - var(--facet)), calc(100% - var(--facet)) 100%, 0 100%);
-}
 
 .container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 
@@ -100,16 +112,17 @@ a { color: inherit; text-decoration: none; }
 .topbar-floating.topbar-visible { transform: translateY(0); opacity: 1; }
 
 .btn {
-  background: var(--navy); color: #fff; border: none; padding: 10px 18px; border-radius: 5px;
+  background: var(--navy); color: #fff; border: none; padding: 10px 18px;
   font-size: 13px; letter-spacing: 0.5px; cursor: pointer;
 }
 .btn:hover { background: var(--ink); }
 .btn-ghost {
-  background: none; border: 1px solid var(--line); color: var(--navy); border-radius: 5px;
+  background: none; border: 1px solid var(--line); color: var(--navy);
   padding: 9px 16px; font-size: 12px; letter-spacing: 0.5px; cursor: pointer;
 }
 .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
-.btn-danger { background: #a3341f; color: #fff; border: none; padding: 8px 14px; font-size: 12px; cursor: pointer; border-radius: 5px; }
+.btn-danger { background: #a3341f; color: #fff; border: none; padding: 8px 14px; font-size: 12px; cursor: pointer; }
+.btn, .btn-ghost, .btn-danger { clip-path: polygon(0 var(--facet-sm), var(--facet-sm) 0, 100% 0, 100% calc(100% - var(--facet-sm)), calc(100% - var(--facet-sm)) 100%, 0 100%); }
 
 input[type="text"], input[type="password"], input[type="tel"], input[type="email"], input[type="number"], select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%; border-radius: 5px;
@@ -117,7 +130,7 @@ input[type="text"], input[type="password"], input[type="tel"], input[type="email
 
 html, body { overflow-x: hidden; }
 
-.card { background: #fff; border: 0.5px solid var(--line); border-radius: 6px; }
+.card { background: #fff; border: 0.5px solid var(--line); clip-path: polygon(0 var(--facet), var(--facet) 0, 100% 0, 100% calc(100% - var(--facet)), calc(100% - var(--facet)) 100%, 0 100%); }
 
 .filter-bar {
   display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; align-items: center;
@@ -130,12 +143,15 @@ html, body { overflow-x: hidden; }
 
 .cat-card {
   background: #fff; border: 0.5px solid var(--line); cursor: pointer; overflow: hidden;
-  border-radius: 6px; transition: border-color 0.15s ease, transform 0.15s ease;
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .cat-card:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
 .cat-thumb { aspect-ratio: 1/1; background: #eee; overflow: hidden; position: relative; }
 .cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.cat-badge-stack { position: absolute; bottom: 8px; left: 8px; right: 8px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-items: flex-start; }
+/* right inset is wider than left/bottom -- the card's clipped bottom-right
+   corner would otherwise nick the last badge in the row. */
+.cat-badge-stack { position: absolute; bottom: 8px; left: 8px; right: 14px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-items: flex-start; }
 .cat-badge {
   font-size: 9px; letter-spacing: 1.2px; border-radius: 3px;
   color: var(--ink); background: rgba(255,255,255,0.9); padding: 3px 8px; text-transform: uppercase;
@@ -153,8 +169,12 @@ html, body { overflow-x: hidden; }
    permanently-visible sidebar crowded the page on desktop too. */
 .admin-shell { min-height: 100vh; }
 .admin-nav { background: var(--ink); color: var(--ivory); padding: 24px 0; }
-.admin-nav a { display: flex; align-items: center; padding: 10px 24px; font-size: 13.5px; color: #cbd3e0; min-height: 44px; }
-.admin-nav a:hover, .admin-nav a.active { color: #fff; background: rgba(255,255,255,0.06); }
+.admin-nav a { display: flex; align-items: center; padding: 10px 24px; font-size: 13.5px; color: #cbd3e0; min-height: 44px; border-left: 3px solid transparent; }
+.admin-nav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.admin-nav a.active {
+  color: var(--ivory-gold); background: rgba(234,224,200,0.08);
+  border-left-color: var(--ivory-gold); padding-left: 21px; font-weight: 500;
+}
 .admin-nav .brand { padding: 0 24px 20px; font-family: 'Playfair Display'; font-size: 16px; }
 .admin-main { padding: 28px 32px; }
 .admin-main h1 { font-size: 22px; color: var(--ink); margin-bottom: 18px; }
@@ -205,7 +225,7 @@ html, body { overflow-x: hidden; }
 .cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
 
 .admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
-.admin-cat-card { background: #fff; border: 0.5px solid var(--line); overflow: hidden; display: flex; flex-direction: column; height: 100%; border-radius: 8px; }
+.admin-cat-card { background: #fff; border: 0.5px solid var(--line); overflow: hidden; display: flex; flex-direction: column; height: 100%; clip-path: polygon(0 var(--facet), var(--facet) 0, 100% 0, 100% calc(100% - var(--facet)), calc(100% - var(--facet)) 100%, 0 100%); }
 /* align-items:center on a flex cover let a tall/portrait source photo (e.g.
    a strand shot) render at its natural height instead of being cropped to
    the aspect-ratio box -- that's what was making cards uneven heights.
@@ -258,7 +278,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .browse-category-head a { font-size: 12.5px; color: var(--navy); text-decoration: none; }
 .browse-category-head a:hover { text-decoration: underline; }
 .browse-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.browse-photo-tile { display: block; aspect-ratio: 1; overflow: hidden; background: #f1ede2; border: 1px solid var(--line); }
+.browse-photo-tile { display: block; aspect-ratio: 1; overflow: hidden; background: #f1ede2; border: 1px solid var(--line); clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
 .browse-photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
 .browse-photo-tile:hover img { transform: scale(1.05); }
 

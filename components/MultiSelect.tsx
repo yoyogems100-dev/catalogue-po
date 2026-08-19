@@ -30,6 +30,7 @@ export default function MultiSelect({
   // Local optimistic copy so clicks reflect instantly instead of waiting on a
   // server round-trip + page refresh -- fixes selections that appeared "stuck".
   const [localIds, setLocalIds] = useState<number[]>(selectedIds);
+  const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,10 +47,29 @@ export default function MultiSelect({
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    // Snapshot the selected-first order once when the panel opens -- otherwise
+    // a row jumps to the top the instant you check it, right out from under
+    // the cursor mid multi-select.
+    const selectedSet = new Set(localIds);
+    const ranked = [...options].sort((a, b) => Number(!selectedSet.has(a.id)) - Number(!selectedSet.has(b.id)));
+    setOrderSnapshot(ranked.map((o) => o.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const orderedOptions = orderSnapshot
+    ? [
+        ...orderSnapshot.map((id) => options.find((o) => o.id === id)).filter((o): o is Option => !!o),
+        ...options.filter((o) => !orderSnapshot.includes(o.id))
+      ]
+    : options;
+
   const selected = options.filter((o) => localIds.includes(o.id));
   const filtered = useMemo(
-    () => options.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [options, query]
+    () => orderedOptions.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase())),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderedOptions, query]
   );
 
   function Leading({ o }: { o: Option }) {

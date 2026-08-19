@@ -26,7 +26,12 @@ export default function ColorSwatch({
         height: size,
         flexShrink: 0,
         borderRadius: '50%',
-        background: refPhotoUrl ? `url(${refPhotoUrl}) center/cover no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
+        // Zoomed well past 100% -- the source stone photos have a thin light
+        // backing margin around the stone, which "cover" alone doesn't fully
+        // crop out at a square aspect ratio, leaving a sliver of that
+        // background visible inside the circle. The extra zoom pushes it
+        // outside the visible circle so the round swatch reads as solid stone.
+        background: refPhotoUrl ? `url(${refPhotoUrl}) center/170% 170% no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
       }}
     />
   );

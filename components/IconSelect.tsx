@@ -50,6 +50,7 @@ export default function IconSelect(props: Props) {
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,8 +65,25 @@ export default function IconSelect(props: Props) {
   }, [open]);
 
   useEffect(() => {
-    if (!open) setSearch('');
+    if (!open) {
+      setSearch('');
+      return;
+    }
+    // Snapshot the selected-first order once when the panel opens, rather than
+    // re-sorting on every click -- otherwise a row jumps to the top the moment
+    // you check it, right out from under the cursor mid multi-select.
+    const selectedIds = new Set(isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
+    const ranked = [...options].sort((a, b) => Number(!selectedIds.has(a.id)) - Number(!selectedIds.has(b.id)));
+    setOrderSnapshot(ranked.map((o) => o.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const orderedOptions = orderSnapshot
+    ? [
+        ...orderSnapshot.map((id) => options.find((o) => o.id === id)).filter((o): o is Option => !!o),
+        ...options.filter((o) => !orderSnapshot.includes(o.id))
+      ]
+    : options;
 
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
@@ -75,8 +93,8 @@ export default function IconSelect(props: Props) {
   }
 
   const filtered = search.trim()
-    ? options.filter((o) => o.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : options;
+    ? orderedOptions.filter((o) => o.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : orderedOptions;
 
   let triggerLabel: string;
   let selected: Option | null = null;
