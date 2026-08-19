@@ -24,13 +24,18 @@ const HomeIcon = () => (
   </svg>
 );
 
-// Desktop keeps the always-visible left sidebar this project has always had.
-// On mobile that same sidebar becomes a slide-out drawer (opened via the
-// hamburger button), since a full link list can't fit on a phone screen
-// without either wrapping or forcing horizontal scroll -- both were reported
-// as unusable. Home and the notification bell stay persistently visible on
-// the compact mobile top bar rather than being tucked into the drawer, since
-// they're the two things worth reaching without an extra tap.
+const ExternalIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" />
+    <path d="M15 3h6v6M10 14 21 3" />
+  </svg>
+);
+
+// The full link list is always tucked in a slide-out drawer (opened via the
+// hamburger), on desktop as well as mobile -- a permanently-visible sidebar
+// crowded the page on desktop too. Home, View public site, and notifications
+// stay on a persistent compact top bar since those are worth reaching
+// without opening the drawer first.
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
 
@@ -38,29 +43,21 @@ export default function AdminNav() {
     setOpen(false);
   }
 
-  const links = (
-    <>
-      <Link href="/admin" onClick={close}>Dashboard</Link>
-      <Link href="/admin/orders" onClick={close}>Orders</Link>
-      <Link href="/admin/categories" onClick={close}>Categories</Link>
-      <Link href="/admin/shapes" onClick={close}>Shapes</Link>
-      <Link href="/admin/colors" onClick={close}>Colors</Link>
-      <Link href="/admin/bulk-link" onClick={close}>Bulk Link</Link>
-      <Link href="/admin/tags" onClick={close}>Tags</Link>
-      <Link href="/" target="_blank" onClick={close}>View public site &rarr;</Link>
-    </>
-  );
-
   return (
     <>
       <div className="admin-mobile-topbar">
         <button type="button" className="admin-hamburger" onClick={() => setOpen(true)} aria-label="Open menu">
           <MenuIcon />
         </button>
-        <Link href="/admin" className="admin-mobile-home" aria-label="Dashboard">
-          <HomeIcon />
-        </Link>
-        <NotificationBell />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Link href="/admin" className="admin-mobile-home" aria-label="Dashboard" target="_blank">
+            <HomeIcon />
+          </Link>
+          <a href="/" target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label="View public site">
+            <ExternalIcon />
+          </a>
+          <NotificationBell />
+        </div>
       </div>
 
       {open && <div className="admin-nav-backdrop" onClick={close} />}
@@ -71,11 +68,15 @@ export default function AdminNav() {
           <button type="button" className="admin-nav-close" onClick={close} aria-label="Close menu">
             <CloseIcon />
           </button>
-          <div className="admin-nav-bell-desktop">
-            <NotificationBell />
-          </div>
         </div>
-        {links}
+        <Link href="/admin" onClick={close} target="_blank">Dashboard</Link>
+        <Link href="/admin/orders" onClick={close} target="_blank">Orders</Link>
+        <Link href="/admin/categories" onClick={close} target="_blank">Categories</Link>
+        <Link href="/admin/shapes" onClick={close} target="_blank">Shapes</Link>
+        <Link href="/admin/colors" onClick={close} target="_blank">Colors</Link>
+        <Link href="/admin/bulk-link" onClick={close} target="_blank">Bulk Link</Link>
+        <Link href="/admin/tags" onClick={close} target="_blank">Tags</Link>
+        <Link href="/" target="_blank" onClick={close}>View public site &rarr;</Link>
         <form action="/api/admin-logout" method="post" style={{ marginTop: 20 }}>
           <button type="submit" style={{ background: 'none', border: 'none', color: '#cbd3e0', padding: '10px 24px', fontSize: 13.5, cursor: 'pointer' }}>
             Log out

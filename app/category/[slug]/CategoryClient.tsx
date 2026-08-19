@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import IconSelect from '@/components/IconSelect';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null };
@@ -41,7 +40,7 @@ function saveCart(cart: any[]) {
 }
 
 const CartIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M4 7h2l1.5 9.5a2 2 0 0 0 2 1.5h7a2 2 0 0 0 2-1.66L20 9H7" />
     <circle cx="10" cy="20" r="1.4" fill="currentColor" stroke="none" />
     <circle cx="17" cy="20" r="1.4" fill="currentColor" stroke="none" />
@@ -51,7 +50,6 @@ const CartIcon = () => (
 export default function CategoryClient({
   categoryId,
   categoryName,
-  whatsappNumber,
   shapes,
   colors,
   tags,
@@ -60,7 +58,6 @@ export default function CategoryClient({
 }: {
   categoryId: number;
   categoryName: string;
-  whatsappNumber?: string;
   shapes: Ref[];
   colors: Ref[];
   tags: Ref[];
@@ -133,8 +130,6 @@ export default function CategoryClient({
   const [sizeFilter, setSizeFilter] = useState<number | 'all'>('all');
   const [tagFilter, setTagFilter] = useState<number | 'all'>('all');
   const [lightbox, setLightbox] = useState<number | null>(null);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const availableSizes = useMemo(
     () => (shapeFilter === 'all' ? sizes : sizes.filter((s) => s.shape_id === shapeFilter)),
@@ -155,28 +150,8 @@ export default function CategoryClient({
     const shapeNames = photo.shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
     const sizeNames = photo.sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
     const colorNames = photo.colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
-    return [...shapeNames, ...sizeNames, ...colorNames].join(', ');
-  }
-
-  function toggleSelect(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function sendMultiEnquiry() {
-    if (!whatsappNumber || selectedIds.size === 0) return;
-    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
-    const lines = selectedPhotos.map((p, i) => {
-      const details = detailsFor(p);
-      return `${i + 1}. ${details || 'Stone'} from ${categoryName}`;
-    });
-    const message = `Hi YOYO GEMS, I'm interested in these ${selectedPhotos.length} stones:\n${lines.join('\n')}`;
-    const url = buildWhatsAppUrl(whatsappNumber, message);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const specNames = photo.tag_ids.map((id) => tags.find((t) => t.id === id)?.name).filter(Boolean);
+    return [...shapeNames, ...sizeNames, ...colorNames, ...specNames].join(', ');
   }
 
   return (
@@ -203,24 +178,11 @@ export default function CategoryClient({
           )}
           {tags.length > 0 && (
             <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-              <option value="all">All tags</option>
+              <option value="all">All specifications</option>
               {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           )}
           <span style={{ fontSize: 12, color: '#8a8370' }}>{filtered.length} of {photos.length} photos</span>
-        </div>
-      )}
-
-      {whatsappNumber && filtered.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <button
-            type="button"
-            className="btn-ghost"
-            style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}
-            onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}
-          >
-            {selectMode ? 'Cancel selection' : 'Select multiple to enquire'}
-          </button>
         </div>
       )}
 
@@ -231,47 +193,31 @@ export default function CategoryClient({
       ) : (
         <div className="grid-photos">
           {filtered.map((p, i) => {
-            const isSelected = selectedIds.has(p.id);
             const feedback = addFeedback[p.id];
+            const details = detailsFor(p);
             return (
               <div
                 key={p.id}
                 className="photo-card"
-                onClick={() => (selectMode ? toggleSelect(p.id) : setLightbox(i))}
-                style={{ cursor: selectMode ? 'pointer' : 'zoom-in' }}
+                onClick={() => setLightbox(i)}
+                style={{ cursor: 'zoom-in' }}
               >
                 {p.url && <img src={p.url} alt="" loading="lazy" />}
-                {selectMode && (
-                  <div className={`photo-select-check ${isSelected ? 'checked' : ''}`}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="4,12 9,17 20,6" /></svg>
-                  </div>
-                )}
-                {!selectMode && (
-                  <button
-                    type="button"
-                    className="photo-add-cart"
-                    title="Add to requirement"
-                    onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
-                  >
-                    <CartIcon />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="photo-add-cart"
+                  title="Add to requirement"
+                  onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
+                >
+                  <CartIcon />
+                </button>
+                {/* Specs stay hidden until hover, keeping the grid clean --
+                    same info detailsFor() already builds. */}
+                {details && <div className="photo-card-details">{details}</div>}
                 {feedback && <div className="photo-add-feedback">{feedback}</div>}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {selectMode && selectedIds.size > 0 && <div style={{ height: 66 }} />}
-
-      {selectMode && selectedIds.size > 0 && (
-        <div className="multi-enquire-bar">
-          <span>{selectedIds.size} photo{selectedIds.size !== 1 ? 's' : ''} selected</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn-ghost multi-enquire-clear" onClick={() => setSelectedIds(new Set())}>Clear</button>
-            <button type="button" className="btn" onClick={sendMultiEnquiry}>Enquire about {selectedIds.size}</button>
-          </div>
         </div>
       )}
 

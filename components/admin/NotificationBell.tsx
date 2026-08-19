@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 type Notification = {
   id: number;
@@ -23,7 +22,6 @@ function timeAgo(iso: string) {
 }
 
 export default function NotificationBell() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -56,7 +54,9 @@ export default function NotificationBell() {
       });
       load();
     }
-    router.push(`/admin/orders/${n.order_id}`);
+    // New tab -- clicking a notification shouldn't lose whatever admin page
+    // was already open.
+    window.open(`/admin/orders/${n.order_id}`, '_blank', 'noopener,noreferrer');
   }
 
   async function markAllRead() {

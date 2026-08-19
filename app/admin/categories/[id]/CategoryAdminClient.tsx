@@ -242,7 +242,7 @@ export default function CategoryAdminClient({
       count: linkedSizes.length,
       text: linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
     },
-    { key: 'tags', label: 'Tag', count: linkedTags.length, text: linkedTags.map((t) => t.name).join(', ') }
+    { key: 'tags', label: 'Specification', count: linkedTags.length, text: linkedTags.map((t) => t.name).join(', ') }
   ];
 
   return (
@@ -296,15 +296,15 @@ export default function CategoryAdminClient({
             />
           </div>
           <div>
-            <h3 className="section-label">Tags</h3>
+            <h3 className="section-label">Specifications</h3>
             <MultiSelect
               options={allTags.map((t) => ({ id: t.id, name: t.name }))}
               selectedIds={linkedTagIds}
               onToggle={(id, active) => toggleLink('tag', id, active)}
-              placeholder="No tags selected"
+              placeholder="No specifications selected"
             />
             <div className="tag-create-row">
-              <input type="text" placeholder="New tag" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} style={{ fontSize: 12.5 }} />
+              <input type="text" placeholder="New specification" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} style={{ fontSize: 12.5 }} />
               <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(false)}>Here only</button>
               <button className="btn" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(true)}>Global</button>
             </div>
@@ -370,7 +370,7 @@ const FIELD_OPTIONS: { value: FieldType; label: string }[] = [
   { value: 'shape', label: 'Shape' },
   { value: 'size', label: 'Size' },
   { value: 'color', label: 'Color' },
-  { value: 'tags', label: 'Tags' },
+  { value: 'tags', label: 'Specifications' },
   { value: 'other', label: 'Other' }
 ];
 
@@ -546,7 +546,7 @@ function PhotoRow({
           )}
           {field === 'tags' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No tags on this category yet -- add one via "Other".</span>}
+              {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No specifications on this category yet -- add one via "Other".</span>}
               {tags.map((t) => (
                 <span
                   key={t.id}
@@ -563,14 +563,14 @@ function PhotoRow({
             <div style={{ display: 'flex', gap: 6 }}>
               <input
                 type="text"
-                placeholder="New tag, e.g. Brilliant Cut"
+                placeholder="New specification, e.g. Brilliant Cut"
                 value={otherText}
                 onChange={(e) => setOtherText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
                 style={{ fontSize: 12 }}
               />
-              <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={addOtherTag} disabled={creatingTag}>
-                {creatingTag ? 'Adding…' : 'Add'}
+              <button className="btn-ghost photo-add-spec-btn" onClick={addOtherTag} disabled={creatingTag} title="Add specification">
+                {creatingTag ? '…' : '+'}
               </button>
             </div>
           )}

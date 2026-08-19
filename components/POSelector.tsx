@@ -280,17 +280,6 @@ export default function POSelector({
         <h2 className="po-heading">Add to Order</h2>
         <div className="po-add-form">
           <div>
-            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
-            <IconSelect
-              multiple
-              options={shapes}
-              values={pickShapeIds}
-              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
-              placeholder="Choose shape(s)"
-              leading="icon"
-            />
-          </div>
-          <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
             <IconSelect
               multiple
@@ -300,6 +289,17 @@ export default function POSelector({
               placeholder="Choose color(s)"
               leading="swatch"
               palettes={colorPalettes}
+            />
+          </div>
+          <div>
+            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+            <IconSelect
+              multiple
+              options={shapes}
+              values={pickShapeIds}
+              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+              placeholder="Choose shape(s)"
+              leading="icon"
             />
           </div>
           <div>

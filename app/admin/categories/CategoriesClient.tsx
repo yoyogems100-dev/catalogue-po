@@ -63,10 +63,10 @@ function BadgeSelect({ value, onChange }: { value: BadgeType; onChange: (v: Badg
       value={value}
       onChange={(e) => onChange(e.target.value as BadgeType)}
       onClick={(e) => e.stopPropagation()}
-      title="Which count shows as the badge on this category's homepage tile"
+      title="Which tag shows over this category's image on the homepage"
       style={{ fontSize: 10.5, padding: '2px 4px', maxWidth: 100 }}
     >
-      {BADGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>Badge: {o.label}</option>)}
+      {BADGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>Tag: {o.label}</option>)}
     </select>
   );
 }
@@ -185,7 +185,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       {view === 'list' ? (
         <table>
           <thead>
-            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th><CameraIcon />/Tags</th><th>Badge</th><th></th></tr>
+            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th>Stats</th><th>Tags</th><th></th></tr>
           </thead>
           <tbody>
             {visibleRows.map((c) => {

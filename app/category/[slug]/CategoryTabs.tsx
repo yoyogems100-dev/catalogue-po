@@ -65,7 +65,6 @@ export default function CategoryTabs({
         <CategoryClient
           categoryId={categoryId}
           categoryName={categoryName}
-          whatsappNumber={whatsappNumber}
           shapes={shapes}
           colors={colors}
           tags={tags}

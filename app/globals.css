@@ -147,20 +147,36 @@ html, body { overflow-x: hidden; }
 .photo-card img { width: 100%; height: 100%; object-fit: cover; }
 .photo-tagline { font-size: 10.5px; color: #fff; background: rgba(18,35,63,0.75); position: absolute; bottom: 0; left: 0; right: 0; padding: 4px 6px; }
 
-/* Admin */
-.admin-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+/* Admin -- the full nav lives in a slide-out drawer at every screen size
+   (opened via the hamburger on the persistent top bar), not just mobile. A
+   permanently-visible sidebar crowded the page on desktop too. */
+.admin-shell { min-height: 100vh; }
 .admin-nav { background: var(--ink); color: var(--ivory); padding: 24px 0; }
-.admin-nav a { display: block; padding: 10px 24px; font-size: 13.5px; color: #cbd3e0; }
+.admin-nav a { display: flex; align-items: center; padding: 10px 24px; font-size: 13.5px; color: #cbd3e0; min-height: 44px; }
 .admin-nav a:hover, .admin-nav a.active { color: #fff; background: rgba(255,255,255,0.06); }
 .admin-nav .brand { padding: 0 24px 20px; font-family: 'Playfair Display'; font-size: 16px; }
 .admin-main { padding: 28px 32px; }
 .admin-main h1 { font-size: 22px; color: var(--ink); margin-bottom: 18px; }
 
-/* Mobile admin nav (hamburger + slide-out drawer) -- hidden on desktop,
-   where the sidebar in .admin-nav is already always visible. */
-.admin-mobile-topbar { display: none; }
-.admin-nav-close { display: none; }
-.admin-nav-backdrop { display: none; }
+.admin-mobile-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  background: var(--ink); padding: 10px 14px; position: sticky; top: 0; z-index: 50;
+}
+.admin-hamburger, .admin-mobile-home {
+  background: none; border: none; cursor: pointer; color: #cbd3e0; text-decoration: none;
+  display: flex; align-items: center; justify-content: center; padding: 8px; min-height: 44px; min-width: 44px;
+}
+.admin-mobile-home { color: #fff; }
+.admin-nav-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 65; }
+.admin-nav {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 82vw; z-index: 70;
+  overflow-y: auto; transform: translateX(-100%); transition: transform 0.25s ease;
+}
+.admin-nav.admin-nav-open { transform: translateX(0); }
+.admin-nav-close {
+  display: flex; background: none; border: none; color: #cbd3e0; cursor: pointer;
+  padding: 8px; min-height: 44px; min-width: 44px; align-items: center; justify-content: center;
+}
 
 .cat-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .cat-view-toggle button {
@@ -287,6 +303,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .ms-expand-btn:hover { color: var(--gold); }
 .ms-subpanel { background: #faf8f3; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px 12px; }
 .tag-create-row { display: flex; gap: 6px; margin-top: 8px; }
+.photo-add-spec-btn { flex: 0 0 auto; width: 30px; padding: 0 !important; font-size: 16px !important; line-height: 1; }
 
 /* Public-facing icon/swatch select (shape + color filters) -- matches admin ms-trigger look */
 .icon-select { position: relative; }
@@ -482,41 +499,32 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .qo-past-order-row strong { font-size: 12.5px; color: var(--ink); display: block; margin-bottom: 2px; }
 .qo-past-order-row span { font-size: 11px; color: #8a8370; }
 
-/* WhatsApp enquiry button on public photo cards */
+/* Add-to-requirement icon on public photo cards */
 .photo-add-cart {
-  position: absolute; bottom: 8px; right: 8px; z-index: 2;
-  width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
+  position: absolute; bottom: 6px; right: 6px; z-index: 2;
+  width: 22px; height: 22px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(18,35,63,0.4); color: #fff;
+  background: rgba(18,35,63,0.35); color: #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 .photo-add-cart:hover { background: rgba(18,35,63,0.7); }
+.photo-add-cart svg { width: 11px; height: 11px; }
+
+/* Shape/size/color/spec details for a photo -- hidden until hover to keep
+   the grid clean. */
+.photo-card-details {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  background: rgba(18,35,63,0.75); color: #fff; font-size: 10.5px;
+  padding: 5px 7px; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  opacity: 0; transition: opacity 0.15s ease; pointer-events: none;
+}
+.photo-card:hover .photo-card-details { opacity: 1; }
+
 .photo-add-feedback {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
-  background: rgba(18,35,63,0.3); color: #fff; font-size: 11px; font-weight: 500;
+  position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+  background: rgba(18,35,63,0.85); color: #fff; font-size: 11px; font-weight: 500;
   padding: 6px 8px; text-align: center; line-height: 1.3;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
 }
-
-/* Multi-photo selection mode (enquire about several stones at once) */
-.photo-select-check {
-  position: absolute; top: 8px; left: 8px; z-index: 2;
-  width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
-  background: rgba(18,35,63,0.35); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-.photo-select-check svg { width: 13px; height: 13px; display: none; }
-.photo-select-check.checked { background: var(--gold); border-color: var(--gold); }
-.photo-select-check.checked svg { display: block; }
-
-.multi-enquire-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-  background: var(--ink); color: #fff; padding: 14px 20px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.25); font-size: 13px;
-}
-.multi-enquire-clear { color: #fff; border-color: rgba(255,255,255,0.35); background: transparent; }
-.multi-enquire-clear:hover { border-color: #fff; }
 
 /* Order milestone stepper (customer + admin order views) */
 .order-stepper { display: flex; align-items: flex-start; overflow-x: auto; padding: 6px 0 4px; }
@@ -589,30 +597,6 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .po-cart-head { flex-wrap: wrap; gap: 8px; }
   .tag-chip { padding: 8px 14px; }
 
-  .admin-shell { grid-template-columns: 1fr; }
-
-  /* Replaces the old horizontally-scrolling nav strip with a hamburger +
-     slide-out drawer -- Home and notifications stay on the persistent top
-     bar, everything else lives in the drawer. */
-  .admin-mobile-topbar {
-    display: flex; align-items: center; justify-content: space-between; gap: 4px;
-    background: var(--ink); padding: 10px 14px; position: sticky; top: 0; z-index: 50;
-  }
-  .admin-hamburger, .admin-mobile-home {
-    background: none; border: none; cursor: pointer; color: #cbd3e0;
-    display: flex; align-items: center; justify-content: center; padding: 8px; min-height: 44px; min-width: 44px;
-  }
-  .admin-mobile-home { color: #fff; }
-  .admin-nav-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 65; }
-  .admin-nav {
-    position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 82vw; z-index: 70;
-    overflow-y: auto; transform: translateX(-100%); transition: transform 0.25s ease;
-  }
-  .admin-nav.admin-nav-open { transform: translateX(0); }
-  .admin-nav-logo { display: flex; }
-  .admin-nav-close { display: flex; background: none; border: none; color: #cbd3e0; cursor: pointer; padding: 8px; min-height: 44px; min-width: 44px; align-items: center; justify-content: center; }
-  .admin-nav-bell-desktop { display: none; }
-  .admin-nav a { min-height: 44px; display: flex; align-items: center; }
   .admin-main { padding: 16px; }
   .admin-main h1 { font-size: 19px; }
   /* 3 equal columns was still too cramped for a select+button pair each on a phone */

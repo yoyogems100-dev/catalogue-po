@@ -248,17 +248,6 @@ export default function NewOrderClient({
             </select>
           </div>
           <div>
-            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
-            <IconSelect
-              multiple
-              options={currentOptions?.shapes || []}
-              values={pickShapeIds}
-              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
-              placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
-              leading="icon"
-            />
-          </div>
-          <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
             <IconSelect
               multiple
@@ -267,6 +256,17 @@ export default function NewOrderClient({
               onChange={setPickColorIds}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"
+            />
+          </div>
+          <div>
+            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+            <IconSelect
+              multiple
+              options={currentOptions?.shapes || []}
+              values={pickShapeIds}
+              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+              placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
+              leading="icon"
             />
           </div>
           <div>
