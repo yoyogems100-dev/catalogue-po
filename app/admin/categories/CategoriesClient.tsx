@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
-type BadgeType = 'shapes' | 'colors' | 'sizes' | 'none';
+type BadgeType = 'shapes' | 'colors' | 'sizes';
 
 type Row = {
   id: number;
@@ -16,14 +16,13 @@ type Row = {
   shapeCount: number;
   sizeCount: number;
   colorCount: number;
-  badgeType: BadgeType;
+  badgeTypes: BadgeType[];
 };
 
 const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
   { value: 'shapes', label: 'Shapes' },
   { value: 'colors', label: 'Colors' },
-  { value: 'sizes', label: 'Sizes' },
-  { value: 'none', label: 'None' }
+  { value: 'sizes', label: 'Sizes' }
 ];
 
 const CameraIcon = () => (
@@ -57,17 +56,27 @@ function TagStack({ c }: { c: Row }) {
   );
 }
 
-function BadgeSelect({ value, onChange }: { value: BadgeType; onChange: (v: BadgeType) => void }) {
+// Which tags show over this category's image on the homepage, and how many
+// -- toggling each on/off independently, order fixed to shapes/colors/sizes
+// so display order doesn't depend on click order.
+function BadgeSelect({ value, onChange }: { value: BadgeType[]; onChange: (v: BadgeType[]) => void }) {
+  function toggle(type: BadgeType) {
+    onChange(value.includes(type) ? value.filter((t) => t !== type) : [...value, type]);
+  }
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as BadgeType)}
-      onClick={(e) => e.stopPropagation()}
-      title="Which tag shows over this category's image on the homepage"
-      style={{ fontSize: 10.5, padding: '2px 4px', maxWidth: 100 }}
-    >
-      {BADGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>Tag: {o.label}</option>)}
-    </select>
+    <div className="cat-badge-toggle" onClick={(e) => e.stopPropagation()}>
+      {BADGE_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className={value.includes(o.value) ? 'active' : ''}
+          onClick={() => toggle(o.value)}
+          title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -133,16 +142,16 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     router.refresh();
   }
 
-  async function setBadgeType(id: number, badge_type: BadgeType) {
-    setLocalRows((cur) => cur.map((r) => (r.id === id ? { ...r, badgeType: badge_type } : r)));
+  async function setBadgeTypes(id: number, badge_types: BadgeType[]) {
+    setLocalRows((cur) => cur.map((r) => (r.id === id ? { ...r, badgeTypes: badge_types } : r)));
     const res = await fetch('/api/categories', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, badge_type })
+      body: JSON.stringify({ id, badge_types })
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to update badge');
+      alert(data.error || 'Failed to update tags');
     }
     router.refresh();
   }
@@ -212,7 +221,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
                   <td><TagStack c={c} /></td>
                   <td>
-                    <BadgeSelect value={c.badgeType} onChange={(v) => setBadgeType(c.id, v)} />
+                    <BadgeSelect value={c.badgeTypes} onChange={(v) => setBadgeTypes(c.id, v)} />
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
@@ -246,7 +255,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     <span className="tag-chip-mini">{c.sizeCount} sizes</span>
                     <span className="tag-chip-mini">{c.colorCount} colors</span>
                   </div>
-                  <BadgeSelect value={c.badgeType} onChange={(v) => setBadgeType(c.id, v)} />
+                  <BadgeSelect value={c.badgeTypes} onChange={(v) => setBadgeTypes(c.id, v)} />
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>

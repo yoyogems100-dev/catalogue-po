@@ -16,7 +16,7 @@ type Category = {
   shapeCount: number;
   colorCount: number;
   sizeCount: number;
-  badgeType: 'shapes' | 'colors' | 'sizes' | 'none';
+  badgeTypes: ('shapes' | 'colors' | 'sizes')[];
 };
 
 export default function HomeCatalogue({
@@ -78,19 +78,27 @@ export default function HomeCatalogue({
               cat.sizeCount > 0 ? `${cat.sizeCount} size${cat.sizeCount !== 1 ? 's' : ''}` : null,
               cat.colorCount > 0 ? `${cat.colorCount} color${cat.colorCount !== 1 ? 's' : ''}` : null
             ].filter(Boolean);
-            // Which count shows as the badge over the thumbnail is chosen per
-            // category in admin (Categories -> Badge dropdown) -- defaults to
-            // shapes, but a category of loose stones in one shape might make
-            // more sense badged by color count instead, for example.
-            const badgeCount = cat.badgeType === 'colors' ? cat.colorCount : cat.badgeType === 'sizes' ? cat.sizeCount : cat.badgeType === 'shapes' ? cat.shapeCount : 0;
-            const badgeLabel = cat.badgeType === 'colors' ? 'color' : cat.badgeType === 'sizes' ? 'size' : 'shape';
+            // Which counts show over the thumbnail, and how many, is chosen
+            // per category in admin (Categories -> Tags toggles) -- defaults
+            // to just shapes, but e.g. a category of loose stones in one
+            // shape might make more sense badged by color count instead, or
+            // by more than one count at once.
+            const badges = cat.badgeTypes
+              .map((type) => {
+                const count = type === 'colors' ? cat.colorCount : type === 'sizes' ? cat.sizeCount : cat.shapeCount;
+                const label = type === 'colors' ? 'color' : type === 'sizes' ? 'size' : 'shape';
+                return count > 0 ? `${count} ${label}${count !== 1 ? 's' : ''}` : null;
+              })
+              .filter(Boolean) as string[];
             return (
               <Link key={cat.id} href={`/category/${cat.slug}`}>
                 <div className="cat-card">
                   <div className="cat-thumb">
                     {cat.thumb ? <img src={cat.thumb} alt={cat.name} /> : null}
-                    {cat.badgeType !== 'none' && badgeCount > 0 && (
-                      <span className="cat-badge">{badgeCount} {badgeLabel}{badgeCount !== 1 ? 's' : ''}</span>
+                    {badges.length > 0 && (
+                      <div className="cat-badge-stack">
+                        {badges.map((b) => <span key={b} className="cat-badge">{b}</span>)}
+                      </div>
                     )}
                   </div>
                   <div className="cat-info">

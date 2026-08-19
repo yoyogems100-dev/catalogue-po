@@ -40,20 +40,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(data);
 }
 
-const BADGE_TYPES = ['shapes', 'colors', 'sizes', 'none'];
+const BADGE_TYPES = ['shapes', 'colors', 'sizes'];
 
 export async function PATCH(req: NextRequest) {
-  const { id, name, badge_type } = await req.json();
+  const { id, name, badge_types } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const updates: Record<string, string> = {};
+  const updates: Record<string, any> = {};
   if (name !== undefined) {
     if (!name.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
     updates.name = name.trim();
   }
-  if (badge_type !== undefined) {
-    if (!BADGE_TYPES.includes(badge_type)) return NextResponse.json({ error: 'Invalid badge_type' }, { status: 400 });
-    updates.badge_type = badge_type;
+  if (badge_types !== undefined) {
+    if (!Array.isArray(badge_types) || !badge_types.every((b) => BADGE_TYPES.includes(b))) {
+      return NextResponse.json({ error: 'Invalid badge_types' }, { status: 400 });
+    }
+    updates.badge_types = badge_types;
   }
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
