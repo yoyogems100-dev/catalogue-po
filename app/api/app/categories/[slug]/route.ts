@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
 
   const [{ data: shapes }, { data: colors }, { data: sizes }] = await Promise.all([
     shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key').in('id', shapeIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
-    colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value').in('id', colorIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
+    colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
 
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
   return NextResponse.json({
     category,
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key })),
-    colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
+    colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     photos: (photos || []).map((p: any) => ({ id: p.id, url: photoUrl(p, 600) }))
   });

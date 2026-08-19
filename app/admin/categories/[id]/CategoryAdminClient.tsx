@@ -9,7 +9,7 @@ import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type Ref = { id: number; name: string };
-type ColorRef = Ref & { hexValue?: string | null };
+type ColorRef = Ref & { hexValue?: string | null; refPhotoUrl?: string | null };
 type ShapeRef = Ref & { iconKey?: string | null };
 type Tag = Ref & { is_global: boolean };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
@@ -339,7 +339,7 @@ export default function CategoryAdminClient({
           <div>
             <h3 className="section-label">Colors</h3>
             <MultiSelect
-              options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
+              options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
               selectedIds={linkedColorIds}
               onToggle={(id, active) => toggleLink('color', id, active)}
               leading="swatch"
@@ -647,7 +647,7 @@ function PhotoRow({
         {field === 'color' && (
           <IconSelect
             multiple
-            options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
+            options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
             values={colorIds}
             onChange={updateColors}
             placeholder="No colors"

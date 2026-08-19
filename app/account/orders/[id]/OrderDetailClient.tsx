@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import ColorSwatch from '@/components/ColorSwatch';
 
 type RequestType = 'Place Order' | 'Request Quotation';
 
@@ -18,6 +19,7 @@ type Item = {
   colorId: number;
   colorName: string;
   colorHex: string;
+  colorRefPhotoUrl?: string | null;
   quantity: number;
   requestType: string;
 };
@@ -26,7 +28,7 @@ type CategoryOption = { id: number; name: string; slug: string };
 
 type CategoryOptionsData = {
   shapes: { id: number; name: string; iconKey?: string | null }[];
-  colors: { id: number; name: string; hex?: string | null }[];
+  colors: { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
 };
 
@@ -41,6 +43,7 @@ type PendingLine = {
   colorId: number;
   colorName: string;
   colorHex: string;
+  colorRefPhotoUrl?: string | null;
   quantity: number;
   requestType: RequestType;
 };
@@ -206,6 +209,7 @@ export default function OrderDetailClient({
             colorId: color.id,
             colorName: color.name,
             colorHex: color.hex || '#ccc',
+            colorRefPhotoUrl: color.refPhotoUrl || null,
             quantity: qtyNum,
             requestType: pickRequestType
           });
@@ -298,7 +302,7 @@ export default function OrderDetailClient({
                   <td>{i.sizeMm} mm</td>
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
+                      <ColorSwatch hex={i.colorHex} refPhotoUrl={i.colorRefPhotoUrl} name={i.colorName} size={14} />
                       {i.colorName}
                     </span>
                   </td>
@@ -329,7 +333,7 @@ export default function OrderDetailClient({
                   <td>{l.sizeMm} mm</td>
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: l.colorHex }} />
+                      <ColorSwatch hex={l.colorHex} refPhotoUrl={l.colorRefPhotoUrl} name={l.colorName} size={14} />
                       {l.colorName}
                     </span>
                   </td>

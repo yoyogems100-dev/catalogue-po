@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import ColorSwatch from '@/components/ColorSwatch';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
-type ColorRow = { id: number; name: string; hex_value: string | null };
+type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null };
 type Category = { id: number; num: number; name: string };
 type CatColor = { category_id: number; color_id: number };
 type Palette = { id: number; name: string; colorIds: number[] };
@@ -116,6 +117,25 @@ export default function ColorsClient({
     router.refresh();
   }
 
+  async function uploadPhoto(id: number, file: File | null | undefined) {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`/api/colors/${id}/photo`, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to upload photo.');
+      return;
+    }
+    router.refresh();
+  }
+
+  async function removePhoto(id: number) {
+    if (!confirm('Remove this reference photo? The swatch will fall back to the plain hex color.')) return;
+    await fetch(`/api/colors/${id}/photo`, { method: 'DELETE' });
+    router.refresh();
+  }
+
   async function renameColor(id: number, name: string) {
     const res = await fetch('/api/colors', {
       method: 'PATCH',
@@ -190,17 +210,30 @@ export default function ColorsClient({
                     <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === localColors.length - 1}>&darr;</button>
                   </span>
                 )}
+                <ColorSwatch hex={c.hex_value} refPhotoUrl={c.ref_photo_url} name={c.name} size={28} />
                 <input
                   type="color"
                   value={c.hex_value || '#B0AFAC'}
                   onChange={(e) => updateHex(c.id, e.target.value)}
                   title="Click to change hex"
-                  style={{ width: 28, height: 28, padding: 0, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ width: 20, height: 20, padding: 0, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
                 />
                 <span style={{ minWidth: 140, flex: '1 1 140px' }}>
                   <NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
                 </span>
                 <span style={{ fontSize: 11, color: '#8a8370', fontFamily: 'monospace' }}>{c.hex_value}</span>
+                <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
+                  {c.ref_photo_url ? 'Change photo' : 'Add photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => { uploadPhoto(c.id, e.target.files?.[0]); e.target.value = ''; }}
+                  />
+                </label>
+                {c.ref_photo_url && (
+                  <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePhoto(c.id)}>Remove photo</button>
+                )}
                 <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => { setExpandedCats(catsOpen ? null : c.id); }}>
                   {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
                 </button>
@@ -244,7 +277,7 @@ export default function ColorsClient({
                 <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePalette(p.id)}>Delete</button>
               </div>
               <MultiSelect
-                options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex_value }))}
+                options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
                 selectedIds={p.colorIds}
                 onToggle={(colorId, active) => togglePaletteColor(p.id, colorId, active)}
                 leading="swatch"

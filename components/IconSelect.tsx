@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import ShapeIcon from './ShapeIcon';
+import ColorSwatch from './ColorSwatch';
 
-type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null };
+type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
 
 type CommonProps = {
@@ -68,7 +69,7 @@ export default function IconSelect(props: Props) {
 
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
-    if (leading === 'swatch') return <span className="icon-select-swatch" style={{ background: o.hex || '#ccc' }} />;
+    if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={16} />;
     if (leading === 'icon') return <span className="icon-select-icon"><ShapeIcon iconKey={o.iconKey} size={13} /></span>;
     return null;
   }

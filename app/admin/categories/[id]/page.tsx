@@ -25,7 +25,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
-    supabaseAdmin.from('colors').select('id, name, hex_value').order('sort_order').order('name'),
+    supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
     supabaseAdmin.from('category_shapes').select('shape_id').eq('category_id', categoryId),
@@ -73,7 +73,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
       <CategoryAdminClient
         categoryId={categoryId}
         allShapes={(allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }))}
-        allColors={(allColors || []).map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value }))}
+        allColors={(allColors || []).map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
         allTags={allTags || []}
         allSizes={allSizes || []}
         linkedShapeIds={(linkedShapes || []).map((r: any) => r.shape_id)}

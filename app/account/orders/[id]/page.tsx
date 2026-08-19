@@ -37,15 +37,15 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     categoryIds.length ? supabaseAdmin.from('categories').select('id, name, slug').in('id', categoryIds) : Promise.resolve({ data: [] }),
     shapeIds.length ? supabaseAdmin.from('shapes').select('id, name').in('id', shapeIds) : Promise.resolve({ data: [] }),
     sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] }),
-    colorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value').in('id', colorIds) : Promise.resolve({ data: [] })
+    colorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds) : Promise.resolve({ data: [] })
   ]);
 
   const catMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.name]));
   const catSlugMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.slug]));
   const shapeMap: Record<number, string> = Object.fromEntries((shapesData || []).map((s: any) => [s.id, s.name]));
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
-  const colorMap: Record<number, { name: string; hex: string | null }> = Object.fromEntries(
-    (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value }])
+  const colorMap: Record<number, { name: string; hex: string | null; refPhotoUrl: string | null }> = Object.fromEntries(
+    (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }])
   );
 
   const itemsFormatted = (items || []).map((it: any) => ({
@@ -60,6 +60,7 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     colorId: it.color_id,
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
+    colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     quantity: it.quantity,
     requestType: it.request_type || 'Place Order'
   }));

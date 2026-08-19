@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 
-type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null };
+type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
 type Photo = {
   id: number;

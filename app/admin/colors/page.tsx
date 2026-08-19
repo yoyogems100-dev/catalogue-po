@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ColorsPage() {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
-    supabaseAdmin.from('colors').select('id, name, hex_value, sort_order').order('sort_order').order('name'),
+    supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order').order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name').order('num'),
     supabaseAdmin.from('category_colors').select('category_id, color_id'),
     supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),

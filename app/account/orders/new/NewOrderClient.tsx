@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import ColorSwatch from '@/components/ColorSwatch';
 
 type RequestType = 'Place Order' | 'Request Quotation';
 
@@ -17,6 +18,7 @@ type SeedItem = {
   colorId: number;
   colorName: string;
   colorHex: string;
+  colorRefPhotoUrl?: string | null;
   qty: number;
   requestType: RequestType;
 };
@@ -25,7 +27,7 @@ type CategoryOption = { id: number; name: string; slug: string };
 
 type CategoryOptionsData = {
   shapes: { id: number; name: string; iconKey?: string | null }[];
-  colors: { id: number; name: string; hex?: string | null }[];
+  colors: { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
 };
 
@@ -188,6 +190,7 @@ export default function NewOrderClient({
             colorId: color.id,
             colorName: color.name,
             colorHex: color.hex || '#ccc',
+            colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
             requestType: pickRequestType
           });
@@ -332,7 +335,7 @@ export default function NewOrderClient({
                   <strong>{item.shapeName} · {item.sizeMm}mm</strong>
                   <span>
                     {item.categoryName}
-                    <i className="po-size-color-dot" style={{ background: item.colorHex }} />
+                    <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
                     {item.colorName}
                   </span>
                 </div>

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ShapeIcon from './ShapeIcon';
+import ColorSwatch from './ColorSwatch';
 
-type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null };
+type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
 
 export default function MultiSelect({
@@ -52,7 +53,7 @@ export default function MultiSelect({
   );
 
   function Leading({ o }: { o: Option }) {
-    if (leading === 'swatch') return <span style={{ width: 12, height: 12, borderRadius: '50%', background: o.hex || '#ccc', border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />;
+    if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={14} />;
     if (leading === 'icon') return <span style={{ color: 'var(--navy)' }}><ShapeIcon iconKey={o.iconKey} size={12} /></span>;
     return null;
   }
