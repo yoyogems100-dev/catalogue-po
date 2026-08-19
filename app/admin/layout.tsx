@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { WordMark } from '@/components/Logo';
+import NotificationBell from '@/components/admin/NotificationBell';
 
 // Middleware (see middleware.ts) already guarantees only authenticated
 // requests reach this layout, so no auth check is needed here.
@@ -7,7 +8,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="admin-shell">
       <nav className="admin-nav">
-        <div style={{ marginBottom: 20 }} className="admin-nav-logo"><WordMark height={20} color="#FAF8F3" /></div>
+        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} className="admin-nav-logo">
+          <WordMark height={20} color="#FAF8F3" />
+          <NotificationBell />
+        </div>
         <Link href="/admin">Dashboard</Link>
         <Link href="/admin/orders">Orders</Link>
         <Link href="/admin/categories">Categories</Link>

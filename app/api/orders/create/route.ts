@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
+import { notifyAdmin } from '@/lib/notify-admin';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -81,6 +82,13 @@ export async function POST(req: NextRequest) {
   }
 
   await supabaseAdmin.from('order_status_history').insert({ order_id: order.id, status: 'placed' });
+
+  const pieceCount = cart.reduce((sum, i) => sum + i.qty, 0);
+  await notifyAdmin(
+    'new_order',
+    order.id,
+    `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${pieceCount.toLocaleString('en-IN')} pcs`
+  );
 
   return NextResponse.json({ orderId: order.id, message });
 }

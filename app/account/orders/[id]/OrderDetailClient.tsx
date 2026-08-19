@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
 
@@ -49,8 +49,6 @@ type TimelineEntry =
   | { type: 'status'; at: string; label: string }
   | { type: 'note'; at: string; author: string; message: string };
 
-const CART_KEY = 'yoyo_po_cart_v2';
-
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
@@ -74,13 +72,27 @@ export default function OrderDetailClient({
   timeline: TimelineEntry[];
 }) {
   const router = useRouter();
-  // Editable by default whenever the order's status allows it at all -- no
-  // separate "Edit order" click needed to get here.
+  // Read-only by default -- an explicit "Edit order" click reveals the
+  // editable qty/remove controls and the Add to Order builder.
+  const [editing, setEditing] = useState(false);
   const [quantities, setQuantities] = useState<Record<number, number>>(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
   const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
   const [pendingLines, setPendingLines] = useState<PendingLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function cancelEditing() {
+    setEditing(false);
+    setQuantities(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
+    setRemovedIds(new Set());
+    setPendingLines([]);
+  }
 
   // ---------- Add to order: category-first builder, any category ----------
   const [pickCategoryId, setPickCategoryId] = useState<number | ''>('');
@@ -243,6 +255,9 @@ export default function OrderDetailClient({
 
     if (res.ok) {
       setPendingLines([]);
+      setRemovedIds(new Set());
+      setEditing(false);
+      setToast('Modification request sent.');
       router.refresh();
     } else {
       const data = await res.json().catch(() => ({}));
@@ -251,55 +266,10 @@ export default function OrderDetailClient({
   }
 
   function reorder() {
-    let cart: any[] = [];
-    try {
-      const raw = window.localStorage.getItem(CART_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      cart = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      cart = [];
-    }
-
-    items.forEach((item) => {
-      const requestType = item.requestType || 'Place Order';
-      const existing = cart.find(
-        (c) =>
-          c.categoryId === item.categoryId &&
-          c.shapeId === item.shapeId &&
-          c.sizeId === item.sizeId &&
-          c.colorId === item.colorId &&
-          c.requestType === requestType
-      );
-      if (existing) {
-        existing.qty += item.quantity;
-      } else {
-        cart.push({
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          categoryId: item.categoryId,
-          categoryName: item.categoryName,
-          shapeId: item.shapeId,
-          shapeName: item.shapeName,
-          sizeId: item.sizeId,
-          sizeMm: item.sizeMm,
-          colorId: item.colorId,
-          colorName: item.colorName,
-          colorHex: item.colorHex,
-          qty: item.quantity,
-          requestType
-        });
-      }
-    });
-
-    try {
-      window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    } catch {
-      // storage full/disabled -- nothing we can do, cart just won't persist
-    }
-
-    // The cart is shared across every category page via the same localStorage
-    // key -- land on the homepage and let the customer pick which category to
-    // review/add to, rather than a dedicated Quick Order destination.
-    router.push('/');
+    // The new-order page fetches this order's items itself server-side --
+    // no client-side cart staging needed, and it works reliably regardless
+    // of localStorage state.
+    router.push(`/account/orders/new?from=${orderId}`);
   }
 
   return (
@@ -307,13 +277,18 @@ export default function OrderDetailClient({
       <section style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ fontSize: 16, color: 'var(--ink)' }}>Line items</h2>
-          <button type="button" className="btn-ghost" onClick={reorder}>Reorder as new</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn-ghost" onClick={reorder}>Reorder as new</button>
+            {canEdit && !editing && (
+              <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>Edit order</button>
+            )}
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
-              <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{canEdit && <th></th>}</tr>
+              <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{editing && <th></th>}</tr>
             </thead>
             <tbody>
               {items.filter((i) => !removedIds.has(i.id)).map((i) => (
@@ -328,7 +303,7 @@ export default function OrderDetailClient({
                     </span>
                   </td>
                   <td>
-                    {canEdit ? (
+                    {editing ? (
                       <input
                         type="text"
                         inputMode="numeric"
@@ -340,14 +315,14 @@ export default function OrderDetailClient({
                       i.quantity
                     )}
                   </td>
-                  {canEdit && (
+                  {editing && (
                     <td>
                       <button type="button" className="btn-danger" onClick={() => setRemovedIds(new Set([...removedIds, i.id]))}>Remove</button>
                     </td>
                   )}
                 </tr>
               ))}
-              {pendingLines.map((l) => (
+              {editing && pendingLines.map((l) => (
                 <tr key={l.tempId} style={{ background: '#faf8f3' }}>
                   <td>{l.categoryName}</td>
                   <td>{l.shapeName}</td>
@@ -376,7 +351,7 @@ export default function OrderDetailClient({
           </table>
         </div>
 
-        {canEdit && (
+        {editing && (
           <>
             <div className="po-card" style={{ marginTop: 18 }}>
               <h3 className="po-heading" style={{ fontSize: 14 }}>Add to Order</h3>
@@ -465,10 +440,11 @@ export default function OrderDetailClient({
 
             <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
               <button type="button" className="btn" onClick={saveEdits} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-              {toast && <span style={{ color: '#a3341f', fontSize: 12.5 }}>{toast}</span>}
+              <button type="button" className="btn-ghost" onClick={cancelEditing} disabled={saving}>Cancel</button>
             </div>
           </>
         )}
+        {toast && <p style={{ fontSize: 12.5, color: toast.startsWith('Modification') ? '#1a6b3a' : '#a3341f', marginTop: 10 }}>{toast}</p>}
       </section>
 
       <section>

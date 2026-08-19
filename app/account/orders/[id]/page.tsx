@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
+import { milestoneIndex } from '@/lib/order-milestones';
 import OrderDetailClient from './OrderDetailClient';
 
 export default async function AccountOrderDetailPage({ params }: { params: { id: string } }) {
@@ -63,7 +64,9 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     requestType: it.request_type || 'Place Order'
   }));
 
-  const canEdit = order.status === 'placed' || order.status === 'confirmed';
+  // Editable any time before the order actually ships -- placed, confirmed,
+  // sourcing, quality_check, packed all qualify, not just the first two.
+  const canEdit = milestoneIndex(order.status) >= 0 && milestoneIndex(order.status) < milestoneIndex('shipped');
 
   // "Add to order" can pull in any category, not just ones already on this
   // order -- shape/color/size options for whichever category gets picked are

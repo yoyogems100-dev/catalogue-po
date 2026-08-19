@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
+import { milestoneIndex } from '@/lib/order-milestones';
+import { notifyAdmin } from '@/lib/notify-admin';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const customerId = getCustomerId();
@@ -14,7 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!order || order.customer_id !== customerId) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   }
-  if (order.status !== 'placed' && order.status !== 'confirmed') {
+  // Editable any time before it actually ships -- matches the frontend's canEdit.
+  if (milestoneIndex(order.status) < 0 || milestoneIndex(order.status) >= milestoneIndex('shipped')) {
     return NextResponse.json({ error: 'This order can no longer be edited' }, { status: 400 });
   }
 
@@ -52,6 +55,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     message: 'Order edited by customer',
     internal_only: false
   });
+
+  const changeParts = [
+    updates.length > 0 ? `${updates.length} qty change${updates.length > 1 ? 's' : ''}` : null,
+    Array.isArray(removedIds) && removedIds.length > 0 ? `${removedIds.length} line${removedIds.length > 1 ? 's' : ''} removed` : null,
+    validNewItems.length > 0 ? `${validNewItems.length} line${validNewItems.length > 1 ? 's' : ''} added` : null
+  ].filter(Boolean);
+  await notifyAdmin('order_modified', orderId, `Order #${orderId} modified by customer (${changeParts.join(', ') || 'changes saved'})`);
 
   return NextResponse.json({ ok: true });
 }
