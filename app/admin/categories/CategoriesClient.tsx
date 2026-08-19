@@ -16,11 +16,43 @@ type Row = {
   colorCount: number;
 };
 
+const CameraIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
+
+const ListIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
+const GridIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="3" width="8" height="8" rx="1" /><rect x="13" y="3" width="8" height="8" rx="1" />
+    <rect x="3" y="13" width="8" height="8" rx="1" /><rect x="13" y="13" width="8" height="8" rx="1" />
+  </svg>
+);
+
+function TagStack({ c }: { c: Row }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span className="tag-chip-mini"><CameraIcon /> {c.photoCount}</span>
+      <span className="tag-chip-mini">{c.shapeCount} shapes</span>
+      <span className="tag-chip-mini">{c.sizeCount} sizes</span>
+      <span className="tag-chip-mini">{c.colorCount} colors</span>
+    </div>
+  );
+}
+
 export default function CategoriesClient({ rows }: { rows: Row[] }) {
   const router = useRouter();
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const [localRows, setLocalRows] = useState(rows);
   useEffect(() => setLocalRows(rows), [rows]);
@@ -99,57 +131,93 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
         />
         <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
       </div>
-      <div style={{ marginBottom: 12, maxWidth: 280 }}>
-        <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
+        <div className="cat-view-toggle">
+          <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
+          <button type="button" className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
+        </div>
       </div>
       <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
-        Drag the &#9776; handle to reorder -- sets both the display order and the "#" number below. Click a category
-        name to rename it.
+        {view === 'list'
+          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it.'
+          : 'Click a category name to rename it.'}
       </p>
 
-      <table>
-        <thead>
-          <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th>Photos</th><th>Shapes</th><th>Sizes</th><th>Colors</th><th></th></tr>
-        </thead>
-        <tbody>
+      {view === 'list' ? (
+        <table>
+          <thead>
+            <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th><CameraIcon />/Tags</th><th></th></tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((c) => {
+              const index = localRows.findIndex((r) => r.id === c.id);
+              const dragProps = search.trim() ? {} : dropTargetProps(index);
+              return (
+                <tr
+                  key={c.id}
+                  {...dragProps}
+                  className={!search.trim() && overIndex === index ? 'drag-over-row' : ''}
+                  style={{ opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
+                >
+                  <td style={{ width: 1 }}>
+                    {!search.trim() && (
+                      <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>
+                    )}
+                  </td>
+                  <td>{String(c.num).padStart(2, '0')}</td>
+                  <td>
+                    <div className="admin-cover-thumb">
+                      {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
+                    </div>
+                  </td>
+                  <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
+                  <td><TagStack c={c} /></td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span className="cat-row-actions">
+                      <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
+                      <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+            {visibleRows.length === 0 && (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
+            )}
+          </tbody>
+        </table>
+      ) : (
+        <div className="admin-cat-grid">
           {visibleRows.map((c) => {
-            const index = localRows.findIndex((r) => r.id === c.id);
-            const dragProps = search.trim() ? {} : dropTargetProps(index);
             return (
-              <tr
-                key={c.id}
-                {...dragProps}
-                className={!search.trim() && overIndex === index ? 'drag-over-row' : ''}
-                style={{ opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
-              >
-                <td style={{ width: 1 }}>
-                  {!search.trim() && (
-                    <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>
-                  )}
-                </td>
-                <td>{String(c.num).padStart(2, '0')}</td>
-                <td>
-                  <div className="admin-cover-thumb">
-                    {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
+              <div key={c.id} className="admin-cat-card">
+                <div className="admin-cat-cover">
+                  {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
+                </div>
+                <div className="admin-cat-card-body">
+                  <div className="admin-cat-card-name">
+                    <NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} />
                   </div>
-                </td>
-                <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
-                <td>{c.photoCount}</td>
-                <td>{c.shapeCount}</td>
-                <td>{c.sizeCount}</td>
-                <td>{c.colorCount}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>{' '}
-                  <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
-                </td>
-              </tr>
+                  <div className="admin-cat-card-tags">
+                    <span className="tag-chip-mini"><CameraIcon /> {c.photoCount}</span>
+                    <span className="tag-chip-mini">{c.shapeCount} shapes</span>
+                    <span className="tag-chip-mini">{c.sizeCount} sizes</span>
+                    <span className="tag-chip-mini">{c.colorCount} colors</span>
+                  </div>
+                  <div className="admin-cat-card-actions">
+                    <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
+                    <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
+                  </div>
+                </div>
+              </div>
             );
           })}
           {visibleRows.length === 0 && (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
+            <p style={{ fontSize: 13, color: '#8a8370' }}>No categories match "{search}".</p>
           )}
-        </tbody>
-      </table>
+        </div>
+      )}
     </>
   );
 }

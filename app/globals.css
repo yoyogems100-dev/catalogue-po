@@ -156,6 +156,40 @@ html, body { overflow-x: hidden; }
 .admin-main { padding: 28px 32px; }
 .admin-main h1 { font-size: 22px; color: var(--ink); margin-bottom: 18px; }
 
+/* Mobile admin nav (hamburger + slide-out drawer) -- hidden on desktop,
+   where the sidebar in .admin-nav is already always visible. */
+.admin-mobile-topbar { display: none; }
+.admin-nav-close { display: none; }
+.admin-nav-backdrop { display: none; }
+
+.cat-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.cat-view-toggle button {
+  background: #fff; border: none; padding: 6px 10px; cursor: pointer; color: #8a8370;
+  display: flex; align-items: center; gap: 5px; font-size: 12px;
+}
+.cat-view-toggle button.active { background: var(--navy); color: #fff; }
+.cat-view-toggle button + button { border-left: 1px solid var(--line); }
+
+.tag-chip-mini {
+  display: inline-flex; align-items: center; gap: 4px; background: #f1ede2;
+  border: 1px solid var(--line); padding: 2px 7px; font-size: 10px; border-radius: 2px; color: var(--charcoal);
+  white-space: nowrap;
+}
+
+.cat-row-actions { display: inline-flex; gap: 6px; white-space: nowrap; }
+.cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
+
+.admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.admin-cat-card { background: #fff; border: 0.5px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
+.admin-cat-cover { width: 100%; aspect-ratio: 4/3; background: #f1ede2; display: flex; align-items: center; justify-content: center; }
+.admin-cat-cover img { width: 100%; height: 100%; object-fit: cover; }
+.admin-cat-cover span { font-size: 10px; color: #8a8370; }
+.admin-cat-card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.admin-cat-card-name { font-size: 14px; color: var(--ink); font-weight: 600; }
+.admin-cat-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.admin-cat-card-actions { display: flex; gap: 6px; margin-top: auto; }
+.admin-cat-card-actions .btn-ghost, .admin-cat-card-actions .btn-danger { flex: 1; text-align: center; padding: 6px 8px; font-size: 11px; min-height: auto; }
+
 table { width: 100%; border-collapse: collapse; background: #fff; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); }
@@ -550,13 +584,29 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .tag-chip { padding: 8px 14px; }
 
   .admin-shell { grid-template-columns: 1fr; }
-  .admin-nav {
-    display: flex; align-items: center; gap: 4px; overflow-x: auto; padding: 12px 10px;
-    white-space: nowrap; -webkit-overflow-scrolling: touch;
+
+  /* Replaces the old horizontally-scrolling nav strip with a hamburger +
+     slide-out drawer -- Home and notifications stay on the persistent top
+     bar, everything else lives in the drawer. */
+  .admin-mobile-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    background: var(--ink); padding: 10px 14px; position: sticky; top: 0; z-index: 50;
   }
-  .admin-nav .brand, .logo-admin-nav, .admin-nav-logo { display: none; }
-  .admin-nav a { padding: 8px 12px; font-size: 12.5px; }
-  .admin-nav form { margin-top: 0 !important; margin-left: auto; flex-shrink: 0; }
+  .admin-hamburger, .admin-mobile-home {
+    background: none; border: none; cursor: pointer; color: #cbd3e0;
+    display: flex; align-items: center; justify-content: center; padding: 8px; min-height: 44px; min-width: 44px;
+  }
+  .admin-mobile-home { color: #fff; }
+  .admin-nav-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 65; }
+  .admin-nav {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 82vw; z-index: 70;
+    overflow-y: auto; transform: translateX(-100%); transition: transform 0.25s ease;
+  }
+  .admin-nav.admin-nav-open { transform: translateX(0); }
+  .admin-nav-logo { display: flex; }
+  .admin-nav-close { display: flex; background: none; border: none; color: #cbd3e0; cursor: pointer; padding: 8px; min-height: 44px; min-width: 44px; align-items: center; justify-content: center; }
+  .admin-nav-bell-desktop { display: none; }
+  .admin-nav a { min-height: 44px; display: flex; align-items: center; }
   .admin-main { padding: 16px; }
   .admin-main h1 { font-size: 19px; }
   /* 3 equal columns was still too cramped for a select+button pair each on a phone */
