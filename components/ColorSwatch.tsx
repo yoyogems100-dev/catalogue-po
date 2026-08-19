@@ -26,12 +26,14 @@ export default function ColorSwatch({
         height: size,
         flexShrink: 0,
         borderRadius: '50%',
-        // Zoomed well past 100% -- the source stone photos have a thin light
-        // backing margin around the stone, which "cover" alone doesn't fully
-        // crop out at a square aspect ratio, leaving a sliver of that
-        // background visible inside the circle. The extra zoom pushes it
-        // outside the visible circle so the round swatch reads as solid stone.
-        background: refPhotoUrl ? `url(${refPhotoUrl}) center/170% 170% no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
+        // Zoomed in hard on the center of the photo -- source stone photos
+        // vary in how tightly they're framed (some have a light backing
+        // margin, some are looser crops from admin uploads), and 170% still
+        // let a sliver of that background show at the circle's edge on
+        // looser photos. This samples deep into the stone's own color/facets
+        // instead of anywhere near the photo's outer edge, so the round
+        // swatch reads as solid stone regardless of how the source was shot.
+        background: refPhotoUrl ? `url(${refPhotoUrl}) center/280% 280% no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
       }}
     />
   );
