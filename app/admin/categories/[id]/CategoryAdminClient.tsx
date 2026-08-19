@@ -342,36 +342,34 @@ export default function CategoryAdminClient({
       {/* Cover photo -- can be a dedicated image, not necessarily one of the
           catalogue stones in the gallery below. */}
       <section style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Cover photo</h3>
-        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 8 }}>
-          Shown on the homepage tile. Upload a dedicated image here, or use "Set cover" on any photo in the gallery
-          below -- either way it won't count toward the gallery/Explore Photos.
-        </p>
-        <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
-        {uploadingCover && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Cover photo</h3>
+          <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
+          {uploadingCover && <span style={{ fontSize: 12.5 }}>Uploading…</span>}
+        </div>
         {coverPhoto && (
-          <div style={{ marginTop: 14, maxWidth: 240 }}>
-            <PhotoRow
-              photo={coverPhoto}
-              index={0}
-              total={1}
-              isThumbnail
-              shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
-              colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
-              tags={allTags.filter((t) => linkedTagIds.includes(t.id))}
-              sizes={allSizes.filter((sz) => linkedSizeIds.includes(sz.id))}
-              onUpdate={updatePhoto}
-              onDelete={coverPhoto.isCoverOnly ? deletePhoto : undefined}
-              onSetThumbnail={setThumbnail}
-              onMove={() => {}}
-              onCreateTag={createPhotoTag}
-              dragHandleProps={{}}
-              dropTargetProps={{}}
-              isDragging={false}
-              isDragOver={false}
-              hideMoveControls
-            />
-          </div>
+          <PhotoRow
+            photo={coverPhoto}
+            index={0}
+            total={1}
+            isThumbnail
+            shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
+            colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
+            tags={allTags.filter((t) => linkedTagIds.includes(t.id))}
+            sizes={allSizes.filter((sz) => linkedSizeIds.includes(sz.id))}
+            onUpdate={updatePhoto}
+            onDelete={coverPhoto.isCoverOnly ? deletePhoto : undefined}
+            onSetThumbnail={setThumbnail}
+            onMove={() => {}}
+            onCreateTag={createPhotoTag}
+            dragHandleProps={{}}
+            dropTargetProps={{}}
+            isDragging={false}
+            isDragOver={false}
+            hideMoveControls
+            compact
+            fieldOptions={['shape', 'color', 'other']}
+          />
         )}
       </section>
 
@@ -455,7 +453,9 @@ function PhotoRow({
   dropTargetProps,
   isDragging,
   isDragOver,
-  hideMoveControls
+  hideMoveControls,
+  compact,
+  fieldOptions
 }: {
   photo: Photo;
   index: number;
@@ -475,6 +475,13 @@ function PhotoRow({
   isDragging: boolean;
   isDragOver: boolean;
   hideMoveControls?: boolean;
+  /** Horizontal image-left/controls-right layout, no move/set-cover row --
+      used for the dedicated Cover Photo section instead of the gallery grid card. */
+  compact?: boolean;
+  /** Restrict which Field options are offered -- the cover photo doesn't
+      need Size or the full Specifications browse-list, just a quick
+      shape/color/other-tag. */
+  fieldOptions?: FieldType[];
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -482,7 +489,8 @@ function PhotoRow({
   const [tagIds, setTagIds] = useState<number[]>(photo.tag_ids);
   const [productCode, setProductCode] = useState(photo.product_code || '');
   const [notes, setNotes] = useState(photo.notes || '');
-  const [field, setField] = useState<FieldType>('shape');
+  const visibleFieldOptions = fieldOptions ? FIELD_OPTIONS.filter((o) => fieldOptions.includes(o.value)) : FIELD_OPTIONS;
+  const [field, setField] = useState<FieldType>(visibleFieldOptions[0]?.value || 'shape');
   const [otherText, setOtherText] = useState('');
   const [creatingTag, setCreatingTag] = useState(false);
 
@@ -528,6 +536,136 @@ function PhotoRow({
     onUpdate(photo.id, {}, next);
   }
 
+  const tagChips = (shapeIds.length > 0 || sizeIds.length > 0 || colorIds.length > 0 || tagIds.length > 0) && (
+    <div className="admin-cat-card-tags" style={{ marginBottom: 8 }}>
+      {shapeIds.map((id) => {
+        const name = shapes.find((s) => s.id === id)?.name;
+        return name ? (
+          <span key={`sh-${id}`} className="tag-chip-mini">
+            {name}
+            <span className="tag-chip-mini-x" onClick={() => updateShapes(shapeIds.filter((v) => v !== id))}>&times;</span>
+          </span>
+        ) : null;
+      })}
+      {sizeIds.map((id) => {
+        const size = sizes.find((s) => s.id === id);
+        return size ? (
+          <span key={`sz-${id}`} className="tag-chip-mini">
+            {size.size_mm}mm
+            <span className="tag-chip-mini-x" onClick={() => updateSizes(sizeIds.filter((v) => v !== id))}>&times;</span>
+          </span>
+        ) : null;
+      })}
+      {colorIds.map((id) => {
+        const name = colors.find((c) => c.id === id)?.name;
+        return name ? (
+          <span key={`co-${id}`} className="tag-chip-mini">
+            {name}
+            <span className="tag-chip-mini-x" onClick={() => updateColors(colorIds.filter((v) => v !== id))}>&times;</span>
+          </span>
+        ) : null;
+      })}
+      {tagIds.map((id) => {
+        const name = tags.find((t) => t.id === id)?.name;
+        return name ? (
+          <span key={`tg-${id}`} className="tag-chip-mini">
+            {name}
+            <span className="tag-chip-mini-x" onClick={() => toggleTag(id)}>&times;</span>
+          </span>
+        ) : null;
+      })}
+    </div>
+  );
+
+  // Field selector + its matching value picker side by side, not stacked.
+  const fieldPicker = (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
+      <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ fontSize: 12, flex: '0 0 auto', width: 'auto', minWidth: 90 }}>
+        {visibleFieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {field === 'shape' && (
+          <IconSelect
+            multiple
+            options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
+            values={shapeIds}
+            onChange={updateShapes}
+            placeholder="No shapes"
+            leading="icon"
+          />
+        )}
+        {field === 'size' && (
+          <IconSelect
+            multiple
+            options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
+            values={sizeIds}
+            onChange={updateSizes}
+            placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
+          />
+        )}
+        {field === 'color' && (
+          <IconSelect
+            multiple
+            options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
+            values={colorIds}
+            onChange={updateColors}
+            placeholder="No colors"
+            leading="swatch"
+          />
+        )}
+        {field === 'tags' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No specifications on this category yet -- add one via "Other".</span>}
+            {tags.map((t) => (
+              <span
+                key={t.id}
+                className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
+                style={{ cursor: 'pointer', fontSize: 11 }}
+                onClick={() => toggleTag(t.id)}
+              >
+                {t.name}
+              </span>
+            ))}
+          </div>
+        )}
+        {field === 'other' && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text"
+              placeholder="New specification, e.g. Brilliant Cut"
+              value={otherText}
+              onChange={(e) => setOtherText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
+              style={{ fontSize: 12 }}
+            />
+            <button className="btn-ghost photo-add-spec-btn" onClick={addOtherTag} disabled={creatingTag} title="Add specification">
+              {creatingTag ? '…' : '+'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div className="card" style={{ display: 'flex', gap: 12, padding: 10 }}>
+        <div style={{ width: 110, height: 110, flexShrink: 0, position: 'relative', background: '#eee', borderRadius: 4, overflow: 'hidden' }}>
+          {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {tagChips}
+          {fieldPicker}
+          {onDelete && (
+            <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => onDelete(photo.id)}>
+              Remove cover photo
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`card ${isDragOver ? 'drag-over-card' : ''}`}
@@ -563,113 +701,8 @@ function PhotoRow({
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
-        {(shapeIds.length > 0 || sizeIds.length > 0 || colorIds.length > 0 || tagIds.length > 0) && (
-          <div className="admin-cat-card-tags" style={{ marginBottom: 8 }}>
-            {shapeIds.map((id) => {
-              const name = shapes.find((s) => s.id === id)?.name;
-              return name ? (
-                <span key={`sh-${id}`} className="tag-chip-mini">
-                  {name}
-                  <span className="tag-chip-mini-x" onClick={() => updateShapes(shapeIds.filter((v) => v !== id))}>&times;</span>
-                </span>
-              ) : null;
-            })}
-            {sizeIds.map((id) => {
-              const size = sizes.find((s) => s.id === id);
-              return size ? (
-                <span key={`sz-${id}`} className="tag-chip-mini">
-                  {size.size_mm}mm
-                  <span className="tag-chip-mini-x" onClick={() => updateSizes(sizeIds.filter((v) => v !== id))}>&times;</span>
-                </span>
-              ) : null;
-            })}
-            {colorIds.map((id) => {
-              const name = colors.find((c) => c.id === id)?.name;
-              return name ? (
-                <span key={`co-${id}`} className="tag-chip-mini">
-                  {name}
-                  <span className="tag-chip-mini-x" onClick={() => updateColors(colorIds.filter((v) => v !== id))}>&times;</span>
-                </span>
-              ) : null;
-            })}
-            {tagIds.map((id) => {
-              const name = tags.find((t) => t.id === id)?.name;
-              return name ? (
-                <span key={`tg-${id}`} className="tag-chip-mini">
-                  {name}
-                  <span className="tag-chip-mini-x" onClick={() => toggleTag(id)}>&times;</span>
-                </span>
-              ) : null;
-            })}
-          </div>
-        )}
-
-        <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ marginBottom: 4, fontSize: 12 }}>
-          {FIELD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-
-        <div style={{ marginBottom: 8 }}>
-          {field === 'shape' && (
-            <IconSelect
-              multiple
-              options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
-              values={shapeIds}
-              onChange={updateShapes}
-              placeholder="No shapes"
-              leading="icon"
-            />
-          )}
-          {field === 'size' && (
-            <IconSelect
-              multiple
-              options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
-              values={sizeIds}
-              onChange={updateSizes}
-              placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
-            />
-          )}
-          {field === 'color' && (
-            <IconSelect
-              multiple
-              options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue }))}
-              values={colorIds}
-              onChange={updateColors}
-              placeholder="No colors"
-              leading="swatch"
-            />
-          )}
-          {field === 'tags' && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No specifications on this category yet -- add one via "Other".</span>}
-              {tags.map((t) => (
-                <span
-                  key={t.id}
-                  className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
-                  style={{ cursor: 'pointer', fontSize: 11 }}
-                  onClick={() => toggleTag(t.id)}
-                >
-                  {t.name}
-                </span>
-              ))}
-            </div>
-          )}
-          {field === 'other' && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                type="text"
-                placeholder="New specification, e.g. Brilliant Cut"
-                value={otherText}
-                onChange={(e) => setOtherText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
-                style={{ fontSize: 12 }}
-              />
-              <button className="btn-ghost photo-add-spec-btn" onClick={addOtherTag} disabled={creatingTag} title="Add specification">
-                {creatingTag ? '…' : '+'}
-              </button>
-            </div>
-          )}
-        </div>
-
+        {tagChips}
+        {fieldPicker}
         <input
           type="text"
           placeholder="Product code"
