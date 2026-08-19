@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type Shape = { id: number; name: string };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
@@ -26,6 +27,28 @@ export default function ShapesClient({
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newSize, setNewSize] = useState('');
   const [newWeight, setNewWeight] = useState('');
+
+  // Local optimistic copy so a drag reflects instantly instead of waiting on
+  // the reorder-all round trip + router.refresh().
+  const [localShapes, setLocalShapes] = useState(shapes);
+  useEffect(() => setLocalShapes(shapes), [shapes]);
+
+  const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
+    const prev = localShapes;
+    const next = moveItem(localShapes, from, to);
+    setLocalShapes(next);
+    const res = await fetch('/api/shapes/reorder-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds: next.map((s) => s.id) })
+    });
+    if (!res.ok) {
+      setLocalShapes(prev);
+      alert('Failed to save the new order.');
+      return;
+    }
+    router.refresh();
+  });
 
   async function addShape() {
     if (!newShape.trim()) return;
@@ -127,17 +150,23 @@ export default function ShapesClient({
           <tr><th>Order</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
-          {shapes.map((s, index) => {
+          {localShapes.map((s, index) => {
             const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id);
             const linkedCatIds = catShapes.filter((cs) => cs.shape_id === s.id).map((cs) => cs.category_id);
             const sizesOpen = expandedSizes === s.id;
             const catsOpen = expandedCats === s.id;
             return (
               <>
-                <tr key={s.id}>
+                <tr
+                  key={s.id}
+                  {...dropTargetProps(index)}
+                  className={overIndex === index ? 'drag-over-row' : ''}
+                  style={{ opacity: dragIndex === index ? 0.4 : 1 }}
+                >
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
                     <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
-                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === shapes.length - 1}>&darr;</button>
+                    <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === localShapes.length - 1}>&darr;</button>
                   </td>
                   <td><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>

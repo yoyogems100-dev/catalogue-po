@@ -1,9 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
+import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type Ref = { id: number; name: string };
 type ColorRef = Ref & { hexValue?: string | null };
@@ -54,6 +56,26 @@ export default function CategoryAdminClient({
   const [driveText, setDriveText] = useState('');
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [localPhotos, setLocalPhotos] = useState(photos);
+  useEffect(() => setLocalPhotos(photos), [photos]);
+
+  const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
+    const prev = localPhotos;
+    const next = moveItem(localPhotos, from, to);
+    setLocalPhotos(next);
+    const res = await fetch('/api/photos/reorder-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_id: categoryId, orderedIds: next.map((p) => p.id) })
+    });
+    if (!res.ok) {
+      setLocalPhotos(prev);
+      alert('Failed to save the new photo order.');
+      return;
+    }
+    router.refresh();
+  });
 
   async function toggleLink(kind: 'shape' | 'color' | 'tag', id: number, currentlyLinked: boolean) {
     const key = kind === 'shape' ? 'shape_id' : kind === 'color' ? 'color_id' : 'tag_id';
@@ -266,17 +288,17 @@ export default function CategoryAdminClient({
 
       {/* Photo grid with per-photo tagging */}
       <section>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{photos.length} photos</h3>
+        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{localPhotos.length} photos</h3>
         <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
-          "Set cover" picks which photo represents this category on the homepage. Use ← / → to reorder how photos appear here and on the public page.
+          "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-          {photos.map((p, i) => (
+          {localPhotos.map((p, i) => (
             <PhotoRow
               key={p.id}
               photo={p}
               index={i}
-              total={photos.length}
+              total={localPhotos.length}
               isThumbnail={thumbnailPhotoId === p.id}
               shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
               colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
@@ -286,6 +308,10 @@ export default function CategoryAdminClient({
               onDelete={deletePhoto}
               onSetThumbnail={setThumbnail}
               onMove={movePhoto}
+              dragHandleProps={dragHandleProps(i)}
+              dropTargetProps={dropTargetProps(i)}
+              isDragging={dragIndex === i}
+              isDragOver={overIndex === i}
             />
           ))}
         </div>
@@ -306,7 +332,11 @@ function PhotoRow({
   onUpdate,
   onDelete,
   onSetThumbnail,
-  onMove
+  onMove,
+  dragHandleProps,
+  dropTargetProps,
+  isDragging,
+  isDragOver
 }: {
   photo: Photo;
   index: number;
@@ -320,6 +350,10 @@ function PhotoRow({
   onDelete: (id: number) => void;
   onSetThumbnail: (id: number) => void;
   onMove: (id: number, direction: 'left' | 'right') => void;
+  dragHandleProps: HTMLAttributes<HTMLElement>;
+  dropTargetProps: HTMLAttributes<HTMLElement>;
+  isDragging: boolean;
+  isDragOver: boolean;
 }) {
   const [shapeId, setShapeId] = useState(photo.shape_id ?? '');
   const [sizeId, setSizeId] = useState(photo.shape_size_id ?? '');
@@ -337,11 +371,23 @@ function PhotoRow({
   }
 
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div
+      className={`card ${isDragOver ? 'drag-over-card' : ''}`}
+      style={{ overflow: 'hidden', opacity: isDragging ? 0.4 : 1 }}
+      {...dropTargetProps}
+    >
       <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative' }}>
         {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        <span
+          {...dragHandleProps}
+          className="drag-handle"
+          title="Drag to reorder"
+          style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '2px 6px' }}
+        >
+          &#9776;
+        </span>
         {isThumbnail && (
-          <span style={{ position: 'absolute', top: 6, left: 6, background: 'var(--gold)', color: '#fff', fontSize: 10, padding: '3px 7px', letterSpacing: 0.5 }}>
+          <span style={{ position: 'absolute', bottom: 6, left: 6, background: 'var(--gold)', color: '#fff', fontSize: 10, padding: '3px 7px', letterSpacing: 0.5 }}>
             COVER
           </span>
         )}

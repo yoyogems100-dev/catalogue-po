@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type ColorRow = { id: number; name: string; hex_value: string | null };
 type Category = { id: number; num: number; name: string };
@@ -21,6 +22,26 @@ export default function ColorsClient({
   const [newColor, setNewColor] = useState('');
   const [newHex, setNewHex] = useState('#B0AFAC');
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
+
+  const [localColors, setLocalColors] = useState(colors);
+  useEffect(() => setLocalColors(colors), [colors]);
+
+  const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
+    const prev = localColors;
+    const next = moveItem(localColors, from, to);
+    setLocalColors(next);
+    const res = await fetch('/api/colors/reorder-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds: next.map((c) => c.id) })
+    });
+    if (!res.ok) {
+      setLocalColors(prev);
+      alert('Failed to save the new order.');
+      return;
+    }
+    router.refresh();
+  });
 
   async function add() {
     if (!newColor.trim()) return;
@@ -92,15 +113,21 @@ export default function ColorsClient({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {colors.map((c, index) => {
+        {localColors.map((c, index) => {
           const linkedCatIds = catColors.filter((cc) => cc.color_id === c.id).map((cc) => cc.category_id);
           const catsOpen = expandedCats === c.id;
           return (
-            <div key={c.id} className="card" style={{ padding: '8px 12px' }}>
+            <div
+              key={c.id}
+              className={`card ${overIndex === index ? 'drag-over-card' : ''}`}
+              style={{ padding: '8px 12px', opacity: dragIndex === index ? 0.4 : 1 }}
+              {...dropTargetProps(index)}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
                   <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
-                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === colors.length - 1}>&darr;</button>
+                  <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'down')} disabled={index === localColors.length - 1}>&darr;</button>
                 </span>
                 <input
                   type="color"

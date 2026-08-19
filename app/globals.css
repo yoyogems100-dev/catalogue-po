@@ -151,6 +151,12 @@ table { width: 100%; border-collapse: collapse; background: #fff; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); }
 
+/* Drag-and-drop reordering (shapes/colors admin tables, photo grid) */
+.drag-handle { cursor: grab; color: #8a8370; font-size: 14px; user-select: none; display: inline-block; padding: 2px 4px; }
+.drag-handle:active { cursor: grabbing; }
+.drag-over-row { box-shadow: inset 0 2px 0 var(--gold); }
+.drag-over-card { outline: 2px solid var(--gold); outline-offset: -2px; }
+
 .admin-cover-thumb {
   width: 44px; height: 44px; border-radius: 6px; overflow: hidden; background: #f1ede2;
   border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
