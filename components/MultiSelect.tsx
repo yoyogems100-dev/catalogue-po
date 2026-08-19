@@ -87,6 +87,16 @@ export default function MultiSelect({
     }
   }
 
+  // Selects/clears every currently-filtered (search-matching) option, not
+  // the full unfiltered list -- searching "blue" then "select all" should
+  // only select the blue ones on screen, not everything.
+  async function selectAllFiltered() {
+    for (const o of filtered) if (!localIds.includes(o.id)) await handleToggle(o.id, false);
+  }
+  async function clearAllFiltered() {
+    for (const o of filtered) if (localIds.includes(o.id)) await handleToggle(o.id, true);
+  }
+
   // Selecting a palette adds every member not already selected; unchecking a
   // fully-selected palette removes every member. Individual colors within it
   // can still be toggled normally afterward either way.
@@ -127,6 +137,11 @@ export default function MultiSelect({
             autoFocus
             className="ms-search"
           />
+          <div className="ms-select-all-row">
+            <button type="button" className="ms-select-all-btn" onClick={selectAllFiltered}>Select all{query.trim() ? ` (${filtered.length})` : ''}</button>
+            <span>·</span>
+            <button type="button" className="ms-select-all-btn" onClick={clearAllFiltered}>Clear all</button>
+          </div>
           {palettes && palettes.length > 0 && (
             <div className="ms-palette-section">
               {palettes.map((p) => {

@@ -330,6 +330,9 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   box-shadow: 0 10px 24px rgba(18,35,63,0.12);
 }
 .ms-search { border: none !important; border-bottom: 1px solid var(--line) !important; }
+.ms-select-all-row { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 10.5px; color: var(--text-dim); }
+.ms-select-all-btn { background: none; border: none; padding: 2px 0; font-size: 10.5px; color: var(--navy); cursor: pointer; }
+.ms-select-all-btn:hover { color: var(--gold); text-decoration: underline; }
 .ms-row { display: flex; align-items: center; gap: 9px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
 .ms-row:hover { background: #faf8f3; }
 .ms-row-active { background: #f1ede2; }

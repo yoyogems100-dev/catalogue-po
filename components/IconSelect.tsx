@@ -122,6 +122,17 @@ export default function IconSelect(props: Props) {
     multi.onChange(next);
   }
 
+  // Select/clear only the currently-filtered (search-matching) options.
+  function selectAllFiltered() {
+    if (!isMulti) return;
+    multi.onChange([...new Set([...multi.values, ...filtered.map((o) => o.id)])]);
+  }
+  function clearAllFiltered() {
+    if (!isMulti) return;
+    const filteredIds = new Set(filtered.map((o) => o.id));
+    multi.onChange(multi.values.filter((v) => !filteredIds.has(v)));
+  }
+
   function pickSingle(id: number) {
     single.onChange(id);
     setOpen(false);
@@ -147,6 +158,14 @@ export default function IconSelect(props: Props) {
               onChange={(e) => setSearch(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             />
+          )}
+
+          {isMulti && (
+            <div className="ms-select-all-row">
+              <button type="button" className="ms-select-all-btn" onClick={selectAllFiltered}>Select all{search.trim() ? ` (${filtered.length})` : ''}</button>
+              <span>·</span>
+              <button type="button" className="ms-select-all-btn" onClick={clearAllFiltered}>Clear all</button>
+            </div>
           )}
 
           {isMulti && multi.palettes && multi.palettes.length > 0 && (
