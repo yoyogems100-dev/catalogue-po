@@ -398,6 +398,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-cart-card { position: relative; }
 .po-cart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .po-cart-badge { background: var(--navy); color: #fff; font-size: 11px; padding: 4px 10px; border-radius: 20px; }
+.po-clear-cart-btn { font-size: 11px; padding: 4px 8px; color: #a3341f; }
 .po-empty-cart { border-style: dashed; }
 .po-cart-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
 .po-cart-item { display: grid; grid-template-columns: 1fr 56px 28px; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }

@@ -395,7 +395,18 @@ export default function POSelector({
       <section className="po-card po-cart-card">
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
-          <span className="po-cart-badge">{cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="po-cart-badge">{cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs</span>
+            {cart.length > 0 && (
+              <button
+                type="button"
+                className="btn-ghost po-clear-cart-btn"
+                onClick={() => { if (confirm('Clear every line from your requirement?')) setCart([]); }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {cart.length === 0 ? (
