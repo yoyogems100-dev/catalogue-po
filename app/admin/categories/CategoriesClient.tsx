@@ -185,7 +185,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <div className="admin-cat-card-name">
                     <NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} />
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8a8370' }}>{statsLine(c)}</div>
+                  <div className="mono" style={{ fontSize: 11.5, color: '#8a8370' }}>{statsLine(c)}</div>
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>

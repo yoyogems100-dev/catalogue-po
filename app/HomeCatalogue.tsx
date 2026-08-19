@@ -62,8 +62,9 @@ export default function HomeCatalogue({
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: '#8a8370', marginBottom: 14 }}>
-        {filtered.length} of {categories.length} categories
+      <div className="section-head">
+        <h2>The collection</h2>
+        <span className="count mono">{filtered.length} of {categories.length} categories</span>
       </div>
 
       {filtered.length === 0 ? (

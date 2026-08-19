@@ -9,7 +9,19 @@ import AccountMenu from './AccountMenu';
 // scrolled out of view, then fades/slides in -- avoiding showing the same
 // logo twice on screen at once, and freeing up space on mobile. The account
 // icon appears in both, though, so it's reachable immediately without scrolling.
-export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
+export default function HomeHero({
+  loggedIn,
+  customerName,
+  categoryCount,
+  shapeCount,
+  photoCount
+}: {
+  loggedIn: boolean;
+  customerName: string | null;
+  categoryCount?: number;
+  shapeCount?: number;
+  photoCount?: number;
+}) {
   const heroRef = useRef<HTMLDivElement>(null);
   const [showTopbar, setShowTopbar] = useState(false);
 
@@ -39,6 +51,14 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
           <HeaderLogo height={88} />
         </div>
         <div className="hero-divider" />
+        <p className="hero-tagline">Every facet of the collection, catalogued -- browse by shape, colour or size and send a purchase order straight to WhatsApp.</p>
+        {(categoryCount || shapeCount || photoCount) ? (
+          <div className="hero-stats">
+            {!!categoryCount && <div className="hero-stat"><b className="mono">{categoryCount}</b><span>Categories</span></div>}
+            {!!shapeCount && <div className="hero-stat"><b className="mono">{shapeCount}</b><span>Shapes on file</span></div>}
+            {!!photoCount && <div className="hero-stat"><b className="mono">{photoCount}</b><span>Photos</span></div>}
+          </div>
+        ) : null}
       </div>
     </>
   );

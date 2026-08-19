@@ -82,15 +82,28 @@ async function getData() {
   const shapesFormatted = (allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }));
   const colorsFormatted = (allColors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value }));
 
-  return { categories: categoriesFormatted, allShapes: shapesFormatted, allColors: colorsFormatted };
+  return {
+    categories: categoriesFormatted,
+    allShapes: shapesFormatted,
+    allColors: colorsFormatted,
+    categoryCount: categoriesFormatted.length,
+    shapeCount: shapesFormatted.length,
+    photoCount: (photos || []).filter((p: any) => !p.is_cover_only).length
+  };
 }
 
 export default async function HomePage() {
-  const [{ categories, allShapes, allColors }, settings, account] = await Promise.all([getData(), getSettings(), getAccountState()]);
+  const [{ categories, allShapes, allColors, categoryCount, shapeCount, photoCount }, settings, account] = await Promise.all([getData(), getSettings(), getAccountState()]);
 
   return (
     <>
-      <HomeHero loggedIn={account.loggedIn} customerName={account.customerName} />
+      <HomeHero
+        loggedIn={account.loggedIn}
+        customerName={account.customerName}
+        categoryCount={categoryCount}
+        shapeCount={shapeCount}
+        photoCount={photoCount}
+      />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} />
       </div>
