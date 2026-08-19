@@ -9,9 +9,9 @@ type Size = { id: number; shape_id: number; size_mm: string };
 type Photo = {
   id: number;
   url: string | null;
-  shape_id: number | null;
-  shape_size_id: number | null;
-  color_id: number | null;
+  shapeIds: number[];
+  sizeIds: number[];
+  colorIds: number[];
   tag_ids: number[];
 };
 
