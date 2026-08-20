@@ -92,8 +92,12 @@ export default function IconSelect(props: Props) {
     return null;
   }
 
+  // "x", "X" and "*" are used interchangeably for compound sizes (4x6 /
+  // 4X6 / 4*6) -- normalize both sides to the same separator so a search
+  // for one form still finds options written with another.
+  const normalizeSep = (s: string) => s.toLowerCase().replace(/[x*]/g, 'x');
   const filtered = search.trim()
-    ? orderedOptions.filter((o) => o.name.toLowerCase().includes(search.trim().toLowerCase()))
+    ? orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(search.trim())))
     : orderedOptions;
 
   let triggerLabel: string;

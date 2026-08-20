@@ -75,11 +75,13 @@ export default function ShapeSizeSelect({
     onBulkSizes(shapeId, sizeIds);
   }
 
-  // Only matches a plain "1" / "1.5" style value, same reasoning as
-  // POSelector's size range: a compound size like "6x8" shouldn't be swept
-  // into a numeric range by parseFloat reading it as 6.
+  // Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" (x/X/* used
+  // interchangeably) -- range-select and sort both key off the leading
+  // number either way, so "4x6" sits with "4" and a 4x6-to-8x6 range picks
+  // up every compound size whose first dimension falls in that span.
   function strictSizeNum(s: string): number {
-    return /^\d+(\.\d+)?$/.test(s.trim()) ? parseFloat(s) : NaN;
+    const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
+    return m ? parseFloat(m[1]) : NaN;
   }
 
   function applyRange(shapeId: number) {

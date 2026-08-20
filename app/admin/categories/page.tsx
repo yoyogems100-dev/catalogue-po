@@ -39,7 +39,11 @@ export default async function CategoriesListPage() {
 
   function coverUrl(c: { id: number; thumbnail_photo_id: number | null }) {
     const cover = (c.thumbnail_photo_id && photoById[c.thumbnail_photo_id]) || firstPhotoByCategory[c.id] || null;
-    return cover ? photoUrl(cover, 80) : null;
+    // Cards got wider in the recent decluttering pass -- 80px was fine for
+    // the old cramped 170px cards but stretched badly blurry once cards grew
+    // past 250px. 500 matches what the main site requests for its own
+    // similarly-sized category tiles.
+    return cover ? photoUrl(cover, 500) : null;
   }
 
   const rows = (categories || []).map((c) => ({
