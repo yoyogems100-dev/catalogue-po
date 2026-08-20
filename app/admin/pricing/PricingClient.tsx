@@ -136,6 +136,13 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
           </div>
         </div>
         <button className="btn-ghost" onClick={exportCsv} disabled={!shapes.length}>Export CSV (English)</button>
+        <a
+          className="btn"
+          href={categoryId ? `/api/admin/pricing/pdf?category_id=${categoryId}` : undefined}
+          style={!categoryId ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
+        >
+          Export PDF (branded)
+        </a>
       </div>
 
       {loading ? (
