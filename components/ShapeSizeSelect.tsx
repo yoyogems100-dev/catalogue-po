@@ -159,7 +159,7 @@ export default function ShapeSizeSelect({
                 {active && isExpanded && (
                   <div className="ms-subpanel">
                     {sizesForShape.length === 0 ? (
-                      <span style={{ fontSize: 11, color: '#8a8370' }}>No sizes defined for this shape yet.</span>
+                      <span style={{ fontSize: 11, color: '#756e5c' }}>No sizes defined for this shape yet.</span>
                     ) : (
                       <>
                         <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -174,7 +174,7 @@ export default function ShapeSizeSelect({
                             onClick={(e) => e.stopPropagation()}
                             style={{ width: 42, fontSize: 10.5, padding: '3px 5px' }}
                           />
-                          <span style={{ fontSize: 10, color: '#8a8370' }}>to</span>
+                          <span style={{ fontSize: 10, color: '#756e5c' }}>to</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -190,14 +190,16 @@ export default function ShapeSizeSelect({
                           {sizesForShape.map((sz) => {
                             const sizeActive = localSizeIds.includes(sz.id);
                             return (
-                              <span
+                              <button
                                 key={sz.id}
+                                type="button"
+                                aria-pressed={sizeActive}
                                 className={`tag-chip ${sizeActive ? 'active' : ''}`}
                                 style={{ cursor: 'pointer', fontSize: 10.5 }}
                                 onClick={() => handleToggleSize(sz.id, sizeActive)}
                               >
                                 {sz.size_mm}mm
-                              </span>
+                              </button>
                             );
                           })}
                         </div>

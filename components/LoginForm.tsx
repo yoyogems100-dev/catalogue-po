@@ -115,14 +115,14 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           <button
             type="button"
             onClick={() => { setMode('phone'); resetToEnter(); }}
-            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'phone' ? 'var(--navy)' : '#8a8370', fontWeight: mode === 'phone' ? 600 : 400, borderBottom: mode === 'phone' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
+            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'phone' ? 'var(--navy)' : '#756e5c', fontWeight: mode === 'phone' ? 600 : 400, borderBottom: mode === 'phone' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
           >
             Phone
           </button>
           <button
             type="button"
             onClick={() => { setMode('email'); resetToEnter(); }}
-            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'email' ? 'var(--navy)' : '#8a8370', fontWeight: mode === 'email' ? 600 : 400, borderBottom: mode === 'email' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
+            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'email' ? 'var(--navy)' : '#756e5c', fontWeight: mode === 'email' ? 600 : 400, borderBottom: mode === 'email' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
           >
             Email
           </button>

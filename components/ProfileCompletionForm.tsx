@@ -32,7 +32,7 @@ export default function ProfileCompletionForm({ onSuccess }: { onSuccess: () => 
 
   return (
     <form onSubmit={submit}>
-      <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14 }}>
+      <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 14 }}>
         Just once -- tell us who you are so we can find your orders next time.
       </p>
       <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your name</label>

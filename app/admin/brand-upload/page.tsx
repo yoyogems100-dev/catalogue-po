@@ -23,7 +23,7 @@ export default function BrandUploadPage() {
   return (
     <>
       <h1>Brand Logo Upload</h1>
-      <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 18 }}>
+      <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Upload any version of the logo -- even on a plain white background. It's automatically background-removed
         and a pure-white cutout is generated for the dark header bar. Re-uploading replaces both instantly, no
         redeploy needed.

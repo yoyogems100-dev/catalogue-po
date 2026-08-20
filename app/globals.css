@@ -3,12 +3,14 @@
 :root {
   --navy: #1B3A6B;
   --ink: #12233F;
-  --gold: #9C7A25;
+  /* UI/UX audit: #9C7A25 measured ~4.02:1 on white at the 11px sizes this is
+     used for (labels, table heads) -- below the 4.5:1 minimum for normal text. */
+  --gold: #8a6a1f;
   --gold-soft: #C9A94E;
   --ivory: #FAF8F3;
   --charcoal: #3A3F44;
   --umber: #6B5A3E;
-  --text-dim: #8a8370;
+  --text-dim: #756e5c;
   --line: rgba(28, 45, 80, 0.12);
   --facet: 14px;
   --facet-sm: 7px;
@@ -54,7 +56,16 @@ a { color: inherit; text-decoration: none; }
 .back-link:hover { text-decoration: underline; }
 .breadcrumb-nav a:hover { text-decoration: underline; background: rgba(18, 35, 63, 0.05); }
 .breadcrumb-nav .breadcrumb-sep { color: var(--line); }
-.breadcrumb-nav .breadcrumb-current { color: #8a8370; padding: 8px 6px; }
+.breadcrumb-nav .breadcrumb-current { color: #756e5c; padding: 8px 6px; }
+.breadcrumb-home-link { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Screen-reader-only: present in the accessibility tree, invisible on screen.
+   Used where a real heading/label is needed but a visible one would be
+   redundant with existing branding. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 
 .topbar {
   position: sticky; top: 0; z-index: 40;
@@ -120,9 +131,17 @@ a { color: inherit; text-decoration: none; }
 .topbar-floating {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   transform: translateY(-100%); opacity: 0;
-  transition: transform 0.25s ease, opacity 0.2s ease;
+  /* UI/UX audit: opacity/transform alone left this reachable by keyboard
+     (an off-screen duplicate "My Orders" link) while invisible. visibility
+     removes it from the tab order too; the delay lets it fade out first
+     when hiding, but appear immediately when showing. */
+  visibility: hidden;
+  transition: transform 0.25s ease, opacity 0.2s ease, visibility 0s linear 0.25s;
 }
-.topbar-floating.topbar-visible { transform: translateY(0); opacity: 1; }
+.topbar-floating.topbar-visible {
+  transform: translateY(0); opacity: 1; visibility: visible;
+  transition: transform 0.25s ease, opacity 0.2s ease, visibility 0s linear 0s;
+}
 
 .btn {
   background: var(--navy); color: #fff; border: none; padding: 10px 20px;
@@ -221,7 +240,7 @@ html, body { overflow-x: hidden; }
 
 .cat-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .cat-view-toggle button {
-  background: #fff; border: none; padding: 6px 10px; cursor: pointer; color: #8a8370;
+  background: #fff; border: none; padding: 6px 10px; cursor: pointer; color: #756e5c;
   display: flex; align-items: center; gap: 5px; font-size: 12px;
 }
 .cat-view-toggle button.active { background: var(--navy); color: #fff; }
@@ -230,7 +249,7 @@ html, body { overflow-x: hidden; }
 .cat-badge-toggle { display: inline-flex; gap: 3px; flex-wrap: wrap; }
 .cat-badge-toggle button {
   background: #fff; border: 1px solid var(--line); padding: 2px 6px; cursor: pointer;
-  color: #8a8370; font-size: 10px; border-radius: 2px;
+  color: #756e5c; font-size: 10px; border-radius: 2px;
 }
 .cat-badge-toggle button.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
@@ -270,7 +289,7 @@ html, body { overflow-x: hidden; }
    is a plain block that actually fills and crops to the fixed-ratio box. */
 .admin-cat-cover { width: 100%; aspect-ratio: 4/3; background: #f1ede2; position: relative; overflow: hidden; }
 .admin-cat-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.admin-cat-cover span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #8a8370; }
+.admin-cat-cover span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #756e5c; }
 .admin-cat-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .admin-cat-card-name { font-size: 16px; color: var(--ink); font-weight: 600; }
 /* Same "bold number, plain label" language as the main site's .cat-info .n */
@@ -285,7 +304,7 @@ th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--li
 th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); }
 
 /* Drag-and-drop reordering (shapes/colors admin tables, photo grid) */
-.drag-handle { cursor: grab; color: #8a8370; font-size: 14px; user-select: none; display: inline-block; padding: 2px 4px; }
+.drag-handle { cursor: grab; color: #756e5c; font-size: 14px; user-select: none; display: inline-block; padding: 2px 4px; }
 .drag-handle:active { cursor: grabbing; }
 .drag-over-row { box-shadow: inset 0 2px 0 var(--gold); }
 .drag-over-card { outline: 2px solid var(--gold); outline-offset: -2px; }
@@ -295,7 +314,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
 }
 .admin-cover-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.admin-cover-thumb span { font-size: 8px; color: #8a8370; text-align: center; line-height: 1.2; padding: 2px; }
+.admin-cover-thumb span { font-size: 8px; color: #756e5c; text-align: center; line-height: 1.2; padding: 2px; }
 
 .tag-chip {
   display: inline-flex; align-items: center; gap: 6px; background: #f1ede2;
@@ -358,7 +377,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .ms-preview-stack { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .ms-preview-dot { display: inline-flex; align-items: center; color: var(--navy); }
 .ms-placeholder { font-size: 12.5px; color: var(--charcoal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ms-summary { flex-shrink: 0; font-size: 10.5px; color: #8a8370; white-space: nowrap; }
+.ms-summary { flex-shrink: 0; font-size: 10.5px; color: #756e5c; white-space: nowrap; }
 .ms-panel {
   position: absolute; z-index: 30; top: 100%; left: 0; right: 0; background: #fff;
   border: 1px solid var(--line); border-top: none; max-height: 280px; overflow-y: auto;
@@ -373,7 +392,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .ms-row-active { background: #f1ede2; }
 .ms-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
 .ms-palette-row strong { font-weight: 500; color: var(--navy); }
-.ms-palette-count { margin-left: auto; font-size: 10.5px; color: #8a8370; }
+.ms-palette-count { margin-left: auto; font-size: 10.5px; color: #756e5c; }
 .ms-expand-btn {
   background: none; border: none; color: var(--navy); font-size: 10.5px; padding: 6px 12px 6px 0;
   cursor: pointer; white-space: nowrap;
@@ -392,7 +411,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .icon-select-trigger:hover { border-color: var(--gold); }
 .icon-select-label { flex: 1 1 auto; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.icon-select-caret { font-size: 9px; color: #8a8370; flex-shrink: 0; }
+.icon-select-caret { font-size: 9px; color: #756e5c; flex-shrink: 0; }
 .icon-select-swatch { width: 11px; height: 11px; border-radius: 50%; background: #ccc; border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0; }
 .icon-select-icon { display: inline-flex; color: var(--navy); flex-shrink: 0; }
 .icon-select-panel {
@@ -408,13 +427,13 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
 .icon-select-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
 .icon-select-palette-row strong { font-weight: 500; color: var(--navy); }
-.icon-select-palette-count { margin-left: auto; font-size: 10px; color: #8a8370; }
+.icon-select-palette-count { margin-left: auto; font-size: 10px; color: #756e5c; }
 .icon-select-search {
   width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px;
   font-size: 12.5px; position: sticky; top: 0; background: #fff;
 }
 .icon-select-search:focus { outline: none; border-bottom-color: var(--gold); }
-.icon-select-empty { padding: 10px 12px; font-size: 12px; color: #8a8370; }
+.icon-select-empty { padding: 10px 12px; font-size: 12px; color: #756e5c; }
 
 /* Homepage search + filter bar */
 .home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
@@ -440,7 +459,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .cat-tabs { display: flex; gap: 8px; margin: 18px 0 20px; border-bottom: 1px solid var(--line); }
 .cat-tab {
   /* UI/UX audit C-04: was ~35px tall, under the ~44px target. */
-  background: none; border: none; padding: 10px 4px; margin-right: 18px; font-size: 14px; color: #8a8370;
+  background: none; border: none; padding: 10px 4px; margin-right: 18px; font-size: 14px; color: #756e5c;
   cursor: pointer; border-bottom: 2px solid transparent; font-family: 'Playfair Display', serif; font-weight: 600;
   min-height: 44px; display: inline-flex; align-items: center;
 }
@@ -459,7 +478,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .po-range-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .po-range-row input { min-width: 0; flex: 1 1 0; }
-.po-range-row span { font-size: 11px; color: #8a8370; flex-shrink: 0; }
+.po-range-row span { font-size: 11px; color: #756e5c; flex-shrink: 0; }
 .po-range-row .po-inline-link { margin-left: 0; flex-shrink: 0; white-space: nowrap; }
 .po-search { margin-bottom: 16px; }
 
@@ -476,13 +495,13 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .po-shape-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .po-shape-name { font-size: 13px; color: var(--ink); font-weight: 500; line-height: 1.25; }
-.po-shape-count { font-size: 11px; color: #8a8370; }
-.po-empty { grid-column: 1 / -1; padding: 30px 16px; text-align: center; color: #8a8370; border: 1px dashed var(--line); font-size: 13px; }
+.po-shape-count { font-size: 11px; color: #756e5c; }
+.po-empty { grid-column: 1 / -1; padding: 30px 16px; text-align: center; color: #756e5c; border: 1px dashed var(--line); font-size: 13px; }
 
 .po-size-panel { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .po-size-panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
 .po-size-panel-head h3 { font-size: 16px; color: var(--ink); font-family: 'Playfair Display', serif; }
-.po-size-panel-head span { font-size: 12px; color: #8a8370; }
+.po-size-panel-head span { font-size: 12px; color: #756e5c; }
 
 .po-color-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .po-color-tile {
@@ -500,8 +519,8 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-size-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .po-size-tile { border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 6px; background: #faf8f3; }
 .po-size-mm { font-size: 15px; font-weight: 600; color: var(--ink); }
-.po-size-mm span { font-size: 11px; color: #8a8370; font-weight: 400; margin-left: 2px; }
-.po-size-color { font-size: 11px; color: #8a8370; display: flex; align-items: center; }
+.po-size-mm span { font-size: 11px; color: #756e5c; font-weight: 400; margin-left: 2px; }
+.po-size-color { font-size: 11px; color: #756e5c; display: flex; align-items: center; }
 .po-size-color-dot { width: 10px; height: 10px; border-radius: 50%; background-size: cover; background-position: center; margin-right: 5px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
 .po-add-size-btn {
   background: var(--navy); color: #fff; border: none; padding: 7px; font-size: 11.5px; letter-spacing: 0.3px;
@@ -529,7 +548,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-item-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); background: #faf8f3; }
 .po-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .po-item-main strong { font-size: 12.5px; color: var(--ink); }
-.po-item-main span { font-size: 11px; color: #8a8370; display: flex; align-items: center; gap: 5px; }
+.po-item-main span { font-size: 11px; color: #756e5c; display: flex; align-items: center; gap: 5px; }
 .po-item-price { color: var(--gold) !important; font-weight: 400; font-size: 10.5px; }
 .po-cart-card .po-item-price { color: var(--gold-soft) !important; }
 .pricing-scroll-hint { display: none; }
@@ -557,7 +576,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-cart-item { display: grid; grid-template-columns: 1fr 56px 28px; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .po-cart-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .po-cart-item-info strong { font-size: 13.5px; color: var(--ink); }
-.po-cart-item-info span { font-size: 11.5px; color: #8a8370; display: flex; align-items: center; flex-wrap: wrap; }
+.po-cart-item-info span { font-size: 11.5px; color: #756e5c; display: flex; align-items: center; flex-wrap: wrap; }
 /* Rows were a near-invisible white tint on the ink panel -- adjacent lines
    blended into each other with no real separation. Using the site's own
    --navy as the row surface against the darker --ink panel background
@@ -581,7 +600,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-send-row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
 .po-send-row label, .po-block-label { display: block; font-size: 12px; color: var(--charcoal); margin-bottom: 12px; }
 .po-send-row label select, .po-send-row label input, .po-block-label input, .po-block-label textarea { margin-top: 5px; }
-.po-optional { color: #8a8370; font-weight: 400; font-size: 11px; }
+.po-optional { color: #756e5c; font-weight: 400; font-size: 11px; }
 .po-send-btn {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
   background: #25D366; color: #fff; border: none; padding: 13px; font-size: 14px; font-weight: 500;
@@ -603,7 +622,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   padding: 8px 12px; font-size: 12px; cursor: pointer; color: var(--charcoal); border-radius: 20px;
 }
 .qo-suggestion-chip:hover { border-color: var(--gold); background: #f4efe0; }
-.qo-suggestion-qty { color: #8a8370; font-size: 11px; margin-left: 2px; }
+.qo-suggestion-qty { color: #756e5c; font-size: 11px; margin-left: 2px; }
 
 .qo-past-order-list { display: flex; flex-direction: column; gap: 8px; }
 .qo-past-order-row {
@@ -611,7 +630,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   padding: 10px 12px; border: 1px solid var(--line); background: #faf8f3;
 }
 .qo-past-order-row strong { font-size: 12.5px; color: var(--ink); display: block; margin-bottom: 2px; }
-.qo-past-order-row span { font-size: 11px; color: #8a8370; }
+.qo-past-order-row span { font-size: 11px; color: #756e5c; }
 
 /* Add-to-requirement icon on public photo cards */
 .photo-add-cart {
@@ -655,7 +674,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .stepper-step.done .stepper-dot { background: var(--gold); border-color: var(--gold); }
 .stepper-step.current .stepper-dot { background: var(--navy); border-color: var(--navy); box-shadow: 0 0 0 4px rgba(27,58,107,0.15); }
-.stepper-step .stepper-label { font-size: 10.5px; color: #8a8370; margin-top: 6px; text-align: center; white-space: nowrap; }
+.stepper-step .stepper-label { font-size: 10.5px; color: #756e5c; margin-top: 6px; text-align: center; white-space: nowrap; }
 .stepper-step.done .stepper-label, .stepper-step.current .stepper-label { color: var(--ink); font-weight: 500; }
 
 .order-stepper-compact { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -671,8 +690,8 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .account-order-row:hover { border-color: var(--gold); }
 .account-order-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
 .account-order-id { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--ink); }
-.account-order-date { font-size: 12px; color: #8a8370; }
-.account-order-row-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: #8a8370; flex-wrap: wrap; }
+.account-order-date { font-size: 12px; color: #756e5c; }
+.account-order-row-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: #756e5c; flex-wrap: wrap; }
 .account-order-repeat-btn { margin-left: auto; font-size: 11.5px; padding: 7px 12px; }
 
 .payment-badge {

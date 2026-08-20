@@ -213,7 +213,7 @@ export default function MultiSelect({
               })}
             </div>
           )}
-          {filtered.length === 0 && <div style={{ padding: 12, fontSize: 12, color: '#8a8370' }}>{emptyHint || 'No matches.'}</div>}
+          {filtered.length === 0 && <div style={{ padding: 12, fontSize: 12, color: '#756e5c' }}>{emptyHint || 'No matches.'}</div>}
           <div role="listbox" aria-label={placeholder} aria-multiselectable="true" ref={listboxRef} onKeyDown={handleListKeyDown}>
             {filtered.map((o) => {
               const isSel = localIds.includes(o.id);

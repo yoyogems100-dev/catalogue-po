@@ -45,16 +45,31 @@ export default function CategoryTabs({
 
   return (
     <>
-      <div className="cat-tabs">
-        <button className={`cat-tab ${tab === 'order' ? 'active' : ''}`} onClick={() => setTab('order')}>
+      <div className="cat-tabs" role="tablist" aria-label="Category actions">
+        <button
+          id="cat-tab-order"
+          role="tab"
+          aria-selected={tab === 'order'}
+          aria-controls="cat-tabpanel-order"
+          className={`cat-tab ${tab === 'order' ? 'active' : ''}`}
+          onClick={() => setTab('order')}
+        >
           Raise Purchase Order
         </button>
-        <button className={`cat-tab ${tab === 'photos' ? 'active' : ''}`} onClick={() => setTab('photos')}>
+        <button
+          id="cat-tab-photos"
+          role="tab"
+          aria-selected={tab === 'photos'}
+          aria-controls="cat-tabpanel-photos"
+          className={`cat-tab ${tab === 'photos' ? 'active' : ''}`}
+          onClick={() => setTab('photos')}
+        >
           Explore Photos {photos.length > 0 ? `(${photos.length})` : ''}
         </button>
       </div>
 
       {tab === 'order' ? (
+        <div id="cat-tabpanel-order" role="tabpanel" aria-labelledby="cat-tab-order">
         <POSelector
           categoryId={categoryId}
           categoryName={categoryName}
@@ -65,7 +80,9 @@ export default function CategoryTabs({
           colorPalettes={colorPalettes}
           pricing={pricing}
         />
+        </div>
       ) : (
+        <div id="cat-tabpanel-photos" role="tabpanel" aria-labelledby="cat-tab-photos">
         <CategoryClient
           categoryId={categoryId}
           categoryName={categoryName}
@@ -75,6 +92,7 @@ export default function CategoryTabs({
           sizes={sizes}
           photos={photos}
         />
+        </div>
       )}
     </>
   );

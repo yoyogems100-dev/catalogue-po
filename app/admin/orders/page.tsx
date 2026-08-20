@@ -42,9 +42,14 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
-        <Link href="/admin/orders" className={`tag-chip ${!statusFilter ? 'active' : ''}`}>All</Link>
+        <Link href="/admin/orders" className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All</Link>
         {ORDER_MILESTONES.map((m) => (
-          <Link key={m.key} href={`/admin/orders?status=${m.key}`} className={`tag-chip ${statusFilter === m.key ? 'active' : ''}`}>
+          <Link
+            key={m.key}
+            href={`/admin/orders?status=${m.key}`}
+            className={`tag-chip ${statusFilter === m.key ? 'active' : ''}`}
+            aria-current={statusFilter === m.key ? 'page' : undefined}
+          >
             {m.label}
           </Link>
         ))}
@@ -74,7 +79,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             );
           })}
           {(orders || []).length === 0 && (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#8a8370', padding: 30 }}>No orders match this filter.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#756e5c', padding: 30 }}>No orders match this filter.</td></tr>
           )}
         </tbody>
       </table>

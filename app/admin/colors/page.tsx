@@ -23,7 +23,7 @@ export default async function ColorsPage() {
   return (
     <>
       <h1>Colors</h1>
-      <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 18 }}>
+      <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Master list of {colors?.length || 0} colors. Add more any time -- they'll show up in every category's
         color dropdown. Click a swatch to change its hex. Expand "Categories" on any color to link/unlink it
         from multiple categories at once.

@@ -373,9 +373,10 @@ export default function POSelector({
           </div>
         </div>
 
-        <div className="po-type-toggle">
+        <div className="po-type-toggle" role="group" aria-label="Request type">
           <button
             type="button"
+            aria-pressed={pickRequestType === 'Place Order'}
             className={pickRequestType === 'Place Order' ? 'active' : ''}
             onClick={() => setPickRequestType('Place Order')}
           >
@@ -383,6 +384,7 @@ export default function POSelector({
           </button>
           <button
             type="button"
+            aria-pressed={pickRequestType === 'Request Quotation'}
             className={pickRequestType === 'Request Quotation' ? 'active' : ''}
             onClick={() => setPickRequestType('Request Quotation')}
           >

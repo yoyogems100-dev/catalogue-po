@@ -15,7 +15,7 @@ export default async function ShapesPage() {
   return (
     <>
       <h1>Shapes</h1>
-      <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 18 }}>
+      <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Master list of {shapes?.length || 0} shapes. Add new shapes or sizes here -- they'll then be selectable
         from the dropdown on any category. Expand "Categories" on any shape to link/unlink it from multiple
         categories at once, without leaving this page.

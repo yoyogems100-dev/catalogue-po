@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   },
   logo: { height: 30, width: 'auto' },
   docType: { fontSize: 15, color: '#9C7A25', fontFamily: 'Helvetica-Bold', textAlign: 'right' },
-  docMeta: { fontSize: 8.5, color: '#8a8370', textAlign: 'right', marginTop: 2 },
+  docMeta: { fontSize: 8.5, color: '#756e5c', textAlign: 'right', marginTop: 2 },
   metaBar: {
     flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#F3EFE4',
     paddingVertical: 6, paddingHorizontal: 10, marginBottom: 16
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   priceInr: { fontSize: 7, color: '#9C7A25', fontFamily: 'Helvetica-Bold', marginTop: 1 },
   dash: { fontSize: 7.5, color: '#c9c2ac', textAlign: 'center' },
   footer: {
-    position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7.5, color: '#8a8370',
+    position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7.5, color: '#756e5c',
     textAlign: 'center', borderTopWidth: 1, borderTopColor: '#e4ddc9', borderTopStyle: 'solid', paddingTop: 6
   }
 });

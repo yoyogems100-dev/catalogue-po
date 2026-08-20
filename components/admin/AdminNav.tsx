@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { WordMark } from '@/components/Logo';
 import NotificationBell from '@/components/admin/NotificationBell';
 
@@ -36,8 +37,20 @@ const ExternalIcon = () => (
 // crowded the page on desktop too. Home, View public site, and notifications
 // stay on a persistent compact top bar since those are worth reaching
 // without opening the drawer first.
+const NAV_LINKS = [
+  { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/orders', label: 'Orders' },
+  { href: '/admin/categories', label: 'Categories' },
+  { href: '/admin/shapes', label: 'Shapes' },
+  { href: '/admin/colors', label: 'Colors' },
+  { href: '/admin/pricing', label: 'Pricing' },
+  { href: '/admin/bulk-link', label: 'Bulk Link' },
+  { href: '/admin/tags', label: 'Tags' }
+];
+
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   function close() {
     setOpen(false);
@@ -69,14 +82,17 @@ export default function AdminNav() {
             <CloseIcon />
           </button>
         </div>
-        <Link href="/admin" onClick={close} target="_blank">Dashboard</Link>
-        <Link href="/admin/orders" onClick={close} target="_blank">Orders</Link>
-        <Link href="/admin/categories" onClick={close} target="_blank">Categories</Link>
-        <Link href="/admin/shapes" onClick={close} target="_blank">Shapes</Link>
-        <Link href="/admin/colors" onClick={close} target="_blank">Colors</Link>
-        <Link href="/admin/pricing" onClick={close} target="_blank">Pricing</Link>
-        <Link href="/admin/bulk-link" onClick={close} target="_blank">Bulk Link</Link>
-        <Link href="/admin/tags" onClick={close} target="_blank">Tags</Link>
+        {NAV_LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            onClick={close}
+            target="_blank"
+            aria-current={pathname === l.href ? 'page' : undefined}
+          >
+            {l.label}
+          </Link>
+        ))}
         <Link href="/" target="_blank" onClick={close}>View public site &rarr;</Link>
         <form action="/api/admin-logout" method="post" style={{ marginTop: 20 }}>
           <button type="submit" style={{ background: 'none', border: 'none', color: '#cbd3e0', padding: '10px 24px', fontSize: 13.5, cursor: 'pointer' }}>

@@ -6,6 +6,7 @@ import { getCustomerId } from '@/lib/customer-auth';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import Footer from '@/components/Footer';
+import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
 
 export const revalidate = 30;
@@ -79,21 +80,26 @@ export default async function BrowsePage({ searchParams }: { searchParams: { tag
         <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <nav className="breadcrumb-nav">
-          <Link href="/">&#127968; Home</Link>
-          <span className="breadcrumb-sep">/</span>
-          <span className="breadcrumb-current">Browse</span>
+        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+          <BreadcrumbHome />
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
+          <span className="breadcrumb-current" aria-current="page">Browse</span>
         </nav>
         <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 6px' }}>Browse</h1>
-        <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 18 }}>
+        <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
           {selectedTagId ? 'Every category with a match for this tag.' : "Every category's default photo, all in one glance -- pick a tag to narrow down."}
         </p>
 
         {tags && tags.length > 0 && (
           <div className="browse-tag-row">
-            <Link href="/browse" className={`tag-chip-filter ${!selectedTagId ? 'active' : ''}`}>All</Link>
+            <Link href="/browse" className={`tag-chip-filter ${!selectedTagId ? 'active' : ''}`} aria-current={!selectedTagId ? 'page' : undefined}>All</Link>
             {tags.map((t: any) => (
-              <Link key={t.id} href={`/browse?tag=${t.id}`} className={`tag-chip-filter ${selectedTagId === t.id ? 'active' : ''}`}>
+              <Link
+                key={t.id}
+                href={`/browse?tag=${t.id}`}
+                className={`tag-chip-filter ${selectedTagId === t.id ? 'active' : ''}`}
+                aria-current={selectedTagId === t.id ? 'page' : undefined}
+              >
                 {t.name}
               </Link>
             ))}
@@ -101,7 +107,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: { tag
         )}
 
         {sections.length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center', color: '#8a8370', border: '1px dashed var(--line)' }}>
+          <div style={{ padding: 60, textAlign: 'center', color: '#756e5c', border: '1px dashed var(--line)' }}>
             No photos found for this tag yet.
           </div>
         ) : (

@@ -24,7 +24,7 @@ export default async function BulkLinkPage() {
   return (
     <>
       <h1>Bulk Link</h1>
-      <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 18, maxWidth: 640 }}>
+      <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18, maxWidth: 640 }}>
         Link several shapes and/or colors to several categories in one action -- e.g. pick 3 shapes and 4
         categories to create all 12 links at once, instead of visiting each shape or category individually.
         Existing links are left as-is; nothing gets unlinked here.

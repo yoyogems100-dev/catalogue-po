@@ -324,13 +324,13 @@ export default function NewOrderClient({
           </div>
         </div>
 
-        {loadingOptions && <p style={{ fontSize: 12, color: '#8a8370' }}>Loading category options...</p>}
+        {loadingOptions && <p style={{ fontSize: 12, color: '#756e5c' }}>Loading category options...</p>}
 
-        <div className="po-type-toggle">
-          <button type="button" className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
+        <div className="po-type-toggle" role="group" aria-label="Request type">
+          <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
             Purchase
           </button>
-          <button type="button" className={pickRequestType === 'Request Quotation' ? 'active' : ''} onClick={() => setPickRequestType('Request Quotation')}>
+          <button type="button" aria-pressed={pickRequestType === 'Request Quotation'} className={pickRequestType === 'Request Quotation' ? 'active' : ''} onClick={() => setPickRequestType('Request Quotation')}>
             Request Quotation
           </button>
         </div>

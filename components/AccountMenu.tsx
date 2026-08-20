@@ -23,7 +23,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
     return (
       <div className="account-menu account-menu-loggedin">
         <Link href="/account/orders" className="account-menu-orders-link">My Orders</Link>
-        <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)}>
+        <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
           <UserIcon />
           <span>{customerName || 'Account'}</span>
         </button>
@@ -46,7 +46,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
 
   return (
     <div className="account-menu">
-      <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)}>
+      <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-label="Account" aria-haspopup="dialog" aria-expanded={open}>
         <UserIcon />
       </button>
       {open && (

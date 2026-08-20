@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
+import BreadcrumbHome from '@/components/BreadcrumbHome';
 import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
 import { milestoneIndex } from '@/lib/order-milestones';
 import OrderDetailClient from './OrderDetailClient';
@@ -101,12 +102,12 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     <>
       <AccountHeader />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <nav className="breadcrumb-nav">
-          <Link href="/">&#127968; Home</Link>
-          <span className="breadcrumb-sep">/</span>
+        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+          <BreadcrumbHome />
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
           <Link href="/account/orders">My Orders</Link>
-          <span className="breadcrumb-sep">/</span>
-          <span className="breadcrumb-current">Order #{order.id}</span>
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
+          <span className="breadcrumb-current" aria-current="page">Order #{order.id}</span>
         </nav>
         <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 16px' }}>Order #{order.id}</h1>
 

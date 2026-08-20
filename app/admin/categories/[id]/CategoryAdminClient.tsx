@@ -372,12 +372,13 @@ export default function CategoryAdminClient({
           <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
           {uploadingCover && <span style={{ fontSize: 12.5 }}>Uploading…</span>}
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11.5, color: '#8a8370' }}>Homepage tags:</span>
+            <span style={{ fontSize: 11.5, color: '#756e5c' }}>Homepage tags:</span>
             <div className="cat-badge-toggle">
               {BADGE_OPTIONS.map((o) => (
                 <button
                   key={o.value}
                   type="button"
+                  aria-pressed={localBadgeTypes.includes(o.value)}
                   className={localBadgeTypes.includes(o.value) ? 'active' : ''}
                   onClick={() => toggleBadgeType(o.value)}
                   title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
@@ -425,7 +426,7 @@ export default function CategoryAdminClient({
 
         <section>
           <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
-          <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
+          <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
           <textarea rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
           <div style={{ marginTop: 8 }}>
             <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
@@ -436,7 +437,7 @@ export default function CategoryAdminClient({
       {/* Photo grid with per-photo tagging */}
       <section>
         <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
-        <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
           "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
@@ -658,16 +659,18 @@ function PhotoRow({
         )}
         {field === 'tags' && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {tags.length === 0 && <span style={{ fontSize: 11, color: '#8a8370' }}>No specifications on this category yet -- add one via "Other".</span>}
+            {tags.length === 0 && <span style={{ fontSize: 11, color: '#756e5c' }}>No specifications on this category yet -- add one via "Other".</span>}
             {tags.map((t) => (
-              <span
+              <button
                 key={t.id}
+                type="button"
+                aria-pressed={tagIds.includes(t.id)}
                 className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
                 style={{ cursor: 'pointer', fontSize: 11 }}
                 onClick={() => toggleTag(t.id)}
               >
                 {t.name}
-              </span>
+              </button>
             ))}
           </div>
         )}

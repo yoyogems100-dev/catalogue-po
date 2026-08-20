@@ -92,6 +92,10 @@ export default async function HomePage() {
     <>
       <HomeHero loggedIn={account.loggedIn} customerName={account.customerName} />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
+        {/* The visible branding in HomeHero is a stylized logo image, not real
+            text -- a true H1 keeps the page's heading structure sound for
+            screen readers without changing what's shown on screen. */}
+        <h1 className="visually-hidden">YOYO GEMS — Collection Catalogue</h1>
         <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} />
       </div>
       <Footer settings={settings} />

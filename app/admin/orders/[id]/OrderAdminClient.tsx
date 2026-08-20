@@ -222,7 +222,7 @@ export default function OrderAdminClient({
   return (
     <div style={{ marginTop: 16 }}>
       <section style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 13, color: '#8a8370' }}>
+        <p style={{ fontSize: 13, color: '#756e5c' }}>
           Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
           {customer && <> · {customer.name || contactName || 'No name'} · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
@@ -283,7 +283,7 @@ export default function OrderAdminClient({
       <section style={{ marginBottom: 24 }}>
         <h3 className="section-label">Notify customer</h3>
         <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>Notify via WhatsApp</button>
-        <p style={{ fontSize: 11, color: '#8a8370', marginTop: 6 }}>
+        <p style={{ fontSize: 11, color: '#756e5c', marginTop: 6 }}>
           Opens WhatsApp with the current status (and PDF link, if generated) pre-filled -- send whenever you choose, independent of when the status was changed.
         </p>
       </section>
@@ -299,7 +299,7 @@ export default function OrderAdminClient({
             </button>
           )}
         </div>
-        <p style={{ fontSize: 11.5, color: '#8a8370', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
+        <p style={{ fontSize: 11.5, color: '#756e5c', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
         <table>
           <thead>
             <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
@@ -441,18 +441,18 @@ export default function OrderAdminClient({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {timeline.length === 0 && <p style={{ fontSize: 12.5, color: '#8a8370' }}>No history yet.</p>}
+          {timeline.length === 0 && <p style={{ fontSize: 12.5, color: '#756e5c' }}>No history yet.</p>}
           {timeline.map((t, i) => (
             <div key={i} className="card" style={{ padding: '10px 14px', fontSize: 13 }}>
               {t.type === 'status' ? (
-                <span><strong>Status updated:</strong> {t.label} {t.messageSent && <span style={{ fontSize: 11, color: '#8a8370' }}>(customer notified)</span>}</span>
+                <span><strong>Status updated:</strong> {t.label} {t.messageSent && <span style={{ fontSize: 11, color: '#756e5c' }}>(customer notified)</span>}</span>
               ) : (
                 <span>
                   <strong>{t.author === 'admin' ? 'Admin' : t.author === 'customer' ? 'Customer' : 'System'}:</strong> {t.message}
                   {t.internalOnly && <span className="tag-chip" style={{ marginLeft: 8, fontSize: 10 }}>Internal only</span>}
                 </span>
               )}
-              <div style={{ fontSize: 11, color: '#8a8370', marginTop: 3 }}>{fmtDate(t.at)}</div>
+              <div style={{ fontSize: 11, color: '#756e5c', marginTop: 3 }}>{fmtDate(t.at)}</div>
             </div>
           ))}
         </div>

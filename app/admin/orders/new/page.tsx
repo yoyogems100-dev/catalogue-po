@@ -15,7 +15,7 @@ export default async function NewAdminOrderPage() {
     <>
       <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
       <h1 style={{ marginTop: 8 }}>New order (offline / phone request)</h1>
-      <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 20 }}>
+      <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 20 }}>
         Build a purchase order on a customer's behalf -- for orders taken by phone, WhatsApp, or in person.
       </p>
       <AdminOrderBuilder

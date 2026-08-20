@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
+import BreadcrumbHome from '@/components/BreadcrumbHome';
 import OrderStepper from '@/components/OrderStepper';
 import ProfileGate from './ProfileGate';
 import RepeatOrderButton from './RepeatOrderButton';
@@ -45,15 +46,15 @@ export default async function AccountOrdersPage() {
     <>
       <AccountHeader />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <nav className="breadcrumb-nav">
-          <Link href="/">&#127968; Home</Link>
-          <span className="breadcrumb-sep">/</span>
-          <span className="breadcrumb-current">My Orders</span>
+        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+          <BreadcrumbHome />
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
+          <span className="breadcrumb-current" aria-current="page">My Orders</span>
         </nav>
         <h1 style={{ fontSize: 26, color: 'var(--ink)', marginBottom: 18 }}>My Orders</h1>
 
         {(orders || []).length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center', color: '#8a8370', border: '1px dashed var(--line)' }}>
+          <div style={{ padding: 60, textAlign: 'center', color: '#756e5c', border: '1px dashed var(--line)' }}>
             You haven't placed any orders yet. <Link href="/" style={{ color: 'var(--navy)' }}>Browse the catalogue &rarr;</Link>
           </div>
         ) : (

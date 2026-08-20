@@ -132,9 +132,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       <div className="admin-cat-toolbar">
         <div className="admin-cat-toolbar-left">
           <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
-          <div className="cat-view-toggle">
-            <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
-            <button type="button" className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
+          <div className="cat-view-toggle" role="group" aria-label="View">
+            <button type="button" aria-pressed={view === 'grid'} className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
+            <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
           </div>
         </div>
         <div className="admin-cat-toolbar-right">
@@ -148,7 +148,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
         </div>
       </div>
-      <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
+      <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
         {view === 'list'
           ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it. Manage a category to set its homepage tag.'
           : 'Click a category name to rename it. Manage a category to set its homepage tag.'}
@@ -182,7 +182,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     </div>
                   </td>
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
-                  <td style={{ fontSize: 12.5, color: '#8a8370' }}>{statsLine(c)}</td>
+                  <td style={{ fontSize: 12.5, color: '#756e5c' }}>{statsLine(c)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
                       <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
@@ -193,7 +193,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No categories match "{search}".</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No categories match "{search}".</td></tr>
             )}
           </tbody>
         </table>
@@ -219,7 +219,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
             );
           })}
           {visibleRows.length === 0 && (
-            <p style={{ fontSize: 13, color: '#8a8370' }}>No categories match "{search}".</p>
+            <p style={{ fontSize: 13, color: '#756e5c' }}>No categories match "{search}".</p>
           )}
         </div>
       )}

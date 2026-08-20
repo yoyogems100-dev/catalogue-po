@@ -114,7 +114,7 @@ export default function NotificationBell() {
                 </button>
               )}
             </div>
-            {items.length === 0 && <p style={{ padding: 16, fontSize: 12.5, color: '#8a8370' }}>No notifications yet.</p>}
+            {items.length === 0 && <p style={{ padding: 16, fontSize: 12.5, color: '#756e5c' }}>No notifications yet.</p>}
             {items.map((n) => (
               <div
                 key={n.id}
@@ -125,7 +125,7 @@ export default function NotificationBell() {
                 }}
               >
                 <div style={{ color: 'var(--ink)' }}>{n.message}</div>
-                <div style={{ fontSize: 10.5, color: '#8a8370', marginTop: 3 }}>{timeAgo(n.created_at)}</div>
+                <div style={{ fontSize: 10.5, color: '#756e5c', marginTop: 3 }}>{timeAgo(n.created_at)}</div>
               </div>
             ))}
           </div>

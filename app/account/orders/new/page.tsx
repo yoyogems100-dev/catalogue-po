@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
+import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
 import NewOrderClient from './NewOrderClient';
 
@@ -67,17 +68,17 @@ export default async function NewOrderPage({ searchParams }: { searchParams: { f
     <>
       <AccountHeader />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <nav className="breadcrumb-nav">
-          <Link href="/">&#127968; Home</Link>
-          <span className="breadcrumb-sep">/</span>
+        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+          <BreadcrumbHome />
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
           <Link href="/account/orders">My Orders</Link>
-          <span className="breadcrumb-sep">/</span>
-          <span className="breadcrumb-current">{fromOrderId ? `Reorder from #${fromOrderId}` : 'New Order'}</span>
+          <span className="breadcrumb-sep" aria-hidden="true">/</span>
+          <span className="breadcrumb-current" aria-current="page">{fromOrderId ? `Reorder from #${fromOrderId}` : 'New Order'}</span>
         </nav>
         <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 6px' }}>
           {fromOrderId ? `Reorder from Order #${fromOrderId}` : 'New Order'}
         </h1>
-        <p style={{ fontSize: 13, color: '#8a8370', marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 20 }}>
           {fromOrderId
             ? 'Pre-filled from that order -- edit quantities, remove lines, or add more before sending.'
             : 'Build a fresh order across any category.'}

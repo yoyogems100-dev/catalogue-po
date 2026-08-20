@@ -221,7 +221,7 @@ export default function ColorsClient({
                 <span style={{ minWidth: 140, flex: '1 1 140px' }}>
                   <NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
                 </span>
-                <span style={{ fontSize: 11, color: '#8a8370', fontFamily: 'monospace' }}>{c.hex_value}</span>
+                <span style={{ fontSize: 11, color: '#756e5c', fontFamily: 'monospace' }}>{c.hex_value}</span>
                 <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
                   {c.ref_photo_url ? 'Change photo' : 'Add photo'}
                   <input
@@ -241,7 +241,7 @@ export default function ColorsClient({
               </div>
               {catsOpen && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)', maxWidth: 420 }}>
-                  <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 8 }}>
+                  <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 8 }}>
                     Which categories should offer "{c.name}" as a color option.
                   </p>
                   <MultiSelect
@@ -255,12 +255,12 @@ export default function ColorsClient({
             </div>
           );
         })}
-        {visibleColors.length === 0 && <p style={{ fontSize: 13, color: '#8a8370' }}>No colors match "{search}".</p>}
+        {visibleColors.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No colors match "{search}".</p>}
       </div>
 
       <section style={{ marginTop: 36 }}>
         <h2 style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>Color Palettes</h2>
-        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 14, maxWidth: 640 }}>
+        <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 14, maxWidth: 640 }}>
           Group colors into named sets (e.g. "Excellent Star CP") -- palettes show up as one-click quick-selects at
           the top of color dropdowns everywhere, checking every color in the set at once (individual colors can
           still be unchecked afterward).
@@ -285,7 +285,7 @@ export default function ColorsClient({
               />
             </div>
           ))}
-          {palettes.length === 0 && <p style={{ fontSize: 13, color: '#8a8370' }}>No palettes yet -- add one above.</p>}
+          {palettes.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No palettes yet -- add one above.</p>}
         </div>
       </section>
     </>

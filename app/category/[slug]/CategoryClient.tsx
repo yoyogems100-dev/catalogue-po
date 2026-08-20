@@ -210,12 +210,12 @@ export default function CategoryClient({
               {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           )}
-          <span style={{ fontSize: 12, color: '#8a8370' }}>{filtered.length} of {photos.length} photos</span>
+          <span style={{ fontSize: 12, color: '#756e5c' }}>{filtered.length} of {photos.length} photos</span>
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: '#8a8370', border: '1px dashed var(--line)' }}>
+        <div style={{ padding: 60, textAlign: 'center', color: '#756e5c', border: '1px dashed var(--line)' }}>
           No photos match these filters yet.
         </div>
       ) : (

@@ -205,7 +205,7 @@ export default function ShapesClient({
                             <span style={{ cursor: 'pointer', color: '#a3341f' }} onClick={() => deleteSize(sz.id)}>&times;</span>
                           </span>
                         ))}
-                        {shapeSizes.length === 0 && <span style={{ fontSize: 12, color: '#8a8370' }}>No sizes yet.</span>}
+                        {shapeSizes.length === 0 && <span style={{ fontSize: 12, color: '#756e5c' }}>No sizes yet.</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 8, maxWidth: 420 }}>
                         <input
@@ -224,7 +224,7 @@ export default function ShapesClient({
                 {catsOpen && (
                   <tr key={`${s.id}-cats`}>
                     <td colSpan={5} style={{ background: '#faf8f3' }}>
-                      <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 8 }}>
+                      <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 8 }}>
                         Which categories should offer "{s.name}" as a shape option. This is the same link used on each
                         category's own page -- edit from whichever side is more convenient.
                       </p>
@@ -243,7 +243,7 @@ export default function ShapesClient({
             );
           })}
           {visibleShapes.length === 0 && (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#8a8370', fontSize: 13 }}>No shapes match "{search}".</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No shapes match "{search}".</td></tr>
           )}
         </tbody>
       </table>

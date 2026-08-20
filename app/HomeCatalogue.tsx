@@ -68,7 +68,7 @@ export default function HomeCatalogue({
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: '#8a8370', border: '1px dashed var(--line)' }}>
+        <div style={{ padding: 60, textAlign: 'center', color: '#756e5c', border: '1px dashed var(--line)' }}>
           No categories match those filters.
         </div>
       ) : (

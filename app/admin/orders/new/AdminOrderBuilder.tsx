@@ -217,10 +217,10 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             ) : (
               <div role="listbox" aria-label="Matching customers" style={{ maxHeight: 180, overflowY: 'auto', border: customerSearch.trim() ? '1px solid var(--line)' : 'none' }}>
                 {!customerSearch.trim() && (
-                  <div style={{ padding: 10, fontSize: 12.5, color: '#8a8370' }}>Start typing a name or phone number to find a customer.</div>
+                  <div style={{ padding: 10, fontSize: 12.5, color: '#756e5c' }}>Start typing a name or phone number to find a customer.</div>
                 )}
                 {customerSearch.trim() && filteredCustomers.length === 0 && (
-                  <div style={{ padding: 10, fontSize: 12.5, color: '#8a8370' }}>No matching customers.</div>
+                  <div style={{ padding: 10, fontSize: 12.5, color: '#756e5c' }}>No matching customers.</div>
                 )}
                 {filteredCustomers.map((c) => (
                   <div

@@ -464,14 +464,15 @@ export default function OrderDetailClient({
                 </div>
               </div>
 
-              {loadingOptions && <p style={{ fontSize: 12, color: '#8a8370' }}>Loading category options...</p>}
+              {loadingOptions && <p style={{ fontSize: 12, color: '#756e5c' }}>Loading category options...</p>}
 
-              <div className="po-type-toggle">
-                <button type="button" className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
+              <div className="po-type-toggle" role="group" aria-label="Request type">
+                <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
                   Purchase
                 </button>
                 <button
                   type="button"
+                  aria-pressed={pickRequestType === 'Request Quotation'}
                   className={pickRequestType === 'Request Quotation' ? 'active' : ''}
                   onClick={() => setPickRequestType('Request Quotation')}
                 >
@@ -496,7 +497,7 @@ export default function OrderDetailClient({
       <section>
         <h2 style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 12 }}>Order timeline</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {timeline.length === 0 && <p style={{ fontSize: 12.5, color: '#8a8370' }}>No updates yet.</p>}
+          {timeline.length === 0 && <p style={{ fontSize: 12.5, color: '#756e5c' }}>No updates yet.</p>}
           {timeline.map((t, i) => (
             <div key={i} className="card" style={{ padding: '10px 14px', fontSize: 13 }}>
               {t.type === 'status' ? (
@@ -504,7 +505,7 @@ export default function OrderDetailClient({
               ) : (
                 <span><strong>{t.author === 'admin' ? 'YOYO GEMS' : t.author === 'customer' ? 'You' : 'System'}:</strong> {t.message}</span>
               )}
-              <div style={{ fontSize: 11, color: '#8a8370', marginTop: 3 }}>{fmtDate(t.at)}</div>
+              <div style={{ fontSize: 11, color: '#756e5c', marginTop: 3 }}>{fmtDate(t.at)}</div>
             </div>
           ))}
         </div>
