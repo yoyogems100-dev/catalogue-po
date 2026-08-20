@@ -112,7 +112,7 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
           <label style={{ display: 'block', fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, fontWeight: 500 }}>
             Category
           </label>
-          <select value={categoryId ?? ''} onChange={(e) => setCategoryId(Number(e.target.value))} style={{ width: 220 }}>
+          <select value={categoryId ?? ''} onChange={(e) => setCategoryId(Number(e.target.value))} style={{ width: '100%', minWidth: 180, maxWidth: 220 }}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -164,6 +164,9 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
             ))}
           </div>
 
+          <p className="pricing-scroll-hint" style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+            &#8592; Swipe to see all {groups.length} color groups &#8594;
+          </p>
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>

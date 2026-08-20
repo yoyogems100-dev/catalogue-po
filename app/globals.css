@@ -499,6 +499,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-item-main span { font-size: 11px; color: #8a8370; display: flex; align-items: center; gap: 5px; }
 .po-item-price { color: var(--gold) !important; font-weight: 500; }
 .po-cart-card .po-item-price { color: var(--gold-soft) !important; }
+.pricing-scroll-hint { display: none; }
 .po-cart-total {
   text-align: right; font-size: 14px; font-weight: 600; color: #fff;
   padding: 10px 0 4px; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 4px;
@@ -721,6 +722,16 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   .po-add-form { grid-template-columns: 1fr 1fr; gap: 8px; }
   .po-item-list { max-height: none; }
   .po-item-row { padding: 8px; gap: 6px; }
+  /* Higher up in the file, .po-cart-card .po-item-row (two classes) beats
+     the single-class rule above on specificity regardless of source order,
+     so the cart's own compact-mobile padding needs restating here too. And
+     with the price line added, the row's right-side controls (type select,
+     qty, remove) no longer fit beside the item info on a phone -- wrap them
+     onto their own line instead of squeezing into a sliver of width. */
+  .po-cart-card .po-item-row { padding: 10px; flex-wrap: wrap; }
+  .po-item-row { flex-wrap: wrap; }
+  .po-item-main { flex-basis: 100%; }
+  .pricing-scroll-hint { display: block; }
   /* Widened from 46px -- too narrow once the 16px-minimum font-size rule above
      applies here too (a 4-5 digit qty no longer fit comfortably at the old width) */
   .po-item-row input.po-cart-qty { width: 58px; flex: 0 0 58px; padding: 5px 2px; }
