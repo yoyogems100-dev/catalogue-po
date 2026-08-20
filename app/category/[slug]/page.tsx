@@ -122,7 +122,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <Link href="/" style={{ fontSize: 13, color: 'var(--navy)' }}>&larr; All categories</Link>
+        <Link href="/" className="back-link">&larr; All categories</Link>
         <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
         <CategoryTabs
           categoryId={data.category.id}

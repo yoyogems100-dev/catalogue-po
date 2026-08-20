@@ -44,6 +44,14 @@ a { color: inherit; text-decoration: none; }
    Home / My Orders / current-page trail instead of relying on it. */
 .breadcrumb-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 16px; }
 .breadcrumb-nav a { color: var(--navy); text-decoration: none; padding: 8px 6px; margin: -8px -6px; border-radius: 4px; }
+/* UI/UX audit C-04: the various "<- All categories"/"<- All orders" links
+   were bare 13px text with no padding (~19px tall). Negative margin keeps
+   the enlarged tap area from shifting surrounding layout. */
+.back-link {
+  display: inline-flex; align-items: center; font-size: 13px; color: var(--navy);
+  min-height: 44px; padding: 8px 6px; margin: -8px -6px;
+}
+.back-link:hover { text-decoration: underline; }
 .breadcrumb-nav a:hover { text-decoration: underline; background: rgba(18, 35, 63, 0.05); }
 .breadcrumb-nav .breadcrumb-sep { color: var(--line); }
 .breadcrumb-nav .breadcrumb-current { color: #8a8370; padding: 8px 6px; }
@@ -298,8 +306,9 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* /browse page: tag filter row + category-grouped photo grid */
 .browse-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
 .tag-chip-filter {
-  display: inline-block; background: #fff; border: 1px solid var(--line); color: var(--charcoal);
-  padding: 8px 14px; font-size: 12.5px; text-decoration: none; border-radius: 20px; min-height: 36px; line-height: 20px;
+  /* UI/UX audit C-04: min-height was 36px, under the ~44px target. */
+  display: inline-flex; align-items: center; background: #fff; border: 1px solid var(--line); color: var(--charcoal);
+  padding: 8px 14px; font-size: 12.5px; text-decoration: none; border-radius: 20px; min-height: 44px; line-height: 20px;
 }
 .tag-chip-filter:hover { border-color: var(--gold); }
 .tag-chip-filter.active { background: var(--navy); color: #fff; border-color: var(--navy); }
@@ -392,6 +401,9 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .icon-select-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
 .icon-select-row:hover { background: #faf8f3; }
+/* UI/UX audit C-02: keyboard focus on a row was completely invisible. */
+.icon-select-row:focus-visible, .ms-row:focus-visible { outline: 2px solid var(--navy); outline-offset: -2px; background: #faf8f3; }
+.icon-select-trigger:focus-visible, .ms-trigger:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
 .icon-select-row.active { background: #f1ede2; font-weight: 500; }
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
 .icon-select-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
@@ -427,8 +439,10 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* Category tabs: Purchase Order vs Explore Photos */
 .cat-tabs { display: flex; gap: 8px; margin: 18px 0 20px; border-bottom: 1px solid var(--line); }
 .cat-tab {
+  /* UI/UX audit C-04: was ~35px tall, under the ~44px target. */
   background: none; border: none; padding: 10px 4px; margin-right: 18px; font-size: 14px; color: #8a8370;
   cursor: pointer; border-bottom: 2px solid transparent; font-family: 'Playfair Display', serif; font-weight: 600;
+  min-height: 44px; display: inline-flex; align-items: center;
 }
 .cat-tab:hover { color: var(--navy); }
 .cat-tab.active { color: var(--navy); border-bottom-color: var(--gold); border-bottom-width: 2.5px; }
@@ -601,8 +615,11 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 
 /* Add-to-requirement icon on public photo cards */
 .photo-add-cart {
-  position: absolute; bottom: 6px; right: 6px; z-index: 2;
-  width: 22px; height: 22px; border-radius: 50%; border: none; cursor: pointer;
+  /* UI/UX audit C-04: was 22x22, well under the ~44px minimum touch target.
+     Visual icon stays small (kept via the svg rule below); the tappable
+     circle itself grows to a real target. */
+  position: absolute; bottom: 2px; right: 2px; z-index: 2;
+  width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   background: rgba(18,35,63,0.35); color: #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);

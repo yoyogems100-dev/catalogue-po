@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 
@@ -52,6 +52,47 @@ export default function IconSelect(props: Props) {
   const [search, setSearch] = useState('');
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+
+  function closeAndRefocus() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  // UI/UX audit C-02: arrow-key roving focus within the open option list --
+  // Up/Down moves between rows, Home/End jump to the ends. Each row is its
+  // own tabIndex=0 role="option", so this is deliberately simple "move focus
+  // to the next/prev DOM option" rather than a full aria-activedescendant
+  // roving-tabindex pattern -- less ARIA-orthodox, but robust and testable.
+  function handleListKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAndRefocus();
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      const active = document.activeElement as HTMLElement | null;
+      if (active && active.getAttribute('role') === 'option') {
+        e.preventDefault();
+        active.click();
+      }
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const list = listboxRef.current;
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll<HTMLElement>('[role="option"]'));
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    e.preventDefault();
+    let nextIndex: number;
+    if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = items.length - 1;
+    else if (e.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, items.length - 1);
+    else nextIndex = currentIndex < 0 ? items.length - 1 : Math.max(currentIndex - 1, 0);
+    items[nextIndex]?.focus();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -142,9 +183,20 @@ export default function IconSelect(props: Props) {
     setOpen(false);
   }
 
+  const ariaLabel = isMulti ? multi.placeholder : single.allLabel;
+
   return (
     <div className="icon-select" ref={rootRef}>
-      <button type="button" className="icon-select-trigger" onClick={() => setOpen((v) => !v)}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="icon-select-trigger"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onKeyDown={(e) => { if (e.key === 'Escape' && open) closeAndRefocus(); }}
+      >
         <Leading o={selected} />
         <span className="icon-select-label">{triggerLabel}</span>
         <span className="icon-select-caret">{open ? '▲' : '▼'}</span>
@@ -158,9 +210,11 @@ export default function IconSelect(props: Props) {
               type="text"
               className="icon-select-search"
               placeholder="Search..."
+              aria-label={`Search ${ariaLabel}`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => { if (e.key === 'Escape') closeAndRefocus(); }}
             />
           )}
 
@@ -173,16 +227,19 @@ export default function IconSelect(props: Props) {
           )}
 
           {isMulti && multi.palettes && multi.palettes.length > 0 && (
-            <div className="icon-select-palette-section">
+            <div className="icon-select-palette-section" role="listbox" aria-label={`${ariaLabel} palettes`} aria-multiselectable="true" onKeyDown={handleListKeyDown}>
               {multi.palettes.map((p) => {
                 const fullySelected = p.memberIds.length > 0 && p.memberIds.every((id) => multi.values.includes(id));
                 return (
                   <div
                     key={p.id}
+                    role="option"
+                    aria-selected={fullySelected}
+                    tabIndex={0}
                     className={`icon-select-row icon-select-palette-row ${fullySelected ? 'active' : ''}`}
                     onClick={() => applyPalette(p)}
                   >
-                    <input type="checkbox" checked={fullySelected} readOnly className="icon-select-checkbox" />
+                    <input type="checkbox" checked={fullySelected} readOnly aria-hidden="true" tabIndex={-1} className="icon-select-checkbox" />
                     <strong>{p.name}</strong>
                     <span className="icon-select-palette-count">{p.memberIds.length}</span>
                   </div>
@@ -191,33 +248,41 @@ export default function IconSelect(props: Props) {
             </div>
           )}
 
-          {!isMulti && (
-            <div
-              className={`icon-select-row ${single.value === 'all' ? 'active' : ''}`}
-              onClick={() => { single.onChange('all'); setOpen(false); }}
-            >
-              {single.allLabel}
-            </div>
-          )}
-
-          {filtered.map((o) => {
-            const isActive = isMulti ? multi.values.includes(o.id) : single.value === o.id;
-            return (
+          <div className="icon-select-listbox" role="listbox" aria-label={ariaLabel} aria-multiselectable={isMulti} ref={listboxRef} onKeyDown={handleListKeyDown}>
+            {!isMulti && (
               <div
-                key={o.id}
-                className={`icon-select-row ${isActive ? 'active' : ''}`}
-                onClick={() => (isMulti ? toggleValue(o.id) : pickSingle(o.id))}
+                role="option"
+                aria-selected={single.value === 'all'}
+                tabIndex={0}
+                className={`icon-select-row ${single.value === 'all' ? 'active' : ''}`}
+                onClick={() => { single.onChange('all'); setOpen(false); }}
               >
-                {isMulti && (
-                  <input type="checkbox" checked={isActive} readOnly className="icon-select-checkbox" />
-                )}
-                <Leading o={o} />
-                {o.name}
+                {single.allLabel}
               </div>
-            );
-          })}
+            )}
 
-          {filtered.length === 0 && <div className="icon-select-empty">No matches.</div>}
+            {filtered.map((o) => {
+              const isActive = isMulti ? multi.values.includes(o.id) : single.value === o.id;
+              return (
+                <div
+                  key={o.id}
+                  role="option"
+                  aria-selected={isActive}
+                  tabIndex={0}
+                  className={`icon-select-row ${isActive ? 'active' : ''}`}
+                  onClick={() => (isMulti ? toggleValue(o.id) : pickSingle(o.id))}
+                >
+                  {isMulti && (
+                    <input type="checkbox" checked={isActive} readOnly aria-hidden="true" tabIndex={-1} className="icon-select-checkbox" />
+                  )}
+                  <Leading o={o} />
+                  {o.name}
+                </div>
+              );
+            })}
+
+            {filtered.length === 0 && <div className="icon-select-empty">No matches.</div>}
+          </div>
         </div>
       )}
     </div>

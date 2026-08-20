@@ -379,7 +379,7 @@ export default function POSelector({
             className={pickRequestType === 'Place Order' ? 'active' : ''}
             onClick={() => setPickRequestType('Place Order')}
           >
-            Place Order
+            Purchase
           </button>
           <button
             type="button"
@@ -436,8 +436,8 @@ export default function POSelector({
                   value={item.requestType}
                   onChange={(e) => updateItemRequestType(item.id, e.target.value as RequestType)}
                 >
-                  <option>Place Order</option>
-                  <option>Request Quotation</option>
+                  <option value="Place Order">Purchase</option>
+                  <option value="Request Quotation">Request Quotation</option>
                 </select>
                 <input
                   type="text"

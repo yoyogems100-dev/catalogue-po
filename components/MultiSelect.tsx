@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 
@@ -32,6 +32,45 @@ export default function MultiSelect({
   const [localIds, setLocalIds] = useState<number[]>(selectedIds);
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+
+  function closeAndRefocus() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  // UI/UX audit C-02 (same pattern as IconSelect): Up/Down/Home/End move
+  // focus between option rows, Enter/Space activates the focused one,
+  // Escape closes and returns focus to the trigger.
+  function handleListKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAndRefocus();
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      const active = document.activeElement as HTMLElement | null;
+      if (active && active.getAttribute('role') === 'option') {
+        e.preventDefault();
+        active.click();
+      }
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const list = listboxRef.current;
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll<HTMLElement>('[role="option"]'));
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    e.preventDefault();
+    let nextIndex: number;
+    if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = items.length - 1;
+    else if (e.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, items.length - 1);
+    else nextIndex = currentIndex < 0 ? items.length - 1 : Math.max(currentIndex - 1, 0);
+    items[nextIndex]?.focus();
+  }
 
   useEffect(() => {
     setLocalIds(selectedIds);
@@ -111,7 +150,16 @@ export default function MultiSelect({
 
   return (
     <div style={{ position: 'relative' }} ref={rootRef}>
-      <div className="ms-trigger" onClick={() => setOpen((v) => !v)}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="ms-trigger"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={placeholder}
+        onKeyDown={(e) => { if (e.key === 'Escape' && open) closeAndRefocus(); }}
+      >
         <span className="ms-trigger-main">
           {leading !== 'none' && selected.length > 0 && (
             <span className="ms-preview-stack">
@@ -125,15 +173,17 @@ export default function MultiSelect({
           </span>
         </span>
         <span className="ms-summary">{open ? '▲' : '▼'}</span>
-      </div>
+      </button>
 
       {open && (
         <div className="ms-panel">
           <input
             type="text"
             placeholder="Search..."
+            aria-label={`Search ${placeholder}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') closeAndRefocus(); }}
             autoFocus
             className="ms-search"
           />
@@ -143,12 +193,19 @@ export default function MultiSelect({
             <button type="button" className="ms-select-all-btn" onClick={clearAllFiltered}>Clear all</button>
           </div>
           {palettes && palettes.length > 0 && (
-            <div className="ms-palette-section">
+            <div className="ms-palette-section" role="listbox" aria-label={`${placeholder} palettes`} aria-multiselectable="true" onKeyDown={handleListKeyDown}>
               {palettes.map((p) => {
                 const fullySelected = p.memberIds.length > 0 && p.memberIds.every((id) => localIds.includes(id));
                 return (
-                  <div key={p.id} className={`ms-row ms-palette-row ${fullySelected ? 'ms-row-active' : ''}`} onClick={() => applyPalette(p)}>
-                    <input type="checkbox" checked={fullySelected} readOnly />
+                  <div
+                    key={p.id}
+                    role="option"
+                    aria-selected={fullySelected}
+                    tabIndex={0}
+                    className={`ms-row ms-palette-row ${fullySelected ? 'ms-row-active' : ''}`}
+                    onClick={() => applyPalette(p)}
+                  >
+                    <input type="checkbox" checked={fullySelected} readOnly aria-hidden="true" tabIndex={-1} />
                     <strong>{p.name}</strong>
                     <span className="ms-palette-count">{p.memberIds.length}</span>
                   </div>
@@ -157,20 +214,25 @@ export default function MultiSelect({
             </div>
           )}
           {filtered.length === 0 && <div style={{ padding: 12, fontSize: 12, color: '#8a8370' }}>{emptyHint || 'No matches.'}</div>}
-          {filtered.map((o) => {
-            const isSel = localIds.includes(o.id);
-            return (
-              <div
-                key={o.id}
-                className={`ms-row ${isSel ? 'ms-row-active' : ''}`}
-                onClick={() => handleToggle(o.id, isSel)}
-              >
-                <input type="checkbox" checked={isSel} readOnly />
-                <Leading o={o} />
-                {o.name}
-              </div>
-            );
-          })}
+          <div role="listbox" aria-label={placeholder} aria-multiselectable="true" ref={listboxRef} onKeyDown={handleListKeyDown}>
+            {filtered.map((o) => {
+              const isSel = localIds.includes(o.id);
+              return (
+                <div
+                  key={o.id}
+                  role="option"
+                  aria-selected={isSel}
+                  tabIndex={0}
+                  className={`ms-row ${isSel ? 'ms-row-active' : ''}`}
+                  onClick={() => handleToggle(o.id, isSel)}
+                >
+                  <input type="checkbox" checked={isSel} readOnly aria-hidden="true" tabIndex={-1} />
+                  <Leading o={o} />
+                  {o.name}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

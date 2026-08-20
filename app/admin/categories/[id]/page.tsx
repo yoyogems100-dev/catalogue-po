@@ -68,7 +68,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
 
   return (
     <>
-      <Link href="/admin/categories" style={{ fontSize: 13, color: 'var(--navy)' }}>&larr; All categories</Link>
+      <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
       <CategoryAdminClient
         categoryId={categoryId}

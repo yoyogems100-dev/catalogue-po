@@ -468,7 +468,7 @@ export default function OrderDetailClient({
 
               <div className="po-type-toggle">
                 <button type="button" className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
-                  Place Order
+                  Purchase
                 </button>
                 <button
                   type="button"

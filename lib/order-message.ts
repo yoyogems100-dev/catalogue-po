@@ -59,7 +59,7 @@ export function buildOrderMessage(cart: OrderCartItem[], contactName: string, co
 
   const sections: string[] = [];
   if (placeOrderItems.length > 0) {
-    if (mixed) sections.push('*PLACE ORDER*');
+    if (mixed) sections.push('*PURCHASE*');
     sections.push(formatTable(placeOrderItems.map(toRow)));
   }
   if (quotationItems.length > 0) {
@@ -80,7 +80,7 @@ export function buildOrderMessage(cart: OrderCartItem[], contactName: string, co
     'Hello YOYO GEMS,',
     '',
     `*${title}*`,
-    mixed ? '' : `Request Type: ${cart[0]?.requestType || 'Place Order'}`,
+    mixed ? '' : `Request Type: ${cart[0]?.requestType === 'Request Quotation' ? 'Request Quotation' : 'Purchase'}`,
     contactName ? `Name / Company: ${contactName}` : '',
     '',
     'Requirement:',

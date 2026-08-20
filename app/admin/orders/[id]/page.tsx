@@ -124,7 +124,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   return (
     <>
-      <Link href="/admin/orders" style={{ fontSize: 13, color: 'var(--navy)' }}>&larr; All orders</Link>
+      <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
       <h1 style={{ marginTop: 8 }}>Order #{order.id}</h1>
       <OrderAdminClient
         orderId={order.id}

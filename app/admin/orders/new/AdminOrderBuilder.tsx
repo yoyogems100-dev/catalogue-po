@@ -303,8 +303,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             <label>
               Request type
               <select value={requestType} onChange={(e) => setRequestType(e.target.value)}>
-                <option>Place Order</option>
-                <option>Request Quotation</option>
+                <option value="Place Order">Purchase</option>
+                <option value="Request Quotation">Request Quotation</option>
               </select>
             </label>
           </div>

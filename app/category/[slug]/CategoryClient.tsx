@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
@@ -130,6 +130,34 @@ export default function CategoryClient({
   const [sizeFilter, setSizeFilter] = useState<number | 'all'>('all');
   const [tagFilter, setTagFilter] = useState<number | 'all'>('all');
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const lightboxCloseRef = useRef<HTMLButtonElement>(null);
+  const lastTriggerRef = useRef<HTMLElement | null>(null);
+
+  function openLightbox(i: number, e: { currentTarget: HTMLElement }) {
+    lastTriggerRef.current = e.currentTarget;
+    setLightbox(i);
+  }
+  function closeLightbox() {
+    setLightbox(null);
+    lastTriggerRef.current?.focus();
+  }
+
+  // UI/UX audit C-03: the lightbox had no dialog semantics, no focus
+  // management, and its close control was announced only as "×". Move
+  // focus into the dialog on open (restored to the triggering photo tile
+  // on close), and support Escape/Left/Right without a mouse.
+  useEffect(() => {
+    if (lightbox === null) return;
+    lightboxCloseRef.current?.focus();
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); setLightbox((cur) => (cur === null ? cur : Math.min(cur + 1, filtered.length - 1))); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); setLightbox((cur) => (cur === null ? cur : Math.max(cur - 1, 0))); }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightbox !== null]);
 
   const availableSizes = useMemo(
     () => (shapeFilter === 'all' ? sizes : sizes.filter((s) => s.shape_id === shapeFilter)),
@@ -199,13 +227,18 @@ export default function CategoryClient({
               <div
                 key={p.id}
                 className="photo-card"
-                onClick={() => setLightbox(i)}
+                role="button"
+                tabIndex={0}
+                aria-label={details ? `View photo: ${details}` : 'View photo'}
+                onClick={(e) => openLightbox(i, e)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(i, e); } }}
                 style={{ cursor: 'zoom-in' }}
               >
-                {p.url && <img src={p.url} alt="" loading="lazy" />}
+                {p.url && <img src={p.url} alt={details || 'Product photo'} loading="lazy" />}
                 <button
                   type="button"
                   className="photo-add-cart"
+                  aria-label={`Add ${details || 'this photo'} to requirement`}
                   title="Add to requirement"
                   onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
                 >
@@ -223,13 +256,49 @@ export default function CategoryClient({
 
       {lightbox !== null && filtered[lightbox] && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(10,16,28,0.94)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo viewer"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(10,16,28,0.94)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+          onClick={closeLightbox}
         >
-          <img src={filtered[lightbox].url || ''} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }} />
+          <img
+            src={filtered[lightbox].url || ''}
+            alt={detailsFor(filtered[lightbox]) || 'Product photo'}
+            style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {detailsFor(filtered[lightbox]) && (
+            <p style={{ color: '#fff', fontSize: 13, marginTop: 14, textAlign: 'center', maxWidth: '80vw' }}>
+              {detailsFor(filtered[lightbox])}
+            </p>
+          )}
+          {lightbox > 0 && (
+            <button
+              type="button"
+              aria-label="Previous photo"
+              style={{ position: 'fixed', top: '50%', left: 12, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer' }}
+              onClick={(e) => { e.stopPropagation(); setLightbox(lightbox - 1); }}
+            >
+              &#8249;
+            </button>
+          )}
+          {lightbox < filtered.length - 1 && (
+            <button
+              type="button"
+              aria-label="Next photo"
+              style={{ position: 'fixed', top: '50%', right: 12, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer' }}
+              onClick={(e) => { e.stopPropagation(); setLightbox(lightbox + 1); }}
+            >
+              &#8250;
+            </button>
+          )}
           <button
-            style={{ position: 'fixed', top: 20, right: 26, background: 'none', border: 'none', color: '#fff', fontSize: 30 }}
-            onClick={() => setLightbox(null)}
+            ref={lightboxCloseRef}
+            type="button"
+            aria-label="Close photo viewer"
+            style={{ position: 'fixed', top: 20, right: 26, background: 'none', border: 'none', color: '#fff', fontSize: 30, width: 44, height: 44, cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
           >
             &times;
           </button>

@@ -328,7 +328,7 @@ export default function NewOrderClient({
 
         <div className="po-type-toggle">
           <button type="button" className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
-            Place Order
+            Purchase
           </button>
           <button type="button" className={pickRequestType === 'Request Quotation' ? 'active' : ''} onClick={() => setPickRequestType('Request Quotation')}>
             Request Quotation
@@ -366,8 +366,8 @@ export default function NewOrderClient({
                     )}
                   </div>
                   <select className="po-item-type-select" value={item.requestType} onChange={(e) => updateRequestType(item.id, e.target.value as RequestType)}>
-                    <option>Place Order</option>
-                    <option>Request Quotation</option>
+                    <option value="Place Order">Purchase</option>
+                    <option value="Request Quotation">Request Quotation</option>
                   </select>
                   <input
                     type="text"

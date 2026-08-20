@@ -223,7 +223,7 @@ export default function OrderAdminClient({
     <div style={{ marginTop: 16 }}>
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#8a8370' }}>
-          Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType || 'Place Order'}</strong>
+          Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
           {customer && <> · {customer.name || contactName || 'No name'} · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
