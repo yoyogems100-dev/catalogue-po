@@ -25,7 +25,7 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity, request_type')
+    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity, request_type, unit_price')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -62,7 +62,8 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     quantity: it.quantity,
-    requestType: it.request_type || 'Place Order'
+    requestType: it.request_type || 'Place Order',
+    unitPrice: it.unit_price != null ? Number(it.unit_price) : null
   }));
 
   // Editable any time before the order actually ships -- placed, confirmed,

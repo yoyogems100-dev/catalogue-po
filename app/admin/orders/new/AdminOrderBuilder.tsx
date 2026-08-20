@@ -2,10 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { CategoryPricing } from '@/lib/pricing-calc';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 type Category = { id: number; num: number; name: string };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null };
-type Options = { shapes: { id: number; name: string }[]; colors: { id: number; name: string; hex: string | null }[]; sizes: { id: number; shapeId: number; sizeMm: string }[] };
+type Options = {
+  shapes: { id: number; name: string }[];
+  colors: { id: number; name: string; hex: string | null }[];
+  sizes: { id: number; shapeId: number; sizeMm: string }[];
+  pricing?: CategoryPricing;
+};
 type CartItem = {
   id: string;
   categoryId: number;
@@ -97,6 +104,19 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
   function removeLine(id: string) {
     setCart(cart.filter((i) => i.id !== id));
   }
+
+  // Looked up live from whichever category's options are cached, same as the
+  // customer-facing builder -- not stored on the cart item itself.
+  function unitPriceInr(item: CartItem): number | null {
+    const pricing = optionsCache[item.categoryId]?.pricing;
+    if (!pricing) return null;
+    return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
+  }
+  const cartTotalInr = cart.reduce((sum, item) => {
+    const unit = unitPriceInr(item);
+    return unit === null ? sum : sum + unit * item.qty;
+  }, 0);
+  const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
 
   async function submit() {
     setToast('');
@@ -255,15 +275,26 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
           <div className="po-empty po-empty-cart">No lines added yet.</div>
         ) : (
           <div className="po-item-list">
-            {cart.map((item) => (
-              <div key={item.id} className="po-item-row">
-                <div className="po-item-main">
-                  <strong>{item.shapeName} · {item.sizeMm}mm</strong>
-                  <span>{item.categoryName} · {item.colorName} · {item.qty} pcs</span>
+            {cart.map((item) => {
+              const unit = unitPriceInr(item);
+              return (
+                <div key={item.id} className="po-item-row">
+                  <div className="po-item-main">
+                    <strong>{item.shapeName} · {item.sizeMm}mm</strong>
+                    <span>{item.categoryName} · {item.colorName} · {item.qty} pcs</span>
+                    {unit !== null && (
+                      <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    )}
+                  </div>
+                  <button type="button" className="po-remove-btn" onClick={() => removeLine(item.id)}>&times;</button>
                 </div>
-                <button type="button" className="po-remove-btn" onClick={() => removeLine(item.id)}>&times;</button>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+        {hasAnyPricedLine && (
+          <div className="po-cart-total mono">
+            Estimated total: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
         )}
 

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
+import type { CategoryPricing } from '@/lib/pricing-calc';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 type RequestType = 'Place Order' | 'Request Quotation';
 
@@ -29,6 +31,7 @@ type CategoryOptionsData = {
   shapes: { id: number; name: string; iconKey?: string | null }[];
   colors: { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
+  pricing?: CategoryPricing;
 };
 
 function strictSizeNum(s: string): number {
@@ -102,7 +105,7 @@ export default function NewOrderClient({
     try {
       const res = await fetch(`/api/app/categories/${cat.slug}`);
       const data = await res.json();
-      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [] } }));
+      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [], pricing: data.pricing } }));
     } finally {
       setLoadingOptions(false);
     }
@@ -210,6 +213,19 @@ export default function NewOrderClient({
   const [comment, setComment] = useState('');
   const [sending, setSending] = useState(false);
   const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
+
+  // Looked up live from whichever category's options are cached -- a cart
+  // can span several categories added at different times.
+  function unitPriceInr(item: SeedItem): number | null {
+    const pricing = optionsCache[item.categoryId]?.pricing;
+    if (!pricing || item.sizeId == null) return null;
+    return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
+  }
+  const cartTotalInr = cart.reduce((sum, item) => {
+    const unit = unitPriceInr(item);
+    return unit === null ? sum : sum + unit * item.qty;
+  }, 0);
+  const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
 
   async function sendRequirement() {
     if (cart.length === 0) {
@@ -329,30 +345,41 @@ export default function NewOrderClient({
           <div className="po-empty po-empty-cart">No lines yet. Add lines above.</div>
         ) : (
           <div className="po-item-list">
-            {cart.map((item) => (
-              <div key={item.id} className="po-item-row">
-                <div className="po-item-main">
-                  <strong>{item.shapeName} · {item.sizeMm}mm</strong>
-                  <span>
-                    {item.categoryName}
-                    <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
-                    {item.colorName}
-                  </span>
+            {cart.map((item) => {
+              const unit = unitPriceInr(item);
+              return (
+                <div key={item.id} className="po-item-row">
+                  <div className="po-item-main">
+                    <strong>{item.shapeName} · {item.sizeMm}mm</strong>
+                    <span>
+                      {item.categoryName}
+                      <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
+                      {item.colorName}
+                    </span>
+                    {unit !== null && (
+                      <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    )}
+                  </div>
+                  <select className="po-item-type-select" value={item.requestType} onChange={(e) => updateRequestType(item.id, e.target.value as RequestType)}>
+                    <option>Place Order</option>
+                    <option>Request Quotation</option>
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="po-qty-input po-cart-qty"
+                    value={item.qty}
+                    onChange={(e) => updateQty(item.id, parseInt(e.target.value.replace(/\D/g, ''), 10) || 1)}
+                  />
+                  <button type="button" className="po-remove-btn" onClick={() => removeItem(item.id)}>&times;</button>
                 </div>
-                <select className="po-item-type-select" value={item.requestType} onChange={(e) => updateRequestType(item.id, e.target.value as RequestType)}>
-                  <option>Place Order</option>
-                  <option>Request Quotation</option>
-                </select>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="po-qty-input po-cart-qty"
-                  value={item.qty}
-                  onChange={(e) => updateQty(item.id, parseInt(e.target.value.replace(/\D/g, ''), 10) || 1)}
-                />
-                <button type="button" className="po-remove-btn" onClick={() => removeItem(item.id)}>&times;</button>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+        {hasAnyPricedLine && (
+          <div className="po-cart-total mono">
+            Estimated total: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
         )}
 

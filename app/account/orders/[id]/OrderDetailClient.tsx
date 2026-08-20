@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
+import type { CategoryPricing } from '@/lib/pricing-calc';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 type RequestType = 'Place Order' | 'Request Quotation';
 
@@ -22,6 +24,7 @@ type Item = {
   colorRefPhotoUrl?: string | null;
   quantity: number;
   requestType: string;
+  unitPrice?: number | null;
 };
 
 type CategoryOption = { id: number; name: string; slug: string };
@@ -30,6 +33,7 @@ type CategoryOptionsData = {
   shapes: { id: number; name: string; iconKey?: string | null }[];
   colors: { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
+  pricing?: CategoryPricing;
 };
 
 type PendingLine = {
@@ -122,7 +126,7 @@ export default function OrderDetailClient({
     try {
       const res = await fetch(`/api/app/categories/${cat.slug}`);
       const data = await res.json();
-      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [] } }));
+      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [], pricing: data.pricing } }));
     } finally {
       setLoadingOptions(false);
     }
@@ -276,6 +280,21 @@ export default function OrderDetailClient({
     router.push(`/account/orders/new?from=${orderId}`);
   }
 
+  // Existing items carry their price from when the order was placed (frozen,
+  // not recomputed). Pending lines (staged, not saved yet) don't have that
+  // yet, so their price is looked up live the same way the builder does.
+  function pendingUnitPrice(l: PendingLine): number | null {
+    const pricing = optionsCache[l.categoryId]?.pricing;
+    if (!pricing) return null;
+    return lineInrPrice(pricing, l.shapeId, l.sizeId, l.colorId);
+  }
+  const visibleItems = items.filter((i) => !removedIds.has(i.id));
+  const cartTotalInr =
+    visibleItems.reduce((sum, i) => sum + (i.unitPrice != null ? i.unitPrice * (quantities[i.id] ?? i.quantity) : 0), 0) +
+    pendingLines.reduce((sum, l) => { const u = pendingUnitPrice(l); return u === null ? sum : sum + u * l.quantity; }, 0);
+  const hasAnyPricedLine =
+    visibleItems.some((i) => i.unitPrice != null) || pendingLines.some((l) => pendingUnitPrice(l) !== null);
+
   return (
     <>
       <section style={{ marginBottom: 24 }}>
@@ -292,7 +311,7 @@ export default function OrderDetailClient({
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
-              <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{editing && <th></th>}</tr>
+              <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{hasAnyPricedLine && <th>Amount</th>}{editing && <th></th>}</tr>
             </thead>
             <tbody>
               {items.filter((i) => !removedIds.has(i.id)).map((i) => (
@@ -319,6 +338,11 @@ export default function OrderDetailClient({
                       i.quantity
                     )}
                   </td>
+                  {hasAnyPricedLine && (
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--gold)' }}>
+                      {i.unitPrice != null ? `₹${(i.unitPrice * (quantities[i.id] ?? i.quantity)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '--'}
+                    </td>
+                  )}
                   {editing && (
                     <td>
                       <button type="button" className="btn-danger" onClick={() => setRemovedIds(new Set([...removedIds, i.id]))}>Remove</button>
@@ -326,7 +350,9 @@ export default function OrderDetailClient({
                   )}
                 </tr>
               ))}
-              {editing && pendingLines.map((l) => (
+              {editing && pendingLines.map((l) => {
+                const u = pendingUnitPrice(l);
+                return (
                 <tr key={l.tempId} style={{ background: '#faf8f3' }}>
                   <td>{l.categoryName}</td>
                   <td>{l.shapeName}</td>
@@ -346,14 +372,25 @@ export default function OrderDetailClient({
                       style={{ maxWidth: 80, fontSize: 13 }}
                     />
                   </td>
+                  {hasAnyPricedLine && (
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--gold)' }}>
+                      {u !== null ? `₹${(u * l.quantity).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '--'}
+                    </td>
+                  )}
                   <td>
                     <button type="button" className="btn-danger" onClick={() => removePendingLine(l.tempId)}>Remove</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
+        {hasAnyPricedLine && (
+          <p className="mono" style={{ textAlign: 'right', fontSize: 13, color: 'var(--ink)', marginTop: 8 }}>
+            Estimated total: ₹{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </p>
+        )}
 
         {editing && (
           <>

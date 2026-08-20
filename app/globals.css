@@ -503,11 +503,11 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .po-item-main strong { font-size: 12.5px; color: var(--ink); }
 .po-item-main span { font-size: 11px; color: #8a8370; display: flex; align-items: center; gap: 5px; }
-.po-item-price { color: var(--gold) !important; font-weight: 500; }
+.po-item-price { color: var(--gold) !important; font-weight: 400; font-size: 10.5px; }
 .po-cart-card .po-item-price { color: var(--gold-soft) !important; }
 .pricing-scroll-hint { display: none; }
 .po-cart-total {
-  text-align: right; font-size: 14px; font-weight: 600; color: #fff;
+  text-align: right; font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.85);
   padding: 10px 0 4px; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 4px;
 }
 .po-item-type-select { font-size: 11px; padding: 5px 6px; flex: 0 0 auto; max-width: 118px; }

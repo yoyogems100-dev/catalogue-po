@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCategoryPricing } from '@/lib/pricing';
 
 // Returns the shapes/colors/sizes linked to a category -- used by the admin
 // "create order" builder to populate pickers as each category is added,
@@ -26,9 +27,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
 
+  const pricing = await getCategoryPricing(categoryId, supabaseAdmin);
+
   return NextResponse.json({
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
-    sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }))
+    sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
+    pricing
   });
 }
