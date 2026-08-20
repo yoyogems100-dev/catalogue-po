@@ -126,7 +126,13 @@ a { color: inherit; text-decoration: none; }
   padding: 9px 16px; font-size: 12px; letter-spacing: 0.5px; cursor: pointer;
 }
 .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
-.btn-danger { background: #a3341f; color: #fff; border: none; padding: 8px 14px; font-size: 12px; cursor: pointer; }
+/* Ghost, not a solid block -- a full page of admin cards each carrying a
+   heavy solid-red button read as noisy/cluttered. Gold border+text keeps
+   it visually quiet until you actually reach for it, matching the rest of
+   the admin's restrained accent use; the confirm() dialog on every delete
+   action is still the real safety net, not the button's color. */
+.btn-danger { background: none; color: var(--gold); border: 1px solid var(--gold); padding: 7px 13px; font-size: 12px; cursor: pointer; }
+.btn-danger:hover { background: var(--gold); color: #fff; }
 
 input[type="text"], input[type="password"], input[type="tel"], input[type="email"], input[type="number"], select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%; border-radius: 5px;
@@ -230,9 +236,9 @@ html, body { overflow-x: hidden; }
 .cat-row-actions { display: inline-flex; gap: 6px; white-space: nowrap; }
 .cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
 
-.admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
-.admin-cat-card { background: #fff; border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; height: 100%; transition: box-shadow 0.18s ease; }
-.admin-cat-card:hover { box-shadow: 0 10px 24px -14px rgba(15,30,56,0.28); }
+.admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+.admin-cat-card { background: #fff; border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; height: 100%; transition: box-shadow 0.18s ease, transform 0.18s ease; }
+.admin-cat-card:hover { box-shadow: 0 10px 24px -14px rgba(15,30,56,0.28); transform: translateY(-2px); }
 /* align-items:center on a flex cover let a tall/portrait source photo (e.g.
    a strand shot) render at its natural height instead of being cropped to
    the aspect-ratio box -- that's what was making cards uneven heights.
@@ -241,7 +247,7 @@ html, body { overflow-x: hidden; }
 .admin-cat-cover { width: 100%; aspect-ratio: 4/3; background: #f1ede2; position: relative; overflow: hidden; }
 .admin-cat-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .admin-cat-cover span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #8a8370; }
-.admin-cat-card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.admin-cat-card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
 .admin-cat-card-name { font-size: 14px; color: var(--ink); font-weight: 600; }
 .admin-cat-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .admin-cat-card-actions { display: flex; gap: 6px; margin-top: auto; }
@@ -518,9 +524,16 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .po-cart-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .po-cart-item-info strong { font-size: 13.5px; color: var(--ink); }
 .po-cart-item-info span { font-size: 11.5px; color: #8a8370; display: flex; align-items: center; flex-wrap: wrap; }
-.po-cart-card .po-item-row { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); }
-.po-cart-card .po-item-main strong { color: #fff; }
-.po-cart-card .po-item-main span { color: rgba(255,255,255,0.5); }
+/* Rows were a near-invisible white tint on the ink panel -- adjacent lines
+   blended into each other with no real separation. Using the site's own
+   --navy as the row surface against the darker --ink panel background
+   gives each line a genuinely distinct, deliberately layered card instead
+   of a translucent smear. */
+.po-cart-card .po-item-list { gap: 8px; }
+.po-cart-card .po-item-row { background: var(--navy); border-color: rgba(255,255,255,0.1); padding: 10px 12px; }
+.po-cart-card .po-item-main { gap: 4px; }
+.po-cart-card .po-item-main strong { color: #fff; font-size: 13px; }
+.po-cart-card .po-item-main span { color: rgba(255,255,255,0.55); font-size: 11.5px; }
 .po-item-row input.po-cart-qty { width: 56px; flex: 0 0 56px; text-align: center; padding: 6px; font-family: 'JetBrains Mono', monospace; }
 .po-remove-btn { background: #f6e2df; color: #a3341f; border: none; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; font-size: 16px; cursor: pointer; line-height: 1; }
 .po-remove-btn:hover { background: #f0c9c4; }
