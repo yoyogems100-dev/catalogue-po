@@ -74,6 +74,7 @@ export default function AdminNav() {
         <Link href="/admin/categories" onClick={close} target="_blank">Categories</Link>
         <Link href="/admin/shapes" onClick={close} target="_blank">Shapes</Link>
         <Link href="/admin/colors" onClick={close} target="_blank">Colors</Link>
+        <Link href="/admin/pricing" onClick={close} target="_blank">Pricing</Link>
         <Link href="/admin/bulk-link" onClick={close} target="_blank">Bulk Link</Link>
         <Link href="/admin/tags" onClick={close} target="_blank">Tags</Link>
         <Link href="/" target="_blank" onClick={close}>View public site &rarr;</Link>
