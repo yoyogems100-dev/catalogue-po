@@ -71,9 +71,21 @@ export default function CategoryAdminClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [localBadgeTypes, setLocalBadgeTypes] = useState<BadgeType[]>(badgeTypes);
+  const [toast, setToast] = useState('');
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
+
+  // UI/UX audit ("visible saved-state feedback"): upload/import/delete/set-cover
+  // previously refreshed with no acknowledgement -- a failed request and a
+  // successful one looked identical. Per-field edits (shape/color/tag pickers)
+  // aren't covered here -- their own control already shows the new value
+  // immediately, so a toast on top would just be noise.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // The gallery grid (and the photo count/Explore Photos) never includes a
   // dedicated cover-only upload -- it's a distinct image, not a catalogue
@@ -135,12 +147,14 @@ export default function CategoryAdminClient({
     // Always pass categoryId -- a tag created while looking at a category
     // should be linked here regardless of whether it's also global (usable
     // elsewhere) or category-specific (usable only here).
-    await fetch('/api/tags', {
+    const res = await fetch('/api/tags', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newTagName, is_global: global, category_id: categoryId })
     });
+    if (!res.ok) { setToast('Failed to add specification -- try again.'); return; }
     setNewTagName('');
+    setToast('Specification added.');
     router.refresh();
   }
 
@@ -163,14 +177,22 @@ export default function CategoryAdminClient({
   async function handleUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
+    let failures = 0;
     for (const file of Array.from(files)) {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('category_id', String(categoryId));
-      await fetch('/api/photos/upload', { method: 'POST', body: fd });
+      const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
+      if (!res.ok) failures++;
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    const count = files.length;
+    setToast(
+      failures === 0
+        ? `${count} photo${count === 1 ? '' : 's'} uploaded.`
+        : `${count - failures} of ${count} uploaded -- ${failures} failed.`
+    );
     router.refresh();
   }
 
@@ -199,9 +221,11 @@ export default function CategoryAdminClient({
     fd.append('file', files[0]);
     fd.append('category_id', String(categoryId));
     fd.append('is_cover_only', 'true');
-    await fetch('/api/photos/upload', { method: 'POST', body: fd });
+    const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
     setUploadingCover(false);
     if (coverInputRef.current) coverInputRef.current.value = '';
+    if (!res.ok) { setToast('Failed to upload cover photo -- try again.'); return; }
+    setToast('Cover photo uploaded.');
     router.refresh();
   }
 
@@ -221,13 +245,15 @@ export default function CategoryAdminClient({
     const ids = extractDriveIds(driveText);
     if (ids.length === 0) return;
     setImporting(true);
-    await fetch('/api/photos/import-drive', {
+    const res = await fetch('/api/photos/import-drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_id: categoryId, drive_ids: ids })
     });
     setImporting(false);
+    if (!res.ok) { setToast('Failed to import from Drive -- try again.'); return; }
     setDriveText('');
+    setToast(`${ids.length} photo${ids.length === 1 ? '' : 's'} imported.`);
     router.refresh();
   }
 
@@ -253,26 +279,31 @@ export default function CategoryAdminClient({
   }
 
   async function deletePhoto(photoId: number) {
-    if (!confirm('Delete this photo?')) return;
-    await fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: photoId }) });
+    if (!confirm('Delete this photo? This removes it from the catalogue and this cannot be undone.')) return;
+    const res = await fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: photoId }) });
+    if (!res.ok) { setToast('Failed to delete photo -- try again.'); return; }
+    setToast('Photo deleted.');
     router.refresh();
   }
 
   async function setThumbnail(photoId: number) {
-    await fetch('/api/categories/set-thumbnail', {
+    const res = await fetch('/api/categories/set-thumbnail', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_id: categoryId, photo_id: photoId })
     });
+    if (!res.ok) { setToast('Failed to set cover photo -- try again.'); return; }
+    setToast('Cover photo set.');
     router.refresh();
   }
 
   async function movePhoto(photoId: number, direction: 'left' | 'right') {
-    await fetch('/api/photos/reorder', {
+    const res = await fetch('/api/photos/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_id: categoryId, photo_id: photoId, direction })
     });
+    if (!res.ok) setToast('Failed to reorder -- try again.');
     router.refresh();
   }
 
@@ -465,6 +496,7 @@ export default function CategoryAdminClient({
           ))}
         </div>
       </section>
+      {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </div>
   );
 }
@@ -587,7 +619,7 @@ function PhotoRow({
         return name ? (
           <span key={`sh-${id}`} className="tag-chip-mini">
             {name}
-            <span className="tag-chip-mini-x" onClick={() => updateShapes(shapeIds.filter((v) => v !== id))}>&times;</span>
+            <button type="button" aria-label={`Remove shape ${name}`} className="tag-chip-mini-x" onClick={() => updateShapes(shapeIds.filter((v) => v !== id))}>&times;</button>
           </span>
         ) : null;
       })}
@@ -596,7 +628,7 @@ function PhotoRow({
         return size ? (
           <span key={`sz-${id}`} className="tag-chip-mini">
             {size.size_mm}mm
-            <span className="tag-chip-mini-x" onClick={() => updateSizes(sizeIds.filter((v) => v !== id))}>&times;</span>
+            <button type="button" aria-label={`Remove size ${size.size_mm}mm`} className="tag-chip-mini-x" onClick={() => updateSizes(sizeIds.filter((v) => v !== id))}>&times;</button>
           </span>
         ) : null;
       })}
@@ -605,7 +637,7 @@ function PhotoRow({
         return name ? (
           <span key={`co-${id}`} className="tag-chip-mini">
             {name}
-            <span className="tag-chip-mini-x" onClick={() => updateColors(colorIds.filter((v) => v !== id))}>&times;</span>
+            <button type="button" aria-label={`Remove color ${name}`} className="tag-chip-mini-x" onClick={() => updateColors(colorIds.filter((v) => v !== id))}>&times;</button>
           </span>
         ) : null;
       })}
@@ -614,7 +646,7 @@ function PhotoRow({
         return name ? (
           <span key={`tg-${id}`} className="tag-chip-mini">
             {name}
-            <span className="tag-chip-mini-x" onClick={() => toggleTag(id)}>&times;</span>
+            <button type="button" aria-label={`Remove specification ${name}`} className="tag-chip-mini-x" onClick={() => toggleTag(id)}>&times;</button>
           </span>
         ) : null;
       })}

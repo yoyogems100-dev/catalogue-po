@@ -61,6 +61,16 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [toast, setToast] = useState('');
+
+  // UI/UX audit ("visible saved-state feedback"): these mutations previously
+  // refreshed with no acknowledgement -- a failed save and a successful one
+  // looked identical.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const [localRows, setLocalRows] = useState(rows);
   useEffect(() => setLocalRows(rows), [rows]);
@@ -101,6 +111,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       return;
     }
     setNewName('');
+    setToast('Category added.');
     router.refresh();
   }
 
@@ -113,7 +124,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to rename category');
+      return;
     }
+    setToast('Renamed.');
     router.refresh();
   }
 
@@ -123,7 +136,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to delete category');
+      return;
     }
+    setToast('Category deleted.');
     router.refresh();
   }
 
@@ -223,6 +238,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           )}
         </div>
       )}
+      {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
   );
 }
@@ -244,13 +260,15 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
 
   if (!editing) {
     return (
-      <span
+      <button
+        type="button"
         onClick={() => { setText(value); setEditing(true); }}
-        style={{ cursor: 'pointer', borderBottom: '1px dashed var(--line)' }}
+        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
         title="Click to rename"
+        aria-label={`Rename category ${value}`}
       >
         {value}
-      </span>
+      </button>
     );
   }
 

@@ -20,6 +20,15 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
   const [prices, setPrices] = useState<Price[]>([]);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState('');
+
+  // UI/UX audit ("visible saved-state feedback"): a price edit or multiplier
+  // change previously saved (or silently failed) with no acknowledgement.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     if (!categoryId) return;
@@ -38,12 +47,13 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
 
   async function saveMultiplier() {
     setSavingMultiplier(true);
-    await fetch('/api/settings', {
+    const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'rmb_inr_multiplier', value: multiplier })
     });
     setSavingMultiplier(false);
+    setToast(res.ok ? 'Multiplier saved.' : 'Failed to save multiplier -- try again.');
   }
 
   const activeSizes = useMemo(
@@ -67,7 +77,7 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
       return priceRmb === null ? without : [...without, { shapeId: activeShapeId, shapeSizeId, groupId, priceRmb: priceRmb! }];
     });
 
-    await fetch('/api/pricing', {
+    const res = await fetch('/api/pricing', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -78,6 +88,7 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
         price_rmb: priceRmb
       })
     });
+    setToast(res.ok ? 'Saved.' : 'Failed to save price -- try again.');
   }
 
   function exportCsv() {
@@ -208,6 +219,7 @@ export default function PricingClient({ categories, initialMultiplier }: { categ
           </div>
         </>
       )}
+      {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
   );
 }

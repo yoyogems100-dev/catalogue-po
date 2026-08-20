@@ -28,6 +28,16 @@ export default function ShapesClient({
   const [newSize, setNewSize] = useState('');
   const [newWeight, setNewWeight] = useState('');
   const [search, setSearch] = useState('');
+  const [toast, setToast] = useState('');
+
+  // UI/UX audit ("visible saved-state feedback"): add/rename/delete here
+  // previously refreshed the table with no acknowledgement -- a failed
+  // request and a successful one looked identical.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Local optimistic copy so a drag reflects instantly instead of waiting on
   // the reorder-all round trip + router.refresh().
@@ -64,6 +74,7 @@ export default function ShapesClient({
       return;
     }
     setNewShape('');
+    setToast('Shape added.');
     router.refresh();
   }
 
@@ -81,9 +92,11 @@ export default function ShapesClient({
     router.refresh();
   }
 
-  async function deleteShape(id: number) {
-    if (!confirm('Delete this shape and all its sizes? Photos tagged with it will keep the photo but lose the shape tag.')) return;
-    await fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  async function deleteShape(id: number, name: string) {
+    if (!confirm(`Delete "${name}" and all its sizes? Photos tagged with it will keep the photo but lose the shape tag.`)) return;
+    const res = await fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (!res.ok) { alert('Failed to delete shape -- try again.'); return; }
+    setToast('Shape deleted.');
     router.refresh();
   }
 
@@ -96,7 +109,9 @@ export default function ShapesClient({
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to rename shape');
+      return;
     }
+    setToast('Renamed.');
     router.refresh();
   }
 
@@ -125,11 +140,14 @@ export default function ShapesClient({
     }
     setNewSize('');
     setNewWeight('');
+    setToast(sizes.length > 1 ? 'Sizes added.' : 'Size added.');
     router.refresh();
   }
 
   async function deleteSize(id: number) {
-    await fetch('/api/shape-sizes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    const res = await fetch('/api/shape-sizes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (!res.ok) { alert('Failed to delete size -- try again.'); return; }
+    setToast('Size deleted.');
     router.refresh();
   }
 
@@ -193,7 +211,7 @@ export default function ShapesClient({
                       {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
                     </button>
                   </td>
-                  <td><button className="btn-danger" onClick={() => deleteShape(s.id)}>Delete</button></td>
+                  <td><button className="btn-danger" onClick={() => deleteShape(s.id, s.name)}>Delete</button></td>
                 </tr>
                 {sizesOpen && (
                   <tr key={`${s.id}-sizes`}>
@@ -202,7 +220,14 @@ export default function ShapesClient({
                         {shapeSizes.map((sz) => (
                           <span key={sz.id} className="tag-chip">
                             {sz.size_mm} mm{sz.weight_ct ? ` · ${sz.weight_ct}ct` : ''}
-                            <span style={{ cursor: 'pointer', color: '#a3341f' }} onClick={() => deleteSize(sz.id)}>&times;</span>
+                            <button
+                              type="button"
+                              aria-label={`Delete size ${sz.size_mm}mm`}
+                              style={{ cursor: 'pointer', color: '#a3341f', background: 'none', border: 'none', padding: 0, font: 'inherit' }}
+                              onClick={() => deleteSize(sz.id)}
+                            >
+                              &times;
+                            </button>
                           </span>
                         ))}
                         {shapeSizes.length === 0 && <span style={{ fontSize: 12, color: '#756e5c' }}>No sizes yet.</span>}
@@ -247,6 +272,7 @@ export default function ShapesClient({
           )}
         </tbody>
       </table>
+      {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
   );
 }
@@ -268,13 +294,15 @@ function ShapeNameCell({ shape, onRename }: { shape: Shape; onRename: (id: numbe
 
   if (!editing) {
     return (
-      <span
+      <button
+        type="button"
         onClick={() => { setValue(shape.name); setEditing(true); }}
-        style={{ cursor: 'pointer', borderBottom: '1px dashed var(--line)' }}
+        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
         title="Click to rename"
+        aria-label={`Rename shape ${shape.name}`}
       >
         {shape.name}
-      </span>
+      </button>
     );
   }
 

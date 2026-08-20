@@ -28,6 +28,16 @@ export default function ColorsClient({
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newPaletteName, setNewPaletteName] = useState('');
   const [search, setSearch] = useState('');
+  const [toast, setToast] = useState('');
+
+  // UI/UX audit ("visible saved-state feedback"): these mutations previously
+  // refreshed with no acknowledgement -- a failed save and a successful one
+  // looked identical.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const [localColors, setLocalColors] = useState(colors);
   useEffect(() => setLocalColors(colors), [colors]);
@@ -49,12 +59,15 @@ export default function ColorsClient({
       return;
     }
     setNewPaletteName('');
+    setToast('Palette added.');
     router.refresh();
   }
 
-  async function removePalette(id: number) {
-    if (!confirm('Delete this palette? It stops appearing as a quick-select everywhere -- the colors themselves are unaffected.')) return;
-    await fetch('/api/color-palettes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  async function removePalette(id: number, name: string) {
+    if (!confirm(`Delete "${name}"? It stops appearing as a quick-select everywhere -- the colors themselves are unaffected.`)) return;
+    const res = await fetch('/api/color-palettes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (!res.ok) { alert('Failed to delete palette -- try again.'); return; }
+    setToast('Palette deleted.');
     router.refresh();
   }
 
@@ -99,21 +112,25 @@ export default function ColorsClient({
     }
     setNewColor('');
     setNewHex('#B0AFAC');
+    setToast('Color added.');
     router.refresh();
   }
 
-  async function remove(id: number) {
-    if (!confirm('Delete this color?')) return;
-    await fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  async function remove(id: number, name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    const res = await fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (!res.ok) { alert('Failed to delete color -- try again.'); return; }
+    setToast('Color deleted.');
     router.refresh();
   }
 
   async function updateHex(id: number, hex: string) {
-    await fetch('/api/colors', {
+    const res = await fetch('/api/colors', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, hex_value: hex })
     });
+    if (!res.ok) { alert('Failed to save color -- try again.'); return; }
     router.refresh();
   }
 
@@ -127,12 +144,15 @@ export default function ColorsClient({
       alert(data.error || 'Failed to upload photo.');
       return;
     }
+    setToast('Photo uploaded.');
     router.refresh();
   }
 
   async function removePhoto(id: number) {
     if (!confirm('Remove this reference photo? The swatch will fall back to the plain hex color.')) return;
-    await fetch(`/api/colors/${id}/photo`, { method: 'DELETE' });
+    const res = await fetch(`/api/colors/${id}/photo`, { method: 'DELETE' });
+    if (!res.ok) { alert('Failed to remove photo -- try again.'); return; }
+    setToast('Photo removed.');
     router.refresh();
   }
 
@@ -145,7 +165,9 @@ export default function ColorsClient({
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to rename color');
+      return;
     }
+    setToast('Renamed.');
     router.refresh();
   }
 
@@ -237,7 +259,14 @@ export default function ColorsClient({
                 <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => { setExpandedCats(catsOpen ? null : c.id); }}>
                   {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
                 </button>
-                <span style={{ cursor: 'pointer', color: '#a3341f', fontSize: 18, marginLeft: 'auto' }} onClick={() => remove(c.id)}>&times;</span>
+                <button
+                  type="button"
+                  aria-label={`Delete color ${c.name}`}
+                  style={{ cursor: 'pointer', color: '#a3341f', fontSize: 18, marginLeft: 'auto', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', lineHeight: 1 }}
+                  onClick={() => remove(c.id, c.name)}
+                >
+                  &times;
+                </button>
               </div>
               {catsOpen && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)', maxWidth: 420 }}>
@@ -274,7 +303,7 @@ export default function ColorsClient({
             <div key={p.id} className="card" style={{ padding: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePalette(p.id)}>Delete</button>
+                <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePalette(p.id, p.name)}>Delete</button>
               </div>
               <MultiSelect
                 options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
@@ -288,6 +317,7 @@ export default function ColorsClient({
           {palettes.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No palettes yet -- add one above.</p>}
         </div>
       </section>
+      {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
   );
 }
@@ -309,13 +339,15 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
 
   if (!editing) {
     return (
-      <span
+      <button
+        type="button"
         onClick={() => { setText(value); setEditing(true); }}
-        style={{ cursor: 'pointer', borderBottom: '1px dashed var(--line)', fontSize: 13.5 }}
+        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', fontSize: 13.5, padding: 0, fontFamily: 'inherit', textAlign: 'left' }}
         title="Click to rename"
+        aria-label={`Rename color ${value}`}
       >
         {value}
-      </span>
+      </button>
     );
   }
 
