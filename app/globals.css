@@ -402,7 +402,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
 .icon-select-row:hover { background: #faf8f3; }
 /* UI/UX audit C-02: keyboard focus on a row was completely invisible. */
-.icon-select-row:focus-visible, .ms-row:focus-visible { outline: 2px solid var(--navy); outline-offset: -2px; background: #faf8f3; }
+.icon-select-row:focus-visible, .ms-row:focus-visible, [role="option"]:focus-visible { outline: 2px solid var(--navy); outline-offset: -2px; background: #faf8f3; }
 .icon-select-trigger:focus-visible, .ms-trigger:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
 .icon-select-row.active { background: #f1ede2; font-weight: 500; }
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }

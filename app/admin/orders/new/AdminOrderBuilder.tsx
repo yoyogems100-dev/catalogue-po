@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { maskPhone } from '@/lib/mask';
 
 type Category = { id: number; num: number; name: string };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null };
@@ -49,9 +50,12 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
 
+  // UI/UX audit ("Make customer lookup search-first instead of immediately
+  // exposing the entire customer list"): an empty query now shows nothing
+  // rather than the first 20 customers by default.
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
-    if (!q) return allCustomers.slice(0, 20);
+    if (!q) return [];
     return allCustomers.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)).slice(0, 20);
   }, [allCustomers, customerSearch]);
 
@@ -200,19 +204,35 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             />
             {selectedCustomer ? (
               <div className="tag-chip active" style={{ fontSize: 13 }}>
-                {selectedCustomer.name || 'No name'} · {selectedCustomer.phone}
-                <span style={{ cursor: 'pointer', marginLeft: 8 }} onClick={() => setSelectedCustomerId(null)}>&times;</span>
+                {selectedCustomer.name || 'No name'} · {maskPhone(selectedCustomer.phone)}
+                <button
+                  type="button"
+                  aria-label="Clear selected customer"
+                  style={{ cursor: 'pointer', marginLeft: 8, background: 'none', border: 'none', color: 'inherit', font: 'inherit' }}
+                  onClick={() => setSelectedCustomerId(null)}
+                >
+                  &times;
+                </button>
               </div>
             ) : (
-              <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--line)' }}>
-                {filteredCustomers.length === 0 && <div style={{ padding: 10, fontSize: 12.5, color: '#8a8370' }}>No matching customers.</div>}
+              <div role="listbox" aria-label="Matching customers" style={{ maxHeight: 180, overflowY: 'auto', border: customerSearch.trim() ? '1px solid var(--line)' : 'none' }}>
+                {!customerSearch.trim() && (
+                  <div style={{ padding: 10, fontSize: 12.5, color: '#8a8370' }}>Start typing a name or phone number to find a customer.</div>
+                )}
+                {customerSearch.trim() && filteredCustomers.length === 0 && (
+                  <div style={{ padding: 10, fontSize: 12.5, color: '#8a8370' }}>No matching customers.</div>
+                )}
                 {filteredCustomers.map((c) => (
                   <div
                     key={c.id}
+                    role="option"
+                    aria-selected={false}
+                    tabIndex={0}
                     onClick={() => setSelectedCustomerId(c.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedCustomerId(c.id); } }}
                     style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '1px solid var(--line)' }}
                   >
-                    {c.name || 'No name'} · {c.phone}{c.company ? ` · ${c.company}` : ''}
+                    {c.name || 'No name'} · {maskPhone(c.phone)}{c.company ? ` · ${c.company}` : ''}
                   </div>
                 ))}
               </div>

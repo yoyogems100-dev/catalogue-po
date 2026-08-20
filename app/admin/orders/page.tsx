@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
+import { maskPhone } from '@/lib/mask';
 import Link from 'next/link';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
@@ -60,8 +61,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
               <tr key={o.id}>
                 <td>{o.id}</td>
                 <td>
-                  {cust ? (cust.name || cust.phone || '—') : (o.contact_name || '—')}
-                  {cust?.name && cust?.phone ? ` · ${cust.phone}` : ''}
+                  {cust ? (cust.name || maskPhone(cust.phone) || '—') : (o.contact_name || '—')}
+                  {cust?.name && cust?.phone ? ` · ${maskPhone(cust.phone)}` : ''}
                 </td>
                 <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                 <td>{milestoneLabel(o.status)}</td>
