@@ -236,9 +236,12 @@ html, body { overflow-x: hidden; }
 .cat-row-actions { display: inline-flex; gap: 6px; white-space: nowrap; }
 .cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
 
-.admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+/* Capped width + fewer, bigger columns -- matching the main site's own
+   .container(1180px)/.grid-cats treatment instead of stretching edge to
+   edge on a wide monitor and cramming 7 tight cards into one row. */
+.admin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px; max-width: 1180px; }
 .admin-cat-card { background: #fff; border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; height: 100%; transition: box-shadow 0.18s ease, transform 0.18s ease; }
-.admin-cat-card:hover { box-shadow: 0 10px 24px -14px rgba(15,30,56,0.28); transform: translateY(-2px); }
+.admin-cat-card:hover { box-shadow: 0 14px 30px -14px rgba(15,30,56,0.28); transform: translateY(-3px); }
 /* align-items:center on a flex cover let a tall/portrait source photo (e.g.
    a strand shot) render at its natural height instead of being cropped to
    the aspect-ratio box -- that's what was making cards uneven heights.
@@ -247,11 +250,14 @@ html, body { overflow-x: hidden; }
 .admin-cat-cover { width: 100%; aspect-ratio: 4/3; background: #f1ede2; position: relative; overflow: hidden; }
 .admin-cat-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .admin-cat-cover span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #8a8370; }
-.admin-cat-card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-.admin-cat-card-name { font-size: 14px; color: var(--ink); font-weight: 600; }
+.admin-cat-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.admin-cat-card-name { font-size: 16px; color: var(--ink); font-weight: 600; }
+/* Same "bold number, plain label" language as the main site's .cat-info .n */
+.admin-cat-card-stats { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
+.admin-cat-card-stats b { color: var(--umber); font-weight: 500; }
 .admin-cat-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.admin-cat-card-actions { display: flex; gap: 6px; margin-top: auto; }
-.admin-cat-card-actions .btn-ghost, .admin-cat-card-actions .btn-danger { flex: 1; text-align: center; padding: 6px 8px; font-size: 11px; min-height: auto; }
+.admin-cat-card-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+.admin-cat-card-actions .btn-ghost, .admin-cat-card-actions .btn-danger { flex: 1; text-align: center; padding: 8px 10px; font-size: 11.5px; min-height: auto; }
 
 table { width: 100%; border-collapse: collapse; background: #fff; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
