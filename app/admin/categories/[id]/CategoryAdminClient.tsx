@@ -414,22 +414,24 @@ export default function CategoryAdminClient({
         )}
       </section>
 
-      {/* Upload */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
-        {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
-      </section>
+      {/* Upload + bulk Drive import -- side by side on desktop instead of each
+          stacked full-width with a short control leaving most of the row empty. */}
+      <div className="admin-upload-row">
+        <section>
+          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
+          {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+        </section>
 
-      {/* Bulk Drive import */}
-      <section style={{ marginBottom: 30 }}>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
-        <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
-        <textarea rows={3} style={{ maxWidth: 480 }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
-        <div style={{ marginTop: 8 }}>
-          <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
-        </div>
-      </section>
+        <section>
+          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
+          <p style={{ fontSize: 12.5, color: '#8a8370', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
+          <textarea rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
+          <div style={{ marginTop: 8 }}>
+            <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
+          </div>
+        </section>
+      </div>
 
       {/* Photo grid with per-photo tagging */}
       <section>

@@ -117,8 +117,8 @@ a { color: inherit; text-decoration: none; }
 .topbar-floating.topbar-visible { transform: translateY(0); opacity: 1; }
 
 .btn {
-  background: var(--navy); color: #fff; border: none; padding: 10px 18px;
-  font-size: 13px; letter-spacing: 0.5px; cursor: pointer;
+  background: var(--navy); color: #fff; border: none; padding: 10px 20px;
+  font-size: 13px; letter-spacing: 0.5px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { background: var(--ink); }
 .btn-ghost {
@@ -188,8 +188,8 @@ html, body { overflow-x: hidden; }
   border-left-color: var(--gold); padding-left: 22px; font-weight: 500;
 }
 .admin-nav .brand { padding: 0 24px 20px; font-family: 'Playfair Display'; font-size: 16px; }
-.admin-main { padding: 28px 32px; }
-.admin-main h1 { font-size: 22px; color: var(--ink); margin-bottom: 18px; }
+.admin-main { padding: 36px 44px; }
+.admin-main h1 { font-size: 22px; color: var(--ink); margin-bottom: 24px; }
 
 .admin-mobile-topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 4px;
@@ -235,6 +235,19 @@ html, body { overflow-x: hidden; }
 
 .cat-row-actions { display: inline-flex; gap: 6px; white-space: nowrap; }
 .cat-row-actions .btn-ghost, .cat-row-actions .btn-danger { padding: 4px 8px; font-size: 11px; min-height: auto; }
+
+/* Upload photos + Drive import side by side on desktop -- each was a full-
+   width row with a short control (file picker / small textarea) leaving
+   most of the row empty. Stacks back to one column when there isn't room. */
+.admin-upload-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; margin-bottom: 30px; }
+
+/* Search (+ view toggle) on the left, new-category input+button on the
+   right, one row -- was two full-width stacked rows. Wraps to two rows
+   only if the viewport genuinely can't fit both groups side by side. */
+.admin-cat-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.admin-cat-toolbar-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.admin-cat-toolbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.admin-cat-toolbar-right input { width: 240px; }
 
 /* Capped width + fewer, bigger columns -- matching the main site's own
    .container(1180px)/.grid-cats treatment instead of stretching edge to
@@ -673,6 +686,8 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
      even inline styles (several inputs set font-size inline), and there are many
      more-specific selectors below setting smaller sizes that this must still win over. */
   input, select, textarea { font-size: 16px !important; }
+  .admin-cat-toolbar-right { width: 100%; }
+  .admin-cat-toolbar-right input { width: auto; flex: 1 1 auto; min-width: 0; }
 
   /* Bug B: tables aren't fluid and don't wrap -- scope overflow to the content area
      instead of letting a wide table force page-level horizontal scroll. Covers every

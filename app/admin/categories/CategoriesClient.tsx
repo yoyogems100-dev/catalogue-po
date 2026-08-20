@@ -129,21 +129,23 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 420 }}>
-        <input
-          type="text"
-          placeholder="New category name (e.g. Emerald Synthetic)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-        />
-        <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
-      </div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
-        <div className="cat-view-toggle">
-          <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
-          <button type="button" className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
+      <div className="admin-cat-toolbar">
+        <div className="admin-cat-toolbar-left">
+          <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
+          <div className="cat-view-toggle">
+            <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
+            <button type="button" className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
+          </div>
+        </div>
+        <div className="admin-cat-toolbar-right">
+          <input
+            type="text"
+            placeholder="New category name (e.g. Emerald Synthetic)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+          />
+          <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
         </div>
       </div>
       <p style={{ fontSize: 12, color: '#8a8370', marginBottom: 12 }}>
