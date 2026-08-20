@@ -4,6 +4,8 @@ import { getCustomerId } from '@/lib/customer-auth';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { notifyAdmin } from '@/lib/notify-admin';
+import { getCategoryPricing } from '@/lib/pricing';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -38,7 +40,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const message = buildOrderMessage(cart, contactName, comment);
+  // Prices are always computed fresh here from the admin-set price/multiplier,
+  // never trusted from the client -- a cart can span multiple categories, so
+  // pricing is fetched once per distinct category present.
+  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))];
+  const pricingByCategory = new Map(
+    await Promise.all(distinctCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
+  );
+  const cartWithPrices: OrderCartItem[] = cart.map((item) => {
+    const pricing = pricingByCategory.get(item.categoryId);
+    const unitPriceInr = pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
+    return { ...item, unitPriceInr };
+  });
+
+  const message = buildOrderMessage(cartWithPrices, contactName, comment);
 
   // Order-level request_type is a summary for admin filtering/badges -- "Mixed"
   // when the cart has both Place Order and Request Quotation lines, since each
@@ -63,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: orderError?.message || 'Failed to create order' }, { status: 400 });
   }
 
-  const itemRows = cart.map((item) => ({
+  const itemRows = cartWithPrices.map((item) => ({
     order_id: order.id,
     category_id: item.categoryId,
     shape_id: item.shapeId,
@@ -73,7 +88,10 @@ export async function POST(req: NextRequest) {
     custom_size: item.sizeId == null ? item.sizeMm : null,
     color_id: item.colorId,
     quantity: item.qty,
-    request_type: item.requestType
+    request_type: item.requestType,
+    // Stored at creation time, not recomputed later -- so the PDF/order record
+    // stays historically accurate even if the admin changes prices afterward.
+    unit_price: item.unitPriceInr ?? null
   }));
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);

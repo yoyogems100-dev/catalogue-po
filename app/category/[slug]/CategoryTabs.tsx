@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import POSelector from '@/components/POSelector';
 import CategoryClient from './CategoryClient';
+import type { CategoryPricing } from '@/lib/pricing-calc';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -26,7 +27,8 @@ export default function CategoryTabs({
   tags,
   sizes,
   photos,
-  colorPalettes
+  colorPalettes,
+  pricing
 }: {
   categoryId: number;
   categoryName: string;
@@ -37,6 +39,7 @@ export default function CategoryTabs({
   sizes: Size[];
   photos: Photo[];
   colorPalettes?: Palette[];
+  pricing?: CategoryPricing;
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
 
@@ -60,6 +63,7 @@ export default function CategoryTabs({
           colors={colors}
           sizes={sizes}
           colorPalettes={colorPalettes}
+          pricing={pricing}
         />
       ) : (
         <CategoryClient

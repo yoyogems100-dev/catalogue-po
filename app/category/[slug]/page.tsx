@@ -2,6 +2,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { getCustomerId } from '@/lib/customer-auth';
+import { getCategoryPricing } from '@/lib/pricing';
 import CategoryTabs from './CategoryTabs';
 import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
@@ -88,6 +89,8 @@ async function getCategoryData(slug: string) {
     }))
     .filter((p) => p.memberIds.length > 0);
 
+  const pricing = await getCategoryPricing(category.id);
+
   return {
     category,
     shapes: shapesFormatted,
@@ -95,7 +98,8 @@ async function getCategoryData(slug: string) {
     tags: tags || [],
     sizes: sizes || [],
     photos: photosWithUrl,
-    colorPalettes
+    colorPalettes,
+    pricing
   };
 }
 
@@ -130,6 +134,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           sizes={data.sizes}
           photos={data.photos}
           colorPalettes={data.colorPalettes}
+          pricing={data.pricing}
         />
       </div>
       <Footer settings={settings} />

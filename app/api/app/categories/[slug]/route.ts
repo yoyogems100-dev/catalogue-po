@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
+import { getCategoryPricing } from '@/lib/pricing';
 
 // JSON equivalent of getCategoryData() in app/category/[slug]/page.tsx -- powers the
 // app's category detail / Place Order flow (needs the linked shapes/colors/sizes to
@@ -36,11 +37,14 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     .eq('category_id', category.id)
     .order('sort_order');
 
+  const pricing = await getCategoryPricing(category.id);
+
   return NextResponse.json({
     category,
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
-    photos: (photos || []).map((p: any) => ({ id: p.id, url: photoUrl(p, 600) }))
+    photos: (photos || []).map((p: any) => ({ id: p.id, url: photoUrl(p, 600) })),
+    pricing
   });
 }

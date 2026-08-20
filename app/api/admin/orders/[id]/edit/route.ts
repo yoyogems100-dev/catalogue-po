@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCategoryPricing } from '@/lib/pricing';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,16 +22,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await supabaseAdmin.from('order_items').delete().in('id', removedIds).eq('order_id', orderId);
   }
 
-  const validNewItems = (Array.isArray(newItems) ? newItems : [])
-    .filter((n: any) => n.categoryId && n.shapeId && n.sizeId && n.colorId && n.quantity > 0)
-    .map((n: any) => ({
+  const validRawNewItems = (Array.isArray(newItems) ? newItems : [])
+    .filter((n: any) => n.categoryId && n.shapeId && n.sizeId && n.colorId && n.quantity > 0);
+  const newItemCategoryIds = [...new Set(validRawNewItems.map((n: any) => n.categoryId))];
+  const newItemPricingByCategory = new Map(
+    await Promise.all(newItemCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
+  );
+  const validNewItems = validRawNewItems.map((n: any) => {
+    const pricing = newItemPricingByCategory.get(n.categoryId);
+    const unitPrice = pricing ? lineInrPrice(pricing, n.shapeId, n.sizeId, n.colorId) : null;
+    return {
       order_id: orderId,
       category_id: n.categoryId,
       shape_id: n.shapeId,
       shape_size_id: n.sizeId,
       color_id: n.colorId,
-      quantity: n.quantity
-    }));
+      quantity: n.quantity,
+      unit_price: unitPrice
+    };
+  });
 
   if (validNewItems.length > 0) {
     await supabaseAdmin.from('order_items').insert(validNewItems);

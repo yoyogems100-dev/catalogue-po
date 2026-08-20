@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
+import type { CategoryPricing } from '@/lib/pricing-calc';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
@@ -63,7 +65,8 @@ export default function POSelector({
   shapes,
   colors,
   sizes,
-  colorPalettes
+  colorPalettes,
+  pricing
 }: {
   categoryId: number;
   categoryName: string;
@@ -72,6 +75,7 @@ export default function POSelector({
   colors: ColorRef[];
   sizes: Size[];
   colorPalettes?: ColorPalette[];
+  pricing?: CategoryPricing;
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -170,6 +174,19 @@ export default function POSelector({
   const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
   const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
+
+  // Unit price is looked up live from the pricing prop, not stored on the cart
+  // item -- so it always reflects the current admin-set price/multiplier, and
+  // categories with no pricing set up yet just show nothing (no crash).
+  function unitPriceInr(item: CartItem): number | null {
+    if (!pricing || item.sizeId == null) return null;
+    return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
+  }
+  const cartTotalInr = cart.reduce((sum, item) => {
+    const unit = unitPriceInr(item);
+    return unit === null ? sum : sum + unit * item.qty;
+  }, 0);
+  const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
 
   function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
     const existing = current.find(
@@ -397,7 +414,9 @@ export default function POSelector({
           <div className="po-empty po-empty-cart">No lines added yet. Fill the form above and tap "Add line to order" -- pick multiple shapes/colors/sizes at once (or use the size range) to add several lines in one go.</div>
         ) : (
           <div className="po-item-list">
-            {cart.map((item) => (
+            {cart.map((item) => {
+              const unit = unitPriceInr(item);
+              return (
               <div key={item.id} className="po-item-row">
                 <div className="po-item-main">
                   <strong>{item.shapeName} · {item.sizeMm}mm</strong>
@@ -406,6 +425,9 @@ export default function POSelector({
                     <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
                     {item.colorName}
                   </span>
+                  {unit !== null && (
+                    <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  )}
                 </div>
                 <select
                   className="po-item-type-select"
@@ -424,7 +446,13 @@ export default function POSelector({
                 />
                 <button type="button" className="po-remove-btn" onClick={() => removeItem(item.id)}>&times;</button>
               </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+        {hasAnyPricedLine && (
+          <div className="po-cart-total mono">
+            Estimated total: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
         )}
 

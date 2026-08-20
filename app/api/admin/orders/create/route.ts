@@ -3,6 +3,8 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
+import { getCategoryPricing } from '@/lib/pricing';
+import { lineInrPrice } from '@/lib/pricing-calc';
 
 export async function POST(req: NextRequest) {
   if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -49,7 +51,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const message = buildOrderMessage(cart, contactName || '', comment);
+  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))];
+  const pricingByCategory = new Map(
+    await Promise.all(distinctCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
+  );
+  const cartWithPrices: OrderCartItem[] = cart.map((item) => {
+    const pricing = pricingByCategory.get(item.categoryId);
+    const unitPriceInr = pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
+    return { ...item, unitPriceInr };
+  });
+
+  const message = buildOrderMessage(cartWithPrices, contactName || '', comment);
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
@@ -68,14 +80,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: orderError?.message || 'Failed to create order' }, { status: 400 });
   }
 
-  const itemRows = cart.map((item) => ({
+  const itemRows = cartWithPrices.map((item) => ({
     order_id: order.id,
     category_id: item.categoryId,
     shape_id: item.shapeId,
     shape_size_id: item.sizeId,
     color_id: item.colorId,
     quantity: item.qty,
-    request_type: item.requestType
+    request_type: item.requestType,
+    unit_price: item.unitPriceInr ?? null
   }));
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);
