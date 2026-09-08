@@ -1,9 +1,11 @@
+import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // Replaces the full set of enabled sizes for one shape within one category.
 // Body: { category_id, shape_id, shape_size_ids: number[] }
 export async function POST(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, shape_id, shape_size_ids } = await req.json();
   if (!category_id || !shape_id) return NextResponse.json({ error: 'category_id and shape_id required' }, { status: 400 });
 

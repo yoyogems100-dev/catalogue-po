@@ -1,7 +1,9 @@
+import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const params = await paramsPromise;
   const colorId = Number(params.id);
   const formData = await req.formData();
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 }
 
 export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const params = await paramsPromise;
   const colorId = Number(params.id);
   const { error } = await supabaseAdmin.from('colors').update({ ref_photo_url: null }).eq('id', colorId);

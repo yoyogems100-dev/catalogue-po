@@ -1,18 +1,21 @@
 import { cookies, headers } from 'next/headers';
 import crypto from 'crypto';
+import { sessionSecret } from './session-secret';
 
 const COOKIE_NAME = 'yoyo_customer_session';
 
 function sign(value: string) {
-  const secret = process.env.CUSTOMER_SESSION_SECRET || 'dev-secret';
+  const secret = sessionSecret('customer');
+  if (!secret) throw new Error('Customer session signing is not configured');
   const hmac = crypto.createHmac('sha256', secret).update(value).digest('hex');
   return `${value}.${hmac}`;
 }
 
 function verify(signed: string): string | null {
   const [value, hmac] = signed.split('.');
-  if (!value || !hmac) return null;
-  return sign(value) === signed ? value : null;
+  if (!sessionSecret('customer') || !/^[1-9]\d*$/.test(value || '') || !Number.isSafeInteger(Number(value)) || !/^[a-f0-9]{64}$/.test(hmac || '')) return null;
+  const expected = sign(value);
+  return expected.length === signed.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signed)) ? value : null;
 }
 
 export function customerCookieName() {

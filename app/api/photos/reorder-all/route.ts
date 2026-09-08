@@ -1,3 +1,4 @@
+import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -5,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // category's photos.
 // Body: { category_id: number, orderedIds: number[] }
 export async function POST(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, orderedIds } = await req.json();
   if (!category_id || !Array.isArray(orderedIds) || orderedIds.length === 0) {
     return NextResponse.json({ error: 'category_id and orderedIds required' }, { status: 400 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sessionSecret } from './lib/session-secret';
 
 const ADMIN_COOKIE_NAME = 'yoyo_admin_session';
 const CUSTOMER_COOKIE_NAME = 'yoyo_customer_session';
@@ -14,9 +15,11 @@ async function hmac(value: string, secret: string): Promise<string> {
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function verify(signed: string, secret: string) {
+async function verify(signed: string, secret: string | undefined, kind: 'admin' | 'customer') {
+  if (!secret) return false;
   const [value, mac] = signed.split('.');
-  if (!value || !mac) return false;
+  if (!value || !/^[a-f0-9]{64}$/.test(mac || '') || signed.split('.').length !== 2) return false;
+  if (kind === 'admin' ? value !== 'ok' : !/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) return false;
   const expected = await hmac(value, secret);
   return expected === mac;
 }
@@ -26,8 +29,8 @@ export async function middleware(req: NextRequest) {
     if (req.nextUrl.pathname === '/account/login') return NextResponse.next();
 
     const cookie = req.cookies.get(CUSTOMER_COOKIE_NAME);
-    const secret = process.env.CUSTOMER_SESSION_SECRET || 'dev-secret';
-    const authed = cookie ? await verify(cookie.value, secret) : false;
+    const secret = sessionSecret('customer');
+    const authed = cookie ? await verify(cookie.value, secret, 'customer') : false;
 
     if (!authed) {
       const url = req.nextUrl.clone();
@@ -39,8 +42,8 @@ export async function middleware(req: NextRequest) {
   }
 
   const cookie = req.cookies.get(ADMIN_COOKIE_NAME);
-  const secret = process.env.ADMIN_SESSION_SECRET || 'dev-secret';
-  const authed = cookie ? await verify(cookie.value, secret) : false;
+  const secret = sessionSecret('admin');
+  const authed = cookie ? await verify(cookie.value, secret, 'admin') : false;
 
   if (!authed) {
     const url = req.nextUrl.clone();

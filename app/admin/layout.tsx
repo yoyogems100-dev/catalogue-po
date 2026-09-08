@@ -1,8 +1,9 @@
 import AdminNav from '@/components/admin/AdminNav';
+import { isAdminAuthed } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-// Middleware (see middleware.ts) already guarantees only authenticated
-// requests reach this layout, so no auth check is needed here.
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  if (!(await isAdminAuthed())) redirect('/login');
   return (
     <div className="admin-shell">
       <AdminNav />

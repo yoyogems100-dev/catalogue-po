@@ -1,3 +1,4 @@
+import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -5,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // already pulled into the first-pass artifact) without re-uploading files.
 // Body: { category_id: number, drive_ids: string[] }
 export async function POST(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, drive_ids } = await req.json();
   if (!category_id || !Array.isArray(drive_ids) || drive_ids.length === 0) {
     return NextResponse.json({ error: 'category_id and drive_ids[] required' }, { status: 400 });

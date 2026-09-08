@@ -3,6 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const [{ data: palettes }, { data: items }] = await Promise.all([
     supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
     supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
