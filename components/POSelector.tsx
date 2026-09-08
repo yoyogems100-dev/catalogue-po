@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
-import { lineInrPrice } from '@/lib/pricing-calc';
+import { cartLinePrice } from '@/lib/pricing-calc';
+import { parseQuantity } from '@/lib/quantity';
+import QuantityInput from './QuantityInput';
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
@@ -171,7 +173,7 @@ export default function POSelector({
     setRangeMax('');
   }
 
-  const qtyNum = parseInt(pickQty, 10) || 0;
+  const qtyNum = parseQuantity(pickQty) || 0;
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0;
   const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
@@ -181,14 +183,14 @@ export default function POSelector({
   // item -- so it always reflects the current admin-set price/multiplier, and
   // categories with no pricing set up yet just show nothing (no crash).
   function unitPriceInr(item: CartItem): number | null {
-    if (!pricing || item.sizeId == null) return null;
-    return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
+    return cartLinePrice(pricing, categoryId, item);
   }
   const cartTotalInr = cart.reduce((sum, item) => {
     const unit = unitPriceInr(item);
     return unit === null ? sum : sum + unit * item.qty;
   }, 0);
   const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
+  const unpricedLines = cart.filter((item) => unitPriceInr(item) === null).length;
 
   function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
     const existing = current.find(
@@ -246,6 +248,10 @@ export default function POSelector({
       }
     }
 
+    if (next.some((item) => parseQuantity(String(item.qty)) === null)) {
+      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
+      return;
+    }
     setCart(next);
     setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
     // Reset only size + qty so the same shape/color picks can be reused for the next size quickly
@@ -288,7 +294,7 @@ export default function POSelector({
 
       setCart([]);
       setComment('');
-      setToast('Requirement sent! Opening WhatsApp...');
+      setToast('Requirement saved. Opening WhatsApp...');
     } catch (err: any) {
       setToast(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -345,6 +351,7 @@ export default function POSelector({
                   type="text"
                   inputMode="decimal"
                   placeholder="Min mm"
+                  aria-label="Minimum size in millimetres"
                   value={rangeMin}
                   onChange={(e) => setRangeMin(e.target.value)}
                 />
@@ -353,6 +360,7 @@ export default function POSelector({
                   type="text"
                   inputMode="decimal"
                   placeholder="Max mm"
+                  aria-label="Maximum size in millimetres"
                   value={rangeMax}
                   onChange={(e) => setRangeMax(e.target.value)}
                 />
@@ -361,11 +369,12 @@ export default function POSelector({
             )}
           </div>
           <div>
-            <label className="po-label">Qty (pcs)</label>
+            <label className="po-label" htmlFor="po-new-quantity">Qty per line (pcs)</label>
             <input
               type="text"
               inputMode="numeric"
               className="po-qty-input"
+              id="po-new-quantity"
               placeholder="e.g. 5000"
               value={pickQty}
               onChange={(e) => setPickQty(e.target.value.replace(/\D/g, ''))}
@@ -395,6 +404,7 @@ export default function POSelector({
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
+        {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
       </section>
 
       <section className="po-card po-cart-card">
@@ -433,22 +443,28 @@ export default function POSelector({
                     <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   )}
                 </div>
+                <div className="po-item-controls">
+                <label>Request
                 <select
                   className="po-item-type-select"
+                  aria-label={`Request type for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
                   value={item.requestType}
                   onChange={(e) => updateItemRequestType(item.id, e.target.value as RequestType)}
                 >
                   <option value="Place Order">Purchase</option>
-                  <option value="Request Quotation">Request Quotation</option>
+                  <option value="Request Quotation">Quotation</option>
                 </select>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="po-qty-input po-cart-qty"
+                </label>
+                <label>Qty (pcs)
+                <QuantityInput
                   value={item.qty}
-                  onChange={(e) => updateQty(item.id, parseInt(e.target.value.replace(/\D/g, ''), 10) || 1)}
+                  label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
+                  onChange={(quantity) => updateQty(item.id, quantity)}
+                  onInvalid={() => setToast('Enter a positive whole quantity. The previous quantity has been kept.')}
                 />
-                <button type="button" className="po-remove-btn" onClick={() => removeItem(item.id)}>&times;</button>
+                </label>
+                <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
+                </div>
               </div>
               );
             })}
@@ -456,7 +472,8 @@ export default function POSelector({
         )}
         {hasAnyPricedLine && (
           <div className="po-cart-total mono">
-            Estimated total: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {unpricedLines > 0 && <small className="po-price-note">{unpricedLines} {unpricedLines === 1 ? 'line requires' : 'lines require'} price confirmation. Final pricing is confirmed when processed.</small>}
           </div>
         )}
 
@@ -468,21 +485,21 @@ export default function POSelector({
             </label>
           </div>
           <label className="po-block-label">
-            Your WhatsApp number <span className="po-optional">(optional -- to track this order later)</span>
+            Your WhatsApp number <span className="po-optional">(optional — for updates about this requirement)</span>
             <input type="tel" placeholder="e.g. 9XXXXXXXXX" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
           </label>
           <label className="po-block-label">
             Additional comment
             <textarea rows={3} placeholder="Message" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
-          <button type="button" className="po-send-btn" onClick={sendRequirement} disabled={sending}>
+          <button type="button" className="po-send-btn" onClick={sendRequirement} disabled={sending || cart.length === 0}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.13h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.36c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.55-3.7 8.21-8.25 8.21Zm4.52-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.4-.12-.56.13-.17.25-.65.81-.79.97-.15.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.87.86-.87 2.09 0 1.23.9 2.42 1.02 2.59.12.17 1.77 2.7 4.28 3.79.6.26 1.06.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28Z" /></svg>
             {sending ? 'Sending...' : 'Send Requirement'}
           </button>
         </div>
       </section>
 
-      {toast && <div className="po-toast">{toast}</div>}
+      {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );
 }

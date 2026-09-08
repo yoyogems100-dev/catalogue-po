@@ -810,3 +810,30 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 @media (max-width: 480px) {
   .po-add-form { grid-template-columns: 1fr; }
 }
+
+/* Requirement controls keep full labels and editable quantities on narrow screens. */
+.po-cart-card .po-item-row { flex-wrap: wrap; gap: 12px; padding: 14px; }
+.po-cart-card .po-item-main { flex: 1 1 220px; min-width: 0; }
+.po-cart-card .po-item-main strong { font-size: 16px; overflow-wrap: anywhere; }
+.po-cart-card .po-item-main span { flex-wrap: wrap; font-size: 13px; color: var(--ivory-gold); overflow-wrap: anywhere; }
+.po-item-controls { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(100px, 130px) 44px; gap: 8px; align-items: end; flex: 1 1 300px; }
+.po-item-controls label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ivory-gold); min-width: 0; }
+.po-item-controls .po-item-type-select, .po-item-controls input.po-cart-qty { width: 100%; max-width: none; min-width: 0; min-height: 44px; font-size: 16px; padding: 8px; margin: 0; }
+.po-item-controls .po-remove-btn { width: 44px; height: 44px; border-radius: 6px; }
+.po-selection-summary { font-size: 14px; margin-top: 10px; color: var(--ink); }
+.po-price-note { display: block; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 400; margin-top: 6px; }
+.po-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.admin-coverage-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+.admin-coverage-filters .tag-chip { min-height: 44px; cursor: pointer; }
+.admin-coverage-filters b { margin-left: 6px; }
+.admin-coverage-note { font-size: 13px; margin: 8px 0; color: var(--umber); }
+.admin-results-summary { font-size: 14px; margin-bottom: 12px; color: var(--charcoal); }
+@media (max-width: 480px) {
+  .po-item-controls { flex-basis: 100%; grid-template-columns: minmax(0, 1fr) minmax(90px, 110px) 44px; }
+  .po-cart-card .po-item-main { flex-basis: 100%; }
+  .admin-cat-toolbar input { font-size: 16px; }
+}
+.admin-main { min-width: 0; }
+.admin-orders-table-wrap { max-width: 100%; overflow-x: auto; margin-bottom: 12px; }
+.admin-orders-table-wrap table { min-width: 840px; }
+.admin-orders-table-wrap:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }

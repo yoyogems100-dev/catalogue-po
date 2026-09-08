@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
+import { COVERAGE_FILTERS, catalogueGaps, matchesCoverage, type CoverageFilter } from '@/lib/catalogue-health';
 
 type Row = {
   id: number;
@@ -60,6 +61,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
+  const [coverage, setCoverage] = useState<CoverageFilter>('all');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [toast, setToast] = useState('');
 
@@ -75,9 +77,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   const [localRows, setLocalRows] = useState(rows);
   useEffect(() => setLocalRows(rows), [rows]);
 
-  const visibleRows = search.trim()
-    ? localRows.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : localRows;
+  const visibleRows = localRows.filter((r) =>
+    r.name.toLowerCase().includes(search.trim().toLowerCase()) && matchesCoverage(r, coverage));
+  const filtered = !!search.trim() || coverage !== 'all';
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
     const prev = localRows;
@@ -96,57 +98,50 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     router.refresh();
   });
 
-  async function addCategory() {
-    if (!newName.trim()) return;
-    setAdding(true);
+  async function saveCategory(method: string, body: object) {
     const res = await fetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName })
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
-    setAdding(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add category.');
-      return;
-    }
-    setNewName('');
-    setToast('Category added.');
-    router.refresh();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not save this category. Please try again.');
+  }
+
+  async function addCategory() {
+    if (!newName.trim() || adding) return;
+    setAdding(true);
+    try {
+      await saveCategory('POST', { name: newName.trim() });
+      setNewName(''); setToast('Category added.'); router.refresh();
+    } catch (error) { setToast(error instanceof Error ? error.message : 'Could not add category.'); }
+    finally { setAdding(false); }
   }
 
   async function renameCategory(id: number, name: string) {
-    const res = await fetch('/api/categories', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to rename category');
-      return;
-    }
-    setToast('Renamed.');
-    router.refresh();
+    await saveCategory('PATCH', { id, name });
+    setToast('Renamed.'); router.refresh();
   }
 
   async function deleteCategory(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This also deletes all its photos and shape/color/size links. Past orders keep their line items. This cannot be undone.`)) return;
-    const res = await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to delete category');
-      return;
-    }
-    setToast('Category deleted.');
-    router.refresh();
+    try {
+      await saveCategory('DELETE', { id });
+      setToast('Category deleted.'); router.refresh();
+    } catch (error) { setToast(error instanceof Error ? error.message : 'Could not delete category.'); }
   }
 
   return (
     <>
+      <div className="admin-coverage-filters" role="group" aria-label="Catalogue completeness">
+        {COVERAGE_FILTERS.map((filter) => (
+          <button key={filter.key} type="button" className={`tag-chip ${coverage === filter.key ? 'active' : ''}`}
+            aria-pressed={coverage === filter.key} onClick={() => setCoverage(filter.key)}>
+            {filter.label} <b>{localRows.filter((row) => matchesCoverage(row, filter.key)).length}</b>
+          </button>
+        ))}
+      </div>
       <div className="admin-cat-toolbar">
         <div className="admin-cat-toolbar-left">
-          <input type="text" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
+          <input type="text" aria-label="Search categories" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
           <div className="cat-view-toggle" role="group" aria-label="View">
             <button type="button" aria-pressed={view === 'grid'} className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
             <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
@@ -156,6 +151,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <input
             type="text"
             placeholder="New category name (e.g. Emerald Synthetic)"
+            aria-label="New category name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
@@ -163,8 +159,9 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
         </div>
       </div>
+      <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} categories. Missing links are review prompts; they do not change product availability.</p>
       <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-        {view === 'list'
+        {view === 'list' && !filtered
           ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it. Manage a category to set its homepage tag.'
           : 'Click a category name to rename it. Manage a category to set its homepage tag.'}
       </p>
@@ -177,16 +174,16 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <tbody>
             {visibleRows.map((c) => {
               const index = localRows.findIndex((r) => r.id === c.id);
-              const dragProps = search.trim() ? {} : dropTargetProps(index);
+              const dragProps = filtered ? {} : dropTargetProps(index);
               return (
                 <tr
                   key={c.id}
                   {...dragProps}
-                  className={!search.trim() && overIndex === index ? 'drag-over-row' : ''}
-                  style={{ opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
+                  className={!filtered && overIndex === index ? 'drag-over-row' : ''}
+                  style={{ opacity: !filtered && dragIndex === index ? 0.4 : 1 }}
                 >
                   <td style={{ width: 1 }}>
-                    {!search.trim() && (
+                    {!filtered && (
                       <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>
                     )}
                   </td>
@@ -197,7 +194,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     </div>
                   </td>
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
-                  <td style={{ fontSize: 12.5, color: '#756e5c' }}>{statsLine(c)}</td>
+                  <td style={{ fontSize: 12.5, color: '#756e5c' }}>{statsLine(c)}<CoverageNote row={c} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
                       <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
@@ -208,7 +205,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No categories match "{search}".</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No categories match these filters.</td></tr>
             )}
           </tbody>
         </table>
@@ -225,6 +222,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                     <NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} />
                   </div>
                   <StatsLineFormatted c={c} />
+                  <CoverageNote row={c} />
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
@@ -234,7 +232,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
             );
           })}
           {visibleRows.length === 0 && (
-            <p style={{ fontSize: 13, color: '#756e5c' }}>No categories match "{search}".</p>
+            <p style={{ fontSize: 13, color: '#756e5c' }}>No categories match these filters.</p>
           )}
         </div>
       )}
@@ -243,19 +241,29 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   );
 }
 
+function CoverageNote({ row }: { row: Row }) {
+  const gaps = catalogueGaps(row);
+  return gaps.length ? <p className="admin-coverage-note">Missing {gaps.join(', ')}</p> : null;
+}
+
 function NameCell({ value, onSave }: { value: string; onSave: (name: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   async function save() {
+    if (saving) return;
     const trimmed = text.trim();
     if (!trimmed || trimmed === value) {
       setText(value);
       setEditing(false);
       return;
     }
-    setEditing(false);
-    await onSave(trimmed);
+    setSaving(true); setError('');
+    try { await onSave(trimmed); setEditing(false); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Could not save the name.'); }
+    finally { setSaving(false); }
   }
 
   if (!editing) {
@@ -273,7 +281,11 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
   }
 
   return (
+    <span>
     <input
+      disabled={saving}
+      aria-label={`New name for ${value}`}
+      aria-invalid={!!error}
       autoFocus
       type="text"
       value={text}
@@ -283,7 +295,9 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         if (e.key === 'Escape') { setText(value); setEditing(false); }
       }}
-      style={{ fontSize: 13, padding: '3px 6px', maxWidth: 180 }}
+      style={{ fontSize: 16, padding: '6px', maxWidth: 180 }}
     />
+    {error && <span role="alert" style={{ display: 'block', color: '#a3341f' }}>{error}</span>}
+    </span>
   );
 }

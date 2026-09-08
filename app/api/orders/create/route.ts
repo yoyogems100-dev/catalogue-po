@@ -6,6 +6,7 @@ import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { parseQuantity } from '@/lib/quantity';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
 
   if (cart.length === 0) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+  }
+  if (cart.some((item) => typeof item.qty !== 'number' || parseQuantity(String(item.qty)) === null)) {
+    return NextResponse.json({ error: 'Every line needs a positive whole quantity.' }, { status: 400 });
   }
 
   // Placing an order never requires auth -- this phone field is optional and

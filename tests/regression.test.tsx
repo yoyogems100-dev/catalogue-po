@@ -44,3 +44,46 @@ test('React 19 renders both PDF templates in the server ESM runtime', async () =
     execFileSync(process.execPath, [output], { stdio: 'pipe' });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('whole-piece quantities reject decimals, negatives, empty edits and database overflow', async () => {
+  const { parseQuantity } = await import('../lib/quantity');
+  assert.equal(parseQuantity('5000'), 5000);
+  assert.equal(parseQuantity('0012'), 12);
+  for (const invalid of ['', '0', '-1', '1.5', 'abc', '2147483648']) assert.equal(parseQuantity(invalid), null);
+});
+
+test('a cart from another category never inherits the active category price', async () => {
+  const { cartLinePrice } = await import('../lib/pricing-calc');
+  const pricing = { multiplier: 12, colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 5 } };
+  const item = { categoryId: 10, shapeId: 3, sizeId: 4, colorId: 1 };
+  assert.equal(cartLinePrice(pricing, 10, item), 60);
+  assert.equal(cartLinePrice(pricing, 11, item), null);
+  assert.equal(cartLinePrice(pricing, 10, { ...item, sizeId: null }), null);
+  assert.equal(cartLinePrice(pricing, 10, { ...item, colorId: 99 }), null);
+});
+
+test('catalogue coverage distinguishes a cover from a usable photo gallery', async () => {
+  const { catalogueGaps, matchesCoverage } = await import('../lib/catalogue-health');
+  const row = { coverUrl: 'cover.jpg', photoCount: 0, shapeCount: 2, sizeCount: 0, colorCount: 3 };
+  assert.deepEqual(catalogueGaps(row), ['photos', 'sizes']);
+  assert.equal(matchesCoverage(row, 'cover'), false);
+  assert.equal(matchesCoverage(row, 'incomplete'), true);
+  assert.equal(matchesCoverage({ ...row, photoCount: 1, sizeCount: 5 }, 'incomplete'), false);
+});
+
+test('development authentication codes cannot be enabled in a production build', async () => {
+  const { allowDevAuthCodes } = await import('../lib/dev-auth');
+  const nodeEnv = process.env.NODE_ENV;
+  const optIn = process.env.ALLOW_DEV_AUTH_CODES;
+  try {
+    Object.assign(process.env, { NODE_ENV: 'production', ALLOW_DEV_AUTH_CODES: 'true' });
+    assert.equal(allowDevAuthCodes(), false);
+    Object.assign(process.env, { NODE_ENV: 'development', ALLOW_DEV_AUTH_CODES: 'false' });
+    assert.equal(allowDevAuthCodes(), false);
+    process.env.ALLOW_DEV_AUTH_CODES = 'true';
+    assert.equal(allowDevAuthCodes(), true);
+  } finally {
+    if (nodeEnv === undefined) delete (process.env as any).NODE_ENV; else Object.assign(process.env, { NODE_ENV: nodeEnv });
+    if (optIn === undefined) delete process.env.ALLOW_DEV_AUTH_CODES; else process.env.ALLOW_DEV_AUTH_CODES = optIn;
+  }
+});
