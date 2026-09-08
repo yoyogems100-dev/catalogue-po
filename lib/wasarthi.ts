@@ -40,7 +40,7 @@ export async function sendWhatsAppTemplate(
   // WORKAROUND: stub path while WHATSAPP_OTP_ENABLED is unset/false. Logs instead of
   // sending. Flip the env var to switch to real sending -- see note above.
   if (process.env.WHATSAPP_OTP_ENABLED !== 'true') {
-    console.log(`[WhatsApp stub] would send template "${template.name}" to ${withCountryCode} with params: ${JSON.stringify(params)}`);
+    console.log(`WhatsApp delivery disabled for template "${template.name}".`);
     return { ok: true, stubbed: true };
   }
 
@@ -70,13 +70,12 @@ export async function sendWhatsAppTemplate(
       body
     });
 
-    const responseText = await res.text().catch(() => '');
     if (!res.ok) {
-      console.error(`WhatsApp send failed (${res.status}): ${responseText}`);
+      console.error(`WhatsApp send failed (${res.status}).`);
       return { ok: false, stubbed: false, error: `Provider returned ${res.status}` };
     }
 
-    console.log(`WhatsApp send response for "${template.name}" to ${withCountryCode}: ${responseText}`);
+    console.log(`WhatsApp send accepted for template "${template.name}" (${res.status}).`);
     return { ok: true, stubbed: false };
   } catch (err: any) {
     console.error('WhatsApp send threw:', err);
