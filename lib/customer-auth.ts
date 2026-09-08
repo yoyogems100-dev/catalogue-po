@@ -31,14 +31,14 @@ export function signCustomerToken(customerId: number) {
 // <token>` header (the mobile app, which stores the same signed value from
 // signCustomerToken() in expo-secure-store instead of a cookie -- same HMAC
 // token format either way, just delivered differently).
-export function getCustomerId(): number | null {
-  const cookie = cookies().get(COOKIE_NAME);
+export async function getCustomerId(): Promise<number | null> {
+  const cookie = (await cookies()).get(COOKIE_NAME);
   if (cookie) {
     const value = verify(cookie.value);
     if (value) return Number(value);
   }
 
-  const authHeader = headers().get('authorization');
+  const authHeader = (await headers()).get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const value = verify(authHeader.slice(7).trim());
     if (value) return Number(value);

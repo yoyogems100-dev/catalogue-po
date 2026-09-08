@@ -1,5 +1,7 @@
 'use client';
 
+import type { JSX } from 'react';
+
 // Small vector outline icons per shape family. Pure SVG paths -- crisp at any
 // size, no raster assets, same approach as the logo fix. Falls back to a
 // generic diamond outline for anything unmapped.

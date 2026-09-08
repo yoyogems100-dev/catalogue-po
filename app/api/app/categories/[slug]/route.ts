@@ -6,7 +6,8 @@ import { getCategoryPricing } from '@/lib/pricing';
 // JSON equivalent of getCategoryData() in app/category/[slug]/page.tsx -- powers the
 // app's category detail / Place Order flow (needs the linked shapes/colors/sizes to
 // build the picker).
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const { data: category } = await supabasePublic
     .from('categories')
     .select('id, num, name, slug')

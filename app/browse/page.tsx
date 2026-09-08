@@ -12,7 +12,7 @@ import { getSettings } from '@/lib/settings';
 export const revalidate = 30;
 
 async function getAccountState() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return { loggedIn: false, customerName: null };
   const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
   return { loggedIn: true, customerName: data?.name || null };
@@ -21,7 +21,8 @@ async function getAccountState() {
 // Browse everything at a glance, grouped by category, instead of clicking into
 // one category at a time -- default view shows each category's cover photo;
 // picking a tag narrows every category down to just the photos carrying it.
-export default async function BrowsePage({ searchParams }: { searchParams: { tag?: string } }) {
+export default async function BrowsePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ tag?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const selectedTagId = searchParams.tag ? Number(searchParams.tag) : null;
 
   const [{ data: tags }, { data: categories }, account, settings] = await Promise.all([

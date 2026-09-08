@@ -8,8 +8,9 @@ import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
 import { milestoneIndex } from '@/lib/order-milestones';
 import OrderDetailClient from './OrderDetailClient';
 
-export default async function AccountOrderDetailPage({ params }: { params: { id: string } }) {
-  const customerId = getCustomerId();
+export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
   const orderId = Number(params.id);

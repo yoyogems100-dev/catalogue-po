@@ -6,7 +6,7 @@ import { getCustomerId } from '@/lib/customer-auth';
 // Auth via getCustomerId(), which accepts the app's Bearer token the same as the
 // web cookie.
 export async function GET() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
 
   const { data: orders } = await supabaseAdmin

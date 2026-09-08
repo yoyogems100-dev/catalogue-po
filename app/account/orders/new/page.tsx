@@ -7,8 +7,9 @@ import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
 import NewOrderClient from './NewOrderClient';
 
-export default async function NewOrderPage({ searchParams }: { searchParams: { from?: string } }) {
-  const customerId = getCustomerId();
+export default async function NewOrderPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ from?: string }> }) {
+  const searchParams = await searchParamsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
   const fromOrderId = searchParams.from ? Number(searchParams.from) : null;

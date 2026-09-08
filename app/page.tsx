@@ -8,7 +8,7 @@ import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
 
 async function getAccountState() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return { loggedIn: false, customerName: null };
   const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
   return { loggedIn: true, customerName: data?.name || null };

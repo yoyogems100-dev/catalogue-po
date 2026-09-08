@@ -7,7 +7,7 @@ import { getSettings } from '@/lib/settings';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
 
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });

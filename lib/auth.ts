@@ -15,8 +15,8 @@ function verify(signed: string) {
   return sign(value) === signed;
 }
 
-export function isAdminAuthed(): boolean {
-  const cookie = cookies().get(COOKIE_NAME);
+export async function isAdminAuthed(): Promise<boolean> {
+  const cookie = (await cookies()).get(COOKIE_NAME);
   if (!cookie) return false;
   return verify(cookie.value);
 }

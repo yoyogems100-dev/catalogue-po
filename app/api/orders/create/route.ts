@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   // unverified, just used to address a notification about this one order (Phase 3
   // Part 0). A logged-in session still wins when present, purely so the order shows
   // up in their own history automatically; it's not a requirement to place one.
-  let customerId: number | null = getCustomerId();
+  let customerId: number | null = await getCustomerId();
 
   if (!customerId && contactPhone) {
     const identity = await findOrCreateCustomer({ phone: contactPhone });

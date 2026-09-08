@@ -3,7 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const [{ data: recent }, { count: unreadCount }] = await Promise.all([
     supabaseAdmin.from('notifications').select('id, type, order_id, message, is_read, created_at').order('created_at', { ascending: false }).limit(20),

@@ -10,7 +10,7 @@ import AccountMenu from '@/components/AccountMenu';
 import Link from 'next/link';
 
 async function getAccountState() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return { loggedIn: false, customerName: null };
   const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
   return { loggedIn: true, customerName: data?.name || null };
@@ -103,7 +103,8 @@ async function getCategoryData(slug: string) {
   };
 }
 
-export default async function CategoryPage({ params }: { params: { slug: string } }) {
+export default async function CategoryPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const [data, settings, account] = await Promise.all([getCategoryData(params.slug), getSettings(), getAccountState()]);
 
   if (!data) {

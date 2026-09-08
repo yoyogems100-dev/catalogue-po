@@ -6,7 +6,8 @@ import Link from 'next/link';
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function CategoryAdminPage({ params }: { params: { id: string } }) {
+export default async function CategoryAdminPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const categoryId = Number(params.id);
 
   const [

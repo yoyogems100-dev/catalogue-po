@@ -6,8 +6,9 @@ import { milestoneLabel } from '@/lib/order-milestones';
 // JSON equivalent of app/account/orders/[id]/page.tsx + OrderDetailClient's data --
 // powers the app's order detail screen (items, timeline, edit-while-early-stage
 // options, reorder data).
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const customerId = getCustomerId();
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
 
   const orderId = Number(params.id);

@@ -6,8 +6,9 @@ import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const customerId = getCustomerId();
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) {
     return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
   }

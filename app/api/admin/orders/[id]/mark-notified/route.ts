@@ -5,8 +5,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // Best-effort record that admin clicked "Notify via WhatsApp" -- there's no way to
 // confirm the message was actually sent from the manual wa.me flow, only that this
 // was clicked. Marks the most recent status-history entry so the timeline shows it.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const orderId = Number(params.id);
 

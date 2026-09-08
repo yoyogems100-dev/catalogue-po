@@ -5,7 +5,8 @@ import OrderAdminClient from './OrderAdminClient';
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const orderId = Number(params.id);
 
   const { data: order } = await supabaseAdmin

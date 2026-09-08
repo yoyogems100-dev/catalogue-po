@@ -4,8 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 import { milestoneLabel } from '@/lib/order-milestones';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const orderId = Number(params.id);
   const { data: order } = await supabaseAdmin.from('orders').select('id, status, customer_id').eq('id', orderId).single();

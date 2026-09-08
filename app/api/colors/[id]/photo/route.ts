@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const colorId = Number(params.id);
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(data);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const colorId = Number(params.id);
   const { error } = await supabaseAdmin.from('colors').update({ ref_photo_url: null }).eq('id', colorId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

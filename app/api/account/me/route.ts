@@ -7,7 +7,7 @@ import { getCustomerId } from '@/lib/customer-auth';
 // prompt (name still null) and to populate the Profile tab, without needing to store
 // customer details client-side across sessions.
 export async function GET() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
 
   const { data: customer } = await supabaseAdmin

@@ -8,7 +8,8 @@ import Link from 'next/link';
 // explicit removes any doubt.)
 export const dynamic = 'force-dynamic';
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: { status?: string } }) {
+export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const statusFilter = searchParams.status;
 
   let query = supabaseAdmin
