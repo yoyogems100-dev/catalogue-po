@@ -41,3 +41,9 @@ Admin orders now have customer/name/phone or order-number search, payment and In
 Remaining: isolated database setup and migration reconciliation; transactional/idempotent creation; full order, notification and import tests; individual admin accounts/roles and activity history; invoice business fields and generation; deeper photo/bulk management. Requests for local-vs-hosted test setup and invoice/team details are pending. No live data mutations or messages were sent.
 
 This batch passes the production build/TypeScript and seven regression tests. Headless Chromium at 390px verified gallery size uniqueness, photo modal focus wrapping and Escape, adding a draft line, reviewing it and returning to edit. The submit endpoint was blocked during browser QA; no order was submitted. Admin search/dashboard and photo writes still require isolated data verification.
+
+## Local tooling and business requirements — 10 September 2026
+
+Installed development-only PGlite 0.5.8 within the owner's 5 GB cap: approximately 25 MB installed plus 8.4 MB npm cache growth. `npm run test:local-db` checks synthetic in-memory commits, constraints and rollback; it does not reproduce the live schema or test application writes. No Docker runtime was installed. Seven regression tests and the production build pass.
+
+Recorded proprietor-provided invoice identity/address/contact in docs/BUSINESS-REQUIREMENTS.md. Tax/shipping rules and admin team permissions remain unset. Added /admin/content and its menu link as an entry point for existing catalogue, photo, header-logo and pricing controls; this is not a general page builder. No production settings were changed.

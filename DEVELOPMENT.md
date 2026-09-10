@@ -33,3 +33,10 @@ Vercel preview and production environments currently point at the same Supabase 
 - Mobile browser check at 390px: selection, draft persistence across reopening, replacing a 5,000-piece quantity with 12,500, updated totals, and readable controls. No requirement was submitted.
 
 No database migrations or reference-data replacements are part of these changes.
+
+
+## Lightweight local database runtime
+
+`npm run test:local-db` starts disposable PGlite PostgreSQL entirely in memory and checks transaction commits, constraints and rollback. It uses synthetic tables/data, reads no credentials and does not contact Supabase. Closing the process discards the database. This is development-only; it adds no hosted runtime dependency.
+
+This is not a replica of the live schema, a full Supabase stack, or end-to-end coverage. Auth, storage, notification delivery and application write flows still require an isolated integration environment and reconciled migrations. The owner capped new local database tooling at 5 GB; Docker/Supabase was not installed.

@@ -39,6 +39,7 @@ const ExternalIcon = () => (
 // without opening the drawer first.
 const NAV_LINKS = [
   { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/content', label: 'Website content' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/shapes', label: 'Shapes' },
