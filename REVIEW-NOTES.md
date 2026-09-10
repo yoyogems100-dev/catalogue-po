@@ -29,3 +29,15 @@ Admin pricing now uses Save/Discard, validates optional values and reports write
 Confirmed by source review: customer ownership-filtered history, admin creation, status/payment editing, item editing, and notes exist. Guest history requires the matching phone identity; without a phone/session an order is not attached to an account. Phone matching currently strips punctuation but does not reconcile local vs country-code formats. Admin creation currently chooses one Purchase/Quotation type for the entire order. Existing PDFs are order summaries/quotations, not invoices. Later changes require regenerating the PDF. Price batch writes and order creation are not transactional; database-backed idempotency and rollback remain follow-up work.
 
 Validation: production build/TypeScript, six regression tests including synthetic mixed-price PDF generation, and visual review of the generated sample. No live orders, prices, notes, messages or status changes were made. Real end-to-end verification still requires a separate test database and an approved message recipient.
+
+## Customer review and admin navigation — 10 September 2026
+
+Implemented a modal review step before Purchase/Request quotation, with editable return, per-line type/quantity, contact/comment and price-confirmation copy. A client-side pending lock prevents repeated clicks during a request; it does not replace server idempotency.
+
+Gallery filters group equivalent size labels while preserving every underlying ID and sort numeric dimensions. The photo viewer uses a native modal with explicit keyboard wrapping, Escape and focus restoration. Photo-to-cart skips shape/size mismatches and keeps purchase lines separate from quotations.
+
+Admin orders now have customer/name/phone or order-number search, payment and India-time date filters, oldest/newest sorting, persistent filter URLs and mobile cards. Broad customer searches ask for refinement instead of silently dropping matches. Overview provides live confirmation/sourcing/dispatch/payment queues and recent orders, with unavailable states on query failure. Category editing has section navigation and persistent photo-save error feedback.
+
+Remaining: isolated database setup and migration reconciliation; transactional/idempotent creation; full order, notification and import tests; individual admin accounts/roles and activity history; invoice business fields and generation; deeper photo/bulk management. Requests for local-vs-hosted test setup and invoice/team details are pending. No live data mutations or messages were sent.
+
+This batch passes the production build/TypeScript and seven regression tests. Headless Chromium at 390px verified gallery size uniqueness, photo modal focus wrapping and Escape, adding a draft line, reviewing it and returning to edit. The submit endpoint was blocked during browser QA; no order was submitted. Admin search/dashboard and photo writes still require isolated data verification.

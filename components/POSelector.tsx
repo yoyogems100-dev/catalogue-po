@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -98,6 +98,10 @@ export default function POSelector({
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [comment, setComment] = useState('');
+  const reviewDialog = useRef<HTMLDialogElement>(null);
+  const submissionPending = useRef(false);
+  const [reviewing, setReviewing] = useState(false);
+  useEffect(() => { if (reviewing) reviewDialog.current?.showModal(); }, [reviewing]);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
@@ -274,10 +278,12 @@ export default function POSelector({
   }
 
   async function sendRequirement() {
+    if (submissionPending.current) return;
     if (cart.length === 0) {
       setToast('Add at least one line to your order first.');
       return;
     }
+    submissionPending.current = true;
     setSending(true);
     try {
       const res = await fetch('/api/orders/create', {
@@ -294,12 +300,14 @@ export default function POSelector({
         : `https://wa.me/?text=${encodeURIComponent(data.message)}`;
       setReceipt({ id: data.orderId, whatsappUrl: url, quotation: cart.every(item => item.requestType === 'Request Quotation') });
 
+      setReviewing(false);
       setCart([]);
       setComment('');
       setToast(`Order #${data.orderId} saved successfully.`);
     } catch (err: any) {
       setToast(err.message || 'Something went wrong. Please try again.');
     } finally {
+      submissionPending.current = false;
       setSending(false);
     }
   }
@@ -502,14 +510,32 @@ export default function POSelector({
             <textarea rows={3} placeholder="Message" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
           <p>Our team will confirm pricing and availability before your order is confirmed.</p>
-          <button type="button" className="po-send-btn" onClick={sendRequirement} disabled={sending || cart.length === 0}>
+          <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.13h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.36c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.55-3.7 8.21-8.25 8.21Zm4.52-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.4-.12-.56.13-.17.25-.65.81-.79.97-.15.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.87.86-.87 2.09 0 1.23.9 2.42 1.02 2.59.12.17 1.77 2.7 4.28 3.79.6.26 1.06.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28Z" /></svg>
-            {sending ? 'Submitting…' : cart.length === 0 && receipt ? (receipt.quotation ? 'Quotation requested' : 'Order placed') : cart.length > 0 && cart.every(item => item.requestType === 'Request Quotation') ? 'Request quotation' : 'Purchase'}
+            {sending ? 'Submitting…' : cart.length === 0 && receipt ? (receipt.quotation ? 'Quotation requested' : 'Order placed') : 'Review order'}
           </button>
         </div>
       </section>
 
-      {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
+      {reviewing && <dialog ref={reviewDialog} className="order-review-dialog" aria-labelledby="order-review-title"
+        onCancel={(event) => { event.preventDefault(); if (!sending) setReviewing(false); }}>
+        <h2 id="order-review-title">Review your order</h2>
+        <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
+        <ul className="order-review-lines">{cart.map(item => <li key={item.id}>
+          <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}<br />
+          {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
+        </li>)}</ul>
+        {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
+        <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>
+        {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
+        <p>Our team will confirm pricing and availability before your order is confirmed.</p>
+        <div className="order-review-actions">
+          <button className="btn-ghost" onClick={() => setReviewing(false)} disabled={sending}>Back to edit</button>
+          <button className="btn" onClick={sendRequirement} disabled={sending}>{sending ? 'Submitting…' : cart.every(item => item.requestType === 'Request Quotation') ? 'Request quotation' : 'Purchase'}</button>
+        </div>
+        {toast && <p role="status">{toast}</p>}
+      </dialog>}
+      {toast && !reviewing && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );
 }

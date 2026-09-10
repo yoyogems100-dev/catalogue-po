@@ -87,3 +87,15 @@ test('development authentication codes cannot be enabled in a production build',
     if (optIn === undefined) delete process.env.ALLOW_DEV_AUTH_CODES; else process.env.ALLOW_DEV_AUTH_CODES = optIn;
   }
 });
+
+
+test('gallery sizes group equivalent dimensions, preserve IDs and sort decimal dimensions numerically', async () => {
+  const { groupSizes } = await import('../lib/size-options');
+  assert.deepEqual(groupSizes([
+    { id: 1, size_mm: '4 X 6 mm' }, { id: 2, size_mm: '04*6.0' },
+    { id: 3, size_mm: '1.5' }, { id: 4, size_mm: '1.25' }, { id: 5, size_mm: '6x4' }
+  ]), [
+    { key: '1.25', label: '1.25', ids: [4] }, { key: '1.5', label: '1.5', ids: [3] },
+    { key: '4x6', label: '4x6', ids: [1, 2] }, { key: '6x4', label: '6x4', ids: [5] }
+  ]);
+});

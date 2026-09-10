@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
+import { groupSizes } from '@/lib/size-options';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -91,9 +92,9 @@ export default function CategoryClient({
         if (!color) return;
         photo.sizeIds.forEach((sizeId) => {
           const size = sizes.find((s) => s.id === sizeId);
-          if (!size) return;
+          if (!size || size.shape_id !== shapeId) return;
           const existing = cart.find(
-            (i) => i.categoryId === categoryId && i.shapeId === shapeId && i.sizeId === sizeId && i.colorId === colorId
+            (i) => i.categoryId === categoryId && i.shapeId === shapeId && i.sizeId === sizeId && i.colorId === colorId && i.requestType === 'Place Order'
           );
           if (existing) {
             existing.qty += DEFAULT_QTY;
@@ -127,9 +128,10 @@ export default function CategoryClient({
 
   const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
   const [colorFilter, setColorFilter] = useState<number | 'all'>('all');
-  const [sizeFilter, setSizeFilter] = useState<number | 'all'>('all');
+  const [sizeFilter, setSizeFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<number | 'all'>('all');
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const lightboxCloseRef = useRef<HTMLButtonElement>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -148,19 +150,28 @@ export default function CategoryClient({
   // on close), and support Escape/Left/Right without a mouse.
   useEffect(() => {
     if (lightbox === null) return;
+    dialogRef.current?.showModal();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     lightboxCloseRef.current?.focus();
     function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Tab') {
+        const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || []);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
       if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); setLightbox((cur) => (cur === null ? cur : Math.min(cur + 1, filtered.length - 1))); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); setLightbox((cur) => (cur === null ? cur : Math.max(cur - 1, 0))); }
     }
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = previousOverflow; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightbox !== null]);
 
   const availableSizes = useMemo(
-    () => (shapeFilter === 'all' ? sizes : sizes.filter((s) => s.shape_id === shapeFilter)),
+    () => groupSizes(shapeFilter === 'all' ? sizes : sizes.filter((s) => s.shape_id === shapeFilter)),
     [sizes, shapeFilter]
   );
 
@@ -168,11 +179,11 @@ export default function CategoryClient({
     return photos.filter((p) => {
       if (shapeFilter !== 'all' && !p.shapeIds.includes(shapeFilter)) return false;
       if (colorFilter !== 'all' && !p.colorIds.includes(colorFilter)) return false;
-      if (sizeFilter !== 'all' && !p.sizeIds.includes(sizeFilter)) return false;
+      if (sizeFilter !== 'all' && !availableSizes.find(size => size.key === sizeFilter)?.ids.some(id => p.sizeIds.includes(id))) return false;
       if (tagFilter !== 'all' && !p.tag_ids.includes(tagFilter)) return false;
       return true;
     });
-  }, [photos, shapeFilter, colorFilter, sizeFilter, tagFilter]);
+  }, [photos, shapeFilter, colorFilter, sizeFilter, tagFilter, availableSizes]);
 
   function detailsFor(photo: Photo) {
     const shapeNames = photo.shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
@@ -196,16 +207,16 @@ export default function CategoryClient({
             />
           )}
           {availableSizes.length > 0 && (
-            <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+            <select aria-label="Filter by size" value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
               <option value="all">All sizes</option>
-              {availableSizes.map((s) => <option key={s.id} value={s.id}>{s.size_mm} mm</option>)}
+              {availableSizes.map((s) => <option key={s.key} value={s.key}>{s.label} mm</option>)}
             </select>
           )}
           {colors.length > 0 && (
             <IconSelect options={colors} value={colorFilter} onChange={setColorFilter} allLabel="All colors" leading="swatch" />
           )}
           {tags.length > 0 && (
-            <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+            <select aria-label="Filter by specification" value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
               <option value="all">All specifications</option>
               {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -231,7 +242,7 @@ export default function CategoryClient({
                 tabIndex={0}
                 aria-label={details ? `View photo: ${details}` : 'View photo'}
                 onClick={(e) => openLightbox(i, e)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(i, e); } }}
+                onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(i, e); } }}
                 style={{ cursor: 'zoom-in' }}
               >
                 {p.url && <img src={p.url} alt={details || 'Product photo'} loading="lazy" />}
@@ -255,12 +266,15 @@ export default function CategoryClient({
       )}
 
       {lightbox !== null && filtered[lightbox] && (
-        <div
+        <dialog
+          ref={dialogRef}
+          className="photo-dialog"
+          onCancel={(e) => { e.preventDefault(); closeLightbox(); }}
           role="dialog"
           aria-modal="true"
           aria-label="Photo viewer"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(10,16,28,0.94)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
-          onClick={closeLightbox}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(10,16,28,0.94)', zIndex: 100, width: '100vw', height: '100dvh', maxWidth: '100vw', maxHeight: '100dvh', margin: 0, border: 0, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
         >
           <img
             src={filtered[lightbox].url || ''}
@@ -302,7 +316,7 @@ export default function CategoryClient({
           >
             &times;
           </button>
-        </div>
+        </dialog>
       )}
     </>
   );
