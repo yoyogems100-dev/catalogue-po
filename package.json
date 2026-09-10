@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.tsx",
-    "test:local-db": "node scripts/check-local-db.mjs"
+    "test:local-db": "node scripts/check-local-db.mjs",
+    "test:pearl-migration": "node scripts/check-pearl-migration.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "4.9.0",

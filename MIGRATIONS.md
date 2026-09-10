@@ -39,3 +39,10 @@ settings
 Every table: public read policy (`for select using (true)`), writes only via
 the service-role key (used exclusively in `app/admin/**` and `app/api/**`,
 never in public-facing code).
+
+
+## Pending reviewed data migration — not applied
+
+`supabase/migrations/20260910190000_glass_pearl_colors.sql` adds the 24 supplier chart colors with image references and restricts Glass Pearls category links to that set. It does not delete master colors, photo associations, or order references. Apply with the matching `/pearl-colors/*.png` asset release, not before. Pricing-group membership is not inferred or copied from unrelated colors; new pearl colors require the correct pricing assignments before numeric quotes can be shown.
+
+`npm run test:pearl-migration` executes the actual data migration twice in a disposable PostgreSQL fixture and checks exactly 24 links, no duplicate master colors, other-category link preservation and historical color references. This is not a substitute for live-schema reconciliation. Do not use the stale bootstrap or automatically push all migration history to production.

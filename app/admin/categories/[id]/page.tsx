@@ -2,13 +2,19 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
+import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
+import PricingClient from '../../pricing/PricingClient';
+import { getSettings } from '@/lib/settings';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function CategoryAdminPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default async function CategoryAdminPage({ params: paramsPromise, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const params = await paramsPromise;
   const categoryId = Number(params.id);
+  const requestedTab = (await searchParams).tab;
+  const tab = ['overview','shapes','colors','photos','pricing','specifications'].includes(requestedTab || '') ? requestedTab : 'overview';
+  const settings = tab === 'pricing' ? await getSettings() : {};
 
   const [
     { data: category },
@@ -71,7 +77,13 @@ export default async function CategoryAdminPage({ params: paramsPromise }: { par
     <>
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
-      <CategoryAdminClient
+      <nav className="admin-coverage-filters" aria-label="Category workspace">
+        {['overview','shapes','colors','photos','pricing','specifications'].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
+      </nav>
+      {tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
+        key={categoryId}
+        section={tab}
         categoryId={categoryId}
         allShapes={(allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }))}
         allColors={(allColors || []).map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
@@ -85,7 +97,7 @@ export default async function CategoryAdminPage({ params: paramsPromise }: { par
         photos={photosFormatted}
         colorPalettes={colorPalettes}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
-      />
+      />}
     </>
   );
 }

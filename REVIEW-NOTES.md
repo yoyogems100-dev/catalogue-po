@@ -57,3 +57,13 @@ The combined shapes/sizes picker now places selected options first when opened (
 The /admin overview remains the login destination. Added today's orders (India time) and website-content shortcuts. Internal admin navigation now stays in the same tab.
 
 Validation: production build/TypeScript and seven regression tests pass. Browser checks against synthetic component fixtures verify currency values/hidden multiplier, saved-rate behavior and selected-first order in all three picker types, with zero writes. PDF text extraction verifies INR 24 from RMB 2 × 12 and absence of RMB/rate text; the rendered page was visually reviewed. No live prices or catalogue links were modified. Changes remain on the review branch.
+
+## Category workspaces and Glass Pearls — 10 September 2026
+
+Added Overview / Shapes & sizes / Colors / Photos / Pricing / Specifications category tabs. Colors reuse the same master editor with the category fixed, show only its linked rows, provide a link picker and replace global delete with category-only unlink. Shared name/photo edits are labelled as shared. Pricing is fixed to the current category. Consolidated Colors and Shapes pages support category filtering; filtered Shapes shows category-linked size subsets and disables global reorder/delete controls. Tags supports category-filtered linked records. Pricing accepts a category query parameter.
+
+Downloaded 24 exact supplier pearl thumbnails from the user-supplied Lustrella catalogue, matched to the names/codes in the owner's chart. Each PNG is 128×128; all 24 total 386,430 bytes. Source/product URLs are recorded in docs/glass-pearl-colors.json. Pearl swatches show the complete image at a minimum 28px, rather than the earlier highly zoomed color crop.
+
+The reviewed data migration is pending, not applied to production: supabase/migrations/20260910190000_glass_pearl_colors.sql. It adds the 24 named/coded colors, associates their local assets and replaces only Glass Pearls category links. Existing colors/photo/order references and other-category links are retained. Release the data change together with the assets. New pearl color pricing-group assignments remain unconfigured; no prices or mappings were invented.
+
+Validation: production build/TypeScript, seven regression tests, and the actual data migration applied twice in a disposable PostgreSQL fixture. Browser QA verifies distinct category tabs, fixed-category pricing, master color/shape filters and all 24 image downloads. No live mutation or message was sent. The user's final extra dropdown sentence was incomplete; clarification is pending.

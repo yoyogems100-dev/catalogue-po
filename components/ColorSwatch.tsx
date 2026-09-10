@@ -17,13 +17,15 @@ export default function ColorSwatch({
   name?: string;
   size?: number;
 }) {
+  const isPearl = refPhotoUrl?.includes('/pearl-colors/');
+  const displaySize = isPearl ? Math.max(size, 28) : size;
   return (
     <span
       title={name}
       style={{
         display: 'inline-block',
-        width: size,
-        height: size,
+        width: displaySize,
+        height: displaySize,
         flexShrink: 0,
         borderRadius: '50%',
         // Zoomed in hard on the center of the photo -- source stone photos
@@ -33,7 +35,7 @@ export default function ColorSwatch({
         // looser photos. This samples deep into the stone's own color/facets
         // instead of anywhere near the photo's outer edge, so the round
         // swatch reads as solid stone regardless of how the source was shot.
-        background: refPhotoUrl ? `url(${refPhotoUrl}) center/280% 280% no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
+        background: refPhotoUrl ? `url(${refPhotoUrl}) center/${isPearl ? '100% 100%' : '280% 280%'} no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
       }}
     />
   );

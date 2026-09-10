@@ -4,12 +4,14 @@ import ShapesClient from './ShapesClient';
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function ShapesPage() {
-  const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }] = await Promise.all([
+export default async function ShapesPage({ searchParams }: { searchParams: Promise<{category?: string}> }) {
+  const query = await searchParams;
+  const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }, {data: catSizes }] = await Promise.all([
     supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').order('id'),
     supabaseAdmin.from('categories').select('id, num, name').order('num'),
-    supabaseAdmin.from('category_shapes').select('category_id, shape_id')
+    supabaseAdmin.from('category_shapes').select('category_id, shape_id'),
+    supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id')
   ]);
 
   return (
@@ -21,10 +23,13 @@ export default async function ShapesPage() {
         categories at once, without leaving this page.
       </p>
       <ShapesClient
+        key={query.category || 'all'}
         shapes={shapes || []}
         sizes={sizes || []}
         categories={categories || []}
         catShapes={catShapes || []}
+        catSizes={catSizes || []}
+        initialCategoryId={Number(query.category) || 0}
       />
     </>
   );

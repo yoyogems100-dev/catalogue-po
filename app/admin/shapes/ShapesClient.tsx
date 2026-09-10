@@ -14,14 +14,20 @@ export default function ShapesClient({
   shapes,
   sizes,
   categories,
-  catShapes
+  catShapes,
+  catSizes,
+  initialCategoryId = 0
 }: {
   shapes: Shape[];
   sizes: Size[];
   categories: Category[];
   catShapes: CatShape[];
+  catSizes: {category_id:number;shape_size_id:number}[];
+  initialCategoryId?:number;
 }) {
   const router = useRouter();
+  const [categoryFilter,setCategoryFilter] = useState(initialCategoryId);
+  const scoped = categories.some(category => category.id === categoryFilter);
   const [newShape, setNewShape] = useState('');
   const [expandedSizes, setExpandedSizes] = useState<number | null>(null);
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
@@ -44,9 +50,8 @@ export default function ShapesClient({
   const [localShapes, setLocalShapes] = useState(shapes);
   useEffect(() => setLocalShapes(shapes), [shapes]);
 
-  const visibleShapes = search.trim()
-    ? localShapes.filter((s) => s.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : localShapes;
+  const visibleShapes = localShapes.filter(shape => (!scoped || catShapes.some(link => link.category_id === categoryFilter && link.shape_id === shape.id)) && shape.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const canReorder = !scoped && !search.trim();
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
     const prev = localShapes;
@@ -163,6 +168,8 @@ export default function ShapesClient({
 
   return (
     <>
+      <label>Filter by category<select aria-label="Shape category filter" value={categoryFilter} onChange={event => setCategoryFilter(Number(event.target.value))}><option value={0}>All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+      {scoped && <p>Showing shapes and sizes linked to this category. <a href={`/admin/categories/${categoryFilter}?tab=shapes`}>Manage category shapes &amp; sizes</a>. Names are shared across categories.</p>}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 420 }}>
         <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addShape()} />
         <button className="btn" onClick={addShape}>Add shape</button>
@@ -178,21 +185,21 @@ export default function ShapesClient({
         <tbody>
           {visibleShapes.map((s) => {
             const index = localShapes.findIndex((ls) => ls.id === s.id);
-            const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id);
+            const shapeSizes = sizes.filter((sz) => sz.shape_id === s.id && (!scoped || catSizes.some(link => link.category_id === categoryFilter && link.shape_size_id === sz.id)));
             const linkedCatIds = catShapes.filter((cs) => cs.shape_id === s.id).map((cs) => cs.category_id);
             const sizesOpen = expandedSizes === s.id;
             const catsOpen = expandedCats === s.id;
-            const dragProps = search.trim() ? {} : dropTargetProps(index);
+            const dragProps = canReorder ? dropTargetProps(index) : {};
             return (
               <>
                 <tr
                   key={s.id}
                   {...dragProps}
-                  className={!search.trim() && overIndex === index ? 'drag-over-row' : ''}
-                  style={{ opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
+                  className={canReorder && overIndex === index ? 'drag-over-row' : ''}
+                  style={{ opacity: canReorder && dragIndex === index ? 0.4 : 1 }}
                 >
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    {!search.trim() && (
+                    {canReorder && (
                       <>
                         <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
                         <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
@@ -211,7 +218,7 @@ export default function ShapesClient({
                       {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
                     </button>
                   </td>
-                  <td><button className="btn-danger" onClick={() => deleteShape(s.id, s.name)}>Delete</button></td>
+                  <td>{!scoped && <button className="btn-danger" onClick={() => deleteShape(s.id, s.name)}>Delete</button>}</td>
                 </tr>
                 {sizesOpen && (
                   <tr key={`${s.id}-sizes`}>
@@ -222,6 +229,7 @@ export default function ShapesClient({
                             {sz.size_mm} mm{sz.weight_ct ? ` · ${sz.weight_ct}ct` : ''}
                             <button
                               type="button"
+                              hidden={scoped}
                               aria-label={`Delete size ${sz.size_mm}mm`}
                               style={{ cursor: 'pointer', color: '#a3341f', background: 'none', border: 'none', padding: 0, font: 'inherit' }}
                               onClick={() => deleteSize(sz.id)}

@@ -34,6 +34,7 @@ const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
 
 export default function CategoryAdminClient({
   categoryId,
+  section = 'overview',
   allShapes,
   allColors,
   allTags,
@@ -48,6 +49,7 @@ export default function CategoryAdminClient({
   badgeTypes
 }: {
   categoryId: number;
+  section?: string;
   allShapes: ShapeRef[];
   allColors: ColorRef[];
   allTags: Tag[];
@@ -335,10 +337,11 @@ export default function CategoryAdminClient({
   ];
 
   return (
-    <div style={{ marginTop: 20 }}>
+    <div data-category-section={section} style={{ marginTop: 20 }}>
       <nav className="category-editor-nav" aria-label="Category sections">
         <a href="#category-summary">Overview</a><a href="#category-options">Shapes, colors &amp; sizes</a><a href="#category-cover">Cover</a><a href="#category-upload">Upload &amp; import</a><a href="#category-gallery">Photo library</a>
       </nav>
+      {section === 'overview' && <p>Use the tabs above to manage this category’s shapes, sizes, colors, photos and pricing.</p>}
       {photoSaveError && <p role="alert">{photoSaveError}</p>}
       {/* At-a-glance summary of everything linked to this category -- collapsed to just
           the counts by default (the full name lists were overwhelming at a glance on
@@ -365,7 +368,7 @@ export default function CategoryAdminClient({
       {/* Shapes+sizes, Colors, Tags -- all compact dropdowns in one row to minimize page scroll */}
       <section id="category-options" style={{ marginBottom: 24 }}>
         <div className="link-row">
-          <div>
+          <div data-editor-part="shapes">
             <h3 className="section-label">Shapes &amp; sizes</h3>
             <ShapeSizeSelect
               allShapes={allShapes}
@@ -377,7 +380,7 @@ export default function CategoryAdminClient({
               onBulkSizes={setAllSizesForShape}
             />
           </div>
-          <div>
+          <div data-editor-part="colors">
             <h3 className="section-label">Colors</h3>
             <MultiSelect
               options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
@@ -388,7 +391,7 @@ export default function CategoryAdminClient({
               palettes={colorPalettes}
             />
           </div>
-          <div>
+          <div data-editor-part="specifications">
             <h3 className="section-label">Specifications</h3>
             <MultiSelect
               options={allTags.map((t) => ({ id: t.id, name: t.name }))}

@@ -869,3 +869,20 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .category-editor-nav { position: sticky; top: 60px; z-index: 10; background: var(--ivory, #fffdf6); display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
 .category-editor-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; }
 [id^="category-"] { scroll-margin-top: 160px; }
+
+/* Category workspaces show only the selected management section. */
+[data-category-section] .category-editor-nav { display: none; }
+[data-category-section]:not([data-category-section="overview"]) #category-summary { display: none; }
+[data-category-section="overview"] #category-options,
+[data-category-section="overview"] #category-cover,
+[data-category-section="overview"] #category-upload,
+[data-category-section="overview"] #category-gallery { display: none; }
+[data-category-section="shapes"] #category-cover,
+[data-category-section="shapes"] #category-upload,
+[data-category-section="shapes"] #category-gallery,
+[data-category-section="specifications"] #category-cover,
+[data-category-section="specifications"] #category-upload,
+[data-category-section="specifications"] #category-gallery { display: none; }
+[data-category-section="shapes"] [data-editor-part]:not([data-editor-part="shapes"]),
+[data-category-section="specifications"] [data-editor-part]:not([data-editor-part="specifications"]),
+[data-category-section="photos"] #category-options { display: none; }

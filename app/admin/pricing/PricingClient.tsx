@@ -8,8 +8,8 @@ type Size = { id: number; shapeId: number; sizeMm: string };
 type Group = { id: number; name: string; sort_order: number };
 type Price = { shapeId: number; shapeSizeId: number; groupId: number; priceRmb: number };
 
-export default function PricingClient({ categories, initialMultiplier }: { categories: Category[]; initialMultiplier: string }) {
-  const defaultCat = categories.find((c) => c.name.toLowerCase().includes('crushed ice')) || categories[0];
+export default function PricingClient({ categories, initialMultiplier, initialCategoryId }: { categories: Category[]; initialMultiplier: string; initialCategoryId?: number }) {
+  const defaultCat = categories.find(c => c.id === initialCategoryId) || categories.find((c) => c.name.toLowerCase().includes('crushed ice')) || categories[0];
   const [categoryId, setCategoryId] = useState<number | null>(defaultCat?.id ?? null);
   const [multiplier, setMultiplier] = useState(initialMultiplier);
   const [currency, setCurrency] = useState<'RMB' | 'INR'>('RMB');
