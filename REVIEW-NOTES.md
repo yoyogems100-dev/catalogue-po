@@ -47,3 +47,13 @@ This batch passes the production build/TypeScript and seven regression tests. He
 Installed development-only PGlite 0.5.8 within the owner's 5 GB cap: approximately 25 MB installed plus 8.4 MB npm cache growth. `npm run test:local-db` checks synthetic in-memory commits, constraints and rollback; it does not reproduce the live schema or test application writes. No Docker runtime was installed. Seven regression tests and the production build pass.
 
 Recorded proprietor-provided invoice identity/address/contact in docs/BUSINESS-REQUIREMENTS.md. Tax/shipping rules and admin team permissions remain unset. Added /admin/content and its menu link as an entry point for existing catalogue, photo, header-logo and pricing controls; this is not a general page builder. No production settings were changed.
+
+## Currency views, selected-first pickers and dashboard — 10 September 2026
+
+Admin pricing has RMB and INR views. RMB retains supplier-price editing and the conversion multiplier; INR displays converted prices only. Both the INR view and exports use the saved multiplier, not an unsaved draft. Price-list PDFs always display INR-only amounts and omit supplier RMB prices and the rate. CSV follows the selected view. INR view is read-only; switching currencies does not rewrite prices. Invalid/missing conversion rates block INR PDF export. Price loading now cancels stale category requests and reports errors, and failed saves no longer change the converted-price state.
+
+The combined shapes/sizes picker now places selected options first when opened (sizes when expanded), matching existing customer IconSelect and admin MultiSelect behavior. Ordering stays stable while selecting. Added a keyboard-accessible trigger, named controls, Escape and click-outside handling.
+
+The /admin overview remains the login destination. Added today's orders (India time) and website-content shortcuts. Internal admin navigation now stays in the same tab.
+
+Validation: production build/TypeScript and seven regression tests pass. Browser checks against synthetic component fixtures verify currency values/hidden multiplier, saved-rate behavior and selected-first order in all three picker types, with zero writes. PDF text extraction verifies INR 24 from RMB 2 × 12 and absence of RMB/rate text; the rendered page was visually reviewed. No live prices or catalogue links were modified. Changes remain on the review branch.

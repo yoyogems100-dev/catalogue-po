@@ -19,6 +19,7 @@ async function check() {
     groups: [{ id: 1, name: 'White' }], sections: [{ shapeName: 'Round', rows: [{ sizeMm: '6', prices: { 1: 2 } }] }],
     logoUrl: '', contactWhatsapp: null, contactLocation: null
   }} /> as any);
+  if (process.env.PRICE_PDF_QA_OUTPUT) writeFileSync(process.env.PRICE_PDF_QA_OUTPUT, prices);
   for (const buffer of [order, prices]) {
     assert.equal(buffer.subarray(0, 5).toString(), '%PDF-');
     assert.ok(buffer.length > 1000);

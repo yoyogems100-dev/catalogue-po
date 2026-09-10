@@ -15,13 +15,11 @@ export default async function PricingPage() {
     <>
       <h1>Pricing</h1>
       <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
-        Set per-piece prices in RMB by shape, size, and color group -- matches the supplier
-        price sheet's own layout. Customers see the RMB price converted to INR using the
-        multiplier below.
+        Manage per-piece prices by category, shape, size and color group. Choose a currency view below; exported PDFs show INR prices only.
       </p>
       <PricingClient
         categories={(categories || []).map((c: any) => ({ id: c.id, name: c.name }))}
-        initialMultiplier={settings.rmb_inr_multiplier || '12'}
+        initialMultiplier={settings.rmb_inr_multiplier || ''}
       />
     </>
   );

@@ -60,7 +60,8 @@ export async function GET(req: NextRequest) {
     .filter((section: PriceListShapeSection) => section.rows.some((r) => Object.values(r.prices).some((v) => v !== null)));
 
   const multiplierRow = await supabaseAdmin.from('settings').select('value').eq('key', 'rmb_inr_multiplier').maybeSingle();
-  const multiplier = Number(multiplierRow.data?.value) || 1;
+  const multiplier = Number(multiplierRow.data?.value);
+  if (multiplierRow.error || !Number.isFinite(multiplier) || multiplier <= 0) return NextResponse.json({ error: 'Save a valid conversion rate before exporting INR prices.' }, { status: 400 });
 
   const data: PriceListData = {
     categoryName: category.name,

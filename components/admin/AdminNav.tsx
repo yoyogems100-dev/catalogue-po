@@ -38,7 +38,7 @@ const ExternalIcon = () => (
 // stay on a persistent compact top bar since those are worth reaching
 // without opening the drawer first.
 const NAV_LINKS = [
-  { href: '/admin', label: 'Dashboard' },
+  { href: '/admin', label: 'Overview' },
   { href: '/admin/content', label: 'Website content' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/categories', label: 'Categories' },
@@ -64,7 +64,7 @@ export default function AdminNav() {
           <MenuIcon />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Link href="/admin" className="admin-mobile-home" aria-label="Dashboard" target="_blank">
+          <Link href="/admin" className="admin-mobile-home" aria-label="Admin overview">
             <HomeIcon />
           </Link>
           <a href="/" target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label="View public site">
@@ -88,7 +88,6 @@ export default function AdminNav() {
             key={l.href}
             href={l.href}
             onClick={close}
-            target="_blank"
             aria-current={pathname === l.href ? 'page' : undefined}
           >
             {l.label}
