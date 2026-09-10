@@ -10,11 +10,18 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
   const orderId = Number(params.id);
   const { prices } = await req.json();
 
-  for (const p of Array.isArray(prices) ? prices : []) {
-    if (!p?.itemId) continue;
-    const value = p.unitPrice === '' || p.unitPrice === null || p.unitPrice === undefined ? null : Number(p.unitPrice);
-    if (value !== null && (Number.isNaN(value) || value < 0)) continue;
-    await supabaseAdmin.from('order_items').update({ unit_price: value }).eq('id', p.itemId).eq('order_id', orderId);
+  if (!Array.isArray(prices) || prices.length === 0 || prices.some(p =>
+    !Number.isSafeInteger(p?.itemId) || p.itemId <= 0 ||
+    !(p.unitPrice === '' || p.unitPrice === null ||
+      ((typeof p.unitPrice === 'string' || typeof p.unitPrice === 'number') &&
+        /^\d+(\.\d+)?$/.test(String(p.unitPrice).trim()) && Number.isFinite(Number(p.unitPrice))))
+  )) return NextResponse.json({ error: 'Enter valid non-negative prices or leave them blank.' }, { status: 400 });
+
+  for (const p of prices) {
+    const value = p.unitPrice === '' || p.unitPrice === null ? null : Number(p.unitPrice);
+    const { data, error } = await supabaseAdmin.from('order_items').update({ unit_price: value })
+      .eq('id', p.itemId).eq('order_id', orderId).select('id').maybeSingle();
+    if (error || !data) return NextResponse.json({ error: 'Could not save every price. Some may have saved; review and retry.' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

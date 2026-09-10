@@ -19,3 +19,13 @@ Framework/dependency maintenance, admin authorization checks, safe session defau
 ## Review limits
 
 The local catalogue/admin list reads and request guards were checked. Real account sign-in delivery, customer history with real credentials, admin writes, and order submission were not exercised against the live database. Tests render synthetic order/PDF data without uploading it or messaging anyone.
+
+## Order workflow follow-up — 10 September 2026
+
+Owner confirmed that Purchase remains the customer-facing action and the team confirms price and availability afterward. Catalogue submission now shows a persistent reference and Order placed (or Quotation requested), plus an explicit WhatsApp share link. My Orders shows the saved description, payment status and latest generated PDF.
+
+Admin pricing now uses Save/Discard, validates optional values and reports write failures. Unsaved prices block PDF generation/sharing. WhatsApp previews include up to three latest customer-visible admin notes; the action still opens a draft for the admin to send, not a delivery receipt. PDF generation includes payment status, contact-name fallback and all public notes, excludes internal notes, and distinguishes a partial subtotal from a total.
+
+Confirmed by source review: customer ownership-filtered history, admin creation, status/payment editing, item editing, and notes exist. Guest history requires the matching phone identity; without a phone/session an order is not attached to an account. Phone matching currently strips punctuation but does not reconcile local vs country-code formats. Admin creation currently chooses one Purchase/Quotation type for the entire order. Existing PDFs are order summaries/quotations, not invoices. Later changes require regenerating the PDF. Price batch writes and order creation are not transactional; database-backed idempotency and rollback remain follow-up work.
+
+Validation: production build/TypeScript, six regression tests including synthetic mixed-price PDF generation, and visual review of the generated sample. No live orders, prices, notes, messages or status changes were made. Real end-to-end verification still requires a separate test database and an approved message recipient.

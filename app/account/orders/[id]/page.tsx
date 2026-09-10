@@ -17,7 +17,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_status, created_at, comment, customer_id')
+    .select('id, status, payment_status, created_at, comment, customer_id, pdf_url')
     .eq('id', orderId)
     .single();
 
@@ -115,6 +115,11 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
         <div className="po-card" style={{ marginBottom: 20 }}>
           <OrderStepper status={order.status} />
         </div>
+
+        {order.comment && <p><strong>Order description:</strong> {order.comment}</p>}
+        <p>Payment: {order.payment_status || 'pending'}</p>
+        {order.pdf_url && <p><a className="btn-ghost" href={order.pdf_url} target="_blank" rel="noopener noreferrer">Download latest order PDF</a></p>}
+        {order.status === 'placed' && <p>Our team will confirm pricing and availability.</p>}
 
         <OrderDetailClient
           orderId={order.id}
