@@ -75,3 +75,11 @@ Admin flame buttons beside colors, shapes, sizes and specifications toggle share
 Pending migration: `20260911100000_hot_selling_options.sql`; not live. Flags begin empty and require the migration plus an actual service-role deployment configuration. Until setup is complete, admin flame buttons are disabled with an explanatory message. Flags are global to the shared item, not category-specific.
 
 Validation: nine regression tests and the production build pass. Browser checks with mocked flag writes verified flame clicks do not change selected/category-linked state, hot-first ordering after reopening, failure feedback without losing the prior flag, and customer badges without editing controls. No live data was changed. The hot-selling migration was executed twice in disposable PostgreSQL and its RLS/public read-only grants checked.
+
+## Purchase-order reference carousel
+
+The category purchase-order composer now includes a compact product-photo frame beside its fields on desktop and a short strip above the fields on mobile. It uses existing category photos, filters across active shape/color/size selections, and explicitly labels a category-reference fallback when no exact tagged photo matches. Manual previous/next controls, swipe, photo counts and a native enlarged-image dialog support visual checks without changing the order. Images retain their aspect ratios; loading and broken-image states keep the frame stable. There is no autoplay, and categories without usable photo URLs retain the original form layout.
+
+The order composer remains mounted when switching to Explore Photos, preserving unfinished option/quantity selections. Returning to the order tab reloads the local requirement so gallery additions appear. No schema migration is needed for this feature.
+
+Validation: production build and 11 regression tests pass, including multi-dimension photo matching and explicit fallback behavior. Local desktop and 390px mobile browser checks cover photo navigation, enlarge/Escape/focus return, draft quantity preservation across tabs, horizontal overflow and refreshing a synthetic locally stored requirement. Screenshots were visually inspected. No live orders or catalogue writes were made.

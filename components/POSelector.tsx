@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import OrderReferenceCarousel from './OrderReferenceCarousel';
+import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -70,6 +72,8 @@ export default function POSelector({
   colors,
   sizes,
   colorPalettes,
+  photos = [],
+  active = true,
   pricing
 }: {
   categoryId: number;
@@ -78,6 +82,8 @@ export default function POSelector({
   shapes: ShapeRef[];
   colors: ColorRef[];
   sizes: Size[];
+  active?: boolean;
+  photos?: OrderReferencePhoto[];
   colorPalettes?: ColorPalette[];
   pricing?: CategoryPricing;
 }) {
@@ -107,9 +113,11 @@ export default function POSelector({
   const [toast, setToast] = useState('');
 
   useEffect(() => {
-    setCart(loadCart());
-    setHydrated(true);
-  }, []);
+    if (active) {
+      setCart(loadCart());
+      setHydrated(true);
+    }
+  }, [active]);
 
   useEffect(() => {
     if (hydrated) saveCart(cart);
@@ -314,8 +322,10 @@ export default function POSelector({
 
   return (
     <div className="po-wrap">
-      <section className="po-card">
+      <section className={`po-card po-compose-card ${photos.some(photo=>photo.url) ? "po-compose-with-reference" : ""}`}>
         <h2 className="po-heading">Add to Order</h2>
+        <OrderReferenceCarousel photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
+        <div className="po-compose-fields">
         <div className="po-add-form">
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
@@ -416,6 +426,7 @@ export default function POSelector({
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
         {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
+        </div>
       </section>
 
       <section className="po-card po-cart-card">

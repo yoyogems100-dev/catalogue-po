@@ -68,8 +68,7 @@ export default function CategoryTabs({
         </button>
       </div>
 
-      {tab === 'order' ? (
-        <div id="cat-tabpanel-order" role="tabpanel" aria-labelledby="cat-tab-order">
+        <div hidden={tab !== 'order'} id="cat-tabpanel-order" role="tabpanel" aria-labelledby="cat-tab-order">
         <POSelector
           categoryId={categoryId}
           categoryName={categoryName}
@@ -79,9 +78,11 @@ export default function CategoryTabs({
           sizes={sizes}
           colorPalettes={colorPalettes}
           pricing={pricing}
+          photos={photos}
+          active={tab === 'order'}
         />
         </div>
-      ) : (
+      {tab === 'photos' && (
         <div id="cat-tabpanel-photos" role="tabpanel" aria-labelledby="cat-tab-photos">
         <CategoryClient
           categoryId={categoryId}
