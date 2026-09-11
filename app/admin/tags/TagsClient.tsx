@@ -1,4 +1,5 @@
 'use client';
+import { HotMark } from '@/components/HotSelling';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -44,7 +45,7 @@ export default function TagsClient({ tags }: { tags: Tag[] }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {tags.map((t) => (
           <span key={t.id} className="tag-chip">
-            {t.name}{!t.is_global && ' (category-specific)'}
+            <HotMark kind="tag" ids={[t.id]} name={t.name} />{t.name}{!t.is_global && ' (category-specific)'}
             <button
               type="button"
               aria-label={`Delete tag ${t.name}`}

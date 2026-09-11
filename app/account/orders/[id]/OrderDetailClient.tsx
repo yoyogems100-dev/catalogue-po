@@ -163,7 +163,7 @@ export default function OrderDetailClient({
     });
   }, [currentOptions, pickShapeIds]);
 
-  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })), [sizesForShapes]);
+  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -435,7 +435,8 @@ export default function OrderDetailClient({
                   <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
                   <IconSelect
                     multiple
-                    options={sizeOptions}
+                    optionKind="size"
+              options={sizeOptions}
                     values={pickSizeIdxs}
                     onChange={setPickSizeIdxs}
                     placeholder={

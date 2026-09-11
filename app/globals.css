@@ -886,3 +886,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 [data-category-section="shapes"] [data-editor-part]:not([data-editor-part="shapes"]),
 [data-category-section="specifications"] [data-editor-part]:not([data-editor-part="specifications"]),
 [data-category-section="photos"] #category-options { display: none; }
+
+.hot-toggle { background: transparent; border: 1px solid transparent; border-radius: 6px; min-width: 32px; min-height: 32px; cursor: pointer; margin-left: auto; }
+.hot-toggle:focus-visible { outline: 2px solid var(--navy); }
+.hot-toggle:disabled { cursor: wait; }

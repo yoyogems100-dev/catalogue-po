@@ -1,4 +1,5 @@
 'use client';
+import { HotMark } from '@/components/HotSelling';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -207,7 +208,7 @@ export default function ShapesClient({
                       </>
                     )}
                   </td>
-                  <td><ShapeNameCell shape={s} onRename={renameShape} /></td>
+                  <td><HotMark kind="shape" ids={[s.id]} name={s.name} /><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
                     <button className="btn-ghost" onClick={() => { setExpandedSizes(sizesOpen ? null : s.id); setExpandedCats(null); }}>
                       {shapeSizes.length} sizes {sizesOpen ? '▲' : '▼'}
@@ -226,7 +227,7 @@ export default function ShapesClient({
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                         {shapeSizes.map((sz) => (
                           <span key={sz.id} className="tag-chip">
-                            {sz.size_mm} mm{sz.weight_ct ? ` · ${sz.weight_ct}ct` : ''}
+                            <HotMark kind="size" ids={[sz.id]} name={`${s.name} ${sz.size_mm} mm`} />{sz.size_mm} mm{sz.weight_ct ? ` · ${sz.weight_ct}ct` : ''}
                             <button
                               type="button"
                               hidden={scoped}

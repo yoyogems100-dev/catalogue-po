@@ -46,3 +46,9 @@ never in public-facing code).
 `supabase/migrations/20260910190000_glass_pearl_colors.sql` adds the 24 supplier chart colors with image references and restricts Glass Pearls category links to that set. It does not delete master colors, photo associations, or order references. Apply with the matching `/pearl-colors/*.png` asset release, not before. Pricing-group membership is not inferred or copied from unrelated colors; new pearl colors require the correct pricing assignments before numeric quotes can be shown.
 
 `npm run test:pearl-migration` executes the actual data migration twice in a disposable PostgreSQL fixture and checks exactly 24 links, no duplicate master colors, other-category link preservation and historical color references. This is not a substitute for live-schema reconciliation. Do not use the stale bootstrap or automatically push all migration history to production.
+
+### Pending: hot-selling dropdown options
+
+`20260911100000_hot_selling_options.sql` adds global flags for color, shape, shape-specific size and specification IDs. Public clients can read flags; writes require the authenticated admin API and service role. Apply after live schema review, coordinated with the UI release. This migration has not been applied to production. It starts empty: no products are automatically called hot selling. Flags apply wherever the same shared option appears; they do not alter category links, quantities or prices. Deleted master IDs may leave inert flag records; IDs are never inferred from display indexes.
+
+Validate locally with `npm run test:hot-selling-migration` (disposable PostgreSQL fixture, repeat execution and public read-only privileges). This does not replace full live-schema integration testing.

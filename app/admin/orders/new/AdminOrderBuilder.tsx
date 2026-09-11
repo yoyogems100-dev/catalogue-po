@@ -1,4 +1,6 @@
 'use client';
+import { useHotSelling } from '@/components/HotSelling';
+import { isHot } from '@/lib/hot-selling';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,6 +30,7 @@ type CartItem = {
 };
 
 export default function AdminOrderBuilder({ allCategories, allCustomers }: { allCategories: Category[]; allCustomers: Customer[] }) {
+  const { flags } = useHotSelling();
   const router = useRouter();
 
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
@@ -260,21 +263,21 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             <label className="po-label">Shape</label>
             <select value={pickShapeId} onChange={(e) => { setPickShapeId(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPickSizeId('all'); }} disabled={!currentOptions}>
               <option value="all">{loadingOptions ? 'Loading…' : 'Choose shape'}</option>
-              {currentOptions?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {[...(currentOptions?.shapes || [])].sort((a,b) => Number(isHot(flags,'shape',[b.id]))-Number(isHot(flags,'shape',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'shape',[s.id]) ? '🔥 ' : ''}{s.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Color</label>
             <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions}>
               <option value="all">Choose color</option>
-              {currentOptions?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,'color',[b.id]))-Number(isHot(flags,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Size (mm)</label>
             <select value={pickSizeId} onChange={(e) => setPickSizeId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={pickShapeId === 'all'}>
               <option value="all">{pickShapeId === 'all' ? 'Pick a shape first' : 'Choose size'}</option>
-              {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+              {[...(sizesForShape || [])].sort((a,b) => Number(isHot(flags,'size',[b.id]))-Number(isHot(flags,'size',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'size',[s.id]) ? '🔥 ' : ''}{s.sizeMm} mm</option>)}
             </select>
           </div>
           <div>

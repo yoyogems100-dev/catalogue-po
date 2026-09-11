@@ -67,3 +67,11 @@ Downloaded 24 exact supplier pearl thumbnails from the user-supplied Lustrella c
 The reviewed data migration is pending, not applied to production: supabase/migrations/20260910190000_glass_pearl_colors.sql. It adds the 24 named/coded colors, associates their local assets and replaces only Glass Pearls category links. Existing colors/photo/order references and other-category links are retained. Release the data change together with the assets. New pearl color pricing-group assignments remain unconfigured; no prices or mappings were invented.
 
 Validation: production build/TypeScript, seven regression tests, and the actual data migration applied twice in a disposable PostgreSQL fixture. Browser QA verifies distinct category tabs, fixed-category pricing, master color/shape filters and all 24 image downloads. No live mutation or message was sent. The user's final extra dropdown sentence was incomplete; clarification is pending.
+
+## Hot-selling dropdown options
+
+Admin flame buttons beside colors, shapes, sizes and specifications toggle shared hot-selling flags. Buttons are available in master lists and category option pickers. Public dropdowns show a flame and rank hot options before ordinary ones; selected options lead within each group. Ordering is snapshotted on opening to prevent rows moving during interaction. Grouped order sizes carry their underlying shape-size IDs rather than synthetic display indexes. Customer controls cannot edit flags. Save failures retain the previous flag and show an admin error. The separate flag API does not change catalogue associations.
+
+Pending migration: `20260911100000_hot_selling_options.sql`; not live. Flags begin empty and require the migration plus an actual service-role deployment configuration. Until setup is complete, admin flame buttons are disabled with an explanatory message. Flags are global to the shared item, not category-specific.
+
+Validation: nine regression tests and the production build pass. Browser checks with mocked flag writes verified flame clicks do not change selected/category-linked state, hot-first ordering after reopening, failure feedback without losing the prior flag, and customer badges without editing controls. No live data was changed. The hot-selling migration was executed twice in disposable PostgreSQL and its RLS/public read-only grants checked.

@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { HotMark, useHotSelling } from './HotSelling';
+import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 
-type Option = { id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
+type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
 
 type CommonProps = {
+  optionKind?: OptionKind;
   options: Option[];
   leading?: 'swatch' | 'icon' | 'none';
   /** Show a filter box inside the panel once there are more than a few options. */
@@ -44,6 +47,9 @@ type Props = SingleProps | MultiProps;
 // because the discriminant (`multiple`) is optional on one side of the union.
 export default function IconSelect(props: Props) {
   const { options, leading = 'none', searchable = options.length > 6 } = props;
+  const { flags, ready } = useHotSelling();
+  const kind = props.optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
+  const hot = (o: Option) => isHot(flags, kind, o.hotIds || [o.id]);
   const isMulti = props.multiple === true;
   const single = props as SingleProps;
   const multi = props as MultiProps;
@@ -114,10 +120,10 @@ export default function IconSelect(props: Props) {
     // re-sorting on every click -- otherwise a row jumps to the top the moment
     // you check it, right out from under the cursor mid multi-select.
     const selectedIds = new Set(isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
-    const ranked = [...options].sort((a, b) => Number(!selectedIds.has(a.id)) - Number(!selectedIds.has(b.id)));
+    const ranked = rankOptions(options, selectedIds, hot);
     setOrderSnapshot(ranked.map((o) => o.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, ready]);
 
   const orderedOptions = orderSnapshot
     ? [
@@ -198,7 +204,7 @@ export default function IconSelect(props: Props) {
         onKeyDown={(e) => { if (e.key === 'Escape' && open) closeAndRefocus(); }}
       >
         <Leading o={selected} />
-        <span className="icon-select-label">{triggerLabel}</span>
+        <span className="icon-select-label">{triggerLabel}{(selected ? hot(selected) : isMulti && multi.values.length === 1 && options.some(o => o.id === multi.values[0] && hot(o))) && <span role="img" aria-label="Hot selling"> 🔥</span>}</span>
         <span className="icon-select-caret">{open ? '▲' : '▼'}</span>
       </button>
 
@@ -276,7 +282,7 @@ export default function IconSelect(props: Props) {
                     <input type="checkbox" checked={isActive} readOnly aria-hidden="true" tabIndex={-1} className="icon-select-checkbox" />
                   )}
                   <Leading o={o} />
-                  {o.name}
+                  {o.name}<HotMark kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
                 </div>
               );
             })}

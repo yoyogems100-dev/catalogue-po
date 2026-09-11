@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useHotSelling } from '@/components/HotSelling';
+import { isHot } from '@/lib/hot-selling';
 import IconSelect from '@/components/IconSelect';
 import { groupSizes } from '@/lib/size-options';
 
@@ -67,6 +69,7 @@ export default function CategoryClient({
 }) {
   const [addFeedback, setAddFeedback] = useState<Record<number, string>>({});
 
+  const { flags } = useHotSelling();
   // A photo can be tagged with more than one shape/color/size (e.g. one
   // photo standing in for a size range) -- adding it fans out into one cart
   // line per combination, same as the multi-select "Add line" builders
@@ -209,7 +212,7 @@ export default function CategoryClient({
           {availableSizes.length > 0 && (
             <select aria-label="Filter by size" value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
               <option value="all">All sizes</option>
-              {availableSizes.map((s) => <option key={s.key} value={s.key}>{s.label} mm</option>)}
+              {[...availableSizes].sort((a,b) => Number(isHot(flags,'size',b.ids))-Number(isHot(flags,'size',a.ids))).map((s) => <option key={s.key} value={s.key}>{isHot(flags,'size',s.ids) ? '🔥 ' : ''}{s.label} mm</option>)}
             </select>
           )}
           {colors.length > 0 && (
@@ -218,7 +221,7 @@ export default function CategoryClient({
           {tags.length > 0 && (
             <select aria-label="Filter by specification" value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
               <option value="all">All specifications</option>
-              {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {[...tags].sort((a,b) => Number(isHot(flags,'tag',[b.id]))-Number(isHot(flags,'tag',[a.id]))).map((t) => <option key={t.id} value={t.id}>{isHot(flags,'tag',[t.id]) ? '🔥 ' : ''}{t.name}</option>)}
             </select>
           )}
           <span style={{ fontSize: 12, color: '#756e5c' }}>{filtered.length} of {photos.length} photos</span>

@@ -394,6 +394,7 @@ export default function CategoryAdminClient({
           <div data-editor-part="specifications">
             <h3 className="section-label">Specifications</h3>
             <MultiSelect
+              optionKind="tag"
               options={allTags.map((t) => ({ id: t.id, name: t.name }))}
               selectedIds={linkedTagIds}
               onToggle={(id, active) => toggleLink('tag', id, active)}
@@ -686,6 +687,7 @@ function PhotoRow({
         {field === 'size' && (
           <IconSelect
             multiple
+            optionKind="size"
             options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
             values={sizeIds}
             onChange={updateSizes}

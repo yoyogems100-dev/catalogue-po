@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { HotMark, useHotSelling } from './HotSelling';
+import { isHot, rankOptions } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 
 type Ref = { id: number; name: string };
@@ -24,6 +26,7 @@ export default function ShapeSizeSelect({
   onToggleSize: (id: number, currentlySelected: boolean) => void | Promise<void>;
   onBulkSizes: (shapeId: number, sizeIds: number[]) => void;
 }) {
+  const { flags, ready } = useHotSelling();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -51,18 +54,18 @@ export default function ShapeSizeSelect({
 
   useEffect(() => {
     if (!open) { setQuery(''); return; }
-    setShapeOrder([...allShapes].sort((a,b) => Number(localShapeIds.includes(b.id)) - Number(localShapeIds.includes(a.id))).map(shape => shape.id));
+    setShapeOrder(rankOptions(allShapes, new Set(localShapeIds), option => isHot(flags, 'shape', [option.id])).map(shape => shape.id));
     const outside = (event: MouseEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', outside);
     return () => document.removeEventListener('mousedown', outside);
     // Keep options stable while checking items; reorder on the next opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, ready]);
   useEffect(() => {
     if (!open) return;
-    setSizeOrder([...allSizes].sort((a,b) => Number(localSizeIds.includes(b.id)) - Number(localSizeIds.includes(a.id))).map(size => size.id));
+    setSizeOrder(rankOptions(allSizes, new Set(localSizeIds), option => isHot(flags, 'size', [option.id])).map(size => size.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, expandedShapeId]);
+  }, [open, expandedShapeId, ready]);
   const orderedShapes = [...allShapes].sort((a,b) => {
     const left = shapeOrder.indexOf(a.id), right = shapeOrder.indexOf(b.id);
     return (left < 0 ? allShapes.length : left) - (right < 0 ? allShapes.length : right);
@@ -170,6 +173,7 @@ export default function ShapeSizeSelect({
                     <ShapeIcon iconKey={shape.iconKey} />
                     {shape.name}
                   </label>
+                  <HotMark kind="shape" ids={[shape.id]} name={shape.name} />
                   {active && (
                     <button
                       type="button"
@@ -216,8 +220,7 @@ export default function ShapeSizeSelect({
                           {sizesForShape.map((sz) => {
                             const sizeActive = localSizeIds.includes(sz.id);
                             return (
-                              <button
-                                key={sz.id}
+                              <span key={sz.id} style={{display:"inline-flex",alignItems:"center"}}><button
                                 type="button"
                                 aria-pressed={sizeActive}
                                 className={`tag-chip ${sizeActive ? 'active' : ''}`}
@@ -225,7 +228,7 @@ export default function ShapeSizeSelect({
                                 onClick={() => handleToggleSize(sz.id, sizeActive)}
                               >
                                 {sz.size_mm}mm
-                              </button>
+                              </button><HotMark kind="size" ids={[sz.id]} name={`${shape.name} ${sz.size_mm} mm`} /></span>
                             );
                           })}
                         </div>

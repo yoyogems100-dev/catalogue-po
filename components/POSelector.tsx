@@ -150,7 +150,7 @@ export default function POSelector({
   }, [sizes, pickShapeIds]);
 
   const sizeOptions = useMemo(
-    () => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })),
+    () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })),
     [sizesForShapes]
   );
 
@@ -344,6 +344,7 @@ export default function POSelector({
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
               multiple
+              optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
