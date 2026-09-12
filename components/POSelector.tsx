@@ -76,6 +76,7 @@ export default function POSelector({
   sizes,
   colorPalettes,
   photos = [],
+  colorChartUrl,
   active = true,
   pricing
 }: {
@@ -87,6 +88,7 @@ export default function POSelector({
   sizes: Size[];
   active?: boolean;
   photos?: OrderReferencePhoto[];
+  colorChartUrl?: string | null;
   colorPalettes?: ColorPalette[];
   pricing?: CategoryPricing;
 }) {
@@ -325,9 +327,9 @@ export default function POSelector({
 
   return (
     <div className="po-wrap">
-      <section className={`po-card po-compose-card ${photos.some(photo=>photo.url) ? "po-compose-with-reference" : ""}`}>
+      <section className={`po-card po-compose-card ${(photos.some(photo=>photo.url) || colorChartUrl) ? "po-compose-with-reference" : ""}`}>
         <h2 className="po-heading">Add to Order</h2>
-        <OrderReferenceCarousel photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
+        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setReceipt(null);}} /> : <>
         <div className="po-add-form">

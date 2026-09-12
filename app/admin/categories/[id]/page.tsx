@@ -1,3 +1,4 @@
+import CategoryColorChart from '@/components/admin/CategoryColorChart';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
@@ -14,7 +15,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const params = await paramsPromise;
   const categoryId = Number(params.id);
   const requestedTab = (await searchParams).tab;
-  const tab = ['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
+  const tab = ['overview','shapes','colors','color-chart','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
   const settings = tab === 'pricing' ? await getSettings() : {};
 
   const [
@@ -31,7 +32,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: colorPalettesRaw },
     { data: colorPaletteItems }
   ] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
@@ -82,10 +83,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
-        {['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        {['overview','shapes','colors','color-chart','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
+      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
         key={categoryId}
         section={tab}
         categoryId={categoryId}
