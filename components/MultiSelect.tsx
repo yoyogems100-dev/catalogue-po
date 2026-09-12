@@ -1,5 +1,7 @@
 'use client';
 
+import { useDropdownBounds } from './useDropdownBounds';
+
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
@@ -39,6 +41,7 @@ export default function MultiSelect({
   const [localIds, setLocalIds] = useState<number[]>(selectedIds);
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -183,7 +186,7 @@ export default function MultiSelect({
       </button>
 
       {open && (
-        <div className="ms-panel">
+        <div className="ms-panel" style={panelStyle}>
           <input
             type="text"
             placeholder="Search..."

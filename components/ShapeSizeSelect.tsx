@@ -1,5 +1,7 @@
 'use client';
 
+import { useDropdownBounds } from './useDropdownBounds';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions } from '@/lib/hot-selling';
@@ -29,6 +31,7 @@ export default function ShapeSizeSelect({
   const { flags, ready } = useHotSelling();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [shapeOrder, setShapeOrder] = useState<number[]>([]);
   const [sizeOrder, setSizeOrder] = useState<number[]>([]);
@@ -150,7 +153,7 @@ export default function ShapeSizeSelect({
       </button>
 
       {open && (
-        <div className="ms-panel">
+        <div className="ms-panel" style={panelStyle}>
           <input
             type="text"
             aria-label="Search shapes"
