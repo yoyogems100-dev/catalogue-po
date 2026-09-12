@@ -420,6 +420,7 @@ export default function OrderDetailClient({
                   <IconSelect
                     multiple
                     options={currentOptions?.colors || []}
+                    locked={pickCategoryId === 34}
                     values={pickColorIds}
                     onChange={setPickColorIds}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}

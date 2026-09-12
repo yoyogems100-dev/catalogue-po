@@ -1029,3 +1029,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
  .po-reference-pair .reference-tile-footer { padding: 2px 0; }
  .admin-color-chart { padding: 14px; }
 }
+.shape-reference-icon { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; flex-shrink: 0; background: #fff; }
+.icon-select-trigger .shape-reference-icon { width: 26px; height: 26px; }
+.icon-select-trigger:disabled { opacity: 1; color: var(--ink); background: #f4f2ec; cursor: default; }
+.size-chart-download { display: inline-flex; align-items: center; margin: 12px 0; min-height: 44px; font-size: 13px; }

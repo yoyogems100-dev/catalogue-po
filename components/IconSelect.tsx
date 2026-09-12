@@ -12,6 +12,7 @@ type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null
 type Palette = { id: number; name: string; memberIds: number[] };
 
 type CommonProps = {
+  locked?: boolean;
   optionKind?: OptionKind;
   options: Option[];
   leading?: 'swatch' | 'icon' | 'none';
@@ -55,6 +56,13 @@ export default function IconSelect(props: Props) {
   const isMulti = props.multiple === true;
   const single = props as SingleProps;
   const multi = props as MultiProps;
+
+  useEffect(() => {
+    if (!props.locked || options.length !== 1) return;
+    const id = options[0].id;
+    if (isMulti) { if (multi.values.length !== 1 || multi.values[0] !== id) multi.onChange([id]); }
+    else if (single.value !== id) single.onChange(id);
+  }, [props.locked, options, isMulti, multi.values, single.value]);
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -138,6 +146,7 @@ export default function IconSelect(props: Props) {
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
     if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={16} />;
+    if (leading === 'icon' && o.refPhotoUrl) return <img className="shape-reference-icon" src={o.refPhotoUrl} alt="" />;
     if (leading === 'icon') return <span className="icon-select-icon"><ShapeIcon iconKey={o.iconKey} size={13} /></span>;
     return null;
   }
@@ -200,6 +209,7 @@ export default function IconSelect(props: Props) {
         ref={triggerRef}
         type="button"
         className="icon-select-trigger"
+        disabled={props.locked}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -207,8 +217,8 @@ export default function IconSelect(props: Props) {
         onKeyDown={(e) => { if (e.key === 'Escape' && open) closeAndRefocus(); }}
       >
         <Leading o={selected} />
-        <span className="icon-select-label">{triggerLabel}{(selected ? hot(selected) : isMulti && multi.values.length === 1 && options.some(o => o.id === multi.values[0] && hot(o))) && <span role="img" aria-label="Hot selling"> 🔥</span>}</span>
-        <span className="icon-select-caret">{open ? '▲' : '▼'}</span>
+        <span className="icon-select-label">{props.locked ? options[0]?.name || triggerLabel : triggerLabel}{(selected ? hot(selected) : isMulti && multi.values.length === 1 && options.some(o => o.id === multi.values[0] && hot(o))) && <span role="img" aria-label="Hot selling"> 🔥</span>}</span>
+        {!props.locked && <span className="icon-select-caret">{open ? '▲' : '▼'}</span>}
       </button>
 
       {open && (

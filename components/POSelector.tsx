@@ -12,7 +12,7 @@ import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import QuantityInput from './QuantityInput';
 
-type ShapeRef = { id: number; name: string; iconKey?: string | null };
+type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
 
@@ -338,6 +338,7 @@ export default function POSelector({
             <IconSelect
               multiple
               options={colors}
+              locked={categoryId === 34}
               values={pickColorIds}
               onChange={setPickColorIds}
               placeholder="Choose color(s)"

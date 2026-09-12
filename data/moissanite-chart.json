@@ -1,0 +1,1176 @@
+[
+  {
+    "name": "Round",
+    "image": "/moissanite-shapes/round.png",
+    "rows": [
+      {
+        "size": "0.7",
+        "diamondEquivalentCt": 0.001
+      },
+      {
+        "size": "0.8",
+        "diamondEquivalentCt": 0.003
+      },
+      {
+        "size": "0.9",
+        "diamondEquivalentCt": 0.004
+      },
+      {
+        "size": "1",
+        "diamondEquivalentCt": 0.005
+      },
+      {
+        "size": "1.1",
+        "diamondEquivalentCt": 0.006
+      },
+      {
+        "size": "1.2",
+        "diamondEquivalentCt": 0.008
+      },
+      {
+        "size": "1.3",
+        "diamondEquivalentCt": 0.01
+      },
+      {
+        "size": "1.4",
+        "diamondEquivalentCt": 0.012
+      },
+      {
+        "size": "1.5",
+        "diamondEquivalentCt": 0.015
+      },
+      {
+        "size": "1.6",
+        "diamondEquivalentCt": 0.017
+      },
+      {
+        "size": "1.7",
+        "diamondEquivalentCt": 0.02
+      },
+      {
+        "size": "1.8",
+        "diamondEquivalentCt": 0.025
+      },
+      {
+        "size": "1.9",
+        "diamondEquivalentCt": 0.027
+      },
+      {
+        "size": "2",
+        "diamondEquivalentCt": 0.03
+      },
+      {
+        "size": "2.1",
+        "diamondEquivalentCt": 0.035
+      },
+      {
+        "size": "2.2",
+        "diamondEquivalentCt": 0.04
+      },
+      {
+        "size": "2.3",
+        "diamondEquivalentCt": 0.045
+      },
+      {
+        "size": "2.4",
+        "diamondEquivalentCt": 0.05
+      },
+      {
+        "size": "2.5",
+        "diamondEquivalentCt": 0.06
+      },
+      {
+        "size": "2.6",
+        "diamondEquivalentCt": 0.065
+      },
+      {
+        "size": "2.7",
+        "diamondEquivalentCt": 0.07
+      },
+      {
+        "size": "2.8",
+        "diamondEquivalentCt": 0.08
+      },
+      {
+        "size": "2.9",
+        "diamondEquivalentCt": 0.085
+      },
+      {
+        "size": "3",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "3.25",
+        "diamondEquivalentCt": 0.15
+      },
+      {
+        "size": "3.5",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3.6",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3.75",
+        "diamondEquivalentCt": 0.25
+      },
+      {
+        "size": "4",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4.25",
+        "diamondEquivalentCt": 0.35
+      },
+      {
+        "size": "4.5",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "4.75",
+        "diamondEquivalentCt": 0.45
+      },
+      {
+        "size": "5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5.25",
+        "diamondEquivalentCt": 0.55
+      },
+      {
+        "size": "5.4",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "5.5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "5.75",
+        "diamondEquivalentCt": 0.7
+      },
+      {
+        "size": "6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6.25",
+        "diamondEquivalentCt": 0.9
+      },
+      {
+        "size": "6.3",
+        "diamondEquivalentCt": 0.9
+      },
+      {
+        "size": "6.5",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "7",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "7.2",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "7.25",
+        "diamondEquivalentCt": 1.35
+      },
+      {
+        "size": "7.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "8.1",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9.5",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "10.5",
+        "diamondEquivalentCt": 4.5
+      },
+      {
+        "size": "11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "11.5",
+        "diamondEquivalentCt": 5.5
+      },
+      {
+        "size": "12",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "12.5",
+        "diamondEquivalentCt": 7.0
+      },
+      {
+        "size": "13",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "13.5",
+        "diamondEquivalentCt": 9.0
+      },
+      {
+        "size": "14",
+        "diamondEquivalentCt": 10.0
+      },
+      {
+        "size": "14.5",
+        "diamondEquivalentCt": 11.0
+      },
+      {
+        "size": "15",
+        "diamondEquivalentCt": 12.0
+      },
+      {
+        "size": "16",
+        "diamondEquivalentCt": 15.0
+      },
+      {
+        "size": "18",
+        "diamondEquivalentCt": 20.0
+      },
+      {
+        "size": "20",
+        "diamondEquivalentCt": 25.0
+      },
+      {
+        "size": "30",
+        "diamondEquivalentCt": 100.0
+      }
+    ]
+  },
+  {
+    "name": "Emerald Cut",
+    "image": "/moissanite-shapes/emerald.png",
+    "rows": [
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3x4",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "4x5",
+        "diamondEquivalentCt": 0.7
+      },
+      {
+        "size": "4x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "4.5x6.5",
+        "diamondEquivalentCt": 0.9
+      },
+      {
+        "size": "5x7",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "5x8",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "6x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "6.5x8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "7x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "9x11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x12",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "10x14",
+        "diamondEquivalentCt": 10.0
+      },
+      {
+        "size": "12x14",
+        "diamondEquivalentCt": 12.0
+      }
+    ]
+  },
+  {
+    "name": "Radiant",
+    "image": "/moissanite-shapes/radiant.png",
+    "rows": [
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3x4",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "4x5",
+        "diamondEquivalentCt": 0.7
+      },
+      {
+        "size": "4x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "4.5x6.5",
+        "diamondEquivalentCt": 0.9
+      },
+      {
+        "size": "5x7",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "5x8",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "6x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "6.5x8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "7x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "9x11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x12",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "10x14",
+        "diamondEquivalentCt": 10.0
+      },
+      {
+        "size": "12x14",
+        "diamondEquivalentCt": 12.0
+      }
+    ]
+  },
+  {
+    "name": "Oval",
+    "image": "/moissanite-shapes/oval.png",
+    "rows": [
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4x6",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5x7",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6x8",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "6.5x8.5",
+        "diamondEquivalentCt": 1.75
+      },
+      {
+        "size": "6x9",
+        "diamondEquivalentCt": 1.75
+      },
+      {
+        "size": "7x9",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7.5x9.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "7x10",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "8x10",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x12",
+        "diamondEquivalentCt": 4.5
+      },
+      {
+        "size": "9x11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "9x12",
+        "diamondEquivalentCt": 5.5
+      },
+      {
+        "size": "10x12",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "10x14",
+        "diamondEquivalentCt": 8.0
+      }
+    ]
+  },
+  {
+    "name": "Pear",
+    "image": "/moissanite-shapes/pear.png",
+    "rows": [
+      {
+        "size": "1.5x3",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "2x3",
+        "diamondEquivalentCt": 0.12
+      },
+      {
+        "size": "2.5x3",
+        "diamondEquivalentCt": 0.15
+      },
+      {
+        "size": "2.5x3.5",
+        "diamondEquivalentCt": 0.18
+      },
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.18
+      },
+      {
+        "size": "2.5x4",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3x4",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.35
+      },
+      {
+        "size": "4x6",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5x7",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "5x8",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6x8",
+        "diamondEquivalentCt": 1.25
+      },
+      {
+        "size": "6x9",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "7x10",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7x10.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "7x11",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x10",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x12",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "9x13",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x12",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x14",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "11x15",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "12x14",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "12x16",
+        "diamondEquivalentCt": 10.0
+      }
+    ]
+  },
+  {
+    "name": "Heart",
+    "image": "/moissanite-shapes/heart.png",
+    "rows": [
+      {
+        "size": "3x3",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "3.5x3.5",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "12x12",
+        "diamondEquivalentCt": 6.0
+      }
+    ]
+  },
+  {
+    "name": "Cushion Elongated",
+    "image": "/moissanite-shapes/long-cushion.png",
+    "rows": [
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "4x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "5x7",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "9x11",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x12",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "10x14",
+        "diamondEquivalentCt": 10.0
+      }
+    ]
+  },
+  {
+    "name": "Cushion",
+    "image": "/moissanite-shapes/cushion.png",
+    "rows": [
+      {
+        "size": "3.5x3.5",
+        "diamondEquivalentCt": 0.25
+      },
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.35
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 2.2
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 4.5
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10.5x10.5",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 7.0
+      }
+    ]
+  },
+  {
+    "name": "Asscher",
+    "image": "/moissanite-shapes/asscher.png",
+    "rows": [
+      {
+        "size": "3.5x3.5",
+        "diamondEquivalentCt": 0.25
+      },
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.35
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 2.2
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 4.5
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10.5x10.5",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 7.0
+      }
+    ]
+  },
+  {
+    "name": "Marquise",
+    "image": "/moissanite-shapes/marquise.png",
+    "rows": [
+      {
+        "size": "1.5x3",
+        "diamondEquivalentCt": 0.05
+      },
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "2.5x5",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "3x6",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4x8",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "4.5x9",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "5x10",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6x12",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "6x13",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "7x14",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8x16",
+        "diamondEquivalentCt": 6.0
+      }
+    ]
+  },
+  {
+    "name": "Princess",
+    "image": "/moissanite-shapes/princess.png",
+    "rows": [
+      {
+        "size": "1.5x1.5",
+        "diamondEquivalentCt": 0.06
+      },
+      {
+        "size": "2x2",
+        "diamondEquivalentCt": 0.08
+      },
+      {
+        "size": "2.5x2.5",
+        "diamondEquivalentCt": 0.15
+      },
+      {
+        "size": "3x3",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "3.5x3.5",
+        "diamondEquivalentCt": 0.35
+      },
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 5.0
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 6.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 8.0
+      },
+      {
+        "size": "12x12",
+        "diamondEquivalentCt": 10.0
+      }
+    ]
+  },
+  {
+    "name": "Trillion",
+    "image": "/moissanite-shapes/trillion.png",
+    "rows": [
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 5.0
+      }
+    ]
+  },
+  {
+    "name": "Triangle",
+    "image": "/moissanite-shapes/triangle.png",
+    "rows": [
+      {
+        "size": "4x4",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "4.5x4.5",
+        "diamondEquivalentCt": 0.4
+      },
+      {
+        "size": "5x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "5.5x5.5",
+        "diamondEquivalentCt": 0.6
+      },
+      {
+        "size": "6x6",
+        "diamondEquivalentCt": 0.8
+      },
+      {
+        "size": "6.5x6.5",
+        "diamondEquivalentCt": 1.0
+      },
+      {
+        "size": "7x7",
+        "diamondEquivalentCt": 1.2
+      },
+      {
+        "size": "7.5x7.5",
+        "diamondEquivalentCt": 1.5
+      },
+      {
+        "size": "8x8",
+        "diamondEquivalentCt": 2.0
+      },
+      {
+        "size": "8.5x8.5",
+        "diamondEquivalentCt": 2.5
+      },
+      {
+        "size": "9x9",
+        "diamondEquivalentCt": 3.0
+      },
+      {
+        "size": "9.5x9.5",
+        "diamondEquivalentCt": 3.5
+      },
+      {
+        "size": "10x10",
+        "diamondEquivalentCt": 4.0
+      },
+      {
+        "size": "11x11",
+        "diamondEquivalentCt": 5.0
+      }
+    ]
+  },
+  {
+    "name": "Trapezoid",
+    "image": "/moissanite-shapes/trapezoid.png",
+    "rows": [
+      {
+        "size": "2x1.5x1",
+        "diamondEquivalentCt": 0.06
+      },
+      {
+        "size": "2.5x1.5x1",
+        "diamondEquivalentCt": 0.07
+      },
+      {
+        "size": "3x1.5x1",
+        "diamondEquivalentCt": 0.08
+      },
+      {
+        "size": "3x2x1",
+        "diamondEquivalentCt": 0.1
+      },
+      {
+        "size": "4x3x2",
+        "diamondEquivalentCt": 0.2
+      },
+      {
+        "size": "5x3x2",
+        "diamondEquivalentCt": 0.3
+      },
+      {
+        "size": "5x4x2",
+        "diamondEquivalentCt": 0.4
+      }
+    ]
+  },
+  {
+    "name": "Baguette",
+    "image": "/moissanite-shapes/baguette.png",
+    "rows": [
+      {
+        "size": "1x1.5",
+        "diamondEquivalentCt": 0.04
+      },
+      {
+        "size": "1x2",
+        "diamondEquivalentCt": 0.06
+      },
+      {
+        "size": "1.5x2",
+        "diamondEquivalentCt": 0.07
+      },
+      {
+        "size": "1.5x2.5",
+        "diamondEquivalentCt": 0.075
+      },
+      {
+        "size": "1.5x3",
+        "diamondEquivalentCt": 0.09
+      },
+      {
+        "size": "2x3",
+        "diamondEquivalentCt": 0.12
+      },
+      {
+        "size": "2x4",
+        "diamondEquivalentCt": 0.15
+      },
+      {
+        "size": "2.5x5",
+        "diamondEquivalentCt": 0.25
+      },
+      {
+        "size": "3x5",
+        "diamondEquivalentCt": 0.5
+      },
+      {
+        "size": "3x6",
+        "diamondEquivalentCt": 0.65
+      }
+    ]
+  }
+]

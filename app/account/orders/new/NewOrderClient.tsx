@@ -280,7 +280,8 @@ export default function NewOrderClient({
             <IconSelect
               multiple
               options={currentOptions?.colors || []}
-              values={pickColorIds}
+              locked={pickCategoryId === 34}
+                    values={pickColorIds}
               onChange={setPickColorIds}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"

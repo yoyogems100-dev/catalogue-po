@@ -29,7 +29,7 @@ async function getCategoryData(slug: string) {
   if (!category) return null;
 
   const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedTagIds }, { data: linkedSizeIds }] = await Promise.all([
-    supabasePublic.from('category_shapes').select('shape_id').eq('category_id', category.id),
+    supabasePublic.from('category_shapes').select('shape_id, ref_photo_url').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_tags').select('tag_id').eq('category_id', category.id),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id)
@@ -67,7 +67,7 @@ async function getCategoryData(slug: string) {
     tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id)
   }));
 
-  const shapesFormatted = (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: s.ref_photo_url }));
+  const shapesFormatted = (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: linkedShapeIds?.find(link=>link.shape_id===s.id)?.ref_photo_url || s.ref_photo_url }));
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 
   // Palettes: only ones with at least one member actually offered in this
@@ -122,6 +122,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <Link href="/" className="back-link">&larr; All categories</Link>
         <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
+        {data.category.id === 34 && <a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Download shapes &amp; sizes PDF</a>}
         <CategoryTabs
           categoryId={data.category.id}
           categoryName={data.category.name}
