@@ -28,7 +28,7 @@ test('chart migration preserves existing charts and category covers', async () =
     await db.exec(sql);
     await db.exec("UPDATE categories SET color_chart_url='/custom.jpg' WHERE id=1;");
     await db.exec(sql);
-    const {rows} = await db.query('SELECT * FROM categories ORDER BY id');
+    const {rows} = await db.query<{ color_chart_url: string | null; thumbnail_photo_id: number }>('SELECT * FROM categories ORDER BY id');
     assert.equal(rows[0].color_chart_url, '/custom.jpg');
     assert.equal(rows[0].thumbnail_photo_id, 77);
     assert.equal(rows[1].color_chart_url, null);
