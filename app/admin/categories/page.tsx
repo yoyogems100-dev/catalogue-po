@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function CategoriesListPage() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
-    supabaseAdmin.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabaseAdmin.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabaseAdmin.from('category_shapes').select('category_id'),
     supabaseAdmin.from('category_colors').select('category_id'),
     supabaseAdmin.from('category_shape_sizes').select('category_id')
@@ -43,7 +43,7 @@ export default async function CategoriesListPage() {
     // the old cramped 170px cards but stretched badly blurry once cards grew
     // past 250px. 500 matches what the main site requests for its own
     // similarly-sized category tiles.
-    return cover ? photoUrl(cover, 500) : null;
+    return cover ? photoUrl(cover, 500, 'cover') : null;
   }
 
   const rows = (categories || []).map((c) => ({

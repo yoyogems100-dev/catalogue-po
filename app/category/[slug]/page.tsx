@@ -1,3 +1,4 @@
+import { photoUrl } from '@/lib/photos';
 import { supabasePublic } from '@/lib/supabase-public';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
@@ -51,7 +52,7 @@ async function getCategoryData(slug: string) {
   const { data: photos } = await supabasePublic
     .from('photos')
     .select(
-      'id, storage_path, drive_id, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
+      '*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
     )
     .eq('category_id', category.id)
     .eq('is_cover_only', false)
@@ -59,11 +60,7 @@ async function getCategoryData(slug: string) {
 
   const photosWithUrl = (photos || []).map((p: any) => ({
     id: p.id,
-    url: p.storage_path
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${p.storage_path}`
-      : p.drive_id
-      ? `https://lh3.googleusercontent.com/d/${p.drive_id}=w800`
-      : null,
+    url: photoUrl(p, 800),
     shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
     sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
     colorIds: (p.photo_colors || []).map((r: any) => r.color_id),

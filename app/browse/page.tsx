@@ -41,7 +41,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
     const { data: taggedPhotoIds } = await supabasePublic.from('photo_tags').select('photo_id').eq('tag_id', selectedTagId);
     const photoIds = (taggedPhotoIds || []).map((r: any) => r.photo_id);
     const { data: photos } = photoIds.length
-      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id').in('id', photoIds).eq('is_cover_only', false)
+      ? await supabasePublic.from('photos').select('*').in('id', photoIds).eq('is_cover_only', false)
       : { data: [] };
 
     const byCategory: Record<number, { id: number; url: string | null }[]> = {};
@@ -56,7 +56,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
   } else {
     // Default view: one cover/default photo per category, every category visible at once.
     const { data: photos } = categoryIds.length
-      ? await supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').in('category_id', categoryIds).order('sort_order')
+      ? await supabasePublic.from('photos').select('*').in('category_id', categoryIds).order('sort_order')
       : { data: [] };
 
     const firstPhotoByCategory: Record<number, any> = {};
@@ -69,7 +69,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
     sections = (categories || [])
       .map((c) => {
         const cover = (c.thumbnail_photo_id && photoById[c.thumbnail_photo_id]) || firstPhotoByCategory[c.id] || null;
-        return { category: { id: c.id, name: c.name, slug: c.slug }, photos: cover ? [{ id: cover.id, url: photoUrl(cover, 400) }] : [] };
+        return { category: { id: c.id, name: c.name, slug: c.slug }, photos: cover ? [{ id: cover.id, url: photoUrl(cover, 400, 'cover') }] : [] };
       })
       .filter((s) => s.photos.length > 0);
   }

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
+import PhotoCropEditor from '@/components/admin/PhotoCropEditor';
+import type { SavedCrop } from '@/lib/photo-crop';
 import MultiSelect from '@/components/MultiSelect';
 import IconSelect from '@/components/IconSelect';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
@@ -14,6 +16,9 @@ type ShapeRef = Ref & { iconKey?: string | null };
 type Tag = Ref & { is_global: boolean };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 type Photo = {
+  coverUrl?: string | null;
+  photoCrop?: SavedCrop | null;
+  coverCrop?: SavedCrop | null;
   id: number;
   url: string | null;
   shapeIds: number[];
@@ -740,13 +745,16 @@ function PhotoRow({
     </div>
   );
 
+  const cropControls = <PhotoCropEditor photoId={photo.id} photoCrop={photo.photoCrop} coverCrop={photo.coverCrop} coverOnly={compact || photo.isCoverOnly} />;
+
   if (compact) {
     return (
       <div className="card" style={{ display: 'flex', gap: 12, padding: 10 }}>
         <div style={{ width: 110, height: 110, flexShrink: 0, position: 'relative', background: '#eee', borderRadius: 4, overflow: 'hidden' }}>
-          {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {photo.url && <img src={photo.coverUrl || photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {cropControls}
           {tagChips}
           {fieldPicker}
           {onDelete && (
@@ -794,6 +802,7 @@ function PhotoRow({
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
+        {cropControls}
         {tagChips}
         {fieldPicker}
         <input

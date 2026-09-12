@@ -931,3 +931,21 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 @media(max-width:380px) { .po-compose-with-reference .po-add-form { grid-template-columns:1fr; } }
 
 .po-reference-loading { position:absolute; font-size:11px; color:#756e5c; }
+
+.photo-crop-actions{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.photo-crop-actions small{flex-basis:100%}
+.photo-crop-dialog{width:min(620px,calc(100vw - 24px));max-height:92dvh;overflow:auto;border:1px solid #d8d5cb;border-radius:12px;padding:20px;background:#faf8f3;color:#12233f;box-sizing:border-box}
+.photo-crop-dialog::backdrop{background:rgba(12,23,42,.65)}.photo-crop-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.photo-crop-head h2{margin:0;font-size:22px}.photo-crop-head button{font-size:24px;min-width:44px;min-height:44px}.photo-crop-dialog p{font-size:14px;line-height:1.5}
+.photo-crop-stage{display:flex;justify-content:center;background:#e5e3dd;padding:10px;border-radius:8px}.photo-crop-frame{position:relative;width:100%;overflow:hidden;background:#fff;touch-action:none;cursor:grab;user-select:none}.photo-crop-frame:active{cursor:grabbing}.photo-crop-frame>span{display:block;padding:35px 12px;text-align:center}.photo-crop-grid{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to right,transparent 33%,#ffffff70 33%,#ffffff70 33.3%,transparent 33.3%,transparent 66.6%,#ffffff70 66.6%,#ffffff70 66.9%,transparent 66.9%),linear-gradient(to bottom,transparent 33%,#ffffff70 33%,#ffffff70 33.3%,transparent 33.3%,transparent 66.6%,#ffffff70 66.6%,#ffffff70 66.9%,transparent 66.9%)}
+.photo-crop-fields{border:0;padding:0;margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px}.photo-crop-fields label{display:flex;flex-direction:column;gap:6px;font-size:13px}.photo-crop-fields input[type=range]{width:100%;min-height:32px;padding:0;accent-color:#12233f}.photo-crop-fields select{min-height:40px;max-width:100%}.photo-crop-footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}.photo-crop-error{color:#a3341f}.photo-crop-help{margin:6px 0}
+@media(max-width:480px){.photo-crop-dialog{padding:14px}.photo-crop-fields{grid-template-columns:1fr}.photo-crop-footer button{flex:1;min-height:44px}}
+/* Comfortable touch targets without enlarging the product imagery. */
+@media(max-width:700px){
+ .icon-select-trigger,.cat-tab,.po-type-toggle button,.po-add-line-btn,.po-send-btn,.photo-crop-actions button,.photo-crop-fields button,.photo-crop-fields select{min-height:44px}
+ .po-reference-controls button,.po-reference-dialog-head button{min-width:44px;min-height:44px}
+ .po-reference-controls{gap:6px}.po-reference-controls span{min-width:32px}
+ .photo-crop-fields input[type=range]{min-height:44px}
+ .home-search-input input,.icon-select-search input,.po-send-box input,.photo-crop-fields select{font-size:16px}
+}
+@media(max-width:380px){.po-reference{grid-template-columns:80px minmax(0,1fr)}}
+
+.photo-crop-dialog{padding:0;overflow:hidden}.photo-crop-dialog[open]{display:flex;flex-direction:column}.photo-crop-head{padding:16px;flex-shrink:0}.photo-crop-body{overflow:auto;min-height:0;padding:0 16px 16px}.photo-crop-footer{flex-shrink:0;margin:0;padding:12px 16px;border-top:1px solid var(--line);background:#faf8f3}

@@ -27,7 +27,7 @@ async function getData() {
     { data: allColors }
   ] = await Promise.all([
     supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
-    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabasePublic.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabasePublic.from('category_shapes').select('category_id, shape_id'),
     supabasePublic.from('category_colors').select('category_id, color_id'),
     supabasePublic.from('category_shape_sizes').select('category_id'),
@@ -69,7 +69,7 @@ async function getData() {
     const colorIds = colorIdsByCategory[c.id] || [];
     return {
       ...c,
-      thumb: thumbPhoto ? photoUrl(thumbPhoto, 500) : null,
+      thumb: thumbPhoto ? photoUrl(thumbPhoto, 500, 'cover') : null,
       shapeIds,
       colorIds,
       shapeCount: shapeIds.length,

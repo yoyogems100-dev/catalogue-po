@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   const { data: photos } = await supabasePublic
     .from('photos')
-    .select('id, storage_path, drive_id')
+    .select('*')
     .eq('category_id', category.id)
     .order('sort_order');
 

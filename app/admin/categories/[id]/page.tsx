@@ -42,7 +42,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     supabaseAdmin
       .from('photos')
       .select(
-        'id, storage_path, drive_id, product_code, notes, is_cover_only, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
+        '*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
       )
       .eq('category_id', categoryId)
       .order('sort_order', { ascending: true })
@@ -64,6 +64,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 400),
+    coverUrl: photoUrl(p, 400, 'cover'),
+    photoCrop: p.photo_crop || null,
+    coverCrop: p.cover_crop || null,
     shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
     sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
     colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
