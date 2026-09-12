@@ -20,7 +20,7 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
     if (order && order.customer_id === customerId) {
       const { data: items } = await supabaseAdmin
         .from('order_items')
-        .select('category_id, shape_id, shape_size_id, custom_size, color_id, quantity, request_type')
+        .select('*')
         .eq('order_id', fromOrderId);
 
       const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -54,6 +54,7 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
         colorName: colorMap[it.color_id]?.name || '—',
         colorHex: colorMap[it.color_id]?.hex || '#ccc',
         colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
+        orderSpecs: it.order_specs || null,
         qty: it.quantity,
         requestType: it.request_type || 'Place Order'
       }));

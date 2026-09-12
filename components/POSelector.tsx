@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
+import SpecialOrderComposer from './SpecialOrderComposer';
+import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -17,6 +19,7 @@ type Size = { id: number; shape_id: number; size_mm: string };
 type RequestType = 'Place Order' | 'Request Quotation';
 
 type CartItem = {
+  orderSpecs?: OrderSpecs;
   id: string;
   categoryId: number;
   categoryName: string;
@@ -212,7 +215,7 @@ export default function POSelector({
         i.shapeId === item.shapeId &&
         i.colorId === item.colorId &&
         i.sizeId === item.sizeId &&
-        i.requestType === item.requestType
+        i.requestType === item.requestType && specKey(i.orderSpecs) === specKey(item.orderSpecs)
     );
     if (existing) {
       return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
@@ -326,6 +329,7 @@ export default function POSelector({
         <h2 className="po-heading">Add to Order</h2>
         <OrderReferenceCarousel photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
+        {specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setReceipt(null);}} /> : <>
         <div className="po-add-form">
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
@@ -426,6 +430,7 @@ export default function POSelector({
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
         {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
+        </>}
         </div>
       </section>
 
@@ -459,7 +464,7 @@ export default function POSelector({
                   <span>
                     {item.categoryName}
                     <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
-                    {item.colorName}
+                    {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
                   </span>
                   {unit !== null && (
                     <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
@@ -477,11 +482,11 @@ export default function POSelector({
                   <option value="Request Quotation">Quotation</option>
                 </select>
                 </label>
-                <label>Qty (pcs)
+                <label>Qty ({item.orderSpecs?.kind==='rainbow'?'strips':'pcs'})
                 <QuantityInput
-                  value={item.qty}
+                  value={item.qty / quantityFactor(item.orderSpecs)}
                   label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
-                  onChange={(quantity) => updateQty(item.id, quantity)}
+                  onChange={(quantity) => updateQty(item.id, quantity * quantityFactor(item.orderSpecs))}
                   onInvalid={() => setToast('Enter a positive whole quantity. The previous quantity has been kept.')}
                 />
                 </label>
@@ -534,7 +539,7 @@ export default function POSelector({
         <h2 id="order-review-title">Review your order</h2>
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
         <ul className="order-review-lines">{cart.map(item => <li key={item.id}>
-          <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}<br />
+          <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}

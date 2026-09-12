@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
+import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
@@ -13,7 +14,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const params = await paramsPromise;
   const categoryId = Number(params.id);
   const requestedTab = (await searchParams).tab;
-  const tab = ['overview','shapes','colors','photos','pricing','specifications'].includes(requestedTab || '') ? requestedTab : 'overview';
+  const tab = ['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
   const settings = tab === 'pricing' ? await getSettings() : {};
 
   const [
@@ -81,10 +82,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
-        {['overview','shapes','colors','photos','pricing','specifications'].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        {['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
+      {tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
         key={categoryId}
         section={tab}
         categoryId={categoryId}

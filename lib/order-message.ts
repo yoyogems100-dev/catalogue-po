@@ -1,4 +1,6 @@
+import {specText,type OrderSpecs} from './order-specs';
 export type OrderCartItem = {
+  orderSpecs?: OrderSpecs;
   categoryId: number;
   categoryName: string;
   shapeId: number;
@@ -43,7 +45,7 @@ function formatTable(rows: { category: string; shape: string; size: string; colo
 export function buildOrderMessage(cart: OrderCartItem[], contactName: string, comment: string) {
   const toRow = (item: OrderCartItem) => ({
     category: item.categoryName,
-    shape: item.shapeName,
+    shape: [item.shapeName,specText(item.orderSpecs,item.qty)].filter(Boolean).join(" / "),
     size: item.sizeMm,
     color: item.colorName,
     qty: String(item.qty),

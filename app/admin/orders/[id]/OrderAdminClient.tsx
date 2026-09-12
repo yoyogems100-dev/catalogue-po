@@ -1,4 +1,6 @@
 'use client';
+import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,6 +9,7 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 
 type Item = {
+  orderSpecs?: OrderSpecs;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -23,7 +26,7 @@ type CategoryOption = {
   colors: { id: number; name: string; hex: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
 };
-type NewLine = { tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
+type NewLine = { orderSpecs?: OrderSpecs; tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
 type HistoryEntry = { id: number; status: string; changed_at: string; message_sent: boolean };
 type Note = { id: number; author_type: string; message: string; internal_only: boolean; created_at: string };
 type Customer = { id: number; name: string | null; phone: string | null; email: string | null; phone_verified: boolean } | null;
@@ -209,9 +212,10 @@ export default function OrderAdminClient({
       .map((i) => ({ id: i.id, quantity: quantities[i.id] }));
 
     const validNewItems = newLines
-      .filter((l) => l.shapeId && l.sizeId && l.colorId && parseInt(l.quantity, 10) > 0)
-      .map((l) => ({ categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
+      .filter((l) => l.shapeId && l.sizeId && (l.colorId || l.orderSpecs?.kind==='rainbow') && parseInt(l.quantity, 10) > 0)
+      .map((l) => ({ orderSpecs:l.orderSpecs, categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
 
+    if(validNewItems.length!==newLines.length){setToast('Complete the options and quantity for each new line, or remove the unfinished line.');return;}
     setSavingItems(true);
     try {
     const res = await fetch(`/api/admin/orders/${orderId}/edit`, {
@@ -358,18 +362,18 @@ export default function OrderAdminClient({
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
-                    {i.colorName}
+                    {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
                   </span>
                 </td>
                 <td>
                   {editing ? (
-                    <input
+                    <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
                       type="text"
                       inputMode="numeric"
-                      value={quantities[i.id]}
-                      onChange={(e) => setQuantities({ ...quantities, [i.id]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
+                      aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                      onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                       style={{ maxWidth: 80, fontSize: 13 }}
-                    />
+                    /></label>
                   ) : (
                     i.quantity
                   )}
@@ -399,10 +403,15 @@ export default function OrderAdminClient({
             {editing && newLines.map((l) => {
               const opts = categoryOptions[l.categoryId];
               const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
+              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={9}>
+                <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+                {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
+                <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
+              </td></tr>;
               return (
                 <tr key={l.tempId}>
                   <td>Order</td>
-                  <td>{orderCategories.find(([id]) => id === l.categoryId)?.[1]}</td>
+                  <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
                   <td>
                     <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
                       <option value="">Choose shape</option>

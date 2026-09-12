@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity')
+    .select('*')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -60,6 +60,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     colorId: it.color_id,
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
+    orderSpecs: it.order_specs || null,
     quantity: it.quantity
   }));
 

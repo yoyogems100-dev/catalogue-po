@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 
   const { data: items, error: itemsError } = await supabaseAdmin
     .from('order_items')
-    .select('category_id, shape_id, shape_size_id, custom_size, color_id, quantity, unit_price, request_type')
+    .select('*')
     .eq('order_id', orderId);
 
   if (itemsError) return NextResponse.json({ error: 'Could not load order items. Please retry.' }, { status: 500 });
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     shapeName: shapeMap[it.shape_id] || '—',
     sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorName: colorMap[it.color_id] || '—',
+    orderSpecs: it.order_specs || null,
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     requestType: it.request_type || 'Place Order'

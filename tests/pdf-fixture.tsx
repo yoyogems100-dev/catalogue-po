@@ -10,7 +10,7 @@ async function check() {
     customerName: 'Test buyer', customerPhone: null, customerCompany: null, comment: 'Pack each size separately.', paymentStatus: 'partial',
     notes: [{ message: 'Price confirmed for the white beads. Please confirm the second line.', created_at: '2026-09-10T00:00:00Z' }],
     items: [{ categoryName: 'Glass Pearls', shapeName: 'Round', sizeMm: '6', colorName: 'White', quantity: 500, unitPrice: 2, requestType: 'Request Quotation' },
-      { categoryName: 'Glass Pearls', shapeName: 'Oval', sizeMm: '4x6', colorName: 'Blue', quantity: 200, unitPrice: null, requestType: 'Place Order' }],
+      { orderSpecs:{kind:'rainbow',colorMode:'custom',stonesPerStrip:100,colors:[{id:1,name:'Blue'},{id:2,name:'Pink'}]}, categoryName: 'Rainbow Corundum', shapeName: 'Oval', sizeMm: '4x6', colorName: 'Custom colors', quantity: 200, unitPrice: null, requestType: 'Place Order' }, {categoryName:'Hole Punched Stones',shapeName:'Round',sizeMm:'6',colorName:'White',quantity:100,unitPrice:null,requestType:'Place Order',orderSpecs:{kind:'drilled',drill:'half'}}],
     contactWhatsapp: null, contactLocation: 'Jaipur'
   }} /> as any);
   if (process.env.PDF_QA_OUTPUT) writeFileSync(process.env.PDF_QA_OUTPUT, order);

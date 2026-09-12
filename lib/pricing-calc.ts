@@ -21,8 +21,8 @@ export function lineInrPrice(pricing: CategoryPricing, shapeId: number, shapeSiz
 }
 
 export function cartLinePrice(pricing: CategoryPricing | undefined, activeCategoryId: number,
-  item: { categoryId: number; shapeId: number; sizeId: number | null; colorId: number }): number | null {
+  item: { orderSpecs?: unknown; categoryId: number; shapeId: number; sizeId: number | null; colorId: number }): number | null {
   // A saved requirement can contain several categories; the page only has its own price list.
-  if (!pricing || item.categoryId !== activeCategoryId || item.sizeId == null) return null;
+  if (item.orderSpecs || !pricing || item.categoryId !== activeCategoryId || item.sizeId == null) return null;
   return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
 }

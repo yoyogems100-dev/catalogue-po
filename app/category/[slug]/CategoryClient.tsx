@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHotSelling } from '@/components/HotSelling';
 import { isHot } from '@/lib/hot-selling';
+import {specialCategory} from '@/lib/order-specs';
 import IconSelect from '@/components/IconSelect';
 import { groupSizes } from '@/lib/size-options';
 
@@ -77,6 +78,7 @@ export default function CategoryClient({
   // it shows up under "Your Requirement" the moment the customer switches
   // to the "Raise Purchase Order" tab.
   function addPhotoToCart(photo: Photo) {
+    if(specialCategory(categoryId)) return;
     if (photo.shapeIds.length === 0 || photo.colorIds.length === 0 || photo.sizeIds.length === 0) {
       setAddFeedback((cur) => ({ ...cur, [photo.id]: 'Not tagged with a shape/color/size yet.' }));
       setTimeout(() => setAddFeedback((cur) => { const next = { ...cur }; delete next[photo.id]; return next; }), 2500);
@@ -251,7 +253,7 @@ export default function CategoryClient({
                 {p.url && <img src={p.url} alt={details || 'Product photo'} loading="lazy" />}
                 <button
                   type="button"
-                  className="photo-add-cart"
+                  className="photo-add-cart" hidden={!!specialCategory(categoryId)}
                   aria-label={`Add ${details || 'this photo'} to requirement`}
                   title="Add to requirement"
                   onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
