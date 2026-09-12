@@ -194,12 +194,12 @@ export default function OrderAdminClient({
     if (!firstCat) return;
     setNewLines([
       ...newLines,
-      { tempId: `${Date.now()}-${Math.random().toString(16).slice(2)}`, categoryId: firstCat[0], shapeId: '', sizeId: '', colorId: '', quantity: '' }
+      { tempId: `${Date.now()}-${Math.random().toString(16).slice(2)}`, categoryId: firstCat[0], shapeId: '', sizeId: '', colorId: firstCat[0] === 34 ? categoryOptions[34]?.colors[0]?.id || '' : '', quantity: '' }
     ]);
   }
 
   function updateNewLine(tempId: string, patch: Partial<NewLine>) {
-    setNewLines(newLines.map((l) => (l.tempId === tempId ? { ...l, ...patch } : l)));
+    setNewLines(newLines.map((l) => (l.tempId === tempId ? { ...l, ...patch, ...((patch.categoryId ?? l.categoryId) === 34 ? { colorId: categoryOptions[34]?.colors[0]?.id || '' } : {}) } : l)));
   }
 
   function removeNewLine(tempId: string) {
@@ -425,7 +425,7 @@ export default function OrderAdminClient({
                     </select>
                   </td>
                   <td>
-                    <select value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
+                    <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
                       <option value="">Choose color</option>
                       {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>

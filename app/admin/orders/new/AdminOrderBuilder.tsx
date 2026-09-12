@@ -4,7 +4,7 @@ import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-spec
 import { useHotSelling } from '@/components/HotSelling';
 import { isHot } from '@/lib/hot-selling';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
@@ -67,6 +67,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
 
   const selectedCustomer = allCustomers.find((c) => c.id === selectedCustomerId) || null;
   const currentOptions = pickCategoryId !== 'all' ? optionsCache[pickCategoryId] : null;
+  useEffect(() => {
+    if (pickCategoryId === 34 && currentOptions?.colors.length === 1) setPickColorId(currentOptions.colors[0].id);
+  }, [pickCategoryId, currentOptions]);
   const sizesForShape = currentOptions && pickShapeId !== 'all' ? currentOptions.sizes.filter((s) => s.shapeId === pickShapeId) : [];
 
   async function handleCategoryChange(categoryId: number | 'all') {
@@ -273,7 +276,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
           </div>
           <div>
             <label className="po-label">Color</label>
-            <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions}>
+            <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions || pickCategoryId === 34}>
               <option value="all">Choose color</option>
               {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,'color',[b.id]))-Number(isHot(flags,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
             </select>

@@ -82,6 +82,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     <>
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
+      {categoryId === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart?type=prices">Price list</a><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
       <nav className="admin-coverage-filters" aria-label="Category workspace">
         {['overview','shapes','colors','color-chart','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
