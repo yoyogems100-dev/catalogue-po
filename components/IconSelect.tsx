@@ -1,5 +1,7 @@
 'use client';
 
+import { useDropdownBounds } from './useDropdownBounds';
+
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
@@ -58,6 +60,7 @@ export default function IconSelect(props: Props) {
   const [search, setSearch] = useState('');
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -209,7 +212,7 @@ export default function IconSelect(props: Props) {
       </button>
 
       {open && (
-        <div className="icon-select-panel">
+        <div className="icon-select-panel" style={panelStyle}>
           {searchable && (
             <input
               autoFocus
