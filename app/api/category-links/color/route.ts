@@ -1,7 +1,9 @@
+import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, color_id } = await req.json();
   // upsert + ignoreDuplicates -- re-adding a link that already exists (e.g.
   // applying a palette quick-select where some members are already linked)
@@ -13,6 +15,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, color_id } = await req.json();
   const { error } = await supabaseAdmin.from('category_colors').delete().eq('category_id', category_id).eq('color_id', color_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

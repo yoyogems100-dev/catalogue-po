@@ -1,3 +1,4 @@
+import { validateOrderSpecs } from '@/lib/validate-order-specs';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
@@ -7,14 +8,14 @@ import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
   const requestType: string = body.requestType || 'Place Order';
   // Admin's order builder still picks one type for the whole order (no per-line
   // UI there yet) -- stamp it onto every item so buildOrderMessage's per-line
   // grouping still works the same as the single-type case.
-  const cart: OrderCartItem[] = Array.isArray(body.cart)
+  let cart: OrderCartItem[] = Array.isArray(body.cart)
     ? body.cart.map((item: OrderCartItem) => ({ ...item, requestType }))
     : [];
   const comment: string = (body.comment || '').trim();
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   }
 
+  try { cart = await validateOrderSpecs(cart); } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:'Invalid order options'},{status:400}); }
   let customerId: number | null = null;
   let contactName: string | null = null;
 
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
   );
   const cartWithPrices: OrderCartItem[] = cart.map((item) => {
     const pricing = pricingByCategory.get(item.categoryId);
-    const unitPriceInr = pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
+    const unitPriceInr = !item.orderSpecs && pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
     return { ...item, unitPriceInr };
   });
 
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
     shape_size_id: item.sizeId,
     color_id: item.colorId,
     quantity: item.qty,
+    order_specs: item.orderSpecs || null,
     request_type: item.requestType,
     unit_price: item.unitPriceInr ?? null
   }));

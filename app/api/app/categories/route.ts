@@ -7,7 +7,7 @@ import { photoUrl } from '@/lib/photos';
 export async function GET() {
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
-    supabasePublic.from('photos').select('id, category_id, storage_path, drive_id, sort_order, is_cover_only').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabasePublic.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     supabasePublic.from('category_shapes').select('category_id'),
     supabasePublic.from('category_colors').select('category_id'),
     supabasePublic.from('category_shape_sizes').select('category_id')
@@ -37,7 +37,7 @@ export async function GET() {
       num: c.num,
       name: c.name,
       slug: c.slug,
-      thumb: thumbPhoto ? photoUrl(thumbPhoto, 500) : null,
+      thumb: thumbPhoto ? photoUrl(thumbPhoto, 500, 'cover') : null,
       shapeCount: shapeCounts[c.id] || 0,
       colorCount: colorCounts[c.id] || 0,
       sizeCount: sizeCounts[c.id] || 0

@@ -1,4 +1,6 @@
 'use client';
+import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,6 +12,7 @@ import { lineInrPrice } from '@/lib/pricing-calc';
 type RequestType = 'Place Order' | 'Request Quotation';
 
 type Item = {
+  orderSpecs?: OrderSpecs;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -37,6 +40,7 @@ type CategoryOptionsData = {
 };
 
 type PendingLine = {
+  orderSpecs?: OrderSpecs;
   tempId: string;
   categoryId: number;
   categoryName: string;
@@ -163,7 +167,7 @@ export default function OrderDetailClient({
     });
   }, [currentOptions, pickShapeIds]);
 
-  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })), [sizesForShapes]);
+  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -250,6 +254,7 @@ export default function OrderDetailClient({
       sizeId: l.sizeId,
       colorId: l.colorId,
       quantity: l.quantity,
+      orderSpecs: l.orderSpecs,
       requestType: l.requestType
     }));
 
@@ -289,6 +294,7 @@ export default function OrderDetailClient({
   // not recomputed). Pending lines (staged, not saved yet) don't have that
   // yet, so their price is looked up live the same way the builder does.
   function pendingUnitPrice(l: PendingLine): number | null {
+    if(l.orderSpecs)return null;
     const pricing = optionsCache[l.categoryId]?.pricing;
     if (!pricing) return null;
     return lineInrPrice(pricing, l.shapeId, l.sizeId, l.colorId);
@@ -327,18 +333,18 @@ export default function OrderDetailClient({
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ColorSwatch hex={i.colorHex} refPhotoUrl={i.colorRefPhotoUrl} name={i.colorName} size={14} />
-                      {i.colorName}
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
                     </span>
                   </td>
                   <td>
                     {editing ? (
-                      <input
+                      <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
                         type="text"
                         inputMode="numeric"
-                        value={quantities[i.id]}
-                        onChange={(e) => setQuantities({ ...quantities, [i.id]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
+                        aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                        onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                         style={{ maxWidth: 80, fontSize: 13 }}
-                      />
+                      /></label>
                     ) : (
                       i.quantity
                     )}
@@ -365,7 +371,7 @@ export default function OrderDetailClient({
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ColorSwatch hex={l.colorHex} refPhotoUrl={l.colorRefPhotoUrl} name={l.colorName} size={14} />
-                      {l.colorName}
+                      {l.colorName}{l.orderSpecs && <small style={{display:"block"}}>{specText(l.orderSpecs,l.quantity)}</small>}
                     </span>
                   </td>
                   <td>
@@ -401,7 +407,7 @@ export default function OrderDetailClient({
           <>
             <div className="po-card" style={{ marginTop: 18 }}>
               <h3 className="po-heading" style={{ fontSize: 14 }}>Add to Order</h3>
-              <div className="po-add-form">
+              <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
                 <div>
                   <label className="po-label">Category</label>
                   <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
@@ -435,7 +441,8 @@ export default function OrderDetailClient({
                   <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
                   <IconSelect
                     multiple
-                    options={sizeOptions}
+                    optionKind="size"
+              options={sizeOptions}
                     values={pickSizeIdxs}
                     onChange={setPickSizeIdxs}
                     placeholder={
@@ -466,7 +473,8 @@ export default function OrderDetailClient({
 
               {loadingOptions && <p style={{ fontSize: 12, color: '#756e5c' }}>Loading category options...</p>}
 
-              <div className="po-type-toggle" role="group" aria-label="Request type">
+              {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setPendingLines(current=>[...current,{...line,tempId:line.id,quantity:line.qty}])} />}
+<div hidden={!!specialCategory(Number(pickCategoryId))}><div className="po-type-toggle" role="group" aria-label="Request type">
                 <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
                   Purchase
                 </button>
@@ -482,7 +490,7 @@ export default function OrderDetailClient({
 
               <button type="button" className="po-add-line-btn" onClick={addPendingLines} disabled={!canAddPending}>
                 + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
-              </button>
+              </button></div>
             </div>
 
             <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>

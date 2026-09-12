@@ -3,7 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { category_id, shape_id, shape_size_id, price_group_id, price_rmb } = await req.json();
   if (!category_id || !shape_id || !shape_size_id || !price_group_id) {
     return NextResponse.json({ error: 'category_id, shape_id, shape_size_id, price_group_id required' }, { status: 400 });

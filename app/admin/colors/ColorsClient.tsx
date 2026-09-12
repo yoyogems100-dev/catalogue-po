@@ -1,4 +1,5 @@
 'use client';
+import { HotMark } from '@/components/HotSelling';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,19 +16,26 @@ export default function ColorsClient({
   colors,
   categories,
   catColors,
-  palettes
+  palettes,
+  initialCategoryId,
+  lockedCategory = false
 }: {
   colors: ColorRow[];
   categories: Category[];
   catColors: CatColor[];
   palettes: Palette[];
+  initialCategoryId?: number;
+  lockedCategory?: boolean;
 }) {
   const router = useRouter();
   const [newColor, setNewColor] = useState('');
   const [newHex, setNewHex] = useState('#B0AFAC');
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newPaletteName, setNewPaletteName] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(initialCategoryId || 0);
+  const scoped = categories.some(category => category.id === categoryFilter);
   const [search, setSearch] = useState('');
+  const canReorder = !scoped && !search.trim();
   const [toast, setToast] = useState('');
 
   // UI/UX audit ("visible saved-state feedback"): these mutations previously
@@ -42,9 +50,7 @@ export default function ColorsClient({
   const [localColors, setLocalColors] = useState(colors);
   useEffect(() => setLocalColors(colors), [colors]);
 
-  const visibleColors = search.trim()
-    ? localColors.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : localColors;
+  const visibleColors = localColors.filter(color => (!scoped || catColors.some(link => link.category_id === categoryFilter && link.color_id === color.id)) && color.name.toLowerCase().includes(search.trim().toLowerCase()));
 
   async function addPalette() {
     if (!newPaletteName.trim()) return;
@@ -109,6 +115,11 @@ export default function ColorsClient({
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to add color -- a color with this name may already exist.');
       return;
+    }
+    const created = await res.json();
+    if (scoped) {
+      try { await toggleCategory(created.id, categoryFilter, false); }
+      catch { setToast('Color created, but could not link it. Select it from Available colors to retry.'); router.refresh(); return; }
     }
     setNewColor('');
     setNewHex('#B0AFAC');
@@ -197,6 +208,17 @@ export default function ColorsClient({
 
   return (
     <>
+      {!lockedCategory && <label>Filter by category<select aria-label="Color category filter" value={categoryFilter} onChange={e => { setCategoryFilter(Number(e.target.value)); setExpandedCats(null); }}>
+        <option value={0}>All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+      </select></label>}
+      {scoped && <section className="card" style={{padding:16,marginBottom:16}}>
+        <h3>Available colors for {categories.find(category => category.id === categoryFilter)?.name}</h3>
+        <MultiSelect options={colors.map(color => ({id:color.id,name:color.name,hex:color.hex_value,refPhotoUrl:color.ref_photo_url}))}
+          selectedIds={catColors.filter(link => link.category_id === categoryFilter).map(link => link.color_id)}
+          onToggle={(id,selected) => toggleCategory(id,categoryFilter,selected)} leading="swatch" placeholder="Choose available colors" />
+        <a href={`/admin/categories/${categoryFilter}?tab=colors`}>Open category workspace</a>
+      </section>}
+      <p>{visibleColors.length} colors shown{scoped ? ' for this category' : ''}.</p>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 480, alignItems: 'center' }}>
         <input type="text" placeholder="New color name" value={newColor} onChange={(e) => setNewColor(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <input
@@ -216,16 +238,16 @@ export default function ColorsClient({
           const index = localColors.findIndex((lc) => lc.id === c.id);
           const linkedCatIds = catColors.filter((cc) => cc.color_id === c.id).map((cc) => cc.category_id);
           const catsOpen = expandedCats === c.id;
-          const dragProps = search.trim() ? {} : dropTargetProps(index);
+          const dragProps = canReorder ? dropTargetProps(index) : {};
           return (
             <div
               key={c.id}
-              className={`card ${!search.trim() && overIndex === index ? 'drag-over-card' : ''}`}
-              style={{ padding: '8px 12px', opacity: !search.trim() && dragIndex === index ? 0.4 : 1 }}
+              className={`card ${canReorder && overIndex === index ? 'drag-over-card' : ''}`}
+              style={{ padding: '8px 12px', opacity: canReorder && dragIndex === index ? 0.4 : 1 }}
               {...dragProps}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                {!search.trim() && (
+                {canReorder && (
                   <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}
                     <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveColor(c.id, 'up')} disabled={index === 0}>&uarr;</button>{' '}
@@ -241,7 +263,7 @@ export default function ColorsClient({
                   style={{ width: 20, height: 20, padding: 0, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
                 />
                 <span style={{ minWidth: 140, flex: '1 1 140px' }}>
-                  <NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
+                  <HotMark kind="color" ids={[c.id]} name={c.name} /><NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
                 </span>
                 <span style={{ fontSize: 11, color: '#756e5c', fontFamily: 'monospace' }}>{c.hex_value}</span>
                 <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
@@ -261,11 +283,11 @@ export default function ColorsClient({
                 </button>
                 <button
                   type="button"
-                  aria-label={`Delete color ${c.name}`}
+                  aria-label={`${scoped ? 'Unlink' : 'Delete'} color ${c.name}`}
                   style={{ cursor: 'pointer', color: '#a3341f', fontSize: 18, marginLeft: 'auto', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', lineHeight: 1 }}
-                  onClick={() => remove(c.id, c.name)}
+                  onClick={async () => { try { if (scoped) await toggleCategory(c.id, categoryFilter, true); else await remove(c.id, c.name); } catch { setToast('Could not unlink the color. Please retry.'); } }}
                 >
-                  &times;
+                  {scoped ? 'Unlink' : '×'}
                 </button>
               </div>
               {catsOpen && (
@@ -287,7 +309,7 @@ export default function ColorsClient({
         {visibleColors.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No colors match "{search}".</p>}
       </div>
 
-      <section style={{ marginTop: 36 }}>
+      {!scoped && <section style={{ marginTop: 36 }}>
         <h2 style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>Color Palettes</h2>
         <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 14, maxWidth: 640 }}>
           Group colors into named sets (e.g. "Excellent Star CP") -- palettes show up as one-click quick-selects at
@@ -316,7 +338,7 @@ export default function ColorsClient({
           ))}
           {palettes.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No palettes yet -- add one above.</p>}
         </div>
-      </section>
+      </section>}
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
   );

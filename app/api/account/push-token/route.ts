@@ -6,7 +6,7 @@ import { getCustomerId } from '@/lib/customer-auth';
 // token, which can happen). Upsert on (customer_id, expo_push_token) so re-registering
 // the same device/token pair is a no-op instead of piling up duplicate rows.
 export async function POST(req: NextRequest) {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
 
   const { expoPushToken } = await req.json();

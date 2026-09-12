@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { HotMark, useHotSelling } from './HotSelling';
+import { isHot, rankOptions } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 
 type Ref = { id: number; name: string };
@@ -24,7 +26,12 @@ export default function ShapeSizeSelect({
   onToggleSize: (id: number, currentlySelected: boolean) => void | Promise<void>;
   onBulkSizes: (shapeId: number, sizeIds: number[]) => void;
 }) {
+  const { flags, ready } = useHotSelling();
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [shapeOrder, setShapeOrder] = useState<number[]>([]);
+  const [sizeOrder, setSizeOrder] = useState<number[]>([]);
   const [query, setQuery] = useState('');
   const [expandedShapeId, setExpandedShapeId] = useState<number | null>(null);
   const [rangeMin, setRangeMin] = useState('');
@@ -45,10 +52,28 @@ export default function ShapeSizeSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedSizeIds.join(',')]);
 
+  useEffect(() => {
+    if (!open) { setQuery(''); return; }
+    setShapeOrder(rankOptions(allShapes, new Set(localShapeIds), option => isHot(flags, 'shape', [option.id])).map(shape => shape.id));
+    const outside = (event: MouseEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
+    // Keep options stable while checking items; reorder on the next opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ready]);
+  useEffect(() => {
+    if (!open) return;
+    setSizeOrder(rankOptions(allSizes, new Set(localSizeIds), option => isHot(flags, 'size', [option.id])).map(size => size.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, expandedShapeId, ready]);
+  const orderedShapes = [...allShapes].sort((a,b) => {
+    const left = shapeOrder.indexOf(a.id), right = shapeOrder.indexOf(b.id);
+    return (left < 0 ? allShapes.length : left) - (right < 0 ? allShapes.length : right);
+  });
   const selectedShapes = allShapes.filter((s) => localShapeIds.includes(s.id));
   const filtered = useMemo(
-    () => allShapes.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [allShapes, query]
+    () => orderedShapes.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())),
+    [allShapes, query, shapeOrder]
   );
 
   async function handleToggleShape(id: number, wasSelected: boolean) {
@@ -105,8 +130,8 @@ export default function ShapeSizeSelect({
   }
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div className="ms-trigger" onClick={() => setOpen((v) => !v)}>
+    <div ref={rootRef} style={{ position: 'relative' }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); triggerRef.current?.focus(); } }}>
+      <button ref={triggerRef} type="button" aria-label="Choose shapes and sizes" aria-expanded={open} className="ms-trigger" onClick={() => setOpen((v) => !v)}>
         <span className="ms-trigger-main">
           {selectedShapes.length > 0 && (
             <span className="ms-preview-stack">
@@ -122,12 +147,13 @@ export default function ShapeSizeSelect({
           </span>
         </span>
         <span className="ms-summary">{open ? '▲' : '▼'}</span>
-      </div>
+      </button>
 
       {open && (
         <div className="ms-panel">
           <input
             type="text"
+            aria-label="Search shapes"
             placeholder="Search shapes..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -136,19 +162,23 @@ export default function ShapeSizeSelect({
           />
           {filtered.map((shape) => {
             const active = localShapeIds.includes(shape.id);
-            const sizesForShape = allSizes.filter((sz) => sz.shape_id === shape.id);
+            const sizesForShape = allSizes.filter((sz) => sz.shape_id === shape.id).sort((a,b) => sizeOrder.indexOf(a.id) - sizeOrder.indexOf(b.id));
             const linkedForShape = sizesForShape.filter((sz) => localSizeIds.includes(sz.id));
             const isExpanded = expandedShapeId === shape.id;
             return (
               <div key={shape.id}>
                 <div className={`ms-row ${active ? 'ms-row-active' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, flex: 1, cursor: 'pointer' }} onClick={() => handleToggleShape(shape.id, active)}>
-                    <input type="checkbox" checked={active} readOnly />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, flex: 1, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={active} onChange={() => handleToggleShape(shape.id, active)} />
                     <ShapeIcon iconKey={shape.iconKey} />
                     {shape.name}
-                  </div>
+                  </label>
+                  <HotMark kind="shape" ids={[shape.id]} name={shape.name} />
                   {active && (
                     <button
+                      type="button"
+                      aria-label={`Sizes for ${shape.name}`}
+                      aria-expanded={isExpanded}
                       className="ms-expand-btn"
                       onClick={() => setExpandedShapeId(isExpanded ? null : shape.id)}
                     >
@@ -190,8 +220,7 @@ export default function ShapeSizeSelect({
                           {sizesForShape.map((sz) => {
                             const sizeActive = localSizeIds.includes(sz.id);
                             return (
-                              <button
-                                key={sz.id}
+                              <span key={sz.id} style={{display:"inline-flex",alignItems:"center"}}><button
                                 type="button"
                                 aria-pressed={sizeActive}
                                 className={`tag-chip ${sizeActive ? 'active' : ''}`}
@@ -199,7 +228,7 @@ export default function ShapeSizeSelect({
                                 onClick={() => handleToggleSize(sz.id, sizeActive)}
                               >
                                 {sz.size_mm}mm
-                              </button>
+                              </button><HotMark kind="size" ids={[sz.id]} name={`${shape.name} ${sz.size_mm} mm`} /></span>
                             );
                           })}
                         </div>

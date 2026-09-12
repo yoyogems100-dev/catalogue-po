@@ -6,8 +6,9 @@ import { getCategoryPricing } from '@/lib/pricing';
 // Returns the shapes/colors/sizes linked to a category -- used by the admin
 // "create order" builder to populate pickers as each category is added,
 // without pulling the entire catalog upfront.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const categoryId = Number(params.id);
 

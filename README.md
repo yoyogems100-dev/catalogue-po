@@ -6,7 +6,7 @@ Wholesale gemstone catalogue and admin panel for YOYO GEMS (Jaipur, India | Chin
 **Admin panel:** https://yoyo-gems-catalogue.vercel.app/admin
 
 ## Stack
-- Next.js 14 (App Router)
+- Next.js 16 (App Router), React 19
 - Supabase (Postgres + Storage)
 - Vercel (hosting)
 - Plain CSS (no Tailwind) — see `app/globals.css`, brand tokens as CSS variables
@@ -62,15 +62,13 @@ Wholesale gemstone catalogue and admin panel for YOYO GEMS (Jaipur, India | Chin
 - Tagline: "Synthetic Gemstones. Infinite Choices. One Trusted Name."
 
 ## Deploying
-This project has been deployed via direct file upload (no git-based CI) so far.
-To set up proper git-based deploys:
-1. Push this folder to a new GitHub repo
-2. In Vercel -> yoyo-gems-catalogue -> Settings -> Git, connect the repo
-3. Future pushes to `main` will auto-deploy
+The repository is connected to Vercel. Pushes to `main` deploy production; feature branches create previews. Verify the deployment status and build logs after pushing. Preview and production currently share the live Supabase project.
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for environment setup, tests, and authentication changes, and [REVIEW-NOTES.md](REVIEW-NOTES.md) for the first improvement pass and remaining work.
 
 ## Local dev
 ```
-npm install
-npm run dev
+npm ci
+npm run dev -- --hostname 127.0.0.1
 ```
 Requires a `.env.local` with the env vars listed above.

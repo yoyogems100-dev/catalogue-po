@@ -10,7 +10,7 @@ export async function GET() {
     supabasePublic.from('categories').select('id, name, slug, created_at').order('created_at', { ascending: false }).limit(10),
     supabasePublic
       .from('photos')
-      .select('id, category_id, storage_path, drive_id, created_at')
+      .select('*')
       .eq('is_cover_only', false)
       .order('created_at', { ascending: false })
       .limit(20)

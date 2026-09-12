@@ -1,4 +1,8 @@
 'use client';
+import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
+import { useHotSelling } from '@/components/HotSelling';
+import { isHot } from '@/lib/hot-selling';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +19,7 @@ type Options = {
   pricing?: CategoryPricing;
 };
 type CartItem = {
+  orderSpecs?: OrderSpecs;
   id: string;
   categoryId: number;
   categoryName: string;
@@ -28,6 +33,7 @@ type CartItem = {
 };
 
 export default function AdminOrderBuilder({ allCategories, allCustomers }: { allCategories: Category[]; allCustomers: Customer[] }) {
+  const { flags } = useHotSelling();
   const router = useRouter();
 
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
@@ -112,6 +118,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
   // Looked up live from whichever category's options are cached, same as the
   // customer-facing builder -- not stored on the cart item itself.
   function unitPriceInr(item: CartItem): number | null {
+    if(item.orderSpecs) return null;
     const pricing = optionsCache[item.categoryId]?.pricing;
     if (!pricing) return null;
     return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
@@ -148,6 +155,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
         requestType,
         comment,
         cart: cart.map((i) => ({
+          orderSpecs: i.orderSpecs,
           categoryId: i.categoryId,
           categoryName: i.categoryName,
           shapeId: i.shapeId,
@@ -248,7 +256,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
 
       <section className="po-card">
         <h2 className="po-heading">Add to Order</h2>
-        <div className="po-add-form">
+        <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
             <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
@@ -260,21 +268,21 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             <label className="po-label">Shape</label>
             <select value={pickShapeId} onChange={(e) => { setPickShapeId(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPickSizeId('all'); }} disabled={!currentOptions}>
               <option value="all">{loadingOptions ? 'Loading…' : 'Choose shape'}</option>
-              {currentOptions?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {[...(currentOptions?.shapes || [])].sort((a,b) => Number(isHot(flags,'shape',[b.id]))-Number(isHot(flags,'shape',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'shape',[s.id]) ? '🔥 ' : ''}{s.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Color</label>
             <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions}>
               <option value="all">Choose color</option>
-              {currentOptions?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,'color',[b.id]))-Number(isHot(flags,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Size (mm)</label>
             <select value={pickSizeId} onChange={(e) => setPickSizeId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={pickShapeId === 'all'}>
               <option value="all">{pickShapeId === 'all' ? 'Pick a shape first' : 'Choose size'}</option>
-              {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+              {[...(sizesForShape || [])].sort((a,b) => Number(isHot(flags,'size',[b.id]))-Number(isHot(flags,'size',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'size',[s.id]) ? '🔥 ' : ''}{s.sizeMm} mm</option>)}
             </select>
           </div>
           <div>
@@ -282,7 +290,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
             <input type="text" inputMode="numeric" className="po-qty-input" placeholder="e.g. 5000" value={pickQty} onChange={(e) => setPickQty(e.target.value.replace(/\D/g, ''))} />
           </div>
         </div>
-        <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button>
+        {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer showRequestType={false} key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setCart(current=>[...current,line])} />}
+<div hidden={!!specialCategory(Number(pickCategoryId))}><button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button></div>
       </section>
 
       <section className="po-card po-cart-card">
@@ -301,7 +310,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
                 <div key={item.id} className="po-item-row">
                   <div className="po-item-main">
                     <strong>{item.shapeName} · {item.sizeMm}mm</strong>
-                    <span>{item.categoryName} · {item.colorName} · {item.qty} pcs</span>
+                    <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     )}

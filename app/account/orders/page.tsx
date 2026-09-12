@@ -9,7 +9,7 @@ import ProfileGate from './ProfileGate';
 import RepeatOrderButton from './RepeatOrderButton';
 
 export default async function AccountOrdersPage() {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
   const { data: customer } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();

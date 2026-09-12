@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
+import { randomInt } from 'node:crypto';
+import { allowDevAuthCodes } from '@/lib/dev-auth';
 
-// Real WhatsApp delivery is confirmed working (Phase 4), so the on-screen/
-// prefilled code fallback is now conditional, not permanent: it's only
-// returned when the real send didn't happen or didn't succeed, so login
-// never fully locks out on a delivery outage. When WhatsApp delivery
-// succeeds, the customer must actually read the code from WhatsApp --
-// that's the point of requiring verification at all.
+// Delivery outages must not turn off verification. Only explicit local testing may expose a code.
 export async function POST(req: NextRequest) {
   const { phone } = await req.json();
 
@@ -16,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 });
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = randomInt(100000, 1000000).toString();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
   // Rate-limit: only one active (unconsumed) code per phone at a time.
@@ -44,9 +41,13 @@ export async function POST(req: NextRequest) {
     console.error('WhatsApp OTP send threw unexpectedly:', err);
   }
 
+  if (!delivered && !allowDevAuthCodes()) {
+    await supabaseAdmin.from('otp_codes').update({ consumed: true }).eq('phone', digits).eq('code', code);
+    return NextResponse.json({ error: 'We could not deliver your WhatsApp code. Please try again shortly.' }, { status: 503 });
+  }
   return NextResponse.json({
     ok: true,
-    code: delivered ? undefined : code,
+    code: !delivered && allowDevAuthCodes() ? code : undefined,
     needsName: !existingCustomer?.name
   });
 }

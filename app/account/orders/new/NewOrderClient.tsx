@@ -1,4 +1,6 @@
 'use client';
+import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,6 +12,7 @@ import { lineInrPrice } from '@/lib/pricing-calc';
 type RequestType = 'Place Order' | 'Request Quotation';
 
 type SeedItem = {
+  orderSpecs?: OrderSpecs;
   id: string;
   categoryId: number;
   categoryName: string;
@@ -50,7 +53,7 @@ function mergeIntoCart(current: SeedItem[], item: SeedItem): SeedItem[] {
       i.shapeId === item.shapeId &&
       i.colorId === item.colorId &&
       i.sizeId === item.sizeId &&
-      i.requestType === item.requestType
+      i.requestType === item.requestType && specKey(i.orderSpecs) === specKey(item.orderSpecs)
   );
   if (existing) return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
   return [...current, item];
@@ -142,7 +145,7 @@ export default function NewOrderClient({
     });
   }, [currentOptions, pickShapeIds]);
 
-  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, name: `${g.sizeMm} mm` })), [sizesForShapes]);
+  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -222,6 +225,7 @@ export default function NewOrderClient({
   // Looked up live from whichever category's options are cached -- a cart
   // can span several categories added at different times.
   function unitPriceInr(item: SeedItem): number | null {
+    if(item.orderSpecs) return null;
     const pricing = optionsCache[item.categoryId]?.pricing;
     if (!pricing || item.sizeId == null) return null;
     return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
@@ -263,7 +267,7 @@ export default function NewOrderClient({
     <div className="po-wrap">
       <section className="po-card">
         <h2 className="po-heading">Add to Order</h2>
-        <div className="po-add-form">
+        <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
             <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
@@ -297,6 +301,7 @@ export default function NewOrderClient({
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
               multiple
+              optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
@@ -326,7 +331,8 @@ export default function NewOrderClient({
 
         {loadingOptions && <p style={{ fontSize: 12, color: '#756e5c' }}>Loading category options...</p>}
 
-        <div className="po-type-toggle" role="group" aria-label="Request type">
+        {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setCart(current=>mergeIntoCart(current,line))} />}
+<div hidden={!!specialCategory(Number(pickCategoryId))}><div className="po-type-toggle" role="group" aria-label="Request type">
           <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
             Purchase
           </button>
@@ -337,7 +343,7 @@ export default function NewOrderClient({
 
         <button type="button" className="po-add-line-btn" onClick={addLines} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
-        </button>
+        </button></div>
       </section>
 
       <section className="po-card po-cart-card">
@@ -359,7 +365,7 @@ export default function NewOrderClient({
                     <span>
                       {item.categoryName}
                       <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
-                      {item.colorName}
+                      {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
                     </span>
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
@@ -373,8 +379,8 @@ export default function NewOrderClient({
                     type="text"
                     inputMode="numeric"
                     className="po-qty-input po-cart-qty"
-                    value={item.qty}
-                    onChange={(e) => updateQty(item.id, parseInt(e.target.value.replace(/\D/g, ''), 10) || 1)}
+                    value={item.qty / quantityFactor(item.orderSpecs)}
+                    onChange={(e) => updateQty(item.id, (parseInt(e.target.value.replace(/\D/g, ''), 10) || 1) * quantityFactor(item.orderSpecs))}
                   />
                   <button type="button" className="po-remove-btn" onClick={() => removeItem(item.id)}>&times;</button>
                 </div>

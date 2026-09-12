@@ -68,7 +68,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.headerRow}>
-          <Image src={data.logoUrl} style={styles.logo} />
+          {data.logoUrl ? <Image src={data.logoUrl} style={styles.logo} /> : <Text style={styles.docType}>YOYO GEMS</Text>}
           <View>
             <Text style={styles.docType}>Price List</Text>
             <Text style={styles.docMeta}>
@@ -83,12 +83,8 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
             <Text style={styles.metaValue}>{data.categoryName}</Text>
           </View>
           <View>
-            <Text style={styles.metaLabel}>RMB &#8594; INR RATE</Text>
-            <Text style={styles.metaValue}>1 RMB = &#8377;{data.multiplier}</Text>
-          </View>
-          <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
-            <Text style={styles.metaValue}>RMB (&#165;) with INR (&#8377;) equivalent</Text>
+            <Text style={styles.metaValue}>INR (Rs.) per piece</Text>
           </View>
         </View>
 
@@ -112,8 +108,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
                         <Text style={styles.dash}>--</Text>
                       ) : (
                         <>
-                          <Text style={styles.priceRmb}>{money(rmb, '¥')}</Text>
-                          <Text style={styles.priceInr}>{money(rmb * data.multiplier, '₹')}</Text>
+                          <Text style={styles.priceInr}>{money(rmb * data.multiplier, 'Rs. ')}</Text>
                         </>
                       )}
                     </View>

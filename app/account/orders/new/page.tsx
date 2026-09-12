@@ -7,8 +7,9 @@ import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
 import NewOrderClient from './NewOrderClient';
 
-export default async function NewOrderPage({ searchParams }: { searchParams: { from?: string } }) {
-  const customerId = getCustomerId();
+export default async function NewOrderPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ from?: string }> }) {
+  const searchParams = await searchParamsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
   const fromOrderId = searchParams.from ? Number(searchParams.from) : null;
@@ -19,7 +20,7 @@ export default async function NewOrderPage({ searchParams }: { searchParams: { f
     if (order && order.customer_id === customerId) {
       const { data: items } = await supabaseAdmin
         .from('order_items')
-        .select('category_id, shape_id, shape_size_id, custom_size, color_id, quantity, request_type')
+        .select('*')
         .eq('order_id', fromOrderId);
 
       const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -53,6 +54,7 @@ export default async function NewOrderPage({ searchParams }: { searchParams: { f
         colorName: colorMap[it.color_id]?.name || '—',
         colorHex: colorMap[it.color_id]?.hex || '#ccc',
         colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
+        orderSpecs: it.order_specs || null,
         qty: it.quantity,
         requestType: it.request_type || 'Place Order'
       }));

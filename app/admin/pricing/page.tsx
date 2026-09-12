@@ -5,7 +5,8 @@ import PricingClient from './PricingClient';
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function PricingPage() {
+export default async function PricingPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const query = await searchParams;
   const [{ data: categories }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name').order('num'),
     getSettings()
@@ -15,13 +16,13 @@ export default async function PricingPage() {
     <>
       <h1>Pricing</h1>
       <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
-        Set per-piece prices in RMB by shape, size, and color group -- matches the supplier
-        price sheet's own layout. Customers see the RMB price converted to INR using the
-        multiplier below.
+        Manage per-piece prices by category, shape, size and color group. Choose a currency view below; exported PDFs show INR prices only.
       </p>
       <PricingClient
+        key={query.category || 'all'}
         categories={(categories || []).map((c: any) => ({ id: c.id, name: c.name }))}
-        initialMultiplier={settings.rmb_inr_multiplier || '12'}
+        initialCategoryId={Number(query.category) || undefined}
+        initialMultiplier={settings.rmb_inr_multiplier || ''}
       />
     </>
   );

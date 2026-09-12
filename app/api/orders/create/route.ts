@@ -1,3 +1,4 @@
+import { validateOrderSpecs } from '@/lib/validate-order-specs';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
@@ -6,10 +7,11 @@ import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { parseQuantity } from '@/lib/quantity';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const cart: OrderCartItem[] = Array.isArray(body.cart)
+  let cart: OrderCartItem[] = Array.isArray(body.cart)
     ? body.cart.map((item: OrderCartItem) => ({ ...item, requestType: item.requestType || 'Place Order' }))
     : [];
   const contactName: string = (body.contactName || '').trim();
@@ -19,12 +21,16 @@ export async function POST(req: NextRequest) {
   if (cart.length === 0) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   }
+  if (cart.some((item) => typeof item.qty !== 'number' || parseQuantity(String(item.qty)) === null)) {
+    return NextResponse.json({ error: 'Every line needs a positive whole quantity.' }, { status: 400 });
+  }
 
   // Placing an order never requires auth -- this phone field is optional and
   // unverified, just used to address a notification about this one order (Phase 3
   // Part 0). A logged-in session still wins when present, purely so the order shows
   // up in their own history automatically; it's not a requirement to place one.
-  let customerId: number | null = getCustomerId();
+  try { cart = await validateOrderSpecs(cart); } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:'Invalid order options'},{status:400}); }
+  let customerId: number | null = await getCustomerId();
 
   if (!customerId && contactPhone) {
     const identity = await findOrCreateCustomer({ phone: contactPhone });
@@ -49,7 +55,7 @@ export async function POST(req: NextRequest) {
   );
   const cartWithPrices: OrderCartItem[] = cart.map((item) => {
     const pricing = pricingByCategory.get(item.categoryId);
-    const unitPriceInr = pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
+    const unitPriceInr = !item.orderSpecs && pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
     return { ...item, unitPriceInr };
   });
 
@@ -88,6 +94,7 @@ export async function POST(req: NextRequest) {
     custom_size: item.sizeId == null ? item.sizeMm : null,
     color_id: item.colorId,
     quantity: item.qty,
+    order_specs: item.orderSpecs || null,
     request_type: item.requestType,
     // Stored at creation time, not recomputed later -- so the PDF/order record
     // stays historically accurate even if the admin changes prices afterward.

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
+import PhotoCropEditor from '@/components/admin/PhotoCropEditor';
+import type { SavedCrop } from '@/lib/photo-crop';
 import MultiSelect from '@/components/MultiSelect';
 import IconSelect from '@/components/IconSelect';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
@@ -14,6 +16,9 @@ type ShapeRef = Ref & { iconKey?: string | null };
 type Tag = Ref & { is_global: boolean };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 type Photo = {
+  coverUrl?: string | null;
+  photoCrop?: SavedCrop | null;
+  coverCrop?: SavedCrop | null;
   id: number;
   url: string | null;
   shapeIds: number[];
@@ -34,6 +39,7 @@ const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
 
 export default function CategoryAdminClient({
   categoryId,
+  section = 'overview',
   allShapes,
   allColors,
   allTags,
@@ -48,6 +54,7 @@ export default function CategoryAdminClient({
   badgeTypes
 }: {
   categoryId: number;
+  section?: string;
   allShapes: ShapeRef[];
   allColors: ColorRef[];
   allTags: Tag[];
@@ -72,6 +79,7 @@ export default function CategoryAdminClient({
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [localBadgeTypes, setLocalBadgeTypes] = useState<BadgeType[]>(badgeTypes);
   const [toast, setToast] = useState('');
+  const [photoSaveError, setPhotoSaveError] = useState('');
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
@@ -262,7 +270,8 @@ export default function CategoryAdminClient({
     patch: { shapeIds?: number[]; sizeIds?: number[]; colorIds?: number[]; product_code?: string; notes?: string },
     tagIds?: number[]
   ) {
-    await fetch('/api/photos/update', {
+    try {
+    const res = await fetch('/api/photos/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -275,7 +284,11 @@ export default function CategoryAdminClient({
         tag_ids: tagIds
       })
     });
+    if (!res.ok) throw new Error('Save failed');
+    setPhotoSaveError('');
+    setToast(`Photo #${photoId} saved.`);
     router.refresh();
+    } catch { setPhotoSaveError(`Photo #${photoId} could not be saved. Your selected values may not be on record. Please retry the edit.`); }
   }
 
   async function deletePhoto(photoId: number) {
@@ -329,11 +342,16 @@ export default function CategoryAdminClient({
   ];
 
   return (
-    <div style={{ marginTop: 20 }}>
+    <div data-category-section={section} style={{ marginTop: 20 }}>
+      <nav className="category-editor-nav" aria-label="Category sections">
+        <a href="#category-summary">Overview</a><a href="#category-options">Shapes, colors &amp; sizes</a><a href="#category-cover">Cover</a><a href="#category-upload">Upload &amp; import</a><a href="#category-gallery">Photo library</a>
+      </nav>
+      {section === 'overview' && <p>Use the tabs above to manage this category’s shapes, sizes, colors, photos and pricing.</p>}
+      {photoSaveError && <p role="alert">{photoSaveError}</p>}
       {/* At-a-glance summary of everything linked to this category -- collapsed to just
           the counts by default (the full name lists were overwhelming at a glance on
           categories with dozens of shapes/colors/sizes), click a count to expand it. */}
-      <section className="cat-summary-panel" style={{ marginBottom: 20 }}>
+      <section id="category-summary" className="cat-summary-panel" style={{ marginBottom: 20 }}>
         {summaryBlocks.map((b) => {
           const expanded = !!expandedSummary[b.key];
           return (
@@ -353,9 +371,9 @@ export default function CategoryAdminClient({
       </section>
 
       {/* Shapes+sizes, Colors, Tags -- all compact dropdowns in one row to minimize page scroll */}
-      <section style={{ marginBottom: 24 }}>
+      <section id="category-options" style={{ marginBottom: 24 }}>
         <div className="link-row">
-          <div>
+          <div data-editor-part="shapes">
             <h3 className="section-label">Shapes &amp; sizes</h3>
             <ShapeSizeSelect
               allShapes={allShapes}
@@ -367,7 +385,7 @@ export default function CategoryAdminClient({
               onBulkSizes={setAllSizesForShape}
             />
           </div>
-          <div>
+          <div data-editor-part="colors">
             <h3 className="section-label">Colors</h3>
             <MultiSelect
               options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
@@ -378,9 +396,10 @@ export default function CategoryAdminClient({
               palettes={colorPalettes}
             />
           </div>
-          <div>
+          <div data-editor-part="specifications">
             <h3 className="section-label">Specifications</h3>
             <MultiSelect
+              optionKind="tag"
               options={allTags.map((t) => ({ id: t.id, name: t.name }))}
               selectedIds={linkedTagIds}
               onToggle={(id, active) => toggleLink('tag', id, active)}
@@ -397,7 +416,7 @@ export default function CategoryAdminClient({
 
       {/* Cover photo -- can be a dedicated image, not necessarily one of the
           catalogue stones in the gallery below. */}
-      <section style={{ marginBottom: 20 }}>
+      <section id="category-cover" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
           <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Cover photo</h3>
           <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
@@ -448,7 +467,7 @@ export default function CategoryAdminClient({
 
       {/* Upload + bulk Drive import -- side by side on desktop instead of each
           stacked full-width with a short control leaving most of the row empty. */}
-      <div className="admin-upload-row">
+      <div id="category-upload" className="admin-upload-row">
         <section>
           <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
@@ -458,7 +477,7 @@ export default function CategoryAdminClient({
         <section>
           <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
           <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
-          <textarea rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
+          <textarea aria-label="Google Drive photo links or IDs" rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
           <div style={{ marginTop: 8 }}>
             <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
           </div>
@@ -466,7 +485,7 @@ export default function CategoryAdminClient({
       </div>
 
       {/* Photo grid with per-photo tagging */}
-      <section>
+      <section id="category-gallery">
         <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
         <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
           "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
@@ -673,6 +692,7 @@ function PhotoRow({
         {field === 'size' && (
           <IconSelect
             multiple
+            optionKind="size"
             options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
             values={sizeIds}
             onChange={updateSizes}
@@ -725,13 +745,16 @@ function PhotoRow({
     </div>
   );
 
+  const cropControls = <PhotoCropEditor photoId={photo.id} photoCrop={photo.photoCrop} coverCrop={photo.coverCrop} coverOnly={compact || photo.isCoverOnly} />;
+
   if (compact) {
     return (
       <div className="card" style={{ display: 'flex', gap: 12, padding: 10 }}>
         <div style={{ width: 110, height: 110, flexShrink: 0, position: 'relative', background: '#eee', borderRadius: 4, overflow: 'hidden' }}>
-          {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {photo.url && <img src={photo.coverUrl || photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {cropControls}
           {tagChips}
           {fieldPicker}
           {onDelete && (
@@ -779,6 +802,7 @@ function PhotoRow({
           <button className={isThumbnail ? 'active-thumb' : ''} onClick={() => onSetThumbnail(photo.id)}>{isThumbnail ? 'Cover ✓' : 'Set cover'}</button>
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
+        {cropControls}
         {tagChips}
         {fieldPicker}
         <input

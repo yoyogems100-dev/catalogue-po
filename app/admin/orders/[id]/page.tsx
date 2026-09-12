@@ -5,7 +5,8 @@ import OrderAdminClient from './OrderAdminClient';
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const orderId = Number(params.id);
 
   const { data: order } = await supabaseAdmin
@@ -33,7 +34,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity, unit_price, request_type')
+    .select('*')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -63,6 +64,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
+    orderSpecs: it.order_specs || null,
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     requestType: it.request_type || 'Place Order'

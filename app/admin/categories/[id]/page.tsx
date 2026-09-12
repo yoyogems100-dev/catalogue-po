@@ -1,13 +1,21 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
+import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
+import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
+import PricingClient from '../../pricing/PricingClient';
+import { getSettings } from '@/lib/settings';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function CategoryAdminPage({ params }: { params: { id: string } }) {
+export default async function CategoryAdminPage({ params: paramsPromise, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const params = await paramsPromise;
   const categoryId = Number(params.id);
+  const requestedTab = (await searchParams).tab;
+  const tab = ['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
+  const settings = tab === 'pricing' ? await getSettings() : {};
 
   const [
     { data: category },
@@ -35,7 +43,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     supabaseAdmin
       .from('photos')
       .select(
-        'id, storage_path, drive_id, product_code, notes, is_cover_only, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
+        '*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
       )
       .eq('category_id', categoryId)
       .order('sort_order', { ascending: true })
@@ -57,6 +65,9 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 400),
+    coverUrl: photoUrl(p, 400, 'cover'),
+    photoCrop: p.photo_crop || null,
+    coverCrop: p.cover_crop || null,
     shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
     sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
     colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
@@ -70,7 +81,13 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
     <>
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
-      <CategoryAdminClient
+      <nav className="admin-coverage-filters" aria-label="Category workspace">
+        {['overview','shapes','colors','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
+      </nav>
+      {tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
+        key={categoryId}
+        section={tab}
         categoryId={categoryId}
         allShapes={(allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }))}
         allColors={(allColors || []).map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
@@ -84,7 +101,7 @@ export default async function CategoryAdminPage({ params }: { params: { id: stri
         photos={photosFormatted}
         colorPalettes={colorPalettes}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
-      />
+      />}
     </>
   );
 }

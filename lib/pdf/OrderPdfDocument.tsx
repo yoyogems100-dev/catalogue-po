@@ -1,6 +1,8 @@
+import {specText,type OrderSpecs} from '../order-specs';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 export type PdfItem = {
+  orderSpecs?: OrderSpecs;
   categoryName: string;
   shapeName: string;
   sizeMm: string;
@@ -19,6 +21,8 @@ export type PdfOrderData = {
   customerPhone: string | null;
   customerCompany: string | null;
   comment: string | null;
+  paymentStatus?: string | null;
+  notes?: { message: string; created_at: string }[];
   items: PdfItem[];
   contactWhatsapp: string | null;
   contactLocation: string | null;
@@ -94,6 +98,7 @@ function money(n: number) {
 
 export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
   const hasPricing = data.items.some((i) => i.unitPrice != null);
+  const allPriced = data.items.every(i => i.unitPrice != null);
   const grandTotal = hasPricing ? data.items.reduce((sum, i) => sum + (i.unitPrice || 0) * i.quantity, 0) : null;
   const cols: Record<string, number> = hasPricing ? COLS_WITH_PRICE : COLS_NO_PRICE;
   const distinctTypes = new Set(data.items.map((i) => i.requestType));
@@ -131,6 +136,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           <View style={styles.metaBlock}>
             <Text style={styles.metaLabel}>STATUS</Text>
             <Text style={styles.metaValue}>{data.statusLabel}</Text>
+            {data.paymentStatus && <Text style={styles.metaValue}>Payment: {data.paymentStatus}</Text>}
           </View>
         </View>
 
@@ -138,7 +144,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.tableHeaderCell, { width: `${cols.type * 100}%` }]}>Type</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.category * 100}%` }]}>Category</Text>
-            <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape</Text>
+            <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape / options</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.size * 100}%` }]}>Size</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.color * 100}%` }]}>Color</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>Qty</Text>
@@ -149,7 +155,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
             <View key={i} style={styles.tableRow}>
               <Text style={[styles.cell, { width: `${cols.type * 100}%` }]}>{item.requestType === 'Request Quotation' ? 'RQ' : 'Order'}</Text>
               <Text style={[styles.cell, { width: `${cols.category * 100}%` }]}>{item.categoryName}</Text>
-              <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}</Text>
+              <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}{item.orderSpecs ? `\n${specText(item.orderSpecs,item.quantity)}` : ""}</Text>
               <Text style={[styles.cell, { width: `${cols.size * 100}%` }]}>{item.sizeMm} mm</Text>
               <Text style={[styles.cell, { width: `${cols.color * 100}%` }]}>{item.colorName}</Text>
               <Text style={[styles.cell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>{item.quantity.toLocaleString('en-IN')}</Text>
@@ -170,7 +176,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
         {hasPricing && grandTotal !== null && (
           <View style={styles.totalsBlock}>
             <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>Grand Total</Text>
+              <Text style={styles.grandTotalLabel}>{allPriced ? 'Total' : 'Priced lines subtotal'}</Text>
               <Text style={styles.grandTotalValue}>{money(grandTotal)}</Text>
             </View>
           </View>
@@ -178,7 +184,11 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
 
         {data.comment && <Text style={styles.comment}>Note: {data.comment}</Text>}
 
-        <Text style={styles.footer}>
+        {(data.notes || []).map((note, i) => <Text key={i} style={styles.comment}>
+          Update ({new Date(note.created_at).toLocaleDateString('en-IN')}): {note.message}
+        </Text>)}
+        {!allPriced && <Text style={styles.comment}>Unpriced lines are excluded from the subtotal. Pricing to be confirmed.</Text>}
+        <Text style={styles.footer} fixed>
           {[data.contactLocation, data.contactWhatsapp ? `WhatsApp: ${data.contactWhatsapp}` : null].filter(Boolean).join('   ·   ')}
           {'\n'}This is a computer-generated document from YOYO GEMS.
         </Text>

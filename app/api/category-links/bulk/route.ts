@@ -9,7 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // /api/category-links/{shape,color} routes require.
 // Body: { categoryIds: number[], shapeIds?: number[], colorIds?: number[] }
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { categoryIds, shapeIds, colorIds } = await req.json();
   const catIds: number[] = Array.isArray(categoryIds) ? categoryIds : [];

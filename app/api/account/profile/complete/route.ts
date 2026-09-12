@@ -5,7 +5,7 @@ import { getCustomerId } from '@/lib/customer-auth';
 // One-time profile completion (Phase 3 Part 2). Requires an active session -- this
 // is never a signup form, only ever a follow-up to a verified phone/email login.
 export async function POST(req: NextRequest) {
-  const customerId = getCustomerId();
+  const customerId = await getCustomerId();
   if (!customerId) return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
 
   const { name, company } = await req.json();

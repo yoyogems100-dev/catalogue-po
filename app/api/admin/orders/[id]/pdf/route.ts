@@ -7,14 +7,15 @@ import { getSettings } from '@/lib/settings';
 import { milestoneLabel } from '@/lib/order-milestones';
 import OrderPdfDocument, { PdfItem } from '@/lib/pdf/OrderPdfDocument';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const orderId = Number(params.id);
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, request_type, created_at, comment, customer_id')
+    .select('id, status, request_type, created_at, comment, customer_id, contact_name, payment_status')
     .eq('id', orderId)
     .single();
 
@@ -24,10 +25,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     ? await supabaseAdmin.from('customers').select('name, phone, company').eq('id', order.customer_id).single()
     : { data: null };
 
-  const { data: items } = await supabaseAdmin
+  const { data: items, error: itemsError } = await supabaseAdmin
     .from('order_items')
-    .select('category_id, shape_id, shape_size_id, custom_size, color_id, quantity, unit_price, request_type')
+    .select('*')
     .eq('order_id', orderId);
+
+  if (itemsError) return NextResponse.json({ error: 'Could not load order items. Please retry.' }, { status: 500 });
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
   const shapeIds = [...new Set((items || []).map((i: any) => i.shape_id).filter(Boolean))];
@@ -51,11 +54,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     shapeName: shapeMap[it.shape_id] || '—',
     sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorName: colorMap[it.color_id] || '—',
+    orderSpecs: it.order_specs || null,
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     requestType: it.request_type || 'Place Order'
   }));
 
+  const { data: notes, error: notesError } = await supabaseAdmin.from('order_notes')
+    .select('message, created_at').eq('order_id', orderId).eq('internal_only', false).order('created_at');
+  if (notesError) return NextResponse.json({ error: 'Could not load order notes. Please retry.' }, { status: 500 });
   const settings = await getSettings();
 
   // renderToBuffer's TS signature expects a ReactElement<DocumentProps> specifically
@@ -68,10 +75,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         statusLabel: milestoneLabel(order.status),
         requestType: order.request_type || 'Place Order',
         createdAt: order.created_at,
-        customerName: customer?.name || null,
+        customerName: customer?.name || order.contact_name || null,
         customerPhone: customer?.phone || null,
         customerCompany: (customer as any)?.company || null,
         comment: order.comment,
+        paymentStatus: order.payment_status || null,
+        notes: notes || [],
         items: pdfItems,
         contactWhatsapp: settings.whatsapp_number || null,
         contactLocation: settings.location || null
@@ -88,7 +97,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${PHOTOS_BUCKET}/${path}`;
 
-  await supabaseAdmin.from('orders').update({ pdf_url: url }).eq('id', orderId);
+  const { error: saveError } = await supabaseAdmin.from('orders').update({ pdf_url: url }).eq('id', orderId);
+  if (saveError) return NextResponse.json({ error: 'PDF generated but could not be attached to the order. Please retry.' }, { status: 500 });
 
   return NextResponse.json({ url });
 }

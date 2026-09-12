@@ -4,8 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import { sendPushToCustomer } from '@/lib/expo-push';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const orderId = Number(params.id);
   const { status } = await req.json();

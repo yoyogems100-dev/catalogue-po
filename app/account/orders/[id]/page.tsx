@@ -8,15 +8,16 @@ import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
 import { milestoneIndex } from '@/lib/order-milestones';
 import OrderDetailClient from './OrderDetailClient';
 
-export default async function AccountOrderDetailPage({ params }: { params: { id: string } }) {
-  const customerId = getCustomerId();
+export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
   const orderId = Number(params.id);
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_status, created_at, comment, customer_id')
+    .select('id, status, payment_status, created_at, comment, customer_id, pdf_url')
     .eq('id', orderId)
     .single();
 
@@ -26,7 +27,7 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id, category_id, shape_id, shape_size_id, custom_size, color_id, quantity, request_type, unit_price')
+    .select('*')
     .eq('order_id', orderId);
 
   const categoryIds = [...new Set((items || []).map((i: any) => i.category_id).filter(Boolean))];
@@ -62,6 +63,7 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
+    orderSpecs: it.order_specs || null,
     quantity: it.quantity,
     requestType: it.request_type || 'Place Order',
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null
@@ -114,6 +116,11 @@ export default async function AccountOrderDetailPage({ params }: { params: { id:
         <div className="po-card" style={{ marginBottom: 20 }}>
           <OrderStepper status={order.status} />
         </div>
+
+        {order.comment && <p><strong>Order description:</strong> {order.comment}</p>}
+        <p>Payment: {order.payment_status || 'pending'}</p>
+        {order.pdf_url && <p><a className="btn-ghost" href={order.pdf_url} target="_blank" rel="noopener noreferrer">Download latest order PDF</a></p>}
+        {order.status === 'placed' && <p>Our team will confirm pricing and availability.</p>}
 
         <OrderDetailClient
           orderId={order.id}

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { allowDevAuthCodes } from '@/lib/dev-auth';
 
-// Mirrors the phone OTP dev-mode pattern: no email provider is wired up yet, so the
-// magic link is returned directly in the response and shown on-screen instead of
-// actually emailed. Same tradeoff as phone OTP -- see WORKAROUND notes there.
+// Email delivery is not configured. Direct links are restricted to explicit local testing.
 export async function POST(req: NextRequest) {
+  if (!allowDevAuthCodes()) return NextResponse.json({ error: 'Email sign-in is not available yet. Please use WhatsApp sign-in.' }, { status: 503 });
   const { email } = await req.json();
   const cleanEmail = (email || '').trim().toLowerCase();
 

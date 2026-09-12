@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { customerCookieName, signCustomerToken } from '@/lib/customer-auth';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
+import { allowDevAuthCodes } from '@/lib/dev-auth';
 
 async function verifyToken(token: string) {
+  if (!allowDevAuthCodes()) return null;
   const { data: link } = await supabaseAdmin
     .from('otp_codes')
     .select('id, email, expires_at')

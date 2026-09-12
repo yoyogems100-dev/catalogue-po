@@ -1,4 +1,6 @@
 'use client';
+import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,6 +9,7 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 
 type Item = {
+  orderSpecs?: OrderSpecs;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -23,7 +26,7 @@ type CategoryOption = {
   colors: { id: number; name: string; hex: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
 };
-type NewLine = { tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
+type NewLine = { orderSpecs?: OrderSpecs; tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
 type HistoryEntry = { id: number; status: string; changed_at: string; message_sent: boolean };
 type Note = { id: number; author_type: string; message: string; internal_only: boolean; created_at: string };
 type Customer = { id: number; name: string | null; phone: string | null; email: string | null; phone_verified: boolean } | null;
@@ -85,6 +88,9 @@ export default function OrderAdminClient({
   const [prices, setPrices] = useState<Record<number, string>>(
     Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))
   );
+  const [savedPrices, setSavedPrices] = useState(prices);
+  const [savingPrices, setSavingPrices] = useState(false);
+  const pricesDirty = JSON.stringify(prices) !== JSON.stringify(savedPrices);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -94,6 +100,7 @@ export default function OrderAdminClient({
 
   async function updateStatus() {
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -102,10 +109,13 @@ export default function OrderAdminClient({
     setBusy(false);
     if (res.ok) { setToast('Status updated.'); router.refresh(); }
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update status.'); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setBusy(false); }
   }
 
   async function updatePayment() {
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/orders/${orderId}/payment-status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -114,11 +124,14 @@ export default function OrderAdminClient({
     setBusy(false);
     if (res.ok) { setToast('Payment status updated.'); router.refresh(); }
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update payment status.'); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setBusy(false); }
   }
 
   async function addNote() {
     if (!noteText.trim()) return;
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/orders/${orderId}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -127,6 +140,8 @@ export default function OrderAdminClient({
     setBusy(false);
     if (res.ok) { setNoteText(''); setInternalOnly(false); router.refresh(); }
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to add note.'); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setBusy(false); }
   }
 
   // Notifying is a separate, manual action the admin triggers whenever they choose --
@@ -139,16 +154,28 @@ export default function OrderAdminClient({
     fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
   }
 
-  async function savePrice(itemId: number, value: string) {
-    await fetch(`/api/admin/orders/${orderId}/prices`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prices: [{ itemId, unitPrice: value }] })
-    });
+  async function savePrices() {
+    if (Object.values(prices).some(value => value.trim() !== '' && (!/^\d+(\.\d+)?$/.test(value.trim()) || !Number.isFinite(Number(value))))) {
+      setToast('Enter a valid non-negative price, or leave it blank.'); return;
+    }
+    setSavingPrices(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/prices`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prices: items.map(item => ({ itemId: item.id, unitPrice: prices[item.id] })) })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not save prices.');
+      setSavedPrices({ ...prices });
+      setToast('Prices saved. Generate a fresh PDF to include these changes.');
+      router.refresh();
+    } catch (error) { setToast(error instanceof Error ? error.message : 'Could not save prices. Please retry.'); }
+    finally { setSavingPrices(false); }
   }
 
   async function generatePdf() {
     setGeneratingPdf(true);
+    try {
     const res = await fetch(`/api/admin/orders/${orderId}/pdf`, { method: 'POST' });
     const data = await res.json().catch(() => ({}));
     setGeneratingPdf(false);
@@ -158,6 +185,8 @@ export default function OrderAdminClient({
     } else {
       setToast(data.error || 'Failed to generate PDF.');
     }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setGeneratingPdf(false); }
   }
 
   function addNewLine() {
@@ -183,10 +212,12 @@ export default function OrderAdminClient({
       .map((i) => ({ id: i.id, quantity: quantities[i.id] }));
 
     const validNewItems = newLines
-      .filter((l) => l.shapeId && l.sizeId && l.colorId && parseInt(l.quantity, 10) > 0)
-      .map((l) => ({ categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
+      .filter((l) => l.shapeId && l.sizeId && (l.colorId || l.orderSpecs?.kind==='rainbow') && parseInt(l.quantity, 10) > 0)
+      .map((l) => ({ orderSpecs:l.orderSpecs, categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
 
+    if(validNewItems.length!==newLines.length){setToast('Complete the options and quantity for each new line, or remove the unfinished line.');return;}
     setSavingItems(true);
+    try {
     const res = await fetch(`/api/admin/orders/${orderId}/edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,6 +227,8 @@ export default function OrderAdminClient({
 
     if (res.ok) { setEditing(false); router.refresh(); }
     else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to save changes.'); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setSavingItems(false); }
   }
 
   // Uses the saved status, not the (possibly unsaved) dropdown selection --
@@ -208,6 +241,7 @@ export default function OrderAdminClient({
         customer.phone,
         [
           `Hi ${customer.name || ''}, your YOYO GEMS ${isQuotation ? 'quotation' : 'order'} #${orderId} status has been updated to: ${milestoneLabel(status)}.`,
+          ...notes.filter(note => !note.internal_only && note.author_type === 'admin').slice(-3).map(note => `\nUpdate: ${note.message}\n`),
           currentPdfUrl ? `\n${isQuotation ? 'View your quotation' : 'View your order summary'}: ${currentPdfUrl}` : '',
           '\nLog in to your account to view full details.'
         ].join('')
@@ -268,7 +302,7 @@ export default function OrderAdminClient({
         <div>
           <h3 className="section-label">{isQuotation ? 'Quotation PDF' : 'Order PDF'}</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
+            <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf || savingPrices || pricesDirty || editing}>
               {generatingPdf ? 'Generating…' : 'Generate PDF'}
             </button>
             {currentPdfUrl && (
@@ -282,13 +316,14 @@ export default function OrderAdminClient({
 
       <section style={{ marginBottom: 24 }}>
         <h3 className="section-label">Notify customer</h3>
-        <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>Notify via WhatsApp</button>
+        {manualWaUrl && <details style={{ marginBottom: 10 }}><summary>Preview WhatsApp update</summary><p>To: {customer?.phone}</p><pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{new URL(manualWaUrl).searchParams.get('text')}</pre></details>}
+        <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl || pricesDirty || savingPrices}>Notify via WhatsApp</button>
         <p style={{ fontSize: 11, color: '#756e5c', marginTop: 6 }}>
           Opens WhatsApp with the current status (and PDF link, if generated) pre-filled -- send whenever you choose, independent of when the status was changed.
         </p>
       </section>
 
-      {toast && <p style={{ fontSize: 12.5, color: 'var(--gold)', marginBottom: 16 }}>{toast}</p>}
+      {toast && <p role="status" aria-live="polite" style={{ fontSize: 12.5, color: 'var(--gold)', marginBottom: 16 }}>{toast}</p>}
 
       <section style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -300,6 +335,12 @@ export default function OrderAdminClient({
           )}
         </div>
         <p style={{ fontSize: 11.5, color: '#756e5c', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button className="btn" onClick={savePrices} disabled={!pricesDirty || savingPrices}>{savingPrices ? 'Saving prices…' : 'Save prices'}</button>
+          <button className="btn-ghost" onClick={() => setPrices({ ...savedPrices })} disabled={!pricesDirty || savingPrices}>Discard price changes</button>
+        </div>
+        {pricesDirty && <p role="status">Unsaved prices. Save prices before generating a PDF.</p>}
+        <p>After changing order details, generate a fresh PDF before sharing it.</p>
         <table>
           <thead>
             <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
@@ -321,18 +362,18 @@ export default function OrderAdminClient({
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
-                    {i.colorName}
+                    {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
                   </span>
                 </td>
                 <td>
                   {editing ? (
-                    <input
+                    <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
                       type="text"
                       inputMode="numeric"
-                      value={quantities[i.id]}
-                      onChange={(e) => setQuantities({ ...quantities, [i.id]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })}
+                      aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                      onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                       style={{ maxWidth: 80, fontSize: 13 }}
-                    />
+                    /></label>
                   ) : (
                     i.quantity
                   )}
@@ -342,9 +383,10 @@ export default function OrderAdminClient({
                     type="text"
                     inputMode="decimal"
                     placeholder="Optional"
-                    value={prices[i.id] || ''}
+                    value={prices[i.id] ?? ''}
                     onChange={(e) => setPrices({ ...prices, [i.id]: e.target.value.replace(/[^\d.]/g, '') })}
-                    onBlur={(e) => savePrice(i.id, e.target.value)}
+                    aria-label={`Unit price in INR for ${i.categoryName} ${i.shapeName} ${i.sizeMm} mm ${i.colorName}`}
+                    disabled={savingPrices}
                     style={{ maxWidth: 90, fontSize: 13 }}
                   />
                 </td>
@@ -361,9 +403,15 @@ export default function OrderAdminClient({
             {editing && newLines.map((l) => {
               const opts = categoryOptions[l.categoryId];
               const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
+              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={9}>
+                <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+                {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
+                <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
+              </td></tr>;
               return (
                 <tr key={l.tempId}>
-                  <td>{orderCategories.find(([id]) => id === l.categoryId)?.[1]}</td>
+                  <td>Order</td>
+                  <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
                   <td>
                     <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
                       <option value="">Choose shape</option>
@@ -404,7 +452,7 @@ export default function OrderAdminClient({
           {hasPricing && (
             <tfoot>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 500 }}>Grand total</td>
+                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
                 <td style={{ fontWeight: 700, color: 'var(--ink)' }}>{money(grandTotal)}</td>
                 {editing && <td />}
               </tr>
@@ -445,7 +493,7 @@ export default function OrderAdminClient({
           {timeline.map((t, i) => (
             <div key={i} className="card" style={{ padding: '10px 14px', fontSize: 13 }}>
               {t.type === 'status' ? (
-                <span><strong>Status updated:</strong> {t.label} {t.messageSent && <span style={{ fontSize: 11, color: '#756e5c' }}>(customer notified)</span>}</span>
+                <span><strong>Status updated:</strong> {t.label} {t.messageSent && <span style={{ fontSize: 11, color: '#756e5c' }}>(WhatsApp action recorded; delivery unverified)</span>}</span>
               ) : (
                 <span>
                   <strong>{t.author === 'admin' ? 'Admin' : t.author === 'customer' ? 'Customer' : 'System'}:</strong> {t.message}
