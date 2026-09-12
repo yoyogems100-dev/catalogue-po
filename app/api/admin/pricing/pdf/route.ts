@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
 
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
+  if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),

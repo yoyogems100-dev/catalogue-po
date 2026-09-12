@@ -203,6 +203,8 @@ export default function IconSelect(props: Props) {
 
   const ariaLabel = isMulti ? multi.placeholder : single.allLabel;
 
+  if (props.locked) return <div className="icon-select-fixed" role="textbox" aria-readonly="true" aria-label={leading === 'swatch' ? 'Color' : ariaLabel}><Leading o={options[0] || null} /><span>{options[0]?.name || triggerLabel}</span></div>;
+
   return (
     <div className="icon-select" ref={rootRef}>
       <button

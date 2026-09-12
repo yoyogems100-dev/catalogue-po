@@ -7,6 +7,8 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
+import ShapeIcon from './ShapeIcon';
+import moissaniteChart from '@/data/moissanite-chart.json';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
@@ -25,6 +27,8 @@ type CartItem = {
   categoryName: string;
   shapeId: number;
   shapeName: string;
+  shapeRefPhotoUrl?: string | null;
+  shapeIconKey?: string | null;
   sizeId: number | null;
   sizeMm: string;
   colorId: number;
@@ -222,7 +226,13 @@ export default function POSelector({
     if (existing) {
       return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
     }
-    return [...current, item];
+    const shape = shapes.find(s => s.id === item.shapeId);
+    return [...current, {...item, shapeRefPhotoUrl: shape?.refPhotoUrl, shapeIconKey: shape?.iconKey}];
+  }
+
+  function StoneReference({item}:{item:CartItem}) {
+    const src = item.shapeRefPhotoUrl || (item.categoryId === 34 ? moissaniteChart.find(s=>s.name===item.shapeName)?.image : null) || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    return <span className="requirement-stone">{src ? <img src={src} alt={`${item.shapeName} reference`} /> : <ShapeIcon iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} size={36} />}</span>;
   }
 
   function addLine() {
@@ -462,7 +472,7 @@ export default function POSelector({
               const unit = unitPriceInr(item);
               return (
               <div key={item.id} className="po-item-row">
-                <div className="po-item-main">
+                <div className="po-item-main"><StoneReference item={item} /><div className="po-item-details">
                   <strong>{item.shapeName} · {item.sizeMm}mm</strong>
                   <span>
                     {item.categoryName}
@@ -473,7 +483,7 @@ export default function POSelector({
                     <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   )}
                 </div>
-                <div className="po-item-controls">
+                </div><div className="po-item-controls">
                 <label>Request
                 <select
                   className="po-item-type-select"
@@ -541,10 +551,10 @@ export default function POSelector({
         onCancel={(event) => { event.preventDefault(); if (!sending) setReviewing(false); }}>
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
-        <ul className="order-review-lines">{cart.map(item => <li key={item.id}>
+        <ul className="order-review-lines">{cart.map(item => <li key={item.id}><StoneReference item={item} /><div>
           <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
-        </li>)}</ul>
+        </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
         <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>
         {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
