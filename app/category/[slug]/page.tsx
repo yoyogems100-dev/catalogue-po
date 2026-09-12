@@ -22,7 +22,7 @@ export const revalidate = 30;
 async function getCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug')
+    .select('id, num, name, slug, color_chart_url')
     .eq('slug', slug)
     .single();
 
@@ -131,6 +131,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           tags={data.tags}
           sizes={data.sizes}
           photos={data.photos}
+          colorChartUrl={data.category.color_chart_url}
           colorPalettes={data.colorPalettes}
           pricing={data.pricing}
         />

@@ -27,6 +27,7 @@ export default function CategoryTabs({
   tags,
   sizes,
   photos,
+  colorChartUrl,
   colorPalettes,
   pricing
 }: {
@@ -38,6 +39,7 @@ export default function CategoryTabs({
   tags: Ref[];
   sizes: Size[];
   photos: Photo[];
+  colorChartUrl?: string | null;
   colorPalettes?: Palette[];
   pricing?: CategoryPricing;
 }) {
@@ -79,6 +81,7 @@ export default function CategoryTabs({
           colorPalettes={colorPalettes}
           pricing={pricing}
           photos={photos}
+          colorChartUrl={colorChartUrl}
           active={tab === 'order'}
         />
         </div>

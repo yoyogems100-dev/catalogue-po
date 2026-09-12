@@ -986,3 +986,46 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
  .po-item-controls { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
  .po-item-controls .po-remove-btn { position: absolute; top: 8px; right: 8px; }
 }
+
+/* Two visual references; navigation belongs below the image, not beside it. */
+.po-compose-with-reference { grid-template-columns: minmax(0,1fr) 230px; }
+.po-compose-with-reference:has(.has-color-chart) { grid-template-columns: minmax(0,1fr) 340px; }
+.po-reference-pair { grid-column: 2; grid-row: 1 / 3; display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; max-width: 340px; }
+.po-reference-pair.has-color-chart { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.po-reference-pair > .po-reference, .category-color-chart { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; margin: 0; }
+.po-reference-pair > .po-reference { grid-column: auto; grid-row: auto; }
+.po-reference-pair .reference-tile-image, .reference-tile-image { display: flex; justify-content: center; align-items: center; position: relative; padding: 4px; width: 100%; height: 180px; min-height: 0; max-height: none; background: white; border: none; cursor: zoom-in; }
+.reference-tile-image img { width: 100%; height: 100%; object-fit: contain; }
+.reference-tile-footer, .po-reference-pair .po-reference-meta { display: flex; justify-content: center; align-items: center; padding: 2px 4px; min-height: 48px; background: #faf9f6; border-top: 1px solid var(--line); font-size: 12px; color: var(--navy); }
+.po-reference-pair .po-reference-controls { justify-content: center; gap: 4px; width: 100%; }
+.po-reference-pair .po-reference-controls button { width: 44px; min-width: 44px; min-height: 44px; border: none; background: transparent; }
+.po-reference-pair .po-reference-controls span { min-width: 28px; font-size: 11px; }
+.color-chart-dialog { position: fixed; inset: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: none; background: #faf8f3; color: var(--ink); }
+.color-chart-dialog[open] { display: flex; flex-direction: column; }
+.color-chart-dialog header, .color-chart-dialog footer { display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex-shrink: 0; flex-wrap: wrap; }
+.color-chart-dialog header strong { flex: 1; font-size: 15px; }
+.color-chart-dialog button { width: 44px; height: 44px; background: #fff; border: 1px solid var(--line); border-radius: 6px; font-size: 20px; cursor: pointer; }
+.color-chart-dialog button:focus-visible { outline: 2px solid var(--navy); }
+.color-chart-dialog footer { justify-content: center; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.color-chart-dialog footer a { padding: 10px; font-size: 13px; }
+.color-chart-viewer { flex: 1; min-height: 0; overflow: auto; background: #e7e5df; }
+.color-chart-viewer > div { min-width: 100%; min-height: 100%; }
+.color-chart-viewer img { width: 100%; height: 100%; max-width: none; object-fit: contain; display: block; }
+.admin-color-chart { padding: 24px; max-width: 760px; }
+.admin-color-chart h2 { font-size: 22px; }
+.admin-color-chart p { font-size: 14px; margin: 12px 0; }
+.admin-color-chart .category-color-chart { max-width: 280px; margin: 16px 0; }
+.admin-color-chart .reference-tile-image { height: 260px; }
+.chart-upload-label { display: grid; gap: 8px; font-size: 14px; }
+.chart-upload-label input { width: 100%; min-width: 0; }
+@media(max-width:900px) {
+ .po-compose-with-reference { display: block; }
+ .po-reference-pair { width: 100%; max-width: 440px; margin: 0 0 16px; }
+ .po-reference-pair .reference-tile-image { height: clamp(130px,38vw,180px); }
+}
+@media(max-width:380px) {
+ .po-reference-pair { gap: 6px; }
+ .po-reference-pair .po-reference-controls { gap: 0; }
+ .po-reference-pair .reference-tile-footer { padding: 2px 0; }
+ .admin-color-chart { padding: 14px; }
+}

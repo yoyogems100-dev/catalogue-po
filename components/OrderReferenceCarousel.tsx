@@ -1,18 +1,23 @@
 'use client';
 
+import ColorChart from './ColorChart';
 import { useEffect, useRef, useState } from 'react';
 import { referencePhotos, type OrderReferencePhoto } from '@/lib/order-reference-photos';
 
 type NamedOption = {id:number;name:string};
-export default function OrderReferenceCarousel({photos,categoryName,shapeIds,colorIds,sizeIds,shapes,colors}: {
-  photos:OrderReferencePhoto[]; categoryName:string;
+export default function OrderReferenceCarousel({photos,categoryName,shapeIds,colorIds,sizeIds,shapes,colors,colorChartUrl}: {
+  photos:OrderReferencePhoto[]; categoryName:string; colorChartUrl?:string|null;
   shapeIds:number[];colorIds:number[];sizeIds:number[];
   shapes:NamedOption[];colors:NamedOption[];
 }) {
   const result = referencePhotos(photos,{shapeIds,colorIds,sizeIds});
   // Reset only when the actual reference set changes, not on quantity edits.
   const setKey = result.photos.map(photo=>photo.id).join(',');
-  return <ReferenceFrame key={setKey} {...result} categoryName={categoryName} shapes={shapes} colors={colors} />;
+  if (!result.photos.length && !colorChartUrl) return null;
+  return <div className={`po-reference-pair ${colorChartUrl && result.photos.length ? 'has-color-chart' : ''}`}>
+    <ReferenceFrame key={setKey} {...result} categoryName={categoryName} shapes={shapes} colors={colors} />
+    {colorChartUrl && <ColorChart url={colorChartUrl} categoryName={categoryName} />}
+  </div>;
 }
 function ReferenceFrame({photos,matching,fallback,categoryName,shapes,colors}: {
   photos:OrderReferencePhoto[];matching:boolean;fallback:boolean;categoryName:string;shapes:NamedOption[];colors:NamedOption[];
@@ -36,22 +41,19 @@ function ReferenceFrame({photos,matching,fallback,categoryName,shapes,colors}: {
     return failed.includes(photo.id) ? <span className="po-reference-unavailable">Image unavailable</span> : <img src={photo.url!} alt={alt} decoding="async" onLoad={()=>setLoaded(ids=>ids.includes(photo.id)?ids:[...ids,photo.id])} onError={()=>setFailed(ids=>ids.includes(photo.id)?ids:[...ids,photo.id])} className={large?'po-reference-large-image':''} />;
   }
   if (!photo) return null;
-  return <aside className="po-reference" aria-label="Product reference photos" aria-roledescription="carousel">
-    <div className="po-reference-heading"><h3>Product reference</h3><span>{matching?'Matching your options':'Category photos'}</span></div>
-    <button ref={opener} type="button" className="po-reference-image" aria-label="Enlarge product reference photo" onClick={()=>{if(!swiped.current)setExpanded(true);swiped.current=false;}}
+  return <aside className="po-reference" aria-label={matching ? "Product photos matching your options" : "Product reference photos"} aria-roledescription="carousel">
+    <button ref={opener} type="button" className="po-reference-image reference-tile-image" aria-label="Enlarge product reference photo" onClick={()=>{if(!swiped.current)setExpanded(true);swiped.current=false;}}
       onPointerDown={e=>{touchStart.current=e.clientX;swiped.current=false;}}
       onPointerCancel={()=>{touchStart.current=null;}}
       onPointerUp={e=>{if(touchStart.current!==null && Math.abs(e.clientX-touchStart.current)>40 && count>1) {move(e.clientX<touchStart.current?1:-1);swiped.current=true;}touchStart.current=null;}}>
       {!loaded.includes(photo.id) && !failed.includes(photo.id) && <span className="po-reference-loading">Loading reference…</span>}{image()}<span className="po-reference-expand" aria-hidden="true">⤢</span>
     </button>
-    <div className="po-reference-meta">
+    <div className="po-reference-meta reference-tile-footer">
       <div className="po-reference-controls">
         <button type="button" aria-label="Previous reference photo" disabled={count<2} onClick={()=>move(-1)}>‹</button>
         <span aria-live="polite" aria-atomic="true">{index+1} / {count}</span>
         <button type="button" aria-label="Next reference photo" disabled={count<2} onClick={()=>move(1)}>›</button>
       </div>
-      <p className="po-reference-caption" title={details}>{details || categoryName}</p>
-      <p className="po-reference-hint">{fallback?'No photo matches these options yet. Showing category references.':'Tap photo to enlarge. For visual reference.'}</p>
     </div>
     {expanded && <dialog ref={dialog} className="po-reference-dialog" aria-label="Enlarged product reference" onCancel={close} onClose={()=>{setExpanded(false);opener.current?.focus();}} onClick={e=>{if(e.target===e.currentTarget)close();}} onKeyDown={e=>{if(e.key==='ArrowLeft'&&count>1){e.preventDefault();move(-1);}if(e.key==='ArrowRight'&&count>1){e.preventDefault();move(1);}}}>
       <div className="po-reference-dialog-head"><strong>{categoryName} · Reference photos</strong><button type="button" autoFocus onClick={close} aria-label="Close enlarged reference">✕</button></div>
