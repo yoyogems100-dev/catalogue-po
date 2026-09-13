@@ -382,7 +382,6 @@ export default function POSelector({
               onChange={setPickColorIds}
               placeholder="Choose color(s)"
               leading="swatch"
-              palettes={colorPalettes}
             />
           </div>
           <div>

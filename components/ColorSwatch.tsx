@@ -41,7 +41,13 @@ export default function ColorSwatch({
         // looser photos. This samples deep into the stone's own color/facets
         // instead of anywhere near the photo's outer edge, so the round
         // swatch reads as solid stone regardless of how the source was shot.
-        background: refPhotoUrl ? `url(${refPhotoUrl}) center/${isCleanCutout ? '100% 100%' : '280% 280%'} no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
+        // The hex color is only layered in as a fallback for those looser,
+        // externally-hosted photos -- layering it under a clean cutout would
+        // bleed through as a colored square behind the gem's own transparent
+        // background.
+        background: refPhotoUrl
+          ? (isCleanCutout ? `url(${refPhotoUrl}) center/100% 100% no-repeat` : `url(${refPhotoUrl}) center/280% 280% no-repeat, ${hex || '#ccc'}`)
+          : (hex || '#ccc')
       }}
     />
   );
