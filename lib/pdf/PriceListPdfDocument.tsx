@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { PDF_BRAND_TAGLINE } from './brand';
 
 export type PriceListGroup = { id: number; name: string };
 export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> RMB price
@@ -27,7 +28,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 14
   },
-  logo: { height: 30, width: 'auto' },
+  brandBlock: { width: 230 },
+  logo: { width: 190, height: 54, objectFit: 'contain', objectPosition: 'left center' },
+  tagline: { marginTop: 2, fontSize: 7, color: '#756e5c', letterSpacing: 0.15 },
   docType: { fontSize: 15, color: '#9C7A25', fontFamily: 'Helvetica-Bold', textAlign: 'right' },
   docMeta: { fontSize: 8.5, color: '#756e5c', textAlign: 'right', marginTop: 2 },
   metaBar: {
@@ -68,7 +71,10 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.headerRow}>
-          {data.logoUrl ? <Image src={data.logoUrl} style={styles.logo} /> : <Text style={styles.docType}>YOYO GEMS</Text>}
+          <View style={styles.brandBlock}>
+            {data.logoUrl ? <Image src={data.logoUrl} style={styles.logo} /> : <Text style={styles.docType}>YOYO GEMS</Text>}
+            <Text style={styles.tagline}>{PDF_BRAND_TAGLINE}</Text>
+          </View>
           <View>
             <Text style={styles.docType}>Price List</Text>
             <Text style={styles.docMeta}>

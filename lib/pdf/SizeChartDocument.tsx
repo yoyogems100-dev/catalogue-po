@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { PDF_BRAND_TAGLINE } from './brand';
 
 export type SizeChartSection = {
   name: string;
@@ -9,9 +10,10 @@ export type SizeChartSection = {
 const css = StyleSheet.create({
   page: { padding: 26, paddingBottom: 42, fontFamily: 'Helvetica', color: '#12233f', fontSize: 8 },
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 8, borderBottomWidth: 2, borderBottomColor: '#c9a94e' },
-  brandBlock: { flexDirection: 'column' },
+  brandBlock: { flexDirection: 'column', width: 280 },
+  brandLogo: { width: 185, height: 53, objectFit: 'contain', objectPosition: 'left center' },
   brand: { fontSize: 22, fontFamily: 'Helvetica-Bold', letterSpacing: 1.1 },
-  strap: { marginTop: 2, color: '#8b702a', fontSize: 6.5, letterSpacing: .6 },
+  strap: { marginTop: 2, color: '#756e5c', fontSize: 6.8 },
   titleBlock: { alignItems: 'flex-end' },
   title: { fontSize: 14, fontFamily: 'Helvetica-Bold' },
   category: { marginTop: 3, color: '#62666d', fontSize: 8.5 },
@@ -82,7 +84,7 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
   );
 }
 
-export default function SizeChartDocument({ sections, categoryName = 'Moissanite', includePrices = false }: { sections: SizeChartSection[]; categoryName?: string; includePrices?: boolean }) {
+export default function SizeChartDocument({ sections, categoryName = 'Moissanite', includePrices = false, logoUrl = '' }: { sections: SizeChartSection[]; categoryName?: string; includePrices?: boolean; logoUrl?: string }) {
   const pages = Array.from({ length: Math.ceil(sections.length / 2) }, (_, index) => sections.slice(index * 2, (index + 1) * 2));
   return (
     <Document title={`YOYO GEMS - ${categoryName} ${includePrices ? 'price list' : 'shapes and sizes'}`} author="YOYO GEMS">
@@ -90,8 +92,8 @@ export default function SizeChartDocument({ sections, categoryName = 'Moissanite
         <Page key={pageIndex} size="A4" style={css.page}>
           <View style={css.masthead}>
             <View style={css.brandBlock}>
-              <Text style={css.brand}>YOYO GEMS</Text>
-              <Text style={css.strap}>SYNTHETIC GEMSTONES. INFINITE CHOICES. ONE TRUSTED NAME.</Text>
+              {logoUrl ? <Image src={logoUrl} style={css.brandLogo} /> : <Text style={css.brand}>YOYO GEMS</Text>}
+              <Text style={css.strap}>{PDF_BRAND_TAGLINE}</Text>
             </View>
             <View style={css.titleBlock}>
               <Text style={css.title}>{includePrices ? 'PRICE LIST' : 'SHAPE & SIZE CHART'}</Text>

@@ -5,6 +5,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
+import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
     multiplier,
     groups: groupsFormatted,
     sections,
-    logoUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/brand/yoyo-logo-horizontal.png`,
+    logoUrl: await getPdfLogoDataUrl(),
     contactWhatsapp: settings.whatsapp_number || null,
     contactLocation: settings.location || null
   };

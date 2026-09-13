@@ -7,6 +7,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import SizeChartDocument, { type SizeChartSection } from '@/lib/pdf/SizeChartDocument';
+import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 export const runtime='nodejs';
 function compareDimensions(a:string,b:string){
  const left=a.split('x').map(Number),right=b.split('x').map(Number);
@@ -35,6 +36,6 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
  }));
  sections.sort((a,b)=>a.name==='Round'?-1:b.name==='Round'?1:a.name.localeCompare(b.name));
  if(!sections.some(s=>s.rows.length))return NextResponse.json({error:'No sizes configured yet.'},{status:404});
- const buffer=await renderToBuffer(React.createElement(SizeChartDocument,{sections,categoryName:category.data.name,includePrices}) as any);
+ const buffer=await renderToBuffer(React.createElement(SizeChartDocument,{sections,categoryName:category.data.name,includePrices,logoUrl:await getPdfLogoDataUrl()}) as any);
  return new NextResponse(new Uint8Array(buffer),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="YOYO-GEMS-Moissanite-${includePrices?'Price-List':'Shapes-Sizes'}.pdf"`,'Cache-Control':'public, max-age=60'}});
 }

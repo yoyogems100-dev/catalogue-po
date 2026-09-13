@@ -6,6 +6,7 @@ import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { milestoneLabel } from '@/lib/order-milestones';
 import OrderPdfDocument, { PdfItem } from '@/lib/pdf/OrderPdfDocument';
+import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -83,7 +84,8 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
         notes: notes || [],
         items: pdfItems,
         contactWhatsapp: settings.whatsapp_number || null,
-        contactLocation: settings.location || null
+        contactLocation: settings.location || null,
+        logoUrl: await getPdfLogoDataUrl()
       }
     }) as any
   );

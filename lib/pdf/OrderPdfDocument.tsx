@@ -1,5 +1,6 @@
 import {specText,type OrderSpecs} from '../order-specs';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { PDF_BRAND_TAGLINE } from './brand';
 
 export type PdfItem = {
   orderSpecs?: OrderSpecs;
@@ -26,6 +27,7 @@ export type PdfOrderData = {
   items: PdfItem[];
   contactWhatsapp: string | null;
   contactLocation: string | null;
+  logoUrl: string;
 };
 
 const styles = StyleSheet.create({
@@ -40,6 +42,8 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     marginBottom: 18
   },
+  brandBlock: { width: 260 },
+  brandLogo: { width: 205, height: 58, objectFit: 'contain', objectPosition: 'left center' },
   brand: { fontSize: 20, color: '#1B3A6B', fontFamily: 'Helvetica-Bold', letterSpacing: 1 },
   tagline: { fontSize: 8.5, color: '#756e5c', marginTop: 2 },
   docType: { fontSize: 14, color: '#9C7A25', fontFamily: 'Helvetica-Bold', textAlign: 'right' },
@@ -114,8 +118,8 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.brand}>YOYO GEMS</Text>
-            <Text style={styles.tagline}>Synthetic Gemstones. Infinite Choices. One Trusted Name.</Text>
+            {data.logoUrl ? <Image src={data.logoUrl} style={styles.brandLogo} /> : <Text style={styles.brand}>YOYO GEMS</Text>}
+            <Text style={styles.tagline}>{PDF_BRAND_TAGLINE}</Text>
           </View>
           <View>
             <Text style={styles.docType}>{docTitle}</Text>

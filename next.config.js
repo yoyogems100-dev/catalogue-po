@@ -2,7 +2,7 @@
 const nextConfig = {
   outputFileTracingIncludes: {
     '/api/categories/*/size-chart': ['./public/moissanite-shapes/*.png'],
-    '/api/**': ['./node_modules/pdfkit/js/standard-fonts/**', './node_modules/pdfkit/js/data/**']
+    '/api/**': ['./node_modules/pdfkit/js/standard-fonts/**', './node_modules/pdfkit/js/data/**', './public/brand/yoyo-gems-pdf-wordmark.png']
   },
   images: {
     remotePatterns: [
