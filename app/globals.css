@@ -1088,6 +1088,30 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   margin: 0;
   gap: 6px;
 }
+/* One category can carry several lines (e.g. 5-6 Glass Pearls colors/sizes in one
+   requirement) -- naming it once here instead of repeating it on every line. */
+.po-requirement-category + .po-requirement-category { margin-top: 14px; }
+.po-requirement-category-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 5px;
+  padding: 0 2px;
+}
+.po-requirement-category-head strong {
+  color: var(--ivory-gold);
+  font-family: 'Jost', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.po-requirement-category-head span {
+  color: rgba(255,255,255,.5);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
 .po-cart-card .po-item-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) 86px 34px;

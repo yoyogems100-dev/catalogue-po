@@ -13,6 +13,12 @@ import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import QuantityInput from './QuantityInput';
 
+// Glass Pearls only ever comes in round -- the shape field is redundant noise for
+// customers here, so it's hidden entirely and silently locked to Round rather than
+// shown as a fixed/disabled field (contrast with Moissanite's locked color, which
+// customers do still need to see spelled out).
+const GLASS_PEARLS_CATEGORY_ID = 16;
+
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -122,6 +128,16 @@ export default function POSelector({
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
+
+  // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
+  // above), so silently keep the selection pinned to Round instead of leaving it
+  // empty -- nothing else could ever be picked here anyway.
+  useEffect(() => {
+    if (categoryId !== GLASS_PEARLS_CATEGORY_ID) return;
+    const roundId = shapes.find((s) => s.name === 'Round')?.id;
+    if (roundId && (pickShapeIds.length !== 1 || pickShapeIds[0] !== roundId)) setPickShapeIds([roundId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId, shapes]);
 
   useEffect(() => {
     if (active) {
@@ -280,8 +296,12 @@ export default function POSelector({
     // default (e.g. Moissanite's gemstone photos, close enough across categories
     // that a dedicated photo per category isn't needed) -- or the vector outline.
     // Never the color's own photo: that would show a photo of the wrong thing
-    // labeled as the shape.
-    const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    // labeled as the shape. Glass Pearls is the one deliberate exception: shape is
+    // always Round and never shown to the customer, so the color -- the thing that
+    // actually varies -- is the meaningful image here instead.
+    const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
+      ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
+      : (item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null));
     return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
 
@@ -430,7 +450,7 @@ export default function POSelector({
               leading="swatch"
             />
           </div>
-          <div>
+          {categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
             <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
               categoryId={categoryId}
@@ -441,7 +461,7 @@ export default function POSelector({
               placeholder="Choose shape(s)"
               leading="icon"
             />
-          </div>
+          </div>}
           <div>
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
@@ -551,22 +571,43 @@ export default function POSelector({
               const groupItems = cart.filter((item) => item.requestType === group.type);
               if (groupItems.length === 0) return null;
               const groupPieces = groupItems.reduce((sum, item) => sum + item.qty, 0);
+              // New lines are pushed onto the end of `cart`, so walking it in reverse
+              // surfaces the most recently added line -- and, since that's also the
+              // first time we see its category, the most recently touched category --
+              // first. Items within a category keep that same newest-first order.
+              const categoryGroups: { categoryId: number; categoryName: string; items: CartItem[] }[] = [];
+              const categoryIndex = new Map<number, number>();
+              for (const item of [...groupItems].reverse()) {
+                if (!categoryIndex.has(item.categoryId)) {
+                  categoryIndex.set(item.categoryId, categoryGroups.length);
+                  categoryGroups.push({ categoryId: item.categoryId, categoryName: item.categoryName, items: [] });
+                }
+                categoryGroups[categoryIndex.get(item.categoryId)!].items.push(item);
+              }
               return <section className="po-requirement-group" key={group.type} aria-label={group.title}>
                 <header className="po-requirement-group-head">
                   <h3>{group.title}</h3>
                   <span>{groupItems.length} {groupItems.length === 1 ? 'line' : 'lines'} · {groupPieces.toLocaleString('en-IN')} pcs</span>
                 </header>
-                <div className="po-item-list">
-            {groupItems.map((item) => {
+                {categoryGroups.map((catGroup) => (
+                <div className="po-requirement-category" key={catGroup.categoryId}>
+                  <div className="po-requirement-category-head">
+                    <strong>{catGroup.categoryName}</strong>
+                    <span>{catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}</span>
+                  </div>
+                  <div className="po-item-list">
+            {catGroup.items.map((item) => {
               const unit = unitPriceInr(item);
               return (
               <div key={item.id} className="po-item-row">
                 <StoneReference item={item} />
                 <div className="po-item-details">
-                  <strong>{item.shapeName} · {item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
+                  <strong>{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
                   <span>
-                    {item.categoryName}
-                    <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
+                    {/* Category now lives in the group header above, not repeated per line.
+                        Glass Pearls' main image (StoneReference) is already the color's own
+                        photo -- a swatch here would just show the same picture twice. */}
+                    {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />}
                     {item.categoryId === categoryId && !item.orderSpecs
                       ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'color', values: [item.colorId] })}>{item.colorName}</button>
                       : item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
@@ -604,7 +645,9 @@ export default function POSelector({
               </div>
               );
             })}
+                  </div>
                 </div>
+                ))}
               </section>;
             })}
           </div>
@@ -650,8 +693,8 @@ export default function POSelector({
         onCancel={(event) => { event.preventDefault(); if (!sending) setReviewing(false); }}>
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
-        <ul className="order-review-lines">{cart.map(item => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
+        <ul className="order-review-lines">{[...cart].reverse().map(item => <li key={item.id}><StoneReference item={item} /><div>
+          <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
