@@ -215,7 +215,8 @@ export default function ColorsClient({
         <h3>Available colors for {categories.find(category => category.id === categoryFilter)?.name}</h3>
         <MultiSelect options={colors.map(color => ({id:color.id,name:color.name,hex:color.hex_value,refPhotoUrl:color.ref_photo_url}))}
           selectedIds={catColors.filter(link => link.category_id === categoryFilter).map(link => link.color_id)}
-          onToggle={(id,selected) => toggleCategory(id,categoryFilter,selected)} leading="swatch" placeholder="Choose available colors" />
+          onToggle={(id,selected) => toggleCategory(id,categoryFilter,selected)} leading="swatch" placeholder="Choose available colors"
+          palettes={palettes.map(p => ({ id: p.id, name: p.name, memberIds: p.colorIds }))} />
         <a href={`/admin/categories/${categoryFilter}?tab=colors`}>Open category workspace</a>
       </section>}
       <p>{visibleColors.length} colors shown{scoped ? ' for this category' : ''}.</p>
