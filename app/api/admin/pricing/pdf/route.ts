@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
-  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, settings] = await Promise.all([
+  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),
     supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_groups').select('id, name').order('sort_order'),
     supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_rmb').eq('category_id', categoryId),
+    supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
+    supabaseAdmin.from('color_price_group_members').select('group_id, color_id'),
     getSettings()
   ]);
 
@@ -42,7 +44,24 @@ export async function GET(req: NextRequest) {
   const priceLookup = new Map<string, number>();
   (prices || []).forEach((p: any) => priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_rmb)));
 
-  const groupsFormatted = (groups || []).map((g: any) => ({ id: g.id, name: g.name }));
+  const selectedColors = new Map<number, string>();
+  (categoryColors || []).forEach((row: any) => {
+    const color = Array.isArray(row.colors) ? row.colors[0] : row.colors;
+    if (color?.name) selectedColors.set(row.color_id, color.name);
+  });
+  const colorNamesByGroup = new Map<number, string[]>();
+  (groupMembers || []).forEach((member: any) => {
+    const colorName = selectedColors.get(member.color_id);
+    if (!colorName) return;
+    colorNamesByGroup.set(member.group_id, [...(colorNamesByGroup.get(member.group_id) || []), colorName]);
+  });
+  const groupsFormatted = (groups || [])
+    .filter((group: any) => colorNamesByGroup.has(group.id))
+    .map((group: any) => ({
+      id: group.id,
+      name: group.name,
+      colors: (colorNamesByGroup.get(group.id) || []).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    }));
 
   // Only shapes that actually have a priced size are worth a page section --
   // a linked-but-unpriced shape would just render an empty table.

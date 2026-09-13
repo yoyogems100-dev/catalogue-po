@@ -204,6 +204,7 @@ export default function CategoryClient({
         <div className="filter-bar">
           {shapes.length > 0 && (
             <IconSelect
+              categoryId={categoryId}
               options={shapes}
               value={shapeFilter}
               onChange={(v) => { setShapeFilter(v); setSizeFilter('all'); }}
@@ -214,16 +215,16 @@ export default function CategoryClient({
           {availableSizes.length > 0 && (
             <select aria-label="Filter by size" value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
               <option value="all">All sizes</option>
-              {[...availableSizes].sort((a,b) => Number(isHot(flags,'size',b.ids))-Number(isHot(flags,'size',a.ids))).map((s) => <option key={s.key} value={s.key}>{isHot(flags,'size',s.ids) ? '🔥 ' : ''}{s.label} mm</option>)}
+              {[...availableSizes].sort((a,b) => Number(isHot(flags,categoryId,'size',b.ids))-Number(isHot(flags,categoryId,'size',a.ids))).map((s) => <option key={s.key} value={s.key}>{isHot(flags,categoryId,'size',s.ids) ? '🔥 ' : ''}{s.label} mm</option>)}
             </select>
           )}
           {colors.length > 0 && (
-            <IconSelect options={colors} value={colorFilter} onChange={setColorFilter} allLabel="All colors" leading="swatch" />
+            <IconSelect categoryId={categoryId} options={colors} value={colorFilter} onChange={setColorFilter} allLabel="All colors" leading="swatch" />
           )}
           {tags.length > 0 && (
             <select aria-label="Filter by specification" value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
               <option value="all">All specifications</option>
-              {[...tags].sort((a,b) => Number(isHot(flags,'tag',[b.id]))-Number(isHot(flags,'tag',[a.id]))).map((t) => <option key={t.id} value={t.id}>{isHot(flags,'tag',[t.id]) ? '🔥 ' : ''}{t.name}</option>)}
+              {[...tags].sort((a,b) => Number(isHot(flags,categoryId,'tag',[b.id]))-Number(isHot(flags,categoryId,'tag',[a.id]))).map((t) => <option key={t.id} value={t.id}>{isHot(flags,categoryId,'tag',[t.id]) ? '🔥 ' : ''}{t.name}</option>)}
             </select>
           )}
           <span style={{ fontSize: 12, color: '#756e5c' }}>{filtered.length} of {photos.length} photos</span>

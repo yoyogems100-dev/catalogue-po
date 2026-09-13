@@ -1,7 +1,8 @@
 -- Second supplier color chart for Crushed Ice Cut (category 1): the "G" series
 -- (G-01..G-66), added alongside the existing "F - Gem Ice Flower" palette rather
 -- than replacing it -- both remain independently selectable per category.
-insert into color_palettes (name, sort_order) values ('G - Crushed Ice Cut', 101);
+insert into color_palettes (name, sort_order) values ('G - Crushed Ice Cut', 101)
+on conflict (name) do update set sort_order = excluded.sort_order;
 
 insert into colors (name, hex_value, ref_photo_url) values
 ('G-01 D-China Red', '#8B1A1A', '/reference/colors/crushed-ice/g01-d-china-red.webp'),
@@ -69,14 +70,17 @@ insert into colors (name, hex_value, ref_photo_url) values
 ('G-63 Color Change 2#', '#8B7FB0', '/reference/colors/crushed-ice/g63-color-change-2.webp'),
 ('G-64 Gray', '#8B8B8B', '/reference/colors/crushed-ice/g64-gray.webp'),
 ('G-65 Color Change 3#', '#9B9B7A', '/reference/colors/crushed-ice/g65-color-change-3.webp'),
-('G-66 White G', '#F0EEE8', '/reference/colors/crushed-ice/g66-white-g.webp');
+('G-66 White G', '#F0EEE8', '/reference/colors/crushed-ice/g66-white-g.webp')
+on conflict (name) do update set hex_value = excluded.hex_value, ref_photo_url = excluded.ref_photo_url;
 
 -- Link every G-xx color into its palette and into the Crushed Ice Cut category
 -- (alongside the existing F colors, not replacing them).
 insert into color_palette_items (palette_id, color_id)
 select (select id from color_palettes where name = 'G - Crushed Ice Cut'), id
-from colors where name ~ '^G-[0-9]{2} ';
+from colors where name ~ '^G-[0-9]{2} '
+on conflict (palette_id, color_id) do nothing;
 
 insert into category_colors (category_id, color_id)
 select 1, id
-from colors where name ~ '^G-[0-9]{2} ';
+from colors where name ~ '^G-[0-9]{2} '
+on conflict (category_id, color_id) do nothing;

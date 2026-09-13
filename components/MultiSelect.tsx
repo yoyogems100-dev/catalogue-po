@@ -12,6 +12,7 @@ type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null
 type Palette = { id: number; name: string; memberIds: number[] };
 
 export default function MultiSelect({
+  categoryId,
   options,
   optionKind,
   selectedIds,
@@ -21,6 +22,7 @@ export default function MultiSelect({
   emptyHint,
   palettes
 }: {
+  categoryId?: number;
   optionKind?: OptionKind;
   options: Option[];
   selectedIds: number[];
@@ -33,7 +35,7 @@ export default function MultiSelect({
 }) {
   const { flags, ready } = useHotSelling();
   const kind = optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
-  const hot = (o: Option) => isHot(flags, kind, o.hotIds || [o.id]);
+  const hot = (o: Option) => isHot(flags, categoryId, kind, o.hotIds || [o.id]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   // Local optimistic copy so clicks reflect instantly instead of waiting on a
@@ -238,7 +240,7 @@ export default function MultiSelect({
                 >
                   <input type="checkbox" checked={isSel} readOnly aria-hidden="true" tabIndex={-1} />
                   <Leading o={o} />
-                  {o.name}<HotMark kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
+                  {o.name}<HotMark categoryId={categoryId} kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
                 </div>
               );
             })}

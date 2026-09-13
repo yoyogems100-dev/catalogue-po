@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
 
-export type PriceListGroup = { id: number; name: string };
+export type PriceListGroup = { id: number; name: string; colors?: string[] };
 export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> RMB price
 export type PriceListShapeSection = { shapeName: string; rows: PriceListRow[] };
 
@@ -39,6 +39,12 @@ const styles = StyleSheet.create({
   },
   metaLabel: { fontSize: 7.5, color: '#6B5A3E', letterSpacing: 0.4 },
   metaValue: { fontSize: 9, color: '#12233F', fontFamily: 'Helvetica-Bold', marginTop: 1 },
+  colorLegend: { marginBottom: 10, borderWidth: 0.8, borderColor: '#d8cfb7', borderStyle: 'solid' },
+  colorLegendTitle: { paddingVertical: 5, paddingHorizontal: 8, backgroundColor: '#12233F', color: '#fff', fontSize: 7.5, fontFamily: 'Helvetica-Bold', letterSpacing: 0.4 },
+  colorLegendGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 3, paddingHorizontal: 5 },
+  colorLegendItem: { width: '50%', paddingVertical: 3, paddingHorizontal: 4, flexDirection: 'row' },
+  colorLegendGroup: { width: 82, fontSize: 7, color: '#9C7A25', fontFamily: 'Helvetica-Bold' },
+  colorLegendNames: { flex: 1, fontSize: 6.8, color: '#3A3F44', lineHeight: 1.25 },
   shapeHeading: {
     fontSize: 11, color: '#12233F', fontFamily: 'Helvetica-Bold', marginTop: 14, marginBottom: 6,
     borderLeftWidth: 3, borderLeftColor: '#9C7A25', borderLeftStyle: 'solid', paddingLeft: 6
@@ -91,6 +97,18 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
             <Text style={styles.metaValue}>INR (Rs.) per piece</Text>
+          </View>
+        </View>
+
+        <View style={styles.colorLegend} wrap={false}>
+          <Text style={styles.colorLegendTitle}>CURRENTLY AVAILABLE COLORS ({data.groups.reduce((count, group) => count + (group.colors?.length || 0), 0)})</Text>
+          <View style={styles.colorLegendGrid}>
+            {data.groups.map((group) => (
+              <View key={group.id} style={styles.colorLegendItem}>
+                <Text style={styles.colorLegendGroup}>{group.name}</Text>
+                <Text style={styles.colorLegendNames}>{(group.colors || []).join(', ')}</Text>
+              </View>
+            ))}
           </View>
         </View>
 

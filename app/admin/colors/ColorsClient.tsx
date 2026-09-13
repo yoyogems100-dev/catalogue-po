@@ -364,9 +364,9 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
     return (
       <button
         type="button"
-        onClick={() => { setText(value); setEditing(true); }}
-        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', fontSize: 13.5, padding: 0, fontFamily: 'inherit', textAlign: 'left' }}
-        title="Click to rename"
+        onDoubleClick={() => { setText(value); setEditing(true); }}
+        style={{ cursor: 'text', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', fontSize: 13.5, padding: 0, fontFamily: 'inherit', textAlign: 'left' }}
+        title="Double-click to rename"
         aria-label={`Rename color ${value}`}
       >
         {value}

@@ -162,8 +162,8 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
       <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} categories. Missing links are review prompts; they do not change product availability.</p>
       <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
         {view === 'list' && !filtered
-          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Click a category name to rename it. Manage a category to set its homepage tag.'
-          : 'Click a category name to rename it. Manage a category to set its homepage tag.'}
+          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Double-click a category name to rename it. Manage a category to set its homepage tag.'
+          : 'Double-click a category name to rename it. Manage a category to set its homepage tag.'}
       </p>
 
       {view === 'list' ? (
@@ -270,9 +270,9 @@ function NameCell({ value, onSave }: { value: string; onSave: (name: string) => 
     return (
       <button
         type="button"
-        onClick={() => { setText(value); setEditing(true); }}
-        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
-        title="Click to rename"
+        onDoubleClick={() => { setText(value); setEditing(true); }}
+        style={{ cursor: 'text', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
+        title="Double-click to rename"
         aria-label={`Rename category ${value}`}
       >
         {value}

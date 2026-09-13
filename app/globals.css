@@ -1032,6 +1032,10 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 }
 .shape-reference-icon { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .icon-select-trigger .shape-reference-icon { width: 26px; height: 26px; }
+.shape-vector-icon { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 32px; color:var(--navy); padding:0; }
+.shape-vector-icon svg { width:30px; height:30px; }
+.icon-select-trigger .shape-vector-icon { width:25px; height:25px; flex-basis:25px; }
+.icon-select-trigger .shape-vector-icon svg { width:24px; height:24px; }
 .icon-select-trigger:disabled { opacity: 1; color: var(--ink); background: #f4f2ec; cursor: default; }
 .size-chart-download { display: inline-flex; align-items: center; margin: 12px 0; min-height: 44px; font-size: 13px; }
 
@@ -1243,10 +1247,25 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* Inline cart option editing */
 .po-item-option-link { appearance: none; border: 0; border-bottom: 1px dashed currentColor; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .po-item-option-link:hover { color: var(--gold); }
-.po-item-option-editor { position: relative; z-index: 8; grid-column: 1 / -1; width: 100%; margin-top: 1px; padding: 9px; border: 1px solid rgba(255,255,255,.2); background: #183158; }
+.po-item-option-editor { position: relative; z-index: 8; grid-column: 1 / -1; width: 100%; margin-top: 1px; padding: 9px 34px 9px 9px; border: 1px solid rgba(255,255,255,.2); background: #183158; }
 .po-item-option-editor > p { margin: 5px 2px 0; color: rgba(255,255,255,.66); font-size: 10px; line-height: 1.35; }
-.po-item-option-editor > div:last-child { display: flex; justify-content: flex-end; gap: 6px; margin-top: 7px; }
 .po-item-option-editor .icon-select-trigger { background: #fff; color: #18233a; }
+/* Dropdown and Apply share one row instead of stacking -- a wide trigger followed
+   by a button on its own line below just adds height and can force page scroll
+   for no reason. */
+.po-item-option-row { display: flex; align-items: center; gap: 8px; }
+.po-item-option-row .icon-select { flex: 1; min-width: 0; }
+.po-item-option-row .btn { flex-shrink: 0; }
+/* Explicit "back out, don't save" affordance -- clicking outside this panel
+   commits the selection instead (see ItemOptionEditor's mousedown handler), so
+   this is the only way to discard a change made by mistake. */
+.po-item-option-close {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: rgba(255,255,255,.12); color: #fff;
+  font-size: 16px; line-height: 1; cursor: pointer; border-radius: 4px;
+}
+.po-item-option-close:hover { background: rgba(255,255,255,.24); }
 
 /* Admin relationship directories */
 .admin-page-head, .admin-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
