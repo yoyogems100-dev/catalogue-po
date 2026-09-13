@@ -233,7 +233,10 @@ export default function POSelector({
   }
 
   function StoneReference({item}:{item:CartItem}) {
-    const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    // Prefer a real photo of the actual shape ordered; if this category/shape combination
+    // doesn't have one, a real photo of the color at least beats the generic vector outline.
+    const shapePhoto = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    const src = shapePhoto || item.colorRefPhotoUrl || null;
     return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
 

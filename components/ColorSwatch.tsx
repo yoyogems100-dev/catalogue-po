@@ -17,8 +17,14 @@ export default function ColorSwatch({
   name?: string;
   size?: number;
 }) {
-  const isPearl = refPhotoUrl?.includes('/pearl-colors/');
-  const displaySize = isPearl ? Math.max(size, 28) : size;
+  // Pearl photos and our own generated gem icons are already tightly cropped
+  // with a transparent background, so they're shown at their natural size with
+  // no clip -- forcing them through the hard circle-crop + 280% zoom below
+  // (built for looser admin-uploaded photos) would cut into the facets and can
+  // show a thin ring where the CSS circle doesn't line up with the photo's own
+  // edge.
+  const isCleanCutout = refPhotoUrl?.includes('/pearl-colors/') || refPhotoUrl?.includes('/reference/colors/');
+  const displaySize = isCleanCutout ? Math.max(size, 28) : size;
   return (
     <span
       title={name}
@@ -27,7 +33,7 @@ export default function ColorSwatch({
         width: displaySize,
         height: displaySize,
         flexShrink: 0,
-        borderRadius: '50%',
+        borderRadius: isCleanCutout ? 0 : '50%',
         // Zoomed in hard on the center of the photo -- source stone photos
         // vary in how tightly they're framed (some have a light backing
         // margin, some are looser crops from admin uploads), and 170% still
@@ -35,7 +41,7 @@ export default function ColorSwatch({
         // looser photos. This samples deep into the stone's own color/facets
         // instead of anywhere near the photo's outer edge, so the round
         // swatch reads as solid stone regardless of how the source was shot.
-        background: refPhotoUrl ? `url(${refPhotoUrl}) center/${isPearl ? '100% 100%' : '280% 280%'} no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
+        background: refPhotoUrl ? `url(${refPhotoUrl}) center/${isCleanCutout ? '100% 100%' : '280% 280%'} no-repeat, ${hex || '#ccc'}` : hex || '#ccc'
       }}
     />
   );

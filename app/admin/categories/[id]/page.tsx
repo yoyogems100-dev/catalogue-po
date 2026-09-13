@@ -34,7 +34,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: colorPaletteItems }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
-    supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
@@ -103,12 +103,16 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         categoryId={categoryId}
         references={(linkedShapes || []).map((link: any) => {
           const shape = (allShapes || []).find((item: any) => item.id === link.shape_id);
+          // Same default-to-photo-when-available rule as the public category page: a
+          // category-specific upload wins, otherwise fall back to the shared photo for
+          // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
+          const refPhotoUrl = link.ref_photo_url || shape?.ref_photo_url || null;
           return {
             shapeId: link.shape_id,
             name: shape?.name || `Shape #${link.shape_id}`,
             iconKey: shape?.icon_key,
-            refPhotoUrl: link.ref_photo_url || null,
-            referenceStyle: (link.reference_style === 'photo' || (!link.reference_style && categoryId === 34 && link.ref_photo_url)) ? 'photo' as const : 'vector' as const,
+            refPhotoUrl,
+            referenceStyle: (link.reference_style !== 'vector' && refPhotoUrl) ? 'photo' as const : 'vector' as const,
           };
         })}
       />}
