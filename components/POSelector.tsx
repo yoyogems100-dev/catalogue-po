@@ -571,13 +571,32 @@ export default function POSelector({
               const groupItems = cart.filter((item) => item.requestType === group.type);
               if (groupItems.length === 0) return null;
               const groupPieces = groupItems.reduce((sum, item) => sum + item.qty, 0);
+              // New lines are pushed onto the end of `cart`, so walking it in reverse
+              // surfaces the most recently added line -- and, since that's also the
+              // first time we see its category, the most recently touched category --
+              // first. Items within a category keep that same newest-first order.
+              const categoryGroups: { categoryId: number; categoryName: string; items: CartItem[] }[] = [];
+              const categoryIndex = new Map<number, number>();
+              for (const item of [...groupItems].reverse()) {
+                if (!categoryIndex.has(item.categoryId)) {
+                  categoryIndex.set(item.categoryId, categoryGroups.length);
+                  categoryGroups.push({ categoryId: item.categoryId, categoryName: item.categoryName, items: [] });
+                }
+                categoryGroups[categoryIndex.get(item.categoryId)!].items.push(item);
+              }
               return <section className="po-requirement-group" key={group.type} aria-label={group.title}>
                 <header className="po-requirement-group-head">
                   <h3>{group.title}</h3>
                   <span>{groupItems.length} {groupItems.length === 1 ? 'line' : 'lines'} · {groupPieces.toLocaleString('en-IN')} pcs</span>
                 </header>
-                <div className="po-item-list">
-            {groupItems.map((item) => {
+                {categoryGroups.map((catGroup) => (
+                <div className="po-requirement-category" key={catGroup.categoryId}>
+                  <div className="po-requirement-category-head">
+                    <strong>{catGroup.categoryName}</strong>
+                    <span>{catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}</span>
+                  </div>
+                  <div className="po-item-list">
+            {catGroup.items.map((item) => {
               const unit = unitPriceInr(item);
               return (
               <div key={item.id} className="po-item-row">
@@ -585,12 +604,9 @@ export default function POSelector({
                 <div className="po-item-details">
                   <strong>{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
                   <span>
-                    {item.categoryId === GLASS_PEARLS_CATEGORY_ID
-                      ? <span style={{ fontSize: '1.2em' }}>{item.categoryName}</span>
-                      : item.categoryName}
-                    {/* Glass Pearls' main image (StoneReference) is already the color's own
-                        photo -- repeating it here as a swatch would just show the same
-                        picture twice right next to each other. */}
+                    {/* Category now lives in the group header above, not repeated per line.
+                        Glass Pearls' main image (StoneReference) is already the color's own
+                        photo -- a swatch here would just show the same picture twice. */}
                     {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />}
                     {item.categoryId === categoryId && !item.orderSpecs
                       ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'color', values: [item.colorId] })}>{item.colorName}</button>
@@ -629,7 +645,9 @@ export default function POSelector({
               </div>
               );
             })}
+                  </div>
                 </div>
+                ))}
               </section>;
             })}
           </div>
@@ -675,7 +693,7 @@ export default function POSelector({
         onCancel={(event) => { event.preventDefault(); if (!sending) setReviewing(false); }}>
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
-        <ul className="order-review-lines">{cart.map(item => <li key={item.id}><StoneReference item={item} /><div>
+        <ul className="order-review-lines">{[...cart].reverse().map(item => <li key={item.id}><StoneReference item={item} /><div>
           <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
