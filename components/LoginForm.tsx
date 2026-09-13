@@ -186,7 +186,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       )}
 
-      {step === 'profile' && <ProfileCompletionForm onSuccess={onSuccess} />}
+      {step === 'profile' && <ProfileCompletionForm onSuccess={onSuccess} needsPhone={mode === 'email'} showEmail={mode === 'phone'} />}
     </div>
   );
 }

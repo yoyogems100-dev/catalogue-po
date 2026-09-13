@@ -2,11 +2,28 @@
 
 import { useState } from 'react';
 
-export default function ProfileCompletionForm({ onSuccess }: { onSuccess: () => void }) {
+const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Commercial'];
+
+export default function ProfileCompletionForm({
+  onSuccess,
+  needsPhone = false,
+  showEmail = true
+}: {
+  onSuccess: () => void;
+  needsPhone?: boolean;
+  showEmail?: boolean;
+}) {
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
+  const [dealsIn, setDealsIn] = useState<string[]>([]);
+  const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  function toggleDealsIn(option: string) {
+    setDealsIn((prev) => (prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -14,12 +31,20 @@ export default function ProfileCompletionForm({ onSuccess }: { onSuccess: () => 
       setError('Name is required.');
       return;
     }
+    if (needsPhone && phone.replace(/\D/g, '').length < 10) {
+      setError('Enter a valid phone number.');
+      return;
+    }
+    if (!company.trim()) {
+      setError('Company name is required.');
+      return;
+    }
     setError('');
     setSaving(true);
     const res = await fetch('/api/account/profile/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, company })
+      body: JSON.stringify({ name, phone: needsPhone ? phone : undefined, company, dealsIn, email: showEmail ? email : undefined })
     });
     setSaving(false);
     if (res.ok) {
@@ -44,14 +69,53 @@ export default function ProfileCompletionForm({ onSuccess }: { onSuccess: () => 
         autoFocus
         style={{ marginBottom: 12 }}
       />
-      <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Company (optional)</label>
+      {needsPhone && (
+        <>
+          <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Phone number</label>
+          <input
+            type="tel"
+            placeholder="e.g. 9XXXXXXXXX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={{ marginBottom: 12 }}
+          />
+        </>
+      )}
+      <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Company name</label>
       <input
         type="text"
         placeholder="e.g. Kumar Gems Pvt Ltd"
         value={company}
         onChange={(e) => setCompany(e.target.value)}
-        style={{ marginBottom: 14 }}
+        style={{ marginBottom: 12 }}
       />
+      <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>What do you deal in? (optional)</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+        {DEALS_IN_OPTIONS.map((option) => (
+          <label key={option} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--ink)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              className="icon-select-checkbox"
+              checked={dealsIn.includes(option)}
+              onChange={() => toggleDealsIn(option)}
+              style={{ pointerEvents: 'auto' }}
+            />
+            {option}
+          </label>
+        ))}
+      </div>
+      {showEmail && (
+        <>
+          <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email (optional)</label>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ marginBottom: 14 }}
+          />
+        </>
+      )}
       {error && <p style={{ color: '#a3341f', fontSize: 12.5, marginBottom: 10 }}>{error}</p>}
       <button type="submit" className="btn" style={{ width: '100%' }} disabled={saving}>
         {saving ? 'Saving…' : 'Continue'}

@@ -12,13 +12,13 @@ export default async function AccountOrdersPage() {
   const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
-  const { data: customer } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
+  const { data: customer } = await supabaseAdmin.from('customers').select('name, phone, email').eq('id', customerId).maybeSingle();
   if (!customer?.name) {
     return (
       <>
         <AccountHeader />
         <div className="container" style={{ padding: '28px 20px 80px' }}>
-          <ProfileGate />
+          <ProfileGate needsPhone={!customer?.phone} showEmail={!customer?.email} />
         </div>
       </>
     );
