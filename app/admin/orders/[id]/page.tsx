@@ -20,7 +20,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   }
 
   const { data: customer } = order.customer_id
-    ? await supabaseAdmin.from('customers').select('id, name, phone, email, phone_verified, company').eq('id', order.customer_id).single()
+    ? await supabaseAdmin.from('customers').select('*').eq('id', order.customer_id).single()
     : { data: null };
 
   const { data: customerOrderHistory } = customer
@@ -56,6 +56,15 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value }])
   );
 
+  const [{ data: suppliers }, { data: supplierCategoryLinks }] = await Promise.all([
+    supabaseAdmin.from('suppliers').select('id,name').order('name'),
+    supabaseAdmin.from('supplier_categories').select('supplier_id,category_id'),
+  ]);
+  const suppliersFormatted = (suppliers || []).map((supplier: any) => ({
+    ...supplier,
+    categoryIds: (supplierCategoryLinks || []).filter((link: any) => link.supplier_id === supplier.id).map((link: any) => link.category_id),
+  }));
+
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
     categoryId: it.category_id,
@@ -67,6 +76,9 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     orderSpecs: it.order_specs || null,
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
+    costPrice: it.cost_price != null ? Number(it.cost_price) : null,
+    costCurrency: it.cost_currency || 'INR',
+    supplierId: it.supplier_id || null,
     requestType: it.request_type || 'Place Order'
   }));
 
@@ -143,6 +155,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         categoryOptions={categoryOptions}
         history={history || []}
         notes={notes || []}
+        suppliers={suppliersFormatted}
       />
     </>
   );

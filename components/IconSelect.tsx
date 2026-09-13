@@ -5,7 +5,7 @@ import { useDropdownBounds } from './useDropdownBounds';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
-import ShapeIcon from './ShapeIcon';
+import ShapeReferenceImage from './ShapeReferenceImage';
 import ColorSwatch from './ColorSwatch';
 
 type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
@@ -146,8 +146,7 @@ export default function IconSelect(props: Props) {
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
     if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={16} />;
-    if (leading === 'icon' && o.refPhotoUrl) return <img className="shape-reference-icon" src={o.refPhotoUrl} alt="" />;
-    if (leading === 'icon') return <span className="icon-select-icon"><ShapeIcon iconKey={o.iconKey} size={13} /></span>;
+    if (leading === 'icon') return <ShapeReferenceImage className="shape-reference-icon" name={o.name} src={o.refPhotoUrl} iconKey={o.iconKey} fallbackSize={13} />;
     return null;
   }
 

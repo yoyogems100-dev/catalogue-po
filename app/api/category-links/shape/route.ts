@@ -17,3 +17,26 @@ export async function DELETE(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+export async function PATCH(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { category_id, shape_id, reference_style } = await req.json();
+  if (!Number.isInteger(category_id) || !Number.isInteger(shape_id)) {
+    return NextResponse.json({ error: 'Category and shape are required.' }, { status: 400 });
+  }
+  if (!['vector', 'photo'].includes(reference_style)) return NextResponse.json({ error: 'Invalid reference style.' }, { status: 400 });
+  const { data: link, error: linkError } = await supabaseAdmin
+    .from('category_shapes')
+    .select('shape_id,ref_photo_url')
+    .eq('category_id', category_id)
+    .eq('shape_id', shape_id)
+    .maybeSingle();
+  if (linkError) return NextResponse.json({ error: linkError.message }, { status: 400 });
+  if (!link) return NextResponse.json({ error: 'This shape is not linked to the category.' }, { status: 404 });
+  if (reference_style === 'photo' && !link.ref_photo_url) {
+    return NextResponse.json({ error: 'Upload a gemstone photo before selecting it.' }, { status: 400 });
+  }
+  const { error } = await supabaseAdmin.from('category_shapes').update({ reference_style }).eq('category_id', category_id).eq('shape_id', shape_id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}

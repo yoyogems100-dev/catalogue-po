@@ -114,14 +114,15 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
           const customer = custMap[order.customer_id];
           const summary = stats[order.id];
           return <article key={order.id} className="card admin-order-card">
-            <h2><Link href={`/admin/orders/${order.id}`}>Order #{order.id}</Link></h2>
-            <p>{customer?.name || order.contact_name || 'No contact name'} {customer?.phone && `· ${maskPhone(customer.phone)}`}</p>
+            <Link href={`/admin/orders/${order.id}`} className="admin-order-card-hit" aria-label={`Open order ${order.id}`} />
+            <h2>Order #{order.id}</h2>
+            <p>{customer ? <Link className="admin-card-customer-link" href={`/admin/customers/${customer.id}`}>{customer.name || maskPhone(customer.phone) || 'Customer'}</Link> : (order.contact_name || 'No contact name')} {customer?.phone && `· ${maskPhone(customer.phone)}`}</p>
             <dl><div><dt>Placed</dt><dd>{new Date(order.created_at).toLocaleDateString('en-IN', {timeZone:'Asia/Kolkata'})}</dd></div>
             <div><dt>Status</dt><dd>{milestoneLabel(order.status)}</dd></div><div><dt>Payment</dt><dd>{order.payment_status || 'pending'}</dd></div>
             <div><dt>Request</dt><dd>{order.request_type === 'Place Order' ? 'Purchase' : order.request_type || 'Purchase'}</dd></div>
             <div><dt>Contents</dt><dd>{summary?.lines || 0} lines · {(summary?.pieces || 0).toLocaleString('en-IN')} pieces</dd></div></dl>
             {!!summary?.unpricedQuotes && <p>{summary.unpricedQuotes} quotation lines need pricing</p>}
-            <Link className="btn-ghost" href={`/admin/orders/${order.id}`}>Manage order #{order.id}</Link>
+            <span className="admin-card-open-label">Open order →</span>
           </article>;
         })}
         {!orders?.length && <p>No orders match these filters.</p>}
@@ -139,7 +140,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
               <tr key={o.id}>
                 <td>{o.id}</td>
                 <td>
-                  {cust ? (cust.name || maskPhone(cust.phone) || '—') : (o.contact_name || '—')}
+                  {cust ? <Link className="admin-table-link" href={`/admin/customers/${cust.id}`}>{cust.name || maskPhone(cust.phone) || 'Customer'}</Link> : (o.contact_name || '—')}
                   {cust?.name && cust?.phone ? ` · ${maskPhone(cust.phone)}` : ''}
                 </td>
                 <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>

@@ -32,13 +32,13 @@ type CartItem = {
   qty: number;
 };
 
-export default function AdminOrderBuilder({ allCategories, allCustomers }: { allCategories: Category[]; allCustomers: Customer[] }) {
+export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
   const { flags } = useHotSelling();
   const router = useRouter();
 
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
   const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(initialCustomerId);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
 
@@ -50,8 +50,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers }: { all
   const [pickColorId, setPickColorId] = useState<number | 'all'>('all');
   const [pickQty, setPickQty] = useState('');
 
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [requestType, setRequestType] = useState('Place Order');
+  const [cart, setCart] = useState<CartItem[]>(repeatItems);
+  const [requestType, setRequestType] = useState(initialRequestType);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');

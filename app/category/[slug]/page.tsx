@@ -29,7 +29,7 @@ async function getCategoryData(slug: string) {
   if (!category) return null;
 
   const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedTagIds }, { data: linkedSizeIds }] = await Promise.all([
-    supabasePublic.from('category_shapes').select('shape_id, ref_photo_url').eq('category_id', category.id),
+    supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_tags').select('tag_id').eq('category_id', category.id),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id)
@@ -67,7 +67,11 @@ async function getCategoryData(slug: string) {
     tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id)
   }));
 
-  const shapesFormatted = (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: linkedShapeIds?.find(link=>link.shape_id===s.id)?.ref_photo_url || s.ref_photo_url }));
+  const shapesFormatted = (shapes || []).map((s: any) => {
+    const link: any = linkedShapeIds?.find(link => link.shape_id === s.id);
+    const usePhoto = link?.reference_style === 'photo' || (!link?.reference_style && category.id === 34 && link?.ref_photo_url);
+    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: usePhoto ? link?.ref_photo_url || null : null };
+  });
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 
   // Palettes: only ones with at least one member actually offered in this
@@ -134,6 +138,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           photos={data.photos}
           colorChartUrl={data.category.color_chart_url}
           colorPalettes={data.colorPalettes}
+          loggedIn={account.loggedIn}
           pricing={data.pricing}
         />
       </div>

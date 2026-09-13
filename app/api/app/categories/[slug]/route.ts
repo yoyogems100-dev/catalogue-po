@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
 
   const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedSizeIds }] = await Promise.all([
-    supabasePublic.from('category_shapes').select('shape_id,ref_photo_url').eq('category_id', category.id),
+    supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id)
   ]);
@@ -42,7 +42,11 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   return NextResponse.json({
     category,
-    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: linkedShapeIds?.find(link=>link.shape_id===s.id)?.ref_photo_url || null })),
+    shapes: (shapes || []).map((s: any) => {
+      const link: any = linkedShapeIds?.find(link => link.shape_id === s.id);
+      const usePhoto = link?.reference_style === 'photo' || (!link?.reference_style && category.id === 34 && link?.ref_photo_url);
+      return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: usePhoto ? link?.ref_photo_url || null : null };
+    }),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     photos: (photos || []).map((p: any) => ({ id: p.id, url: photoUrl(p, 600) })),

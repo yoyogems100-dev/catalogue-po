@@ -29,6 +29,7 @@ export default function CategoryTabs({
   photos,
   colorChartUrl,
   colorPalettes,
+  loggedIn,
   pricing
 }: {
   categoryId: number;
@@ -41,6 +42,7 @@ export default function CategoryTabs({
   photos: Photo[];
   colorChartUrl?: string | null;
   colorPalettes?: Palette[];
+  loggedIn?: boolean;
   pricing?: CategoryPricing;
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
@@ -82,6 +84,7 @@ export default function CategoryTabs({
           pricing={pricing}
           photos={photos}
           colorChartUrl={colorChartUrl}
+          loggedIn={loggedIn}
           active={tab === 'order'}
         />
         </div>

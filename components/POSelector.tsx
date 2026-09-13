@@ -7,8 +7,7 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
-import ShapeIcon from './ShapeIcon';
-import moissaniteChart from '@/data/moissanite-chart.json';
+import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
@@ -81,6 +80,7 @@ export default function POSelector({
   colorPalettes,
   photos = [],
   colorChartUrl,
+  loggedIn = false,
   active = true,
   pricing
 }: {
@@ -93,6 +93,7 @@ export default function POSelector({
   active?: boolean;
   photos?: OrderReferencePhoto[];
   colorChartUrl?: string | null;
+  loggedIn?: boolean;
   colorPalettes?: ColorPalette[];
   pricing?: CategoryPricing;
 }) {
@@ -120,6 +121,7 @@ export default function POSelector({
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
+  const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
 
   useEffect(() => {
     if (active) {
@@ -231,8 +233,8 @@ export default function POSelector({
   }
 
   function StoneReference({item}:{item:CartItem}) {
-    const src = item.shapeRefPhotoUrl || (item.categoryId === 34 ? moissaniteChart.find(s=>s.name===item.shapeName)?.image : null) || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
-    return <span className="requirement-stone">{src ? <img src={src} alt={`${item.shapeName} reference`} /> : <ShapeIcon iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} size={36} />}</span>;
+    const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
 
   function addLine() {
@@ -298,6 +300,30 @@ export default function POSelector({
 
   function removeItem(id: string) {
     setCart(cart.filter((i) => i.id !== id));
+  }
+
+  function replaceItemOptions(item: CartItem, nextSizeIds: number[], nextColorIds: number[]) {
+    let next = cart.filter((line) => line.id !== item.id);
+    for (const sizeId of nextSizeIds) {
+      const size = sizes.find((option) => option.id === sizeId && option.shape_id === item.shapeId);
+      if (!size) continue;
+      for (const colorId of nextColorIds) {
+        const color = colors.find((option) => option.id === colorId);
+        if (!color) continue;
+        next = mergeIntoCart(next, {
+          ...item,
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          sizeId: size.id,
+          sizeMm: size.size_mm,
+          colorId: color.id,
+          colorName: color.name,
+          colorHex: color.hex || '#ccc',
+          colorRefPhotoUrl: color.refPhotoUrl || null,
+        });
+      }
+    }
+    setCart(next);
+    setEditingOption(null);
   }
 
   async function sendRequirement() {
@@ -467,35 +493,46 @@ export default function POSelector({
         {cart.length === 0 ? (
           <div className="po-empty po-empty-cart">Your requirement is empty. Choose your options above, then add a line to get started.</div>
         ) : (
-          <div className="po-item-list">
-            {cart.map((item) => {
+          <div className="po-requirement-groups">
+            {([
+              { type: 'Place Order' as RequestType, title: 'Purchase', moveLabel: null },
+              { type: 'Request Quotation' as RequestType, title: 'Request quotation', moveLabel: 'Move to purchase' },
+            ]).map((group) => {
+              const groupItems = cart.filter((item) => item.requestType === group.type);
+              if (groupItems.length === 0) return null;
+              const groupPieces = groupItems.reduce((sum, item) => sum + item.qty, 0);
+              return <section className="po-requirement-group" key={group.type} aria-label={group.title}>
+                <header className="po-requirement-group-head">
+                  <h3>{group.title}</h3>
+                  <span>{groupItems.length} {groupItems.length === 1 ? 'line' : 'lines'} · {groupPieces.toLocaleString('en-IN')} pcs</span>
+                </header>
+                <div className="po-item-list">
+            {groupItems.map((item) => {
               const unit = unitPriceInr(item);
               return (
               <div key={item.id} className="po-item-row">
-                <div className="po-item-main"><StoneReference item={item} /><div className="po-item-details">
-                  <strong>{item.shapeName} · {item.sizeMm}mm</strong>
+                <StoneReference item={item} />
+                <div className="po-item-details">
+                  <strong>{item.shapeName} · {item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
                   <span>
                     {item.categoryName}
                     <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
-                    {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
+                    {item.categoryId === categoryId && !item.orderSpecs
+                      ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'color', values: [item.colorId] })}>{item.colorName}</button>
+                      : item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
                   </span>
                   {unit !== null && (
                     <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   )}
+                  {group.moveLabel && <button
+                    type="button"
+                    className="po-item-move-btn"
+                    onClick={() => updateItemRequestType(item.id, 'Place Order')}
+                  >
+                    {group.moveLabel}
+                  </button>}
                 </div>
-                </div><div className="po-item-controls">
-                <label>Request
-                <select
-                  className="po-item-type-select"
-                  aria-label={`Request type for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
-                  value={item.requestType}
-                  onChange={(e) => updateItemRequestType(item.id, e.target.value as RequestType)}
-                >
-                  <option value="Place Order">Purchase</option>
-                  <option value="Request Quotation">Quotation</option>
-                </select>
-                </label>
-                <label>Qty ({item.orderSpecs?.kind==='rainbow'?'strips':'pcs'})
+                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind==='rainbow'?'strips':'pcs'})</span>
                 <QuantityInput
                   value={item.qty / quantityFactor(item.orderSpecs)}
                   label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
@@ -504,9 +541,33 @@ export default function POSelector({
                 />
                 </label>
                 <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
-                </div>
+                {editingOption?.itemId === item.id && <div className="po-item-option-editor">
+                  <IconSelect
+                    multiple
+                    optionKind={editingOption.kind === 'size' ? 'size' : undefined}
+                    options={editingOption.kind === 'size'
+                      ? sizes.filter((option) => option.shape_id === item.shapeId).map((option) => ({ id: option.id, name: `${option.size_mm} mm` }))
+                      : colors}
+                    values={editingOption.values}
+                    onChange={(values) => setEditingOption({ ...editingOption, values })}
+                    placeholder={editingOption.kind === 'size' ? 'Choose sizes' : 'Choose colors'}
+                    leading={editingOption.kind === 'color' ? 'swatch' : undefined}
+                  />
+                  <p>Select one or more. Clearing all removes this line.</p>
+                  <div>
+                    <button type="button" className="btn-ghost" onClick={() => setEditingOption(null)}>Cancel</button>
+                    <button type="button" className="btn" onClick={() => replaceItemOptions(
+                      item,
+                      editingOption.kind === 'size' ? editingOption.values : (item.sizeId ? [item.sizeId] : []),
+                      editingOption.kind === 'color' ? editingOption.values : [item.colorId]
+                    )}>Apply</button>
+                  </div>
+                </div>}
               </div>
               );
+            })}
+                </div>
+              </section>;
             })}
           </div>
         )}
@@ -521,11 +582,11 @@ export default function POSelector({
           <h3>{receipt.quotation ? 'Quotation requested' : 'Order placed'} — #{receipt.id}</h3>
           <p>Our team will confirm pricing and availability. Your submission has been saved.</p>
           <p><a href={`/account/orders/${receipt.id}`}>View in My Orders (sign in)</a></p>
-          <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>
+          {!loggedIn && <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>}
           <a className="btn-ghost" href={receipt.whatsappUrl} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
         </div>}
         <div className="po-send-box">
-          <div className="po-send-row">
+          {!loggedIn && <div className="po-send-row">
             <label>
               Name / company
               <input type="text" autoComplete="organization" placeholder="Your name or business (optional)" value={contactName} onChange={(e) => setContactName(e.target.value)} />
@@ -534,12 +595,12 @@ export default function POSelector({
               WhatsApp number (optional)
               <input type="tel" autoComplete="tel" placeholder="e.g. 9079914601" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
             </label>
-          </div>
+          </div>}
           <label className="po-block-label">
             Additional comment
             <textarea rows={3} placeholder="Message" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
-          <p className="po-send-help">Our team will confirm pricing and availability. Add your WhatsApp number for updates.</p>
+          <p className="po-send-help">Our team will confirm pricing and availability.{!loggedIn && ' Add your WhatsApp number for updates.'}</p>
           <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>
             {sending ? 'Submitting…' : cart.length === 0 && receipt ? (receipt.quotation ? 'Quotation requested' : 'Order placed') : 'Send requirement'}
@@ -556,7 +617,7 @@ export default function POSelector({
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
-        <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>
+        {loggedIn ? <p>Your saved account details will be used for this requirement.</p> : <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>}
         {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
         <p>Our team will confirm pricing and availability before your order is confirmed.</p>
         <div className="order-review-actions">

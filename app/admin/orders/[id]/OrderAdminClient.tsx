@@ -19,6 +19,9 @@ type Item = {
   colorHex: string;
   quantity: number;
   unitPrice: number | null;
+  costPrice: number | null;
+  costCurrency: string;
+  supplierId: number | null;
   requestType: string;
 };
 type CategoryOption = {
@@ -29,7 +32,7 @@ type CategoryOption = {
 type NewLine = { orderSpecs?: OrderSpecs; tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
 type HistoryEntry = { id: number; status: string; changed_at: string; message_sent: boolean };
 type Note = { id: number; author_type: string; message: string; internal_only: boolean; created_at: string };
-type Customer = { id: number; name: string | null; phone: string | null; email: string | null; phone_verified: boolean } | null;
+type Customer = { id: number; name: string | null; phone: string | null; email: string | null; company?: string | null; phone_verified: boolean } | null;
 type CustomerOrder = { id: number; status: string; created_at: string };
 
 function fmtDate(iso: string) {
@@ -54,7 +57,8 @@ export default function OrderAdminClient({
   items,
   categoryOptions,
   history,
-  notes
+  notes,
+  suppliers
 }: {
   orderId: number;
   status: string;
@@ -70,6 +74,7 @@ export default function OrderAdminClient({
   categoryOptions: Record<number, CategoryOption>;
   history: HistoryEntry[];
   notes: Note[];
+  suppliers: { id: number; name: string; categoryIds: number[] }[];
 }) {
   const router = useRouter();
   const [statusValue, setStatusValue] = useState(status);
@@ -89,8 +94,14 @@ export default function OrderAdminClient({
     Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))
   );
   const [savedPrices, setSavedPrices] = useState(prices);
+  const [costPrices, setCostPrices] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costPrice != null ? String(i.costPrice) : ''])));
+  const [savedCostPrices, setSavedCostPrices] = useState(costPrices);
+  const [costCurrencies, setCostCurrencies] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costCurrency || 'INR'])));
+  const [savedCostCurrencies, setSavedCostCurrencies] = useState(costCurrencies);
+  const [supplierIds, setSupplierIds] = useState<Record<number, number | ''>>(Object.fromEntries(items.map((i) => [i.id, i.supplierId || ''])));
+  const [savedSupplierIds, setSavedSupplierIds] = useState(supplierIds);
   const [savingPrices, setSavingPrices] = useState(false);
-  const pricesDirty = JSON.stringify(prices) !== JSON.stringify(savedPrices);
+  const pricesDirty = JSON.stringify(prices) !== JSON.stringify(savedPrices) || JSON.stringify(costPrices) !== JSON.stringify(savedCostPrices) || JSON.stringify(costCurrencies) !== JSON.stringify(savedCostCurrencies) || JSON.stringify(supplierIds) !== JSON.stringify(savedSupplierIds);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -155,19 +166,22 @@ export default function OrderAdminClient({
   }
 
   async function savePrices() {
-    if (Object.values(prices).some(value => value.trim() !== '' && (!/^\d+(\.\d+)?$/.test(value.trim()) || !Number.isFinite(Number(value))))) {
-      setToast('Enter a valid non-negative price, or leave it blank.'); return;
+    if ([...Object.values(prices), ...Object.values(costPrices)].some(value => value.trim() !== '' && (!/^\d+(\.\d+)?$/.test(value.trim()) || !Number.isFinite(Number(value))))) {
+      setToast('Enter valid non-negative CP and SP values, or leave them blank.'); return;
     }
     setSavingPrices(true);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/prices`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prices: items.map(item => ({ itemId: item.id, unitPrice: prices[item.id] })) })
+        body: JSON.stringify({ prices: items.map(item => ({ itemId: item.id, unitPrice: prices[item.id], costPrice: costPrices[item.id], costCurrency: costCurrencies[item.id], supplierId: supplierIds[item.id] || null })) })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save prices.');
       setSavedPrices({ ...prices });
-      setToast('Prices saved. Generate a fresh PDF to include these changes.');
+      setSavedCostPrices({ ...costPrices });
+      setSavedCostCurrencies({ ...costCurrencies });
+      setSavedSupplierIds({ ...supplierIds });
+      setToast('Supplier, CP and SP saved. Generate a fresh PDF to include SP changes.');
       router.refresh();
     } catch (error) { setToast(error instanceof Error ? error.message : 'Could not save prices. Please retry.'); }
     finally { setSavingPrices(false); }
@@ -258,7 +272,7 @@ export default function OrderAdminClient({
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#756e5c' }}>
           Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
-          {customer && <> · {customer.name || contactName || 'No name'} · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
+          {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link">{customer.name || contactName || 'No name'}</Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
 
@@ -334,16 +348,17 @@ export default function OrderAdminClient({
             </button>
           )}
         </div>
-        <p style={{ fontSize: 11.5, color: '#756e5c', marginBottom: 8 }}>Prices are optional -- leave blank to omit pricing from the PDF entirely.</p>
+        <p style={{ fontSize: 11.5, color: '#756e5c', marginBottom: 8 }}>Supplier and cost price (CP) stay internal. Selling price (SP) is the customer price used in the PDF.</p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button className="btn" onClick={savePrices} disabled={!pricesDirty || savingPrices}>{savingPrices ? 'Saving prices…' : 'Save prices'}</button>
-          <button className="btn-ghost" onClick={() => setPrices({ ...savedPrices })} disabled={!pricesDirty || savingPrices}>Discard price changes</button>
+          <button className="btn" onClick={savePrices} disabled={!pricesDirty || savingPrices}>{savingPrices ? 'Saving…' : 'Save supplier, CP & SP'}</button>
+          <button className="btn-ghost" onClick={() => { setPrices({ ...savedPrices }); setCostPrices({ ...savedCostPrices }); setCostCurrencies({ ...savedCostCurrencies }); setSupplierIds({ ...savedSupplierIds }); }} disabled={!pricesDirty || savingPrices}>Discard changes</button>
         </div>
         {pricesDirty && <p role="status">Unsaved prices. Save prices before generating a PDF.</p>}
         <p>After changing order details, generate a fresh PDF before sharing it.</p>
+        <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
         <table>
           <thead>
-            <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Price</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
+            <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP</th><th>SP</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
           </thead>
           <tbody>
             {items.filter((i) => !removedIds.has(i.id)).map((i) => (
@@ -379,13 +394,21 @@ export default function OrderAdminClient({
                   )}
                 </td>
                 <td>
+                  <select aria-label={`Supplier for ${i.categoryName} ${i.shapeName}`} value={supplierIds[i.id] ?? ''} onChange={(event) => setSupplierIds({ ...supplierIds, [i.id]: event.target.value ? Number(event.target.value) : '' })} style={{ minWidth: 120, fontSize: 12 }}>
+                    <option value="">Not assigned</option>{suppliers.filter((supplier) => supplier.categoryIds.length === 0 || supplier.categoryIds.includes(i.categoryId)).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <div className="admin-price-pair"><select aria-label={`Cost currency for ${i.categoryName} ${i.shapeName}`} value={costCurrencies[i.id] || 'INR'} onChange={(event) => setCostCurrencies({ ...costCurrencies, [i.id]: event.target.value })}><option>INR</option><option>RMB</option></select><input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} /></div>
+                </td>
+                <td>
                   <input
                     type="text"
                     inputMode="decimal"
                     placeholder="Optional"
                     value={prices[i.id] ?? ''}
                     onChange={(e) => setPrices({ ...prices, [i.id]: e.target.value.replace(/[^\d.]/g, '') })}
-                    aria-label={`Unit price in INR for ${i.categoryName} ${i.shapeName} ${i.sizeMm} mm ${i.colorName}`}
+                    aria-label={`Selling price in INR for ${i.categoryName} ${i.shapeName} ${i.sizeMm} mm ${i.colorName}`}
                     disabled={savingPrices}
                     style={{ maxWidth: 90, fontSize: 13 }}
                   />
@@ -403,7 +426,7 @@ export default function OrderAdminClient({
             {editing && newLines.map((l) => {
               const opts = categoryOptions[l.categoryId];
               const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
-              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={9}>
+              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={10 + (hasPricing ? 1 : 0)}>
                 <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
                 {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
                 <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
@@ -440,7 +463,7 @@ export default function OrderAdminClient({
                       style={{ maxWidth: 80, fontSize: 13 }}
                     />
                   </td>
-                  <td />
+                  <td /><td /><td />
                   {hasPricing && <td />}
                   <td>
                     <button type="button" className="btn-danger" onClick={() => removeNewLine(l.tempId)}>Remove</button>
@@ -452,13 +475,14 @@ export default function OrderAdminClient({
           {hasPricing && (
             <tfoot>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
+                <td colSpan={9} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
                 <td style={{ fontWeight: 700, color: 'var(--ink)' }}>{money(grandTotal)}</td>
                 {editing && <td />}
               </tr>
             </tfoot>
           )}
         </table>
+        </div>
 
         {editing && (
           <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

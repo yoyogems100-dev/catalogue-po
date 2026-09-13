@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
 import { getSettings } from '@/lib/settings';
+import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const params = await paramsPromise;
   const categoryId = Number(params.id);
   const requestedTab = (await searchParams).tab;
-  const tab = ['overview','shapes','colors','color-chart','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
+  const tab = ['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
   const settings = tab === 'pricing' ? await getSettings() : {};
 
   const [
@@ -37,7 +38,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
-    supabaseAdmin.from('category_shapes').select('shape_id').eq('category_id', categoryId),
+    supabaseAdmin.from('category_shapes').select('*').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id').eq('category_id', categoryId),
     supabaseAdmin.from('category_tags').select('tag_id').eq('category_id', categoryId),
     supabaseAdmin.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId),
@@ -63,6 +64,16 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     memberIds: (colorPaletteItems || []).filter((i: any) => i.palette_id === p.id).map((i: any) => i.color_id)
   })).filter((p) => p.memberIds.length > 0);
 
+  let categorySuppliers: any[] = [];
+  if (tab === 'suppliers') {
+    const { data: supplierLinks } = await supabaseAdmin.from('supplier_categories').select('supplier_id').eq('category_id', categoryId);
+    const ids = (supplierLinks || []).map((link: any) => link.supplier_id);
+    if (ids.length) {
+      const { data } = await supabaseAdmin.from('suppliers').select('id,name,contact_name,phone').in('id', ids).order('name');
+      categorySuppliers = data || [];
+    }
+  }
+
   const photosFormatted = (photos || []).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 400),
@@ -84,10 +95,24 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
       {categoryId === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart?type=prices">Price list</a><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
       <nav className="admin-coverage-filters" aria-label="Category workspace">
-        {['overview','shapes','colors','color-chart','photos','pricing','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        {['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : <CategoryAdminClient
+      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
+      {tab === 'shapes' && <ShapeReferenceManager
+        categoryId={categoryId}
+        references={(linkedShapes || []).map((link: any) => {
+          const shape = (allShapes || []).find((item: any) => item.id === link.shape_id);
+          return {
+            shapeId: link.shape_id,
+            name: shape?.name || `Shape #${link.shape_id}`,
+            iconKey: shape?.icon_key,
+            refPhotoUrl: link.ref_photo_url || null,
+            referenceStyle: (link.reference_style === 'photo' || (!link.reference_style && categoryId === 34 && link.ref_photo_url)) ? 'photo' as const : 'vector' as const,
+          };
+        })}
+      />}
+      <CategoryAdminClient
         key={categoryId}
         section={tab}
         categoryId={categoryId}
@@ -103,7 +128,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         photos={photosFormatted}
         colorPalettes={colorPalettes}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
-      />}
+      /></>}
     </>
   );
 }
