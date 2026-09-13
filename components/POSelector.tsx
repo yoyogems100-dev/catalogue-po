@@ -13,6 +13,12 @@ import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import QuantityInput from './QuantityInput';
 
+// Glass Pearls only ever comes in round -- the shape field is redundant noise for
+// customers here, so it's hidden entirely and silently locked to Round rather than
+// shown as a fixed/disabled field (contrast with Moissanite's locked color, which
+// customers do still need to see spelled out).
+const GLASS_PEARLS_CATEGORY_ID = 16;
+
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -122,6 +128,16 @@ export default function POSelector({
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
+
+  // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
+  // above), so silently keep the selection pinned to Round instead of leaving it
+  // empty -- nothing else could ever be picked here anyway.
+  useEffect(() => {
+    if (categoryId !== GLASS_PEARLS_CATEGORY_ID) return;
+    const roundId = shapes.find((s) => s.name === 'Round')?.id;
+    if (roundId && (pickShapeIds.length !== 1 || pickShapeIds[0] !== roundId)) setPickShapeIds([roundId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId, shapes]);
 
   useEffect(() => {
     if (active) {
@@ -280,8 +296,12 @@ export default function POSelector({
     // default (e.g. Moissanite's gemstone photos, close enough across categories
     // that a dedicated photo per category isn't needed) -- or the vector outline.
     // Never the color's own photo: that would show a photo of the wrong thing
-    // labeled as the shape.
-    const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
+    // labeled as the shape. Glass Pearls is the one deliberate exception: shape is
+    // always Round and never shown to the customer, so the color -- the thing that
+    // actually varies -- is the meaningful image here instead.
+    const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
+      ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
+      : (item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null));
     return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
 
@@ -430,7 +450,7 @@ export default function POSelector({
               leading="swatch"
             />
           </div>
-          <div>
+          {categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
             <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
               categoryId={categoryId}
@@ -441,7 +461,7 @@ export default function POSelector({
               placeholder="Choose shape(s)"
               leading="icon"
             />
-          </div>
+          </div>}
           <div>
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
@@ -563,7 +583,7 @@ export default function POSelector({
               <div key={item.id} className="po-item-row">
                 <StoneReference item={item} />
                 <div className="po-item-details">
-                  <strong>{item.shapeName} · {item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
+                  <strong>{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
                   <span>
                     {item.categoryName}
                     <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
@@ -651,7 +671,7 @@ export default function POSelector({
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
         <ul className="order-review-lines">{cart.map(item => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{item.categoryName}</strong><br />{item.shapeName} · {item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
+          <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
           {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
