@@ -6,6 +6,7 @@ export type SizeChartSection = {
   image: string | null;
   rows: { size: string; diamondEquivalentCt: number | null; priceInr?: number | null }[];
 };
+export type SizeChartColor = { name: string; hex: string | null; image: string | null };
 
 const css = StyleSheet.create({
   page: { padding: 26, paddingBottom: 42, fontFamily: 'Helvetica', color: '#12233f', fontSize: 8 },
@@ -37,6 +38,13 @@ const css = StyleSheet.create({
   meta: { color: '#62666d', fontSize: 6.2, textAlign: 'right' },
   price: { color: '#8b702a', fontFamily: 'Helvetica-Bold', fontSize: 6.3, textAlign: 'right' },
   footer: { position: 'absolute', bottom: 18, left: 26, right: 26, flexDirection: 'row', justifyContent: 'space-between', paddingTop: 7, borderTopWidth: .5, borderTopColor: '#c8cdd5', color: '#62666d', fontSize: 6.8 },
+  colorIntro: { marginBottom: 12, color: '#62666d', fontSize: 8.2, lineHeight: 1.35 },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: .7, borderLeftWidth: .7, borderColor: '#c8cdd5' },
+  colorCard: { width: '33.333%', height: 64, flexDirection: 'row', alignItems: 'center', padding: 7, borderRightWidth: .7, borderBottomWidth: .7, borderColor: '#c8cdd5' },
+  colorImageFrame: { width: 43, height: 43, alignItems: 'center', justifyContent: 'center', marginRight: 8, backgroundColor: '#f7f8fa' },
+  colorImage: { width: 39, height: 39, objectFit: 'contain' },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14, borderWidth: .7, borderColor: '#b9c1cc' },
+  colorName: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 7.6, lineHeight: 1.25 },
 });
 
 function formatDew(value: number | null) {
@@ -84,10 +92,38 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
   );
 }
 
-export default function SizeChartDocument({ sections, categoryName = 'Moissanite', includePrices = false, logoUrl = '' }: { sections: SizeChartSection[]; categoryName?: string; includePrices?: boolean; logoUrl?: string }) {
+export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '' }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string }) {
   const pages = Array.from({ length: Math.ceil(sections.length / 2) }, (_, index) => sections.slice(index * 2, (index + 1) * 2));
+  const showColorPage = colors.length > 1;
+  const totalPages = pages.length + (showColorPage ? 1 : 0);
+  const categoryLabel = colors.length === 1 ? `${categoryName} - ${colors[0].name}` : categoryName;
   return (
     <Document title={`YOYO GEMS - ${categoryName} ${includePrices ? 'price list' : 'shapes and sizes'}`} author="YOYO GEMS">
+      {showColorPage && <Page size="A4" style={css.page}>
+        <View style={css.masthead}>
+          <View style={css.brandBlock}>
+            {logoUrl ? <Image src={logoUrl} style={css.brandLogo} /> : <Text style={css.brand}>YOYO GEMS</Text>}
+            <Text style={css.strap}>{PDF_BRAND_TAGLINE}</Text>
+          </View>
+          <View style={css.titleBlock}>
+            <Text style={css.title}>AVAILABLE COLORS</Text>
+            <Text style={css.category}>{categoryName}</Text>
+          </View>
+        </View>
+        <Text style={css.colorIntro}>The following {colors.length} colors are currently selected for this category. Images are visual references; final shade and availability are confirmed by our team.</Text>
+        <View style={css.colorGrid}>
+          {colors.map((color) => <View key={color.name} style={css.colorCard} wrap={false}>
+            <View style={css.colorImageFrame}>
+              {color.image ? <Image src={color.image} style={css.colorImage} /> : <View style={[css.colorSwatch, { backgroundColor: color.hex || '#f2f2f2' }]} />}
+            </View>
+            <Text style={css.colorName}>{color.name}</Text>
+          </View>)}
+        </View>
+        <View style={css.footer} fixed>
+          <Text>yoyogems.co.in  |  +91 9079914601  |  Jaipur</Text>
+          <Text>1 / {totalPages}</Text>
+        </View>
+      </Page>}
       {pages.map((group, pageIndex) => (
         <Page key={pageIndex} size="A4" style={css.page}>
           <View style={css.masthead}>
@@ -97,7 +133,7 @@ export default function SizeChartDocument({ sections, categoryName = 'Moissanite
             </View>
             <View style={css.titleBlock}>
               <Text style={css.title}>{includePrices ? 'PRICE LIST' : 'SHAPE & SIZE CHART'}</Text>
-              <Text style={css.category}>{categoryName} - White (DEF)</Text>
+              <Text style={css.category}>{categoryLabel}</Text>
             </View>
           </View>
           <View style={css.legend}>
@@ -109,7 +145,7 @@ export default function SizeChartDocument({ sections, categoryName = 'Moissanite
           </View>
           <View style={css.footer} fixed>
             <Text>yoyogems.co.in  |  +91 9079914601  |  Jaipur</Text>
-            <Text>{pageIndex + 1} / {pages.length}</Text>
+            <Text>{pageIndex + 1 + (showColorPage ? 1 : 0)} / {totalPages}</Text>
           </View>
         </Page>
       ))}

@@ -418,6 +418,7 @@ export default function OrderDetailClient({
                 <div>
                   <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
                   <IconSelect
+                    categoryId={Number(pickCategoryId) || undefined}
                     multiple
                     options={currentOptions?.colors || []}
                     locked={pickCategoryId === 34}
@@ -430,6 +431,7 @@ export default function OrderDetailClient({
                 <div>
                   <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
                   <IconSelect
+                    categoryId={Number(pickCategoryId) || undefined}
                     multiple
                     options={currentOptions?.shapes || []}
                     values={pickShapeIds}
@@ -441,6 +443,7 @@ export default function OrderDetailClient({
                 <div>
                   <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
                   <IconSelect
+                    categoryId={Number(pickCategoryId) || undefined}
                     multiple
                     optionKind="size"
               options={sizeOptions}

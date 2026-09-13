@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 type Category = { id: number; name: string };
 type Shape = { id: number; name: string };
 type Size = { id: number; shapeId: number; sizeMm: string };
-type Group = { id: number; name: string; sort_order: number };
+type Group = { id: number; name: string; sort_order: number; colors: string[] };
 type Price = { shapeId: number; shapeSizeId: number; groupId: number; priceRmb: number };
 
 export default function PricingClient({ categories, initialMultiplier, initialCategoryId }: { categories: Category[]; initialMultiplier: string; initialCategoryId?: number }) {
@@ -24,6 +24,7 @@ export default function PricingClient({ categories, initialMultiplier, initialCa
   const [sizes, setSizes] = useState<Size[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [prices, setPrices] = useState<Price[]>([]);
+  const [unassignedColors, setUnassignedColors] = useState<string[]>([]);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
@@ -48,6 +49,7 @@ export default function PricingClient({ categories, initialMultiplier, initialCa
         setSizes(data.sizes || []);
         setGroups(data.groups || []);
         setPrices(data.prices || []);
+        setUnassignedColors(data.unassignedColors || []);
         setActiveShapeId(data.shapes?.[0]?.id ?? null);
       })
       .catch(error => { if (error.name !== 'AbortError') { setLoadError('Prices could not be loaded. Please reload.'); setShapes([]); setPrices([]); } })
@@ -114,14 +116,16 @@ export default function PricingClient({ categories, initialMultiplier, initialCa
 
   function exportCsv() {
     const mult = conversionRate;
-    const rows = [currency === 'INR' ? ['Shape', 'Size (mm)', 'Color Group', 'Price (INR)'] : ['Shape', 'Size (mm)', 'Color Group', 'Price (RMB)', 'Price (INR)']];
+    const rows = [currency === 'INR' ? ['Shape', 'Size (mm)', 'Color', 'Price Group', 'Price (INR)'] : ['Shape', 'Size (mm)', 'Color', 'Price Group', 'Price (RMB)', 'Price (INR)']];
     for (const shape of shapes) {
       const shapeSizes = sizes.filter((s) => s.shapeId === shape.id);
       for (const size of shapeSizes) {
         for (const group of groups) {
           const price = priceAt(size.id, group.id);
           if (price === null) continue;
-          rows.push(currency === 'INR' ? [shape.name, size.sizeMm, group.name, (price * mult).toFixed(2)] : [shape.name, size.sizeMm, group.name, price.toFixed(2), validRate ? (price * mult).toFixed(2) : '']);
+          for (const color of group.colors) {
+            rows.push(currency === 'INR' ? [shape.name, size.sizeMm, color, group.name, (price * mult).toFixed(2)] : [shape.name, size.sizeMm, color, group.name, price.toFixed(2), validRate ? (price * mult).toFixed(2) : '']);
+          }
         }
       }
     }
@@ -180,13 +184,22 @@ export default function PricingClient({ categories, initialMultiplier, initialCa
           aria-disabled={!categoryId || !validRate || savingPrice || savingMultiplier || loading}
           style={!categoryId ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
         >
-          Export PDF (INR only)
+          Download price list
+        </a>
+        <a
+          className="btn-ghost"
+          href={categoryId && !savingPrice && !savingMultiplier && !loading ? `/api/categories/${categoryId}/size-chart` : undefined}
+          aria-disabled={!categoryId || savingPrice || savingMultiplier || loading}
+          style={!categoryId ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
+        >
+          Download shape &amp; size chart
         </a>
       </div>
 
       <p>{currency === 'INR' ? 'INR prices per piece. Switch currency to edit supplier prices.' : 'Edit RMB prices per piece. Converted amounts use the saved multiplier.'}</p>
       {currency === 'RMB' && multiplier !== savedMultiplier && <p role="status">Multiplier changes are not saved yet. Converted prices and exports use the saved value.</p>}
       {!validRate && <p role="alert">Set and save a valid conversion rate before viewing or exporting INR prices.</p>}
+      {unassignedColors.length > 0 && <p role="alert">{unassignedColors.length} selected colors still need a pricing group: {unassignedColors.join(', ')}.</p>}
       {loadError && <p role="alert">{loadError}</p>}
       {loading ? (
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Loading...</p>

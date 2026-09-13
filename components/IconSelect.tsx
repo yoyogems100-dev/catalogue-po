@@ -5,13 +5,14 @@ import { useDropdownBounds } from './useDropdownBounds';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
-import ShapeReferenceImage from './ShapeReferenceImage';
+import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 
 type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
 
 type CommonProps = {
+  categoryId?: number;
   locked?: boolean;
   optionKind?: OptionKind;
   options: Option[];
@@ -52,7 +53,7 @@ export default function IconSelect(props: Props) {
   const { options, leading = 'none', searchable = options.length > 6 } = props;
   const { flags, ready } = useHotSelling();
   const kind = props.optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
-  const hot = (o: Option) => isHot(flags, kind, o.hotIds || [o.id]);
+  const hot = (o: Option) => isHot(flags, props.categoryId, kind, o.hotIds || [o.id]);
   const isMulti = props.multiple === true;
   const single = props as SingleProps;
   const multi = props as MultiProps;
@@ -146,7 +147,7 @@ export default function IconSelect(props: Props) {
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
     if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={16} />;
-    if (leading === 'icon') return <ShapeReferenceImage className="shape-reference-icon" name={o.name} src={o.refPhotoUrl} iconKey={o.iconKey} fallbackSize={13} />;
+    if (leading === 'icon') return <span className="shape-vector-icon" aria-hidden="true"><ShapeIcon iconKey={o.iconKey} size={28} /></span>;
     return null;
   }
 
@@ -296,7 +297,7 @@ export default function IconSelect(props: Props) {
                     <input type="checkbox" checked={isActive} readOnly aria-hidden="true" tabIndex={-1} className="icon-select-checkbox" />
                   )}
                   <Leading o={o} />
-                  {o.name}<HotMark kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
+                  {o.name}<HotMark categoryId={props.categoryId} kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
                 </div>
               );
             })}

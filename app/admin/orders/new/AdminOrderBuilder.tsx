@@ -271,21 +271,21 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             <label className="po-label">Shape</label>
             <select value={pickShapeId} onChange={(e) => { setPickShapeId(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPickSizeId('all'); }} disabled={!currentOptions}>
               <option value="all">{loadingOptions ? 'Loading…' : 'Choose shape'}</option>
-              {[...(currentOptions?.shapes || [])].sort((a,b) => Number(isHot(flags,'shape',[b.id]))-Number(isHot(flags,'shape',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'shape',[s.id]) ? '🔥 ' : ''}{s.name}</option>)}
+              {[...(currentOptions?.shapes || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'shape',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'shape',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,Number(pickCategoryId)||undefined,'shape',[s.id]) ? '🔥 ' : ''}{s.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Color</label>
             <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions || pickCategoryId === 34}>
               <option value="all">Choose color</option>
-              {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,'color',[b.id]))-Number(isHot(flags,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
+              {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'color',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,Number(pickCategoryId)||undefined,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className="po-label">Size (mm)</label>
             <select value={pickSizeId} onChange={(e) => setPickSizeId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={pickShapeId === 'all'}>
               <option value="all">{pickShapeId === 'all' ? 'Pick a shape first' : 'Choose size'}</option>
-              {[...(sizesForShape || [])].sort((a,b) => Number(isHot(flags,'size',[b.id]))-Number(isHot(flags,'size',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,'size',[s.id]) ? '🔥 ' : ''}{s.sizeMm} mm</option>)}
+              {[...(sizesForShape || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'size',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'size',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,Number(pickCategoryId)||undefined,'size',[s.id]) ? '🔥 ' : ''}{s.sizeMm} mm</option>)}
             </select>
           </div>
           <div>

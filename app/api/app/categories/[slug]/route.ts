@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   const sizeIds = (linkedSizeIds || []).map((r: any) => r.shape_size_id);
 
   const [{ data: shapes }, { data: colors }, { data: sizes }] = await Promise.all([
-    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key').in('id', shapeIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
+    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
     colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
@@ -44,8 +44,14 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     category,
     shapes: (shapes || []).map((s: any) => {
       const link: any = linkedShapeIds?.find(link => link.shape_id === s.id);
-      const usePhoto = link?.reference_style === 'photo' || (!link?.reference_style && category.id === 34 && link?.ref_photo_url);
-      return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: usePhoto ? link?.ref_photo_url || null : null };
+      // A real photo -- this category's own upload, or the shared default for this shape
+      // (e.g. the Moissanite gemstone photos, close enough across categories that a
+      // dedicated photo per category isn't needed) -- is shown automatically whenever
+      // one is available; every category_shapes row defaults to reference_style='vector'
+      // at creation regardless of whether anyone ever chose it, so it's not a signal of
+      // deliberate intent and isn't used to suppress an available photo.
+      const photoUrl = link?.ref_photo_url || s.ref_photo_url || null;
+      return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl };
     }),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),

@@ -232,7 +232,55 @@ export default function POSelector({
     return [...current, {...item, shapeRefPhotoUrl: shape?.refPhotoUrl, shapeIconKey: shape?.iconKey}];
   }
 
+  // Clicking away commits whatever's currently checked (like a native <select>
+  // dismissing on blur) -- only the explicit close button discards. Scoped to
+  // this one panel's own DOM subtree so a click inside the nested IconSelect's
+  // own popup (picking an option) never counts as "outside".
+  function ItemOptionEditor({ item, editingOption, onApply, onDiscard }: {
+    item: CartItem;
+    editingOption: { itemId: string; kind: 'size' | 'color'; values: number[] };
+    onApply: () => void;
+    onDiscard: () => void;
+  }) {
+    const panelRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+      function onDocMouseDown(e: MouseEvent) {
+        if (panelRef.current && !panelRef.current.contains(e.target as Node)) onApply();
+      }
+      document.addEventListener('mousedown', onDocMouseDown);
+      return () => document.removeEventListener('mousedown', onDocMouseDown);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onApply]);
+
+    return (
+      <div className="po-item-option-editor" ref={panelRef}>
+        <button type="button" className="po-item-option-close" aria-label="Close without saving" onClick={onDiscard}>&times;</button>
+        <div className="po-item-option-row">
+          <IconSelect
+            categoryId={item.categoryId}
+            multiple
+            optionKind={editingOption.kind === 'size' ? 'size' : undefined}
+            options={editingOption.kind === 'size'
+              ? sizes.filter((option) => option.shape_id === item.shapeId).map((option) => ({ id: option.id, name: `${option.size_mm} mm` }))
+              : colors}
+            values={editingOption.values}
+            onChange={(values) => setEditingOption({ ...editingOption, values })}
+            placeholder={editingOption.kind === 'size' ? 'Choose sizes' : 'Choose colors'}
+            leading={editingOption.kind === 'color' ? 'swatch' : undefined}
+          />
+          <button type="button" className="btn" onClick={onApply}>Apply</button>
+        </div>
+        <p>Select one or more. Clearing all removes this line.</p>
+      </div>
+    );
+  }
+
   function StoneReference({item}:{item:CartItem}) {
+    // A real photo of this shape -- this category's own upload, or the shared
+    // default (e.g. Moissanite's gemstone photos, close enough across categories
+    // that a dedicated photo per category isn't needed) -- or the vector outline.
+    // Never the color's own photo: that would show a photo of the wrong thing
+    // labeled as the shape.
     const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
     return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
@@ -372,6 +420,7 @@ export default function POSelector({
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
             <IconSelect
+              categoryId={categoryId}
               multiple
               options={colors}
               locked={categoryId === 34}
@@ -379,12 +428,12 @@ export default function POSelector({
               onChange={setPickColorIds}
               placeholder="Choose color(s)"
               leading="swatch"
-              palettes={colorPalettes}
             />
           </div>
           <div>
             <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
+              categoryId={categoryId}
               multiple
               options={shapes}
               values={pickShapeIds}
@@ -396,6 +445,7 @@ export default function POSelector({
           <div>
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
+              categoryId={categoryId}
               multiple
               optionKind="size"
               options={sizeOptions}
@@ -541,28 +591,16 @@ export default function POSelector({
                 />
                 </label>
                 <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
-                {editingOption?.itemId === item.id && <div className="po-item-option-editor">
-                  <IconSelect
-                    multiple
-                    optionKind={editingOption.kind === 'size' ? 'size' : undefined}
-                    options={editingOption.kind === 'size'
-                      ? sizes.filter((option) => option.shape_id === item.shapeId).map((option) => ({ id: option.id, name: `${option.size_mm} mm` }))
-                      : colors}
-                    values={editingOption.values}
-                    onChange={(values) => setEditingOption({ ...editingOption, values })}
-                    placeholder={editingOption.kind === 'size' ? 'Choose sizes' : 'Choose colors'}
-                    leading={editingOption.kind === 'color' ? 'swatch' : undefined}
-                  />
-                  <p>Select one or more. Clearing all removes this line.</p>
-                  <div>
-                    <button type="button" className="btn-ghost" onClick={() => setEditingOption(null)}>Cancel</button>
-                    <button type="button" className="btn" onClick={() => replaceItemOptions(
-                      item,
-                      editingOption.kind === 'size' ? editingOption.values : (item.sizeId ? [item.sizeId] : []),
-                      editingOption.kind === 'color' ? editingOption.values : [item.colorId]
-                    )}>Apply</button>
-                  </div>
-                </div>}
+                {editingOption?.itemId === item.id && <ItemOptionEditor
+                  item={item}
+                  editingOption={editingOption}
+                  onDiscard={() => setEditingOption(null)}
+                  onApply={() => replaceItemOptions(
+                    item,
+                    editingOption.kind === 'size' ? editingOption.values : (item.sizeId ? [item.sizeId] : []),
+                    editingOption.kind === 'color' ? editingOption.values : [item.colorId]
+                  )}
+                />}
               </div>
               );
             })}

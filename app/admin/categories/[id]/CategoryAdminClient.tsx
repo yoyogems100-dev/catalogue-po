@@ -376,6 +376,7 @@ export default function CategoryAdminClient({
           <div data-editor-part="shapes">
             <h3 className="section-label">Shapes &amp; sizes</h3>
             <ShapeSizeSelect
+              categoryId={categoryId}
               allShapes={allShapes}
               allSizes={allSizes}
               linkedShapeIds={linkedShapeIds}
@@ -388,6 +389,7 @@ export default function CategoryAdminClient({
           <div data-editor-part="colors">
             <h3 className="section-label">Colors</h3>
             <MultiSelect
+              categoryId={categoryId}
               options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
               selectedIds={linkedColorIds}
               onToggle={(id, active) => toggleLink('color', id, active)}
@@ -399,6 +401,7 @@ export default function CategoryAdminClient({
           <div data-editor-part="specifications">
             <h3 className="section-label">Specifications</h3>
             <MultiSelect
+              categoryId={categoryId}
               optionKind="tag"
               options={allTags.map((t) => ({ id: t.id, name: t.name }))}
               selectedIds={linkedTagIds}
@@ -441,6 +444,7 @@ export default function CategoryAdminClient({
         </div>
         {coverPhoto && (
           <PhotoRow
+            categoryId={categoryId}
             photo={coverPhoto}
             index={0}
             total={1}
@@ -493,6 +497,7 @@ export default function CategoryAdminClient({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
           {galleryPhotos.map((p, i) => (
             <PhotoRow
+              categoryId={categoryId}
               key={p.id}
               photo={p}
               index={i}
@@ -531,6 +536,7 @@ const FIELD_OPTIONS: { value: FieldType; label: string }[] = [
 ];
 
 function PhotoRow({
+  categoryId,
   photo,
   index,
   total,
@@ -552,6 +558,7 @@ function PhotoRow({
   compact,
   fieldOptions
 }: {
+  categoryId: number;
   photo: Photo;
   index: number;
   total: number;
@@ -681,6 +688,7 @@ function PhotoRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         {field === 'shape' && (
           <IconSelect
+            categoryId={categoryId}
             multiple
             options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
             values={shapeIds}
@@ -691,6 +699,7 @@ function PhotoRow({
         )}
         {field === 'size' && (
           <IconSelect
+            categoryId={categoryId}
             multiple
             optionKind="size"
             options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
@@ -701,6 +710,7 @@ function PhotoRow({
         )}
         {field === 'color' && (
           <IconSelect
+            categoryId={categoryId}
             multiple
             options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
             values={colorIds}

@@ -69,8 +69,14 @@ async function getCategoryData(slug: string) {
 
   const shapesFormatted = (shapes || []).map((s: any) => {
     const link: any = linkedShapeIds?.find(link => link.shape_id === s.id);
-    const usePhoto = link?.reference_style === 'photo' || (!link?.reference_style && category.id === 34 && link?.ref_photo_url);
-    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: usePhoto ? link?.ref_photo_url || null : null };
+    // A real photo -- this category's own upload, or the shared default for this shape
+    // (e.g. the Moissanite gemstone photos, close enough across categories that a
+    // dedicated photo per category isn't needed) -- is shown automatically whenever
+    // one is available; every category_shapes row defaults to reference_style='vector'
+    // at creation regardless of whether anyone ever chose it, so it's not a signal of
+    // deliberate intent and isn't used to suppress an available photo.
+    const photoUrl = link?.ref_photo_url || s.ref_photo_url || null;
+    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl };
   });
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 

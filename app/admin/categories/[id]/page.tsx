@@ -34,7 +34,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: colorPaletteItems }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
-    supabaseAdmin.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
     supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
@@ -93,7 +93,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     <>
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
-      {categoryId === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart?type=prices">Price list</a><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
+      <div className="category-downloads">
+        <a className="btn-ghost size-chart-download" href={`/api/admin/pricing/pdf?category_id=${categoryId}`}>Download price list</a>
+        <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>
+      </div>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
         {['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
@@ -103,12 +106,17 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         categoryId={categoryId}
         references={(linkedShapes || []).map((link: any) => {
           const shape = (allShapes || []).find((item: any) => item.id === link.shape_id);
+          // Same default-to-photo-when-available rule as the public category page: a
+          // category-specific upload wins, otherwise fall back to the shared photo for
+          // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
+          // reference_style is ignored here too -- see the note in the category page.
+          const refPhotoUrl = link.ref_photo_url || shape?.ref_photo_url || null;
           return {
             shapeId: link.shape_id,
             name: shape?.name || `Shape #${link.shape_id}`,
             iconKey: shape?.icon_key,
-            refPhotoUrl: link.ref_photo_url || null,
-            referenceStyle: (link.reference_style === 'photo' || (!link.reference_style && categoryId === 34 && link.ref_photo_url)) ? 'photo' as const : 'vector' as const,
+            refPhotoUrl,
+            referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
           };
         })}
       />}

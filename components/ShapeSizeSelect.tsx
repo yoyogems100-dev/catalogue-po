@@ -12,6 +12,7 @@ type ShapeRef = Ref & { iconKey?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 
 export default function ShapeSizeSelect({
+  categoryId,
   allShapes,
   allSizes,
   linkedShapeIds,
@@ -20,6 +21,7 @@ export default function ShapeSizeSelect({
   onToggleSize,
   onBulkSizes
 }: {
+  categoryId: number;
   allShapes: ShapeRef[];
   allSizes: Size[];
   linkedShapeIds: number[];
@@ -57,7 +59,7 @@ export default function ShapeSizeSelect({
 
   useEffect(() => {
     if (!open) { setQuery(''); return; }
-    setShapeOrder(rankOptions(allShapes, new Set(localShapeIds), option => isHot(flags, 'shape', [option.id])).map(shape => shape.id));
+    setShapeOrder(rankOptions(allShapes, new Set(localShapeIds), option => isHot(flags, categoryId, 'shape', [option.id])).map(shape => shape.id));
     const outside = (event: MouseEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', outside);
     return () => document.removeEventListener('mousedown', outside);
@@ -66,7 +68,7 @@ export default function ShapeSizeSelect({
   }, [open, ready]);
   useEffect(() => {
     if (!open) return;
-    setSizeOrder(rankOptions(allSizes, new Set(localSizeIds), option => isHot(flags, 'size', [option.id])).map(size => size.id));
+    setSizeOrder(rankOptions(allSizes, new Set(localSizeIds), option => isHot(flags, categoryId, 'size', [option.id])).map(size => size.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, expandedShapeId, ready]);
   const orderedShapes = [...allShapes].sort((a,b) => {
@@ -176,7 +178,7 @@ export default function ShapeSizeSelect({
                     <ShapeIcon iconKey={shape.iconKey} />
                     {shape.name}
                   </label>
-                  <HotMark kind="shape" ids={[shape.id]} name={shape.name} />
+                  <HotMark categoryId={categoryId} kind="shape" ids={[shape.id]} name={shape.name} />
                   {active && (
                     <button
                       type="button"
@@ -231,7 +233,7 @@ export default function ShapeSizeSelect({
                                 onClick={() => handleToggleSize(sz.id, sizeActive)}
                               >
                                 {sz.size_mm}mm
-                              </button><HotMark kind="size" ids={[sz.id]} name={`${shape.name} ${sz.size_mm} mm`} /></span>
+                              </button><HotMark categoryId={categoryId} kind="size" ids={[sz.id]} name={`${shape.name} ${sz.size_mm} mm`} /></span>
                             );
                           })}
                         </div>
