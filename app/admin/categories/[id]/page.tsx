@@ -106,13 +106,14 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
           // Same default-to-photo-when-available rule as the public category page: a
           // category-specific upload wins, otherwise fall back to the shared photo for
           // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
+          // reference_style is ignored here too -- see the note in the category page.
           const refPhotoUrl = link.ref_photo_url || shape?.ref_photo_url || null;
           return {
             shapeId: link.shape_id,
             name: shape?.name || `Shape #${link.shape_id}`,
             iconKey: shape?.icon_key,
             refPhotoUrl,
-            referenceStyle: (link.reference_style !== 'vector' && refPhotoUrl) ? 'photo' as const : 'vector' as const,
+            referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
           };
         })}
       />}

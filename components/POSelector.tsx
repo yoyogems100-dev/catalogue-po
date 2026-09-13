@@ -233,10 +233,12 @@ export default function POSelector({
   }
 
   function StoneReference({item}:{item:CartItem}) {
-    // Prefer a real photo of the actual shape ordered; if this category/shape combination
-    // doesn't have one, a real photo of the color at least beats the generic vector outline.
-    const shapePhoto = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
-    const src = shapePhoto || item.colorRefPhotoUrl || null;
+    // A real photo of this shape -- this category's own upload, or the shared
+    // default (e.g. Moissanite's gemstone photos, close enough across categories
+    // that a dedicated photo per category isn't needed) -- or the vector outline.
+    // Never the color's own photo: that would show a photo of the wrong thing
+    // labeled as the shape.
+    const src = item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null);
     return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
   }
 
