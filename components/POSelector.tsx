@@ -585,8 +585,13 @@ export default function POSelector({
                 <div className="po-item-details">
                   <strong>{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
                   <span>
-                    {item.categoryName}
-                    <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />
+                    {item.categoryId === GLASS_PEARLS_CATEGORY_ID
+                      ? <span style={{ fontSize: '1.2em' }}>{item.categoryName}</span>
+                      : item.categoryName}
+                    {/* Glass Pearls' main image (StoneReference) is already the color's own
+                        photo -- repeating it here as a swatch would just show the same
+                        picture twice right next to each other. */}
+                    {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />}
                     {item.categoryId === categoryId && !item.orderSpecs
                       ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'color', values: [item.colorId] })}>{item.colorName}</button>
                       : item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
