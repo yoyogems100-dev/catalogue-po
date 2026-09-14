@@ -12,7 +12,7 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
   // sizes/links land past the first page -- e.g. every size added after the
   // table crossed 1000 rows would simply not appear on this page.
   const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }, {data: catSizes }] = await Promise.all([
-    supabaseAdmin.from('shapes').select('id, name, sort_order').order('sort_order').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, sort_order, icon_key, ref_photo_url').order('sort_order').order('name'),
     fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
       supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').order('id').range(from, to)
     ),
