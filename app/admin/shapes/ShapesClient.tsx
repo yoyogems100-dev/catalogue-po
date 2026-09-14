@@ -159,6 +159,28 @@ export default function ShapesClient({
     router.refresh();
   }
 
+  async function uploadPhoto(id: number, file: File | null | undefined) {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`/api/shapes/${id}/photo`, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to upload photo.');
+      return;
+    }
+    setToast('Photo uploaded.');
+    router.refresh();
+  }
+
+  async function removePhoto(id: number) {
+    if (!confirm('Remove this reference photo? The shape will fall back to the plain vector icon.')) return;
+    const res = await fetch(`/api/shapes/${id}/photo`, { method: 'DELETE' });
+    if (!res.ok) { alert('Failed to remove photo -- try again.'); return; }
+    setToast('Photo removed.');
+    router.refresh();
+  }
+
   async function addSize(shapeId: number) {
     if (!newSize.trim()) return;
     // Comma or newline separated input adds every size in one action (e.g.
@@ -266,14 +288,30 @@ export default function ShapesClient({
                         even when a photo exists. The photo (when there is one) sits next
                         to it rather than replacing it, so it's obvious at a glance which
                         shapes are still running on the generic vector only. */}
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span className="shape-vector-icon" aria-hidden="true" title="Vector icon (dropdown/PDF fallback)"><ShapeIcon iconKey={s.icon_key} size={26} /></span>
                       {s.ref_photo_url ? (
                         <img src={s.ref_photo_url} alt="" title="Real reference photo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 3 }} />
                       ) : (
                         <span style={{ fontSize: 10.5, color: '#a3341f' }}>No photo yet</span>
                       )}
-                    </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                      <label className="btn-ghost" style={{ fontSize: 10.5, cursor: 'pointer', padding: '2px 6px' }}>
+                        {s.ref_photo_url ? 'Change' : 'Add'} photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => { uploadPhoto(s.id, e.target.files?.[0]); e.target.value = ''; }}
+                        />
+                      </label>
+                      {s.ref_photo_url && (
+                        <button className="btn-ghost" style={{ fontSize: 10.5, color: '#a3341f', padding: '2px 6px' }} onClick={() => removePhoto(s.id)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td><HotMark kind="shape" ids={[s.id]} name={s.name} /><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
