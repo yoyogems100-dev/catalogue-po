@@ -52,6 +52,47 @@ export default function ColorsClient({
 
   const visibleColors = localColors.filter(color => (!scoped || catColors.some(link => link.category_id === categoryFilter && link.color_id === color.id)) && color.name.toLowerCase().includes(search.trim().toLowerCase()));
 
+  // Bulk select/delete: only ever holds ids currently in view (search/category
+  // filtered), so switching the filter can't leave a stale, invisible color
+  // silently selected -- see the effect below.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    const visibleIds = new Set(visibleColors.map((c) => c.id));
+    setSelected((cur) => {
+      const next = new Set([...cur].filter((id) => visibleIds.has(id)));
+      return next.size === cur.size ? cur : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, categoryFilter]);
+  const allVisibleSelected = visibleColors.length > 0 && visibleColors.every((c) => selected.has(c.id));
+
+  function toggleSelected(id: number) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    setSelected((cur) => {
+      if (allVisibleSelected) return new Set();
+      return new Set(visibleColors.map((c) => c.id));
+    });
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    const label = scoped ? `Unlink ${ids.length} color${ids.length > 1 ? 's' : ''} from this category?` : `Delete ${ids.length} color${ids.length > 1 ? 's' : ''}? This can't be undone.`;
+    if (!confirm(label)) return;
+    const results = await Promise.all(ids.map((id) => scoped ? toggleCategory(id, categoryFilter, true).then(() => ({ ok: true })).catch(() => ({ ok: false })) : fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => ({ ok: r.ok }))));
+    const failed = results.filter((r) => !r.ok).length;
+    setSelected(new Set());
+    setToast(failed === 0 ? `${ids.length} color${ids.length > 1 ? 's' : ''} ${scoped ? 'unlinked' : 'deleted'}.` : `${ids.length - failed} of ${ids.length} ${scoped ? 'unlinked' : 'deleted'} -- ${failed} failed.`);
+    router.refresh();
+  }
+
   async function addPalette() {
     if (!newPaletteName.trim()) return;
     const res = await fetch('/api/color-palettes', {
@@ -220,18 +261,32 @@ export default function ColorsClient({
         <a href={`/admin/categories/${categoryFilter}?tab=colors`}>Open category workspace</a>
       </section>}
       <p>{visibleColors.length} colors shown{scoped ? ' for this category' : ''}.</p>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 480, alignItems: 'center' }}>
-        <input type="text" placeholder="New color name" value={newColor} onChange={(e) => setNewColor(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-        <input
-          type="color"
-          value={newHex}
-          onChange={(e) => setNewHex(e.target.value)}
-          style={{ width: 40, height: 36, padding: 2, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
-        />
-        <button className="btn" onClick={add} style={{ whiteSpace: 'nowrap' }}>Add color</button>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 280, flex: '1 1 200px' }}>
+          <input type="text" placeholder="Search colors..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <input type="text" placeholder="New color name" value={newColor} onChange={(e) => setNewColor(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+          <input
+            type="color"
+            value={newHex}
+            onChange={(e) => setNewHex(e.target.value)}
+            style={{ width: 40, height: 36, padding: 2, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
+          />
+          <button className="btn" onClick={add} style={{ whiteSpace: 'nowrap' }}>Add color</button>
+        </div>
       </div>
-      <div style={{ marginBottom: 16, maxWidth: 280 }}>
-        <input type="text" placeholder="Search colors..." value={search} onChange={(e) => setSearch(e.target.value)} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: visibleColors.length ? 'pointer' : 'default' }}>
+          <input type="checkbox" checked={allVisibleSelected} disabled={visibleColors.length === 0} onChange={toggleSelectAllVisible} />
+          Select all shown
+        </label>
+        {selected.size > 0 && (
+          <button className="btn-ghost" style={{ fontSize: 12.5, color: '#a3341f' }} onClick={bulkDelete}>
+            {scoped ? 'Unlink' : 'Delete'} {selected.size} selected
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -248,6 +303,7 @@ export default function ColorsClient({
               {...dragProps}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <input type="checkbox" aria-label={`Select ${c.name}`} checked={selected.has(c.id)} onChange={() => toggleSelected(c.id)} style={{ flexShrink: 0 }} />
                 {canReorder && (
                   <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <span {...dragHandleProps(index)} className="drag-handle" title="Drag to reorder">&#9776;</span>{' '}

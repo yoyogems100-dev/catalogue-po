@@ -13,10 +13,10 @@ export default async function CategoriesListPage() {
   // whichever categories' rows land past the first page.
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
-    fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id').range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id').range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id').range(from, to))
+    fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*', { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id', { count: 'exact' }).range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id', { count: 'exact' }).range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to))
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {

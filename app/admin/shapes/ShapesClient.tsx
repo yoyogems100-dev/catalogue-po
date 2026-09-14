@@ -1,12 +1,13 @@
 'use client';
 import { HotMark } from '@/components/HotSelling';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import ShapeIcon from '@/components/ShapeIcon';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
-type Shape = { id: number; name: string };
+type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 type Category = { id: number; num: number; name: string };
 type CatShape = { category_id: number; shape_id: number };
@@ -53,6 +54,43 @@ export default function ShapesClient({
 
   const visibleShapes = localShapes.filter(shape => (!scoped || catShapes.some(link => link.category_id === categoryFilter && link.shape_id === shape.id)) && shape.name.toLowerCase().includes(search.trim().toLowerCase()));
   const canReorder = !scoped && !search.trim();
+
+  // Bulk select/delete: only ever holds ids currently in view (search/category
+  // filtered), so switching the filter can't leave a stale, invisible shape
+  // silently selected.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    const visibleIds = new Set(visibleShapes.map((s) => s.id));
+    setSelected((cur) => {
+      const next = new Set([...cur].filter((id) => visibleIds.has(id)));
+      return next.size === cur.size ? cur : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, categoryFilter]);
+  const allVisibleSelected = visibleShapes.length > 0 && visibleShapes.every((s) => selected.has(s.id));
+
+  function toggleSelected(id: number) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    setSelected((cur) => (allVisibleSelected ? new Set() : new Set(visibleShapes.map((s) => s.id))));
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} shape${ids.length > 1 ? 's' : ''} and all their sizes? Photos tagged with them will keep the photo but lose the shape tag.`)) return;
+    const results = await Promise.all(ids.map((id) => fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => r.ok)));
+    const failed = results.filter((ok) => !ok).length;
+    setSelected(new Set());
+    setToast(failed === 0 ? `${ids.length} shape${ids.length > 1 ? 's' : ''} deleted.` : `${ids.length - failed} of ${ids.length} deleted -- ${failed} failed.`);
+    router.refresh();
+  }
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
     const prev = localShapes;
@@ -171,17 +209,31 @@ export default function ShapesClient({
     <>
       <label>Filter by category<select aria-label="Shape category filter" value={categoryFilter} onChange={event => setCategoryFilter(Number(event.target.value))}><option value={0}>All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
       {scoped && <p>Showing shapes and sizes linked to this category. <a href={`/admin/categories/${categoryFilter}?tab=shapes`}>Manage category shapes &amp; sizes</a>. Names are shared across categories.</p>}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, maxWidth: 420 }}>
-        <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addShape()} />
-        <button className="btn" onClick={addShape}>Add shape</button>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 280, flex: '1 1 200px' }}>
+          <input type="text" placeholder="Search shapes..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addShape()} />
+          <button className="btn" onClick={addShape}>Add shape</button>
+        </div>
       </div>
-      <div style={{ marginBottom: 16, maxWidth: 280 }}>
-        <input type="text" placeholder="Search shapes..." value={search} onChange={(e) => setSearch(e.target.value)} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: visibleShapes.length ? 'pointer' : 'default' }}>
+          <input type="checkbox" checked={allVisibleSelected} disabled={visibleShapes.length === 0} onChange={toggleSelectAllVisible} />
+          Select all shown
+        </label>
+        {selected.size > 0 && !scoped && (
+          <button className="btn-ghost" style={{ fontSize: 12.5, color: '#a3341f' }} onClick={bulkDelete}>
+            Delete {selected.size} selected
+          </button>
+        )}
       </div>
 
       <table>
         <thead>
-          <tr><th>Order</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
+          <tr><th></th><th>Order</th><th>Image</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
           {visibleShapes.map((s) => {
@@ -192,13 +244,13 @@ export default function ShapesClient({
             const catsOpen = expandedCats === s.id;
             const dragProps = canReorder ? dropTargetProps(index) : {};
             return (
-              <>
+              <Fragment key={s.id}>
                 <tr
-                  key={s.id}
                   {...dragProps}
                   className={canReorder && overIndex === index ? 'drag-over-row' : ''}
                   style={{ opacity: canReorder && dragIndex === index ? 0.4 : 1 }}
                 >
+                  <td>{!scoped && <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelected(s.id)} />}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {canReorder && (
                       <>
@@ -207,6 +259,21 @@ export default function ShapesClient({
                         <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => moveShape(s.id, 'down')} disabled={index === localShapes.length - 1}>&darr;</button>
                       </>
                     )}
+                  </td>
+                  <td>
+                    {/* Vector always shows -- it's what customers actually see in every
+                        dropdown/PDF when there's no real photo, so it's worth seeing here
+                        even when a photo exists. The photo (when there is one) sits next
+                        to it rather than replacing it, so it's obvious at a glance which
+                        shapes are still running on the generic vector only. */}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span className="shape-vector-icon" aria-hidden="true" title="Vector icon (dropdown/PDF fallback)"><ShapeIcon iconKey={s.icon_key} size={26} /></span>
+                      {s.ref_photo_url ? (
+                        <img src={s.ref_photo_url} alt="" title="Real reference photo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 3 }} />
+                      ) : (
+                        <span style={{ fontSize: 10.5, color: '#a3341f' }}>No photo yet</span>
+                      )}
+                    </span>
                   </td>
                   <td><HotMark kind="shape" ids={[s.id]} name={s.name} /><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>
@@ -223,7 +290,7 @@ export default function ShapesClient({
                 </tr>
                 {sizesOpen && (
                   <tr key={`${s.id}-sizes`}>
-                    <td colSpan={5} style={{ background: '#faf8f3' }}>
+                    <td colSpan={7} style={{ background: '#faf8f3' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                         {shapeSizes.map((sz) => (
                           <span key={sz.id} className="tag-chip">
@@ -257,7 +324,7 @@ export default function ShapesClient({
                 )}
                 {catsOpen && (
                   <tr key={`${s.id}-cats`}>
-                    <td colSpan={5} style={{ background: '#faf8f3' }}>
+                    <td colSpan={7} style={{ background: '#faf8f3' }}>
                       <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 8 }}>
                         Which categories should offer "{s.name}" as a shape option. This is the same link used on each
                         category's own page -- edit from whichever side is more convenient.
@@ -273,11 +340,11 @@ export default function ShapesClient({
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
           {visibleShapes.length === 0 && (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No shapes match "{search}".</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No shapes match "{search}".</td></tr>
           )}
         </tbody>
       </table>
@@ -305,9 +372,9 @@ function ShapeNameCell({ shape, onRename }: { shape: Shape; onRename: (id: numbe
     return (
       <button
         type="button"
-        onClick={() => { setValue(shape.name); setEditing(true); }}
-        style={{ cursor: 'pointer', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
-        title="Click to rename"
+        onDoubleClick={() => { setValue(shape.name); setEditing(true); }}
+        style={{ cursor: 'text', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px dashed var(--line)', padding: 0, font: 'inherit', textAlign: 'left' }}
+        title="Double-click to rename"
         aria-label={`Rename shape ${shape.name}`}
       >
         {shape.name}
