@@ -755,7 +755,7 @@ function PhotoRow({
     </div>
   );
 
-  const cropControls = <PhotoCropEditor photoId={photo.id} photoCrop={photo.photoCrop} coverCrop={photo.coverCrop} coverOnly={compact || photo.isCoverOnly} />;
+  const cropControls = <PhotoCropEditor photoId={photo.id} photoCrop={photo.photoCrop} coverCrop={photo.coverCrop} coverOnly={compact || photo.isCoverOnly} isCover={isThumbnail} />;
 
   if (compact) {
     return (
