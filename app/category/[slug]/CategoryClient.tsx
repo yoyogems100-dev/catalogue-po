@@ -190,12 +190,27 @@ export default function CategoryClient({
     });
   }, [photos, shapeFilter, colorFilter, sizeFilter, tagFilter, availableSizes]);
 
+  // Precompute id -> name lookups once instead of a linear .find() per id per
+  // photo, and cache each photo's details string once instead of recomputing
+  // it on every render -- this page's grid calls detailsFor per photo, and the
+  // lightbox called it three separate times per render on top of that.
+  const shapeNameById = useMemo(() => new Map(shapes.map((s) => [s.id, s.name])), [shapes]);
+  const sizeMmById = useMemo(() => new Map(sizes.map((s) => [s.id, s.size_mm])), [sizes]);
+  const colorNameById = useMemo(() => new Map(colors.map((c) => [c.id, c.name])), [colors]);
+  const tagNameById = useMemo(() => new Map(tags.map((t) => [t.id, t.name])), [tags]);
+  const detailsByPhotoId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const photo of photos) {
+      const shapeNames = photo.shapeIds.map((id) => shapeNameById.get(id)).filter(Boolean);
+      const sizeNames = photo.sizeIds.map((id) => sizeMmById.get(id)).filter(Boolean).map((mm) => `${mm}mm`);
+      const colorNames = photo.colorIds.map((id) => colorNameById.get(id)).filter(Boolean);
+      const specNames = photo.tag_ids.map((id) => tagNameById.get(id)).filter(Boolean);
+      map.set(photo.id, [...shapeNames, ...sizeNames, ...colorNames, ...specNames].join(', '));
+    }
+    return map;
+  }, [photos, shapeNameById, sizeMmById, colorNameById, tagNameById]);
   function detailsFor(photo: Photo) {
-    const shapeNames = photo.shapeIds.map((id) => shapes.find((s) => s.id === id)?.name).filter(Boolean);
-    const sizeNames = photo.sizeIds.map((id) => sizes.find((s) => s.id === id)?.size_mm).filter(Boolean).map((mm) => `${mm}mm`);
-    const colorNames = photo.colorIds.map((id) => colors.find((c) => c.id === id)?.name).filter(Boolean);
-    const specNames = photo.tag_ids.map((id) => tags.find((t) => t.id === id)?.name).filter(Boolean);
-    return [...shapeNames, ...sizeNames, ...colorNames, ...specNames].join(', ');
+    return detailsByPhotoId.get(photo.id) || '';
   }
 
   return (

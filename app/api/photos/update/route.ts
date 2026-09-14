@@ -17,32 +17,28 @@ export async function POST(req: NextRequest) {
   }
 
   // A photo can now carry several shapes/sizes/colors at once (e.g. a mixed-lot
-  // photo) -- each is a delete-then-reinsert of its junction table, same pattern
-  // already used for tag_ids below.
-  if (Array.isArray(shape_ids)) {
-    await supabaseAdmin.from('photo_shapes').delete().eq('photo_id', id);
-    if (shape_ids.length > 0) {
-      await supabaseAdmin.from('photo_shapes').insert(shape_ids.map((shape_id: number) => ({ photo_id: id, shape_id })));
+  // photo) -- each is a delete-then-reinsert of its own junction table. The four
+  // tables are independent of each other (only the delete-then-insert within
+  // each needs to stay in order), so run them concurrently instead of as one
+  // long sequential chain, and surface a failure instead of silently ignoring it.
+  async function replaceJunction(table: string, column: string, ids: number[] | undefined) {
+    if (!Array.isArray(ids)) return null;
+    const del = await supabaseAdmin.from(table).delete().eq('photo_id', id);
+    if (del.error) return del.error.message;
+    if (ids.length > 0) {
+      const ins = await supabaseAdmin.from(table).insert(ids.map((value) => ({ photo_id: id, [column]: value })));
+      if (ins.error) return ins.error.message;
     }
+    return null;
   }
-  if (Array.isArray(shape_size_ids)) {
-    await supabaseAdmin.from('photo_sizes').delete().eq('photo_id', id);
-    if (shape_size_ids.length > 0) {
-      await supabaseAdmin.from('photo_sizes').insert(shape_size_ids.map((shape_size_id: number) => ({ photo_id: id, shape_size_id })));
-    }
-  }
-  if (Array.isArray(color_ids)) {
-    await supabaseAdmin.from('photo_colors').delete().eq('photo_id', id);
-    if (color_ids.length > 0) {
-      await supabaseAdmin.from('photo_colors').insert(color_ids.map((color_id: number) => ({ photo_id: id, color_id })));
-    }
-  }
-  if (Array.isArray(tag_ids)) {
-    await supabaseAdmin.from('photo_tags').delete().eq('photo_id', id);
-    if (tag_ids.length > 0) {
-      await supabaseAdmin.from('photo_tags').insert(tag_ids.map((tag_id: number) => ({ photo_id: id, tag_id })));
-    }
-  }
+
+  const junctionErrors = (await Promise.all([
+    replaceJunction('photo_shapes', 'shape_id', shape_ids),
+    replaceJunction('photo_sizes', 'shape_size_id', shape_size_ids),
+    replaceJunction('photo_colors', 'color_id', color_ids),
+    replaceJunction('photo_tags', 'tag_id', tag_ids)
+  ])).filter((e): e is string => e !== null);
+  if (junctionErrors.length > 0) return NextResponse.json({ error: junctionErrors.join('; ') }, { status: 400 });
 
   return NextResponse.json({ ok: true });
 }

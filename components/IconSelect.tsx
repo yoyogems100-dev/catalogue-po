@@ -2,7 +2,7 @@
 
 import { useDropdownBounds } from './useDropdownBounds';
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
@@ -137,12 +137,19 @@ export default function IconSelect(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ready]);
 
-  const orderedOptions = orderSnapshot
-    ? [
-        ...orderSnapshot.map((id) => options.find((o) => o.id === id)).filter((o): o is Option => !!o),
-        ...options.filter((o) => !orderSnapshot.includes(o.id))
-      ]
-    : options;
+  // orderSnapshot only changes when the panel opens, but without memoizing
+  // this against it, the O(n²) rebuild below (a .find() inside a .map()) was
+  // redone on every render -- including every keystroke in the search box.
+  const orderedOptions = useMemo(
+    () =>
+      orderSnapshot
+        ? [
+            ...orderSnapshot.map((id) => options.find((o) => o.id === id)).filter((o): o is Option => !!o),
+            ...options.filter((o) => !orderSnapshot.includes(o.id))
+          ]
+        : options,
+    [orderSnapshot, options]
+  );
 
   function Leading({ o }: { o: Option | null }) {
     if (!o) return null;
@@ -155,9 +162,13 @@ export default function IconSelect(props: Props) {
   // 4X6 / 4*6) -- normalize both sides to the same separator so a search
   // for one form still finds options written with another.
   const normalizeSep = (s: string) => s.toLowerCase().replace(/[x*]/g, 'x');
-  const filtered = search.trim()
-    ? orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(search.trim())))
-    : orderedOptions;
+  const filtered = useMemo(
+    () =>
+      search.trim()
+        ? orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(search.trim())))
+        : orderedOptions,
+    [orderedOptions, search]
+  );
 
   let triggerLabel: string;
   let selected: Option | null = null;
