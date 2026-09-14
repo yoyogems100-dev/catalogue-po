@@ -45,7 +45,10 @@ const PATHS: Record<string, JSX.Element> = {
   arrow: <><path d="m12 2.5 7 7-3 12H8l-3-12Z"/><path d="m12 2.5-3 9 3 5 3-5-3-9M5 9.5l4 2m10-2-4 2M8 21.5l4-5 4 5"/></>,
   shield: <><path d="m12 2.5 8 3.5v7c0 5-8 8.5-8 8.5S4 18 4 13V6Z"/><path d="m12 2.5-4 8 4 6 4-6-4-8M4 6l4 4.5M20 6l-4 4.5M8 10.5h8"/></>,
   trapezoid: <><path d="M7 5h10l4 14H3Z"/><path d="m7 5 3 5h4l3-5M3 19l7-9m11 9-7-9M10 10l2 9 2-9"/></>,
-  baguette: <><rect x="3" y="7" width="18" height="10" rx=".5"/><rect x="6" y="9" width="12" height="6"/><path d="m3 7 3 2m15-2-3 2m3 8-3-2M3 17l3-2m0-6 12 6m0-6L6 15"/></>
+  baguette: <><rect x="3" y="7" width="18" height="10" rx=".5"/><rect x="6" y="9" width="12" height="6"/><path d="m3 7 3 2m15-2-3 2m3 8-3-2M3 17l3-2m0-6 12 6m0-6L6 15"/></>,
+  fan: <><path d="M4 9a6 6 0 0 1 6-6l11 12-9 6Z"/><path d="M6.5 5.5 12 12l9 3M10 3l1 8 6 3.5"/></>,
+  whistle: <><path d="M5 21V9l9-6.5 5 3V21Z"/><path d="M5 9h14M9 6l3 3v12m6-14-3 2v10"/></>,
+  bullet: <><path d="M5 3h14v12l-7 6-7-6Z"/><path d="M5 9h14m-11 0 4 12 4-12"/></>
 };
 
 export default function ShapeIcon({ iconKey, size = 16 }: { iconKey: string | null | undefined; size?: number }) {
