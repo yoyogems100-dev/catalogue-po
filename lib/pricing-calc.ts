@@ -3,7 +3,11 @@
 // supplier sheet's own layout), so pricing an actual line item means first
 // resolving its color to a group, then looking up that group's price.
 export type CategoryPricing = {
-  multiplier: number;
+  // null when the conversion rate hasn't been configured (or was cleared/invalid) --
+  // callers must treat that as "no price available", never fall back to a default
+  // multiplier, since that would silently show/save an RMB-face-value price as if
+  // it were INR (understating it roughly tenfold at real-world rates).
+  multiplier: number | null;
   colorToGroup: Record<number, number>;
   priceMap: Record<string, number>; // `${shapeId}:${shapeSizeId}:${groupId}` -> price in RMB
 };
@@ -16,8 +20,22 @@ export function lineRmbPrice(pricing: CategoryPricing, shapeId: number, shapeSiz
 }
 
 export function lineInrPrice(pricing: CategoryPricing, shapeId: number, shapeSizeId: number, colorId: number): number | null {
+  // Re-check validity here too, not just at the source -- this is the last line
+  // of defense against ever multiplying a real RMB price by a null/zero/negative
+  // rate and returning a wrong-but-plausible-looking number. `> 0` on null is
+  // false, so this correctly rejects null along with 0 and negatives.
+  const multiplier = pricing.multiplier;
+  if (!(multiplier && multiplier > 0)) return null;
   const rmb = lineRmbPrice(pricing, shapeId, shapeSizeId, colorId);
-  return rmb === null ? null : rmb * pricing.multiplier;
+  return rmb === null ? null : rmb * multiplier;
+}
+
+// A saved settings value of "", "0", a negative number, or nothing at all must
+// all mean "not configured" -- never a usable rate. Shared by every call site
+// that reads the rmb_inr_multiplier setting, so the fail-safe rule can't drift.
+export function parseMultiplier(rawValue: unknown): number | null {
+  const n = Number(rawValue);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 export function cartLinePrice(pricing: CategoryPricing | undefined, activeCategoryId: number,

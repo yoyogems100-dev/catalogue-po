@@ -39,6 +39,17 @@ export async function findOrCreateCustomer({
     .select('id, name')
     .single();
 
-  if (error || !created) throw new Error(error?.message || 'Failed to create customer');
+  if (error) {
+    // A concurrent request (double-tap "Send", or a client retry) can win the
+    // race and insert the same phone first -- customers.phone is unique, so
+    // that shows up here as a conflict, not as the earlier SELECT finding it.
+    // Re-select instead of throwing, so the loser of the race still succeeds.
+    if (cleanPhone && error.code === '23505') {
+      const { data: existing } = await supabaseAdmin.from('customers').select('id, name').eq('phone', cleanPhone).maybeSingle();
+      if (existing) return { id: existing.id, name: existing.name, isNew: false };
+    }
+    throw new Error(error.message);
+  }
+  if (!created) throw new Error('Failed to create customer');
   return { id: created.id, name: created.name, isNew: true };
 }

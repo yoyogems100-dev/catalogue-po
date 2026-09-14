@@ -23,3 +23,29 @@ test('category validation requires configured counts, canonical colors and expli
  assert.equal((await validateOrderSpecs([drilled],database))[0].orderSpecs.drill,'full');
  await assert.rejects(validateOrderSpecs([{...drilled,orderSpecs:{kind:'drilled',drill:'other'}}],database));
 });
+test('an ordinary category (not Moissanite/Rainbow/Hole-Punched) still verifies shape, size and color are actually linked',async()=>{
+ process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://example.supabase.co';process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'synthetic-test-key';
+ const {validateOrderSpecs}=await import('../lib/validate-order-specs');
+ const rows:any={
+  shape_sizes:[{id:10,shape_id:2},{id:11,shape_id:3}],
+  category_shape_sizes:[{category_id:1,shape_size_id:10}],
+  category_shapes:[{category_id:1,shape_id:2}],
+  category_colors:[{category_id:1,color_id:4}]
+ };
+ const database={from(name:string){let data=rows[name]||[];const q:any={select(){return q},eq(k:string,v:any){data=data.filter((r:any)=>r[k]===v);return q},in(k:string,v:any[]){data=data.filter((r:any)=>v.includes(r[k]));return q},maybeSingle(){return Promise.resolve({data:data[0]||null,error:null})},then(resolve:any){return Promise.resolve({data,error:null}).then(resolve)}};return q;}};
+ const line:any={categoryId:1,shapeId:2,sizeId:10,colorId:4,qty:50};
+ // A genuinely linked shape+size+color combo is accepted unchanged.
+ assert.deepEqual((await validateOrderSpecs([line],database))[0],line);
+ // A shape that exists globally but was never linked to this category is rejected.
+ await assert.rejects(validateOrderSpecs([{...line,shapeId:3}],database));
+ // A size that belongs to a different shape than the one selected is rejected,
+ // even though that size id is real and linked to *some* shape in this category.
+ await assert.rejects(validateOrderSpecs([{...line,sizeId:11}],database));
+ // A color never linked to this category is rejected.
+ await assert.rejects(validateOrderSpecs([{...line,colorId:99}],database));
+ // A null sizeId (free-text custom size range) skips the size check but still
+ // requires the shape and color to be linked.
+ const custom={...line,sizeId:null};
+ assert.deepEqual((await validateOrderSpecs([custom],database))[0],custom);
+ await assert.rejects(validateOrderSpecs([{...custom,colorId:99}],database));
+});

@@ -49,6 +49,12 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
   supabasePublic.from('category_colors').select('color_id,colors(name,hex_value,ref_photo_url)').eq('category_id',id)
  ]);
  if(category.error||shapes.error||sizes.error||colorLinks.error)return NextResponse.json({error:'Could not load the size chart. Please retry.'},{status:503});
+ // Every size row shares one price group, so a price-list export only makes
+ // sense while exactly one color is linked (Moissanite's White/DEF today) --
+ // silently picking "the first" color the moment a second one is ever added
+ // would price every size off an arbitrary, undisclosed color with no
+ // indication in the PDF of which one it was.
+ if(includePrices&&(colorLinks.data?.length||0)!==1)return NextResponse.json({error:'Price list export requires exactly one linked color.'},{status:409});
  const pricing=includePrices?await getCategoryPricing(id):null;
  const colorId=colorLinks.data?.[0]?.color_id;
  const colors:SizeChartColor[]=await Promise.all((colorLinks.data||[]).map(async(row:any)=>{

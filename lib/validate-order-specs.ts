@@ -17,7 +17,27 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
   }
   const kind=specialCategory(item.categoryId);
   if(!validSpecQuantity(item.orderSpecs,item.qty))throw Error('Use whole quantities; rainbow quantities must be complete strips.');
-  if(!kind) {if(item.orderSpecs)throw Error('Extra specifications are not supported for this category.');result.push(item);continue;}
+  if(!kind) {
+   if(item.orderSpecs)throw Error('Extra specifications are not supported for this category.');
+   // Every other category (everything but Moissanite/Rainbow Corundum/Hole
+   // Punched, handled above) previously skipped verification entirely -- a
+   // request could reference any real shape/size/color id in the system, not
+   // just ones this category actually offers. sizeId can legitimately be null
+   // here (a free-text custom size range has no shape_sizes row), but shape
+   // and color -- and the size when one is given -- must be linked.
+   const checks:Promise<any>[]=[database.from('category_shapes').select('shape_id').eq('category_id',item.categoryId).eq('shape_id',item.shapeId).maybeSingle()];
+   if(item.sizeId!==null)checks.push(database.from('category_shape_sizes').select('shape_size_id').eq('category_id',item.categoryId).eq('shape_size_id',item.sizeId).maybeSingle());
+   if(item.colorId!==null)checks.push(database.from('category_colors').select('color_id').eq('category_id',item.categoryId).eq('color_id',item.colorId).maybeSingle());
+   const linkResults=await Promise.all(checks);
+   if(linkResults.some(r=>r.error))throw Error('Could not validate category options. Please retry.');
+   if(linkResults.some(r=>!r.data))throw Error('Choose a shape, size and color that are available for this category.');
+   if(item.sizeId!==null) {
+    const size=await database.from('shape_sizes').select('shape_id').eq('id',item.sizeId).maybeSingle();
+    if(size.error)throw Error('Could not validate category options. Please retry.');
+    if(!size.data||size.data.shape_id!==item.shapeId)throw Error('Choose a size that matches the selected shape.');
+   }
+   result.push(item);continue;
+  }
   const spec=item.orderSpecs;
   if(!spec||spec.kind!==kind)throw Error('Choose the strip or drill options for this category before submitting.');
   const [size,link,shapeLink]=await Promise.all([
