@@ -15,13 +15,25 @@ async function hmac(value: string, secret: string): Promise<string> {
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// crypto.timingSafeEqual (used for this same comparison in lib/auth.ts and
+// lib/customer-auth.ts) needs Node's `crypto` module, which isn't available
+// on the Edge runtime middleware runs on -- this is the Web-Crypto-compatible
+// equivalent: both inputs are already validated to be 64 lowercase-hex chars,
+// so a fixed-length XOR accumulator is a safe constant-time comparison.
+export function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 async function verify(signed: string, secret: string | undefined, kind: 'admin' | 'customer') {
   if (!secret) return false;
   const [value, mac] = signed.split('.');
   if (!value || !/^[a-f0-9]{64}$/.test(mac || '') || signed.split('.').length !== 2) return false;
   if (kind === 'admin' ? value !== 'ok' : !/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) return false;
   const expected = await hmac(value, secret);
-  return expected === mac;
+  return timingSafeEqualHex(expected, mac);
 }
 
 export async function middleware(req: NextRequest) {

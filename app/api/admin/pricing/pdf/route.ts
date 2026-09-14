@@ -4,6 +4,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
+import { parseMultiplier } from '@/lib/pricing-calc';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 
@@ -14,14 +15,15 @@ export async function GET(req: NextRequest) {
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
-  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
+  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings, multiplierRow] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),
     supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_groups').select('id, name').order('sort_order'),
     supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_rmb').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id'),
-    getSettings()
+    getSettings(),
+    supabaseAdmin.from('settings').select('value').eq('key', 'rmb_inr_multiplier').maybeSingle()
   ]);
 
   if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
@@ -80,9 +82,8 @@ export async function GET(req: NextRequest) {
     })
     .filter((section: PriceListShapeSection) => section.rows.some((r) => Object.values(r.prices).some((v) => v !== null)));
 
-  const multiplierRow = await supabaseAdmin.from('settings').select('value').eq('key', 'rmb_inr_multiplier').maybeSingle();
-  const multiplier = Number(multiplierRow.data?.value);
-  if (multiplierRow.error || !Number.isFinite(multiplier) || multiplier <= 0) return NextResponse.json({ error: 'Save a valid conversion rate before exporting INR prices.' }, { status: 400 });
+  const multiplier = parseMultiplier(multiplierRow.data?.value);
+  if (multiplierRow.error || multiplier === null) return NextResponse.json({ error: 'Save a valid conversion rate before exporting INR prices.' }, { status: 400 });
 
   const data: PriceListData = {
     categoryName: category.name,

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabasePublic } from './supabase-public';
-import type { CategoryPricing } from './pricing-calc';
+import { parseMultiplier, type CategoryPricing } from './pricing-calc';
 
 export async function getCategoryPricing(categoryId: number, client: SupabaseClient = supabasePublic): Promise<CategoryPricing> {
   const [{ data: settingsRow }, { data: members }, { data: priceRows }] = await Promise.all([
@@ -17,5 +17,7 @@ export async function getCategoryPricing(categoryId: number, client: SupabaseCli
     priceMap[`${p.shape_id}:${p.shape_size_id}:${p.price_group_id}`] = Number(p.price_rmb);
   });
 
-  return { multiplier: Number((settingsRow as any)?.value) || 1, colorToGroup, priceMap };
+  // Fail safe, not to a default: an unset/invalid rate must mean "no price
+  // available" (lineInrPrice returns null), never a silent 1x substitute.
+  return { multiplier: parseMultiplier((settingsRow as any)?.value), colorToGroup, priceMap };
 }

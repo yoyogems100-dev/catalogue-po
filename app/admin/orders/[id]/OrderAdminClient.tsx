@@ -2,7 +2,7 @@
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
@@ -89,6 +89,20 @@ export default function OrderAdminClient({
   const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
   const [newLines, setNewLines] = useState<NewLine[]>([]);
   const [savingItems, setSavingItems] = useState(false);
+
+  // `items` only changes after router.refresh() following a successful save
+  // elsewhere in this component -- this component itself is never remounted for
+  // that (same order id, same position in the tree), so without this, a
+  // previously-saved new line stays sitting in `newLines` and gets re-inserted
+  // as a duplicate on the next edit, and quantities[id] for that new item is
+  // simply missing (renders the quantity input as NaN) since it was never in
+  // the map this state was originally seeded from.
+  useEffect(() => {
+    setQuantities(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
+    setRemovedIds(new Set());
+    setNewLines([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const [prices, setPrices] = useState<Record<number, string>>(
     Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))

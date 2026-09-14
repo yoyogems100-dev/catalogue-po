@@ -129,6 +129,26 @@ export default function POSelector({
   const [toast, setToast] = useState('');
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
 
+  // POSelector isn't remounted when a customer client-side-navigates from one
+  // category page to another (same component, new categoryId prop) -- without
+  // this, a shape/color/size picked on category A silently survives into
+  // category B, where those ids can point at an unrelated shape/color/size, or
+  // simply not exist in B's options at all (addLine then skips every combo and
+  // used to still report "Added to your order"). Clear the picker whenever the
+  // category actually changes, same as SpecialOrderComposer's key={categoryId}
+  // achieves by remounting entirely.
+  useEffect(() => {
+    setPickShapeIds([]);
+    setPickColorIds([]);
+    setPickSizeIdxs([]);
+    setRangeMin('');
+    setRangeMax('');
+    setPickQty('');
+    setPickRequestType('Place Order');
+    setEditingOption(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId]);
+
   // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
   // above), so silently keep the selection pinned to Round instead of leaving it
   // empty -- nothing else could ever be picked here anyway.
@@ -348,6 +368,13 @@ export default function POSelector({
 
     if (next.some((item) => parseQuantity(String(item.qty)) === null)) {
       setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
+      return;
+    }
+    // Every shape/color/size combo was skipped (e.g. a stale selection left over
+    // from switching categories no longer matches this category's options) --
+    // never claim success when nothing was actually added.
+    if (added === 0) {
+      setToast('Those selections are no longer valid for this category. Please pick again.');
       return;
     }
     setReceipt(null);

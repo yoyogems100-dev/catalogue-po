@@ -104,18 +104,19 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     );
   }
 
-  const { data: history } = await supabaseAdmin
-    .from('order_status_history')
-    .select('id, status, changed_at')
-    .eq('order_id', orderId)
-    .order('changed_at', { ascending: true });
-
-  const { data: notes } = await supabaseAdmin
-    .from('order_notes')
-    .select('id, author_type, message, created_at')
-    .eq('order_id', orderId)
-    .eq('internal_only', false)
-    .order('created_at', { ascending: true });
+  const [{ data: history }, { data: notes }] = await Promise.all([
+    supabaseAdmin
+      .from('order_status_history')
+      .select('id, status, changed_at')
+      .eq('order_id', orderId)
+      .order('changed_at', { ascending: true }),
+    supabaseAdmin
+      .from('order_notes')
+      .select('id, author_type, message, created_at')
+      .eq('order_id', orderId)
+      .eq('internal_only', false)
+      .order('created_at', { ascending: true })
+  ]);
 
   const timeline = [
     ...(history || []).map((h: any) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status) })),

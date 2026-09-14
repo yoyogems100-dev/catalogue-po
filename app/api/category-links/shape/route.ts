@@ -13,6 +13,17 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { category_id, shape_id } = await req.json();
+
+  // Unlinking a shape must also drop this category's links to that shape's
+  // sizes -- otherwise they're orphaned: still selectable in "all shapes" size
+  // lists, and silently reappear pre-enabled if the shape is ever re-linked.
+  const { data: sizesForShape } = await supabaseAdmin.from('shape_sizes').select('id').eq('shape_id', shape_id);
+  const sizeIds = (sizesForShape || []).map((s) => s.id);
+  if (sizeIds.length) {
+    const { error: sizesError } = await supabaseAdmin.from('category_shape_sizes').delete().eq('category_id', category_id).in('shape_size_id', sizeIds);
+    if (sizesError) return NextResponse.json({ error: sizesError.message }, { status: 400 });
+  }
+
   const { error } = await supabaseAdmin.from('category_shapes').delete().eq('category_id', category_id).eq('shape_id', shape_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });

@@ -71,15 +71,33 @@ export default function ShapeSizeSelect({
     setSizeOrder(rankOptions(allSizes, new Set(localSizeIds), option => isHot(flags, categoryId, 'size', [option.id])).map(size => size.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, expandedShapeId, ready]);
-  const orderedShapes = [...allShapes].sort((a,b) => {
-    const left = shapeOrder.indexOf(a.id), right = shapeOrder.indexOf(b.id);
-    return (left < 0 ? allShapes.length : left) - (right < 0 ? allShapes.length : right);
-  });
+  // Not memoizing this meant re-sorting all shapes -- with an indexOf() lookup
+  // per comparison, effectively O(n² log n) -- on every render, including every
+  // search keystroke and every size checkbox toggle while the panel is open.
+  const orderedShapes = useMemo(
+    () =>
+      [...allShapes].sort((a, b) => {
+        const left = shapeOrder.indexOf(a.id), right = shapeOrder.indexOf(b.id);
+        return (left < 0 ? allShapes.length : left) - (right < 0 ? allShapes.length : right);
+      }),
+    [allShapes, shapeOrder]
+  );
   const selectedShapes = allShapes.filter((s) => localShapeIds.includes(s.id));
   const filtered = useMemo(
     () => orderedShapes.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [allShapes, query, shapeOrder]
+    [orderedShapes, query]
   );
+  // Grouping once avoids re-scanning the full allSizes array for every shape
+  // row on every render (it was previously an O(shapes × sizes) .filter() run
+  // fresh each time, for every row, on every keystroke/toggle while open).
+  const sizesByShapeId = useMemo(() => {
+    const map = new Map<number, Size[]>();
+    for (const sz of allSizes) {
+      const list = map.get(sz.shape_id);
+      if (list) list.push(sz); else map.set(sz.shape_id, [sz]);
+    }
+    return map;
+  }, [allSizes]);
 
   async function handleToggleShape(id: number, wasSelected: boolean) {
     setLocalShapeIds((cur) => (wasSelected ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -100,7 +118,7 @@ export default function ShapeSizeSelect({
   }
 
   function handleBulkSizes(shapeId: number, sizeIds: number[]) {
-    const sizesForShape = allSizes.filter((sz) => sz.shape_id === shapeId).map((sz) => sz.id);
+    const sizesForShape = (sizesByShapeId.get(shapeId) || []).map((sz) => sz.id);
     setLocalSizeIds((cur) => [...cur.filter((id) => !sizesForShape.includes(id)), ...sizeIds]);
     onBulkSizes(shapeId, sizeIds);
   }
@@ -120,7 +138,7 @@ export default function ShapeSizeSelect({
     if (Number.isNaN(min) || Number.isNaN(max)) return;
     const lo = Math.min(min, max);
     const hi = Math.max(min, max);
-    const sizesForShape = allSizes.filter((sz) => sz.shape_id === shapeId);
+    const sizesForShape = sizesByShapeId.get(shapeId) || [];
     const matchIds = sizesForShape
       .filter((sz) => {
         const v = strictSizeNum(sz.size_mm);
@@ -167,8 +185,13 @@ export default function ShapeSizeSelect({
           />
           {filtered.map((shape) => {
             const active = localShapeIds.includes(shape.id);
-            const sizesForShape = allSizes.filter((sz) => sz.shape_id === shape.id).sort((a,b) => sizeOrder.indexOf(a.id) - sizeOrder.indexOf(b.id));
-            const linkedForShape = sizesForShape.filter((sz) => localSizeIds.includes(sz.id));
+            // Only active (checked) shapes ever display or expand their size
+            // list -- skip the per-shape sort entirely for the rest instead of
+            // computing and discarding it on every render.
+            const sizesForShape = active
+              ? (sizesByShapeId.get(shape.id) || []).slice().sort((a, b) => sizeOrder.indexOf(a.id) - sizeOrder.indexOf(b.id))
+              : [];
+            const linkedForShape = active ? sizesForShape.filter((sz) => localSizeIds.includes(sz.id)) : [];
             const isExpanded = expandedShapeId === shape.id;
             return (
               <div key={shape.id}>

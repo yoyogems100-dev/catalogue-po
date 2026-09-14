@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cropRect, DEFAULT_CROP, type CropSettings, type SavedCrop } from '@/lib/photo-crop';
 
-export default function PhotoCropEditor({photoId,photoCrop,coverCrop,coverOnly=false}:{photoId:number;photoCrop?:SavedCrop|null;coverCrop?:SavedCrop|null;coverOnly?:boolean}) {
+export default function PhotoCropEditor({photoId,photoCrop,coverCrop,coverOnly=false,isCover=false}:{photoId:number;photoCrop?:SavedCrop|null;coverCrop?:SavedCrop|null;coverOnly?:boolean;isCover?:boolean}) {
   const [target,setTarget]=useState<'photo'|'cover'|null>(null);
   const [message,setMessage]=useState('');const router=useRouter();
   return <div className="photo-crop-actions">
     {!coverOnly && <button type="button" className="btn-ghost" onClick={()=>setTarget('photo')}>Crop photo</button>}
-    <button type="button" className="btn-ghost" onClick={()=>setTarget('cover')}>Adjust cover</button>
+    {(coverOnly||isCover) && <button type="button" className="btn-ghost" onClick={()=>setTarget('cover')}>Adjust cover</button>}
     {message && <small role="status">{message}</small>}
     {target && <CropDialog photoId={photoId} target={target} initial={(target==='cover'?coverCrop:photoCrop)||DEFAULT_CROP} onClose={()=>setTarget(null)} onSaved={reset=>{setMessage(reset?(target==='cover'?'Cover reset to photo crop / original.':'Original photo restored.'):'Crop saved.');setTarget(null);router.refresh();}} />}
   </div>;

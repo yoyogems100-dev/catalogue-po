@@ -62,6 +62,30 @@ test('a cart from another category never inherits the active category price', as
   assert.equal(cartLinePrice(pricing, 10, { ...item, colorId: 99 }), null);
 });
 
+test('an unconfigured RMB-to-INR rate never silently prices at 1x', async () => {
+  const { lineInrPrice, lineRmbPrice } = await import('../lib/pricing-calc');
+  const base = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 5 } };
+  // Missing, zero, and negative rates must all fail to null, not fall back to 1.
+  assert.equal(lineInrPrice({ ...base, multiplier: null }, 3, 4, 1), null);
+  assert.equal(lineInrPrice({ ...base, multiplier: 0 }, 3, 4, 1), null);
+  assert.equal(lineInrPrice({ ...base, multiplier: -1 }, 3, 4, 1), null);
+  // The underlying RMB price is still resolvable even when INR conversion isn't --
+  // a missing rate shouldn't also hide the RMB price from admin-side views.
+  assert.equal(lineRmbPrice({ ...base, multiplier: null }, 3, 4, 1), 5);
+  // A real configured rate still prices normally.
+  assert.equal(lineInrPrice({ ...base, multiplier: 11 }, 3, 4, 1), 55);
+});
+
+test('the Edge-runtime session cookie check compares MACs, not just lengths', async () => {
+  const { timingSafeEqualHex } = await import('../middleware');
+  const mac = 'a'.repeat(64);
+  assert.equal(timingSafeEqualHex(mac, mac), true);
+  assert.equal(timingSafeEqualHex(mac, 'b'.repeat(64)), false);
+  // Differs only in the last character -- must still be rejected, not short-circuit-accepted.
+  assert.equal(timingSafeEqualHex(mac, 'a'.repeat(63) + 'b'), false);
+  assert.equal(timingSafeEqualHex(mac, 'a'.repeat(63)), false);
+});
+
 test('catalogue coverage distinguishes a cover from a usable photo gallery', async () => {
   const { catalogueGaps, matchesCoverage } = await import('../lib/catalogue-health');
   const row = { coverUrl: 'cover.jpg', photoCount: 0, shapeCount: 2, sizeCount: 0, colorCount: 3 };

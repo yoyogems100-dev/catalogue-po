@@ -40,7 +40,12 @@ export async function POST(req: NextRequest) {
     const digits = newCustomerPhone.replace(/\D/g, '');
     if (digits.length < 10) return NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 });
 
-    const identity = await findOrCreateCustomer({ phone: digits });
+    let identity;
+    try {
+      identity = await findOrCreateCustomer({ phone: digits });
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not identify the customer.' }, { status: 400 });
+    }
     customerId = identity.id;
     contactName = identity.name;
 
@@ -96,6 +101,9 @@ export async function POST(req: NextRequest) {
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);
   if (itemsError) {
+    // See app/api/orders/create/route.ts for why this rollback matters --
+    // the order row above already committed.
+    await supabaseAdmin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: itemsError.message }, { status: 400 });
   }
 

@@ -35,7 +35,10 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     if(existing.error)throw Error('Could not load order lines.');
     for(const u of updates){const item=existing.data?.find(i=>i.id===u.id);if(!item||!validSpecQuantity(item.order_specs,u.quantity))throw Error('Enter whole quantities; rainbow quantities must be complete strips.');}
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Invalid order options'},{status:400});}
-  for(const u of updates){const {error}=await supabaseAdmin.from('order_items').update({quantity:u.quantity}).eq('id',u.id).eq('order_id',orderId);if(error)return NextResponse.json({error:'Quantity change could not be saved.'},{status:400});}
+  // Each update targets a distinct order_items row, so they're independent
+  // writes -- no reason to pay for N sequential round-trips one at a time.
+  const updateResults=await Promise.all(updates.map((u:any)=>supabaseAdmin.from('order_items').update({quantity:u.quantity}).eq('id',u.id).eq('order_id',orderId)));
+  if(updateResults.some(r=>r.error))return NextResponse.json({error:'Quantity change could not be saved.'},{status:400});
   if(removedIds.length){const {error}=await supabaseAdmin.from('order_items').delete().in('id',removedIds).eq('order_id',orderId);if(error)return NextResponse.json({error:'Removal could not be saved.'},{status:400});}
   const newItemCategoryIds = [...new Set(validRawNewItems.map((n: any) => n.categoryId))];
   const newItemPricingByCategory = new Map(
@@ -75,7 +78,9 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     Array.isArray(removedIds) && removedIds.length > 0 ? `${removedIds.length} line${removedIds.length > 1 ? 's' : ''} removed` : null,
     validNewItems.length > 0 ? `${validNewItems.length} line${validNewItems.length > 1 ? 's' : ''} added` : null
   ].filter(Boolean);
-  await notifyAdmin('order_modified', orderId, `Order #${orderId} modified by customer (${changeParts.join(', ') || 'changes saved'})`);
+  // Best-effort by design (see lib/notify-admin.ts) -- fire-and-forget so a slow
+  // or failed notification insert never delays the customer's save confirmation.
+  notifyAdmin('order_modified', orderId, `Order #${orderId} modified by customer (${changeParts.join(', ') || 'changes saved'})`).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

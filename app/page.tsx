@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { photoUrl } from '@/lib/photos';
 import { getCustomerId } from '@/lib/customer-auth';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
@@ -27,10 +28,14 @@ async function getData() {
     { data: allColors }
   ] = await Promise.all([
     supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
-    supabasePublic.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
-    supabasePublic.from('category_shapes').select('category_id, shape_id'),
-    supabasePublic.from('category_colors').select('category_id, color_id'),
-    supabasePublic.from('category_shape_sizes').select('category_id'),
+    // These four read every row of their table with no per-category filter (there's
+    // no category to filter by yet -- this is what builds the per-category counts
+    // below), so each must page past the project's 1000-row response cap explicitly
+    // or silently drop rows for whichever categories land past the first page.
+    fetchAllRows<any>((from, to) => supabasePublic.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
+    fetchAllRows<{ category_id: number; shape_id: number }>((from, to) => supabasePublic.from('category_shapes').select('category_id, shape_id').range(from, to)),
+    fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabasePublic.from('category_colors').select('category_id, color_id').range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabasePublic.from('category_shape_sizes').select('category_id').range(from, to)),
     supabasePublic.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
     supabasePublic.from('colors').select('id, name, hex_value').order('sort_order').order('name')
   ]);

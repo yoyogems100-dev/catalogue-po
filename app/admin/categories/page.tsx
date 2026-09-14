@@ -1,17 +1,22 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoriesClient from './CategoriesClient';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function CategoriesListPage() {
+  // Unfiltered reads of the whole join table (no per-category scope is possible
+  // here -- this page computes the counts for every category at once), so each
+  // must page past the project's 1000-row response cap or silently undercount
+  // whichever categories' rows land past the first page.
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
-    supabaseAdmin.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
-    supabaseAdmin.from('category_shapes').select('category_id'),
-    supabaseAdmin.from('category_colors').select('category_id'),
-    supabaseAdmin.from('category_shape_sizes').select('category_id')
+    fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id').range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id').range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id').range(from, to))
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {

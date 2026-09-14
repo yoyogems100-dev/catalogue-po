@@ -8,6 +8,7 @@ import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
 import { getSettings } from '@/lib/settings';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
-    supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct'),
+    fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
+      supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').range(from, to)
+    ),
     supabaseAdmin.from('category_shapes').select('*').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id').eq('category_id', categoryId),
     supabaseAdmin.from('category_tags').select('tag_id').eq('category_id', categoryId),

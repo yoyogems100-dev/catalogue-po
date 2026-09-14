@@ -33,8 +33,12 @@ export async function POST(req: NextRequest) {
   let customerId: number | null = await getCustomerId();
 
   if (!customerId && contactPhone) {
-    const identity = await findOrCreateCustomer({ phone: contactPhone });
-    customerId = identity.id;
+    try {
+      const identity = await findOrCreateCustomer({ phone: contactPhone });
+      customerId = identity.id;
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not identify the customer.' }, { status: 400 });
+    }
   }
 
   // Never overwrite a name that's already on file (e.g. from Phase 3 profile
@@ -103,17 +107,23 @@ export async function POST(req: NextRequest) {
 
   const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);
   if (itemsError) {
+    // The order row above already committed -- without this, a failed items
+    // insert leaves a permanent zero-item "ghost" order (status 'placed') that
+    // the customer never actually confirmed, polluting admin order history.
+    await supabaseAdmin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: itemsError.message }, { status: 400 });
   }
 
   await supabaseAdmin.from('order_status_history').insert({ order_id: order.id, status: 'placed' });
 
   const pieceCount = cart.reduce((sum, i) => sum + i.qty, 0);
-  await notifyAdmin(
+  // Best-effort by design (see lib/notify-admin.ts) -- fire-and-forget so a slow
+  // or failed notification insert never delays the customer's confirmation.
+  notifyAdmin(
     'new_order',
     order.id,
     `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${pieceCount.toLocaleString('en-IN')} pcs`
-  );
+  ).catch(() => {});
 
   return NextResponse.json({ orderId: order.id, message });
 }

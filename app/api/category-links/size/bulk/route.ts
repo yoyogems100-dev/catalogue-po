@@ -17,9 +17,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (Array.isArray(shape_size_ids) && shape_size_ids.length > 0) {
-    const rows = shape_size_ids.map((shape_size_id: number) => ({ category_id, shape_size_id }));
-    const { error } = await supabaseAdmin.from('category_shape_sizes').insert(rows);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    // Only accept ids that actually belong to shape_id -- otherwise a stale
+    // client id (or any bug upstream) can link a size from a completely
+    // different shape into this category under shape_id's name.
+    const validIds = new Set(sizeIdsForShape);
+    const rows = shape_size_ids.filter((id: number) => validIds.has(id)).map((shape_size_id: number) => ({ category_id, shape_size_id }));
+    if (rows.length > 0) {
+      const { error } = await supabaseAdmin.from('category_shape_sizes').insert(rows);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ ok: true });
