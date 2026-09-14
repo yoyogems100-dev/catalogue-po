@@ -261,11 +261,19 @@ export default function ShapesClient({
                     )}
                   </td>
                   <td>
-                    {s.ref_photo_url ? (
-                      <img src={s.ref_photo_url} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                    ) : (
-                      <span className="shape-vector-icon" aria-hidden="true"><ShapeIcon iconKey={s.icon_key} size={28} /></span>
-                    )}
+                    {/* Vector always shows -- it's what customers actually see in every
+                        dropdown/PDF when there's no real photo, so it's worth seeing here
+                        even when a photo exists. The photo (when there is one) sits next
+                        to it rather than replacing it, so it's obvious at a glance which
+                        shapes are still running on the generic vector only. */}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span className="shape-vector-icon" aria-hidden="true" title="Vector icon (dropdown/PDF fallback)"><ShapeIcon iconKey={s.icon_key} size={26} /></span>
+                      {s.ref_photo_url ? (
+                        <img src={s.ref_photo_url} alt="" title="Real reference photo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 3 }} />
+                      ) : (
+                        <span style={{ fontSize: 10.5, color: '#a3341f' }}>No photo yet</span>
+                      )}
+                    </span>
                   </td>
                   <td><HotMark kind="shape" ids={[s.id]} name={s.name} /><ShapeNameCell shape={s} onRename={renameShape} /></td>
                   <td>

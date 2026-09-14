@@ -41,31 +41,40 @@ export default function CategoryAdminClient({
   categoryId,
   section = 'overview',
   allShapes,
-  allColors,
   allTags,
   allSizes,
+  linkedShapes,
+  linkedColors,
+  linkedSizes,
+  linkedTags,
   linkedShapeIds,
   linkedColorIds,
   linkedTagIds,
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
-  colorPalettes,
   badgeTypes
 }: {
   categoryId: number;
   section?: string;
+  /** Full catalogue-wide lists -- only populated by the server for the tabs
+      that actually need to offer items beyond what's already linked
+      ("Shapes & sizes" for allShapes/allSizes). Empty on every other tab. */
   allShapes: ShapeRef[];
-  allColors: ColorRef[];
   allTags: Tag[];
   allSizes: Size[];
+  /** Already resolved to just this category's linked rows -- cheap on every
+      tab, unlike the full catalogue-wide lists above. */
+  linkedShapes: ShapeRef[];
+  linkedColors: ColorRef[];
+  linkedSizes: Size[];
+  linkedTags: Tag[];
   linkedShapeIds: number[];
   linkedColorIds: number[];
   linkedTagIds: number[];
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
-  colorPalettes?: { id: number; name: string; memberIds: number[] }[];
   badgeTypes: BadgeType[];
 }) {
   const router = useRouter();
@@ -320,11 +329,6 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
-  const linkedShapes = allShapes.filter((s) => linkedShapeIds.includes(s.id));
-  const linkedColors = allColors.filter((c) => linkedColorIds.includes(c.id));
-  const linkedSizes = allSizes.filter((sz) => linkedSizeIds.includes(sz.id));
-  const linkedTags = allTags.filter((t) => linkedTagIds.includes(t.id));
-
   function toggleSummary(key: string) {
     setExpandedSummary((cur) => ({ ...cur, [key]: !cur[key] }));
   }
@@ -336,190 +340,191 @@ export default function CategoryAdminClient({
       key: 'sizes',
       label: 'Size',
       count: linkedSizes.length,
-      text: linkedSizes.map((sz) => `${sz.size_mm}mm (${allShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
+      text: linkedSizes.map((sz) => `${sz.size_mm}mm (${linkedShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
     },
     { key: 'tags', label: 'Specification', count: linkedTags.length, text: linkedTags.map((t) => t.name).join(', ') }
   ];
 
   return (
     <div data-category-section={section} style={{ marginTop: 20 }}>
-      <nav className="category-editor-nav" aria-label="Category sections">
-        <a href="#category-summary">Overview</a><a href="#category-options">Shapes, colors &amp; sizes</a><a href="#category-cover">Cover</a><a href="#category-upload">Upload &amp; import</a><a href="#category-gallery">Photo library</a>
-      </nav>
-      {section === 'overview' && <p>Use the tabs above to manage this category’s shapes, sizes, colors, photos and pricing.</p>}
       {photoSaveError && <p role="alert">{photoSaveError}</p>}
-      {/* At-a-glance summary of everything linked to this category -- collapsed to just
-          the counts by default (the full name lists were overwhelming at a glance on
-          categories with dozens of shapes/colors/sizes), click a count to expand it. */}
-      <section id="category-summary" className="cat-summary-panel" style={{ marginBottom: 20 }}>
-        {summaryBlocks.map((b) => {
-          const expanded = !!expandedSummary[b.key];
-          return (
-            <div key={b.key}>
-              <button
-                type="button"
-                className="cat-summary-label cat-summary-toggle"
-                onClick={() => toggleSummary(b.key)}
-                disabled={b.count === 0}
-              >
-                {b.count} {b.label}{b.count === 1 ? '' : 's'} {b.count > 0 && (expanded ? '▲' : '▼')}
-              </button>
-              {expanded && <p className="cat-summary-value">{b.count ? b.text : 'None linked yet'}</p>}
-            </div>
-          );
-        })}
-      </section>
 
-      {/* Shapes+sizes, Colors, Tags -- all compact dropdowns in one row to minimize page scroll */}
-      <section id="category-options" style={{ marginBottom: 24 }}>
-        <div className="link-row">
-          <div data-editor-part="shapes">
-            <h3 className="section-label">Shapes &amp; sizes</h3>
-            <ShapeSizeSelect
-              categoryId={categoryId}
-              allShapes={allShapes}
-              allSizes={allSizes}
-              linkedShapeIds={linkedShapeIds}
-              linkedSizeIds={linkedSizeIds}
-              onToggleShape={(id, active) => toggleLink('shape', id, active)}
-              onToggleSize={toggleSize}
-              onBulkSizes={setAllSizesForShape}
-            />
-          </div>
-          <div data-editor-part="colors">
-            <h3 className="section-label">Colors</h3>
-            <MultiSelect
-              categoryId={categoryId}
-              options={allColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
-              selectedIds={linkedColorIds}
-              onToggle={(id, active) => toggleLink('color', id, active)}
-              leading="swatch"
-              placeholder="No colors selected"
-              palettes={colorPalettes}
-            />
-          </div>
-          <div data-editor-part="specifications">
-            <h3 className="section-label">Specifications</h3>
-            <MultiSelect
-              categoryId={categoryId}
-              optionKind="tag"
-              options={allTags.map((t) => ({ id: t.id, name: t.name }))}
-              selectedIds={linkedTagIds}
-              onToggle={(id, active) => toggleLink('tag', id, active)}
-              placeholder="No specifications selected"
-            />
-            <div className="tag-create-row">
-              <input type="text" placeholder="New specification" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} style={{ fontSize: 12.5 }} />
-              <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(false)}>Here only</button>
-              <button className="btn" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(true)}>Global</button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Overview: just the at-a-glance summary -- collapsed to counts by
+          default (the full name lists were overwhelming on categories with
+          dozens of shapes/colors/sizes), click a count to expand it. */}
+      {section === 'overview' && (
+        <>
+          <p>Use the tabs above to manage this category’s shapes, sizes, colors, photos and pricing.</p>
+          <section id="category-summary" className="cat-summary-panel" style={{ marginBottom: 20 }}>
+            {summaryBlocks.map((b) => {
+              const expanded = !!expandedSummary[b.key];
+              return (
+                <div key={b.key}>
+                  <button
+                    type="button"
+                    className="cat-summary-label cat-summary-toggle"
+                    onClick={() => toggleSummary(b.key)}
+                    disabled={b.count === 0}
+                  >
+                    {b.count} {b.label}{b.count === 1 ? '' : 's'} {b.count > 0 && (expanded ? '▲' : '▼')}
+                  </button>
+                  {expanded && <p className="cat-summary-value">{b.count ? b.text : 'None linked yet'}</p>}
+                </div>
+              );
+            })}
+          </section>
+        </>
+      )}
 
-      {/* Cover photo -- can be a dedicated image, not necessarily one of the
-          catalogue stones in the gallery below. */}
-      <section id="category-cover" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Cover photo</h3>
-          <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
-          {uploadingCover && <span style={{ fontSize: 12.5 }}>Uploading…</span>}
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11.5, color: '#756e5c' }}>Homepage tags:</span>
-            <div className="cat-badge-toggle">
-              {BADGE_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  aria-pressed={localBadgeTypes.includes(o.value)}
-                  className={localBadgeTypes.includes(o.value) ? 'active' : ''}
-                  onClick={() => toggleBadgeType(o.value)}
-                  title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
-                >
-                  {o.label}
-                </button>
+      {/* Shapes & sizes -- the only tab that needs the full catalogue-wide
+          lists, to offer shapes/sizes beyond what's already linked. */}
+      {section === 'shapes' && (
+        <section id="category-options" style={{ marginBottom: 24 }}>
+          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a shape or size to feature it across the catalogue. Click again to remove.</p>
+          <h3 className="section-label">Shapes &amp; sizes</h3>
+          <ShapeSizeSelect
+            categoryId={categoryId}
+            allShapes={allShapes}
+            allSizes={allSizes}
+            linkedShapeIds={linkedShapeIds}
+            linkedSizeIds={linkedSizeIds}
+            onToggleShape={(id, active) => toggleLink('shape', id, active)}
+            onToggleSize={toggleSize}
+            onBulkSizes={setAllSizesForShape}
+          />
+        </section>
+      )}
+
+      {/* Specifications -- its own tab, separate from the Shapes & sizes and
+          Colors tabs (Colors has its own dedicated workspace, reused from
+          the standalone admin/colors page). */}
+      {section === 'specifications' && (
+        <section id="category-options" style={{ marginBottom: 24 }}>
+          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a specification to feature it across the catalogue. Click again to remove.</p>
+          <h3 className="section-label">Specifications</h3>
+          <MultiSelect
+            categoryId={categoryId}
+            optionKind="tag"
+            options={allTags.map((t) => ({ id: t.id, name: t.name }))}
+            selectedIds={linkedTagIds}
+            onToggle={(id, active) => toggleLink('tag', id, active)}
+            placeholder="No specifications selected"
+          />
+          <div className="tag-create-row">
+            <input type="text" placeholder="New specification" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} style={{ fontSize: 12.5 }} />
+            <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(false)}>Here only</button>
+            <button className="btn" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(true)}>Global</button>
+          </div>
+        </section>
+      )}
+
+      {section === 'photos' && (
+        <>
+          {/* Cover photo -- can be a dedicated image, not necessarily one of the
+              catalogue stones in the gallery below. */}
+          <section id="category-cover" style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Cover photo</h3>
+              <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => handleCoverUpload(e.target.files)} />
+              {uploadingCover && <span style={{ fontSize: 12.5 }}>Uploading…</span>}
+              <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11.5, color: '#756e5c' }}>Homepage tags:</span>
+                <div className="cat-badge-toggle">
+                  {BADGE_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={localBadgeTypes.includes(o.value)}
+                      className={localBadgeTypes.includes(o.value) ? 'active' : ''}
+                      onClick={() => toggleBadgeType(o.value)}
+                      title={`Show ${o.label.toLowerCase()} count on the homepage tile`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </span>
+            </div>
+            {coverPhoto && (
+              <PhotoRow
+                categoryId={categoryId}
+                photo={coverPhoto}
+                index={0}
+                total={1}
+                isThumbnail
+                shapes={linkedShapes}
+                colors={linkedColors}
+                tags={linkedTags}
+                sizes={linkedSizes}
+                onUpdate={updatePhoto}
+                onDelete={coverPhoto.isCoverOnly ? deletePhoto : undefined}
+                onSetThumbnail={setThumbnail}
+                onMove={() => {}}
+                onCreateTag={createPhotoTag}
+                dragHandleProps={{}}
+                dropTargetProps={{}}
+                isDragging={false}
+                isDragOver={false}
+                hideMoveControls
+                compact
+                fieldOptions={['shape', 'color', 'other']}
+              />
+            )}
+          </section>
+
+          {/* Upload + bulk Drive import -- side by side on desktop instead of each
+              stacked full-width with a short control leaving most of the row empty. */}
+          <div id="category-upload" className="admin-upload-row">
+            <section>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
+              {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+            </section>
+
+            <section>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
+              <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
+              <textarea aria-label="Google Drive photo links or IDs" rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
+              <div style={{ marginTop: 8 }}>
+                <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
+              </div>
+            </section>
+          </div>
+
+          {/* Photo grid with per-photo tagging */}
+          <section id="category-gallery">
+            <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
+            <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
+              "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+              {galleryPhotos.map((p, i) => (
+                <PhotoRow
+                  categoryId={categoryId}
+                  key={p.id}
+                  photo={p}
+                  index={i}
+                  total={galleryPhotos.length}
+                  isThumbnail={thumbnailPhotoId === p.id}
+                  shapes={linkedShapes}
+                  colors={linkedColors}
+                  tags={linkedTags}
+                  sizes={linkedSizes}
+                  onUpdate={updatePhoto}
+                  onDelete={deletePhoto}
+                  onSetThumbnail={setThumbnail}
+                  onMove={movePhoto}
+                  onCreateTag={createPhotoTag}
+                  dragHandleProps={dragHandleProps(i)}
+                  dropTargetProps={dropTargetProps(i)}
+                  isDragging={dragIndex === i}
+                  isDragOver={overIndex === i}
+                />
               ))}
             </div>
-          </span>
-        </div>
-        {coverPhoto && (
-          <PhotoRow
-            categoryId={categoryId}
-            photo={coverPhoto}
-            index={0}
-            total={1}
-            isThumbnail
-            shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
-            colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
-            tags={allTags.filter((t) => linkedTagIds.includes(t.id))}
-            sizes={allSizes.filter((sz) => linkedSizeIds.includes(sz.id))}
-            onUpdate={updatePhoto}
-            onDelete={coverPhoto.isCoverOnly ? deletePhoto : undefined}
-            onSetThumbnail={setThumbnail}
-            onMove={() => {}}
-            onCreateTag={createPhotoTag}
-            dragHandleProps={{}}
-            dropTargetProps={{}}
-            isDragging={false}
-            isDragOver={false}
-            hideMoveControls
-            compact
-            fieldOptions={['shape', 'color', 'other']}
-          />
-        )}
-      </section>
-
-      {/* Upload + bulk Drive import -- side by side on desktop instead of each
-          stacked full-width with a short control leaving most of the row empty. */}
-      <div id="category-upload" className="admin-upload-row">
-        <section>
-          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
-          {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
-        </section>
-
-        <section>
-          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
-          <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
-          <textarea aria-label="Google Drive photo links or IDs" rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
-          <div style={{ marginTop: 8 }}>
-            <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
-          </div>
-        </section>
-      </div>
-
-      {/* Photo grid with per-photo tagging */}
-      <section id="category-gallery">
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
-        <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-          "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-          {galleryPhotos.map((p, i) => (
-            <PhotoRow
-              categoryId={categoryId}
-              key={p.id}
-              photo={p}
-              index={i}
-              total={galleryPhotos.length}
-              isThumbnail={thumbnailPhotoId === p.id}
-              shapes={allShapes.filter((s) => linkedShapeIds.includes(s.id))}
-              colors={allColors.filter((c) => linkedColorIds.includes(c.id))}
-              tags={allTags.filter((t) => linkedTagIds.includes(t.id))}
-              sizes={allSizes.filter((sz) => linkedSizeIds.includes(sz.id))}
-              onUpdate={updatePhoto}
-              onDelete={deletePhoto}
-              onSetThumbnail={setThumbnail}
-              onMove={movePhoto}
-              onCreateTag={createPhotoTag}
-              dragHandleProps={dragHandleProps(i)}
-              dropTargetProps={dropTargetProps(i)}
-              isDragging={dragIndex === i}
-              isDragOver={overIndex === i}
-            />
-          ))}
-        </div>
-      </section>
+          </section>
+        </>
+      )}
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </div>
   );

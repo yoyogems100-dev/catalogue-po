@@ -6,10 +6,13 @@ export async function ColorsWorkspace({ initialCategoryId, embedded = false }: {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order').order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name').order('num'),
-    // Unfiltered read of the whole join table (this page manages links across
-    // every category at once) -- pages past the project's 1000-row response
-    // cap so growth past that doesn't silently hide some categories' links.
-    fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id, color_id').range(from, to)),
+    // Unfiltered read of the whole join table -- even embedded in a single
+    // category's "Colors" tab, each row still shows how many OTHER
+    // categories share that color (and lets you unlink it from them), so
+    // this can't be scoped down to just the current category. Pages past
+    // the project's 1000-row response cap so growth past that doesn't
+    // silently hide some categories' links.
+    fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id, color_id', { count: 'exact' }).range(from, to)),
     supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
     supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
   ]);

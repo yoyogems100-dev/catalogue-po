@@ -20,52 +20,52 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const tab = ['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
   const settings = tab === 'pricing' ? await getSettings() : {};
 
+  // Only the "Shapes & sizes" tab needs the full, catalogue-wide shape/size
+  // lists (to offer shapes/sizes that aren't linked to this category yet) --
+  // shape_sizes alone is 2000+ rows, paged in from Supabase's 1000-row cap.
+  // Every other tab only ever needs what's already linked to this one
+  // category, which is a cheap, category-scoped join. Previously this whole
+  // page fetched the catalogue-wide lists unconditionally on every single
+  // tab click, which is what made switching tabs slow.
+  const needsFullShapeSizeCatalogue = tab === 'shapes';
+
   const [
     { data: category },
     { data: allShapes },
-    { data: allColors },
     { data: allTags },
-    { data: allSizes },
-    { data: linkedShapes },
-    { data: linkedColors },
-    { data: linkedTags },
-    { data: linkedSizes },
-    { data: photos },
-    { data: colorPalettesRaw },
-    { data: colorPaletteItems }
+    { data: linkedShapesRaw },
+    { data: linkedColorsRaw },
+    { data: linkedTagsRaw },
+    { data: linkedSizesRaw },
+    fullSizesResult
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
-    supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
-    fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
-      supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct').range(from, to)
-    ),
-    supabaseAdmin.from('category_shapes').select('*').eq('category_id', categoryId),
-    supabaseAdmin.from('category_colors').select('color_id').eq('category_id', categoryId),
-    supabaseAdmin.from('category_tags').select('tag_id').eq('category_id', categoryId),
-    supabaseAdmin.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId),
-    supabaseAdmin
-      .from('photos')
-      .select(
-        '*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)'
-      )
-      .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-    supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
-    supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
+    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, icon_key, ref_photo_url)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_colors').select('color_id, colors(id, name, hex_value, ref_photo_url)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_tags').select('tag_id, tags(id, name, is_global)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_shape_sizes').select('shape_size_id, shape_sizes(id, shape_id, size_mm, weight_ct)').eq('category_id', categoryId),
+    needsFullShapeSizeCatalogue
+      ? fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
+          supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).range(from, to)
+        )
+      : Promise.resolve({ data: [] as { id: number; shape_id: number; size_mm: string; weight_ct: number | null }[], error: null })
   ]);
+  const allSizes = fullSizesResult.data || [];
 
   if (!category) {
     return <p>Category not found. <Link href="/admin/categories">&larr; Back</Link></p>;
   }
 
-  const colorPalettes = (colorPalettesRaw || []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    memberIds: (colorPaletteItems || []).filter((i: any) => i.palette_id === p.id).map((i: any) => i.color_id)
-  })).filter((p) => p.memberIds.length > 0);
+  const linkedShapes = (linkedShapesRaw || []).map((r: any) => r.shapes).filter(Boolean);
+  const linkedColors = (linkedColorsRaw || []).map((r: any) => r.colors).filter(Boolean);
+  const linkedTags = (linkedTagsRaw || []).map((r: any) => r.tags).filter(Boolean);
+  const linkedSizes = (linkedSizesRaw || []).map((r: any) => r.shape_sizes).filter(Boolean);
+  const linkedShapeIds = linkedShapes.map((s: any) => s.id);
+  const linkedColorIds = linkedColors.map((c: any) => c.id);
+  const linkedTagIds = linkedTags.map((t: any) => t.id);
+  const linkedSizeIds = linkedSizes.map((sz: any) => sz.id);
 
   let categorySuppliers: any[] = [];
   if (tab === 'suppliers') {
@@ -77,20 +77,32 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     }
   }
 
-  const photosFormatted = (photos || []).map((p: any) => ({
-    id: p.id,
-    url: photoUrl(p, 400),
-    coverUrl: photoUrl(p, 400, 'cover'),
-    photoCrop: p.photo_crop || null,
-    coverCrop: p.cover_crop || null,
-    shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
-    sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
-    colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
-    product_code: p.product_code,
-    notes: p.notes,
-    tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id),
-    isCoverOnly: p.is_cover_only
-  }));
+  // Photos (with their per-photo tag/shape/size/color joins) are only needed
+  // on the Photos tab -- fetching and formatting every photo on every other
+  // tab was pure waste.
+  let photosFormatted: any[] = [];
+  if (tab === 'photos') {
+    const { data: photos } = await supabaseAdmin
+      .from('photos')
+      .select('*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
+      .eq('category_id', categoryId)
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+    photosFormatted = (photos || []).map((p: any) => ({
+      id: p.id,
+      url: photoUrl(p, 400),
+      coverUrl: photoUrl(p, 400, 'cover'),
+      photoCrop: p.photo_crop || null,
+      coverCrop: p.cover_crop || null,
+      shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
+      sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
+      colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
+      product_code: p.product_code,
+      notes: p.notes,
+      tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id),
+      isCoverOnly: p.is_cover_only
+    }));
+  }
 
   return (
     <>
@@ -104,19 +116,19 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         {['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={(allSizes||[]).filter(size=>(linkedSizes||[]).some(link=>link.shape_size_id===size.id)).map(size=>({id:size.id,label:`${(allShapes||[]).find(shape=>shape.id===size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
+      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} initialMultiplier={settings.rmb_inr_multiplier || ''} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
       {tab === 'shapes' && <ShapeReferenceManager
         categoryId={categoryId}
-        references={(linkedShapes || []).map((link: any) => {
-          const shape = (allShapes || []).find((item: any) => item.id === link.shape_id);
+        references={linkedShapes.map((shape: any) => {
+          const link = (linkedShapesRaw || []).find((r: any) => r.shape_id === shape.id);
           // Same default-to-photo-when-available rule as the public category page: a
           // category-specific upload wins, otherwise fall back to the shared photo for
           // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
           // reference_style is ignored here too -- see the note in the category page.
-          const refPhotoUrl = link.ref_photo_url || shape?.ref_photo_url || null;
+          const refPhotoUrl = link?.ref_photo_url || shape?.ref_photo_url || null;
           return {
-            shapeId: link.shape_id,
-            name: shape?.name || `Shape #${link.shape_id}`,
+            shapeId: shape.id,
+            name: shape?.name || `Shape #${shape.id}`,
             iconKey: shape?.icon_key,
             refPhotoUrl,
             referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
@@ -128,16 +140,18 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         section={tab}
         categoryId={categoryId}
         allShapes={(allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }))}
-        allColors={(allColors || []).map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
+        allSizes={allSizes}
         allTags={allTags || []}
-        allSizes={allSizes || []}
-        linkedShapeIds={(linkedShapes || []).map((r: any) => r.shape_id)}
-        linkedColorIds={(linkedColors || []).map((r: any) => r.color_id)}
-        linkedTagIds={(linkedTags || []).map((r: any) => r.tag_id)}
-        linkedSizeIds={(linkedSizes || []).map((r: any) => r.shape_size_id)}
+        linkedShapes={linkedShapes.map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }))}
+        linkedColors={linkedColors.map((c: any) => ({ id: c.id, name: c.name, hexValue: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
+        linkedSizes={linkedSizes.map((sz: any) => ({ id: sz.id, shape_id: sz.shape_id, size_mm: sz.size_mm, weight_ct: sz.weight_ct }))}
+        linkedTags={linkedTags.map((t: any) => ({ id: t.id, name: t.name, is_global: t.is_global }))}
+        linkedShapeIds={linkedShapeIds}
+        linkedColorIds={linkedColorIds}
+        linkedTagIds={linkedTagIds}
+        linkedSizeIds={linkedSizeIds}
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
-        colorPalettes={colorPalettes}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       /></>}
     </>
