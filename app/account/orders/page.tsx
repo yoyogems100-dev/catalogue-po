@@ -12,8 +12,8 @@ export default async function AccountOrdersPage() {
   const customerId = await getCustomerId();
   if (!customerId) redirect('/account/login');
 
-  const { data: customer } = await supabaseAdmin.from('customers').select('name, phone, email').eq('id', customerId).maybeSingle();
-  if (!customer?.name) {
+  const { data: customer } = await supabaseAdmin.from('customers').select('name, company, phone, email').eq('id', customerId).maybeSingle();
+  if (!customer?.name && !customer?.company) {
     return (
       <>
         <AccountHeader />

@@ -25,7 +25,17 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Invalid order options'},{status:400});}
   // Each update targets a distinct order_items row, so they're independent
   // writes -- no reason to pay for N sequential round-trips one at a time.
-  const updateResults=await Promise.all(updates.map((u:any)=>supabaseAdmin.from('order_items').update({quantity:u.quantity}).eq('id',u.id).eq('order_id',orderId)));
+  // shapeId/sizeId/colorId are optional -- the admin UI only sends them when
+  // that row's shape/size/color was actually edited (not for a plain
+  // quantity-only change), trusting the same category-scoped picker options
+  // already used for adding a new line.
+  const updateResults=await Promise.all(updates.map((u:any)=>{
+    const patch:Record<string,any>={quantity:u.quantity};
+    if(u.shapeId){patch.shape_id=u.shapeId;}
+    if(u.sizeId){patch.shape_size_id=u.sizeId;}
+    if(u.colorId){patch.color_id=u.colorId;}
+    return supabaseAdmin.from('order_items').update(patch).eq('id',u.id).eq('order_id',orderId);
+  }));
   if(updateResults.some(r=>r.error))return NextResponse.json({error:'Quantity change could not be saved.'},{status:400});
   if(removedIds.length){const {error}=await supabaseAdmin.from('order_items').delete().in('id',removedIds).eq('order_id',orderId);if(error)return NextResponse.json({error:'Removal could not be saved.'},{status:400});}
   const newItemCategoryIds = [...new Set(validRawNewItems.map((n: any) => n.categoryId))];
