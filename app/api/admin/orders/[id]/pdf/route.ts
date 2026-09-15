@@ -5,8 +5,9 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { milestoneLabel } from '@/lib/order-milestones';
-import OrderPdfDocument, { PdfItem } from '@/lib/pdf/OrderPdfDocument';
+import OrderPdfDocument from '@/lib/pdf/OrderPdfDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
+import { buildPdfItems } from '@/lib/pdf/build-pdf-items';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -50,16 +51,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
   const colorMap: Record<number, string> = Object.fromEntries((colorsData || []).map((c: any) => [c.id, c.name]));
 
-  const pdfItems: PdfItem[] = (items || []).map((it: any) => ({
-    categoryName: catMap[it.category_id] || '—',
-    shapeName: shapeMap[it.shape_id] || '—',
-    sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
-    colorName: colorMap[it.color_id] || '—',
-    orderSpecs: it.order_specs || null,
-    quantity: it.quantity,
-    unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
-    requestType: it.request_type || 'Place Order'
-  }));
+  const pdfItems = buildPdfItems(items || [], { categoryName: catMap, shapeName: shapeMap, sizeMm: sizeMap, colorName: colorMap });
 
   const { data: notes, error: notesError } = await supabaseAdmin.from('order_notes')
     .select('message, created_at').eq('order_id', orderId).eq('internal_only', false).order('created_at');

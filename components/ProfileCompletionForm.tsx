@@ -27,16 +27,12 @@ export default function ProfileCompletionForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('Name is required.');
+    if (!name.trim() && !company.trim()) {
+      setError('Enter your name or your company name.');
       return;
     }
     if (needsPhone && phone.replace(/\D/g, '').length < 10) {
       setError('Enter a valid phone number.');
-      return;
-    }
-    if (!company.trim()) {
-      setError('Company name is required.');
       return;
     }
     setError('');
@@ -58,7 +54,7 @@ export default function ProfileCompletionForm({
   return (
     <form onSubmit={submit}>
       <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 14 }}>
-        Just once -- tell us who you are so we can find your orders next time.
+        Just once -- tell us who you are so we can find your orders next time. Your name or your company name is enough to continue.
       </p>
       <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your name</label>
       <input

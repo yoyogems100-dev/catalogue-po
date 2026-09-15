@@ -17,14 +17,13 @@ export async function POST(req: NextRequest) {
   const trimmedName = (name || '').trim();
   const trimmedCompany = (company || '').trim();
 
-  if (!trimmedName) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  }
-  if (!trimmedCompany) {
-    return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
+  if (!trimmedName && !trimmedCompany) {
+    return NextResponse.json({ error: 'Enter your name or your company name' }, { status: 400 });
   }
 
-  const update: Record<string, unknown> = { name: trimmedName, company: trimmedCompany };
+  const update: Record<string, unknown> = {};
+  if (trimmedName) update.name = trimmedName;
+  if (trimmedCompany) update.company = trimmedCompany;
 
   if (!existing.phone) {
     const digits = (phone || '').replace(/\D/g, '');

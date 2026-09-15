@@ -30,6 +30,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         .eq('customer_id', customer.id)
         .neq('id', orderId)
         .order('created_at', { ascending: false })
+        .limit(3)
     : { data: [] };
 
   const { data: items } = await supabaseAdmin
@@ -69,8 +70,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     id: it.id,
     categoryId: it.category_id,
     categoryName: catMap[it.category_id] || '—',
+    shapeId: it.shape_id || null,
     shapeName: shapeMap[it.shape_id] || '—',
+    sizeId: it.shape_size_id || null,
     sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
+    colorId: it.color_id || null,
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     orderSpecs: it.order_specs || null,
@@ -139,7 +143,6 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   return (
     <>
       <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
-      <h1 style={{ marginTop: 8 }}>Order #{order.id}</h1>
       <OrderAdminClient
         orderId={order.id}
         status={order.status}

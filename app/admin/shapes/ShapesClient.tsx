@@ -3,7 +3,7 @@ import { HotMark } from '@/components/HotSelling';
 
 import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import MultiSelect from '@/components/MultiSelect';
+import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import ShapeIcon from '@/components/ShapeIcon';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
@@ -367,14 +367,12 @@ export default function ShapesClient({
                         Which categories should offer "{s.name}" as a shape option. This is the same link used on each
                         category's own page -- edit from whichever side is more convenient.
                       </p>
-                      <div style={{ maxWidth: 420 }}>
-                        <MultiSelect
-                          options={categories.map((c) => ({ id: c.id, name: c.name }))}
-                          selectedIds={linkedCatIds}
-                          onToggle={(catId, active) => toggleCategory(s.id, catId, active)}
-                          placeholder="Not linked to any category"
-                        />
-                      </div>
+                      <CategoryLinkList
+                        categories={categories}
+                        linkedIds={linkedCatIds}
+                        onToggle={(catId, active) => toggleCategory(s.id, catId, active)}
+                        tab="shapes"
+                      />
                     </td>
                   </tr>
                 )}

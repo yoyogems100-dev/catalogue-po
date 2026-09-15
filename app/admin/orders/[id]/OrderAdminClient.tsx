@@ -1,6 +1,8 @@
 'use client';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
+import IconSelect from '@/components/IconSelect';
+import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -13,8 +15,11 @@ type Item = {
   id: number;
   categoryId: number;
   categoryName: string;
+  shapeId: number | null;
   shapeName: string;
+  sizeId: number | null;
   sizeMm: string;
+  colorId: number | null;
   colorName: string;
   colorHex: string;
   quantity: number;
@@ -42,6 +47,8 @@ function fmtDate(iso: string) {
 function money(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
+
+const rowInputStyle = { fontSize: 12.5, padding: '3px 6px' };
 
 export default function OrderAdminClient({
   orderId,
@@ -83,12 +90,18 @@ export default function OrderAdminClient({
   const [internalOnly, setInternalOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const [justUpdated, setJustUpdated] = useState(false);
 
-  const [editing, setEditing] = useState(false);
+  const [editingRowIds, setEditingRowIds] = useState<Set<number>>(new Set());
+  const [categoryFilter, setCategoryFilter] = useState<number | 'all'>('all');
   const [quantities, setQuantities] = useState<Record<number, number>>(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
-  const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
+  const [shapeIds, setShapeIds] = useState<Record<number, number>>(Object.fromEntries(items.filter((i) => i.shapeId).map((i) => [i.id, i.shapeId as number])));
+  const [sizeIds, setSizeIds] = useState<Record<number, number>>(Object.fromEntries(items.filter((i) => i.sizeId).map((i) => [i.id, i.sizeId as number])));
+  const [colorIds, setColorIds] = useState<Record<number, number>>(Object.fromEntries(items.filter((i) => i.colorId).map((i) => [i.id, i.colorId as number])));
   const [newLines, setNewLines] = useState<NewLine[]>([]);
   const [savingItems, setSavingItems] = useState(false);
+  const [savingRowId, setSavingRowId] = useState<number | null>(null);
+  const [removingRowId, setRemovingRowId] = useState<number | null>(null);
 
   // `items` only changes after router.refresh() following a successful save
   // elsewhere in this component -- this component itself is never remounted for
@@ -99,57 +112,62 @@ export default function OrderAdminClient({
   // the map this state was originally seeded from.
   useEffect(() => {
     setQuantities(Object.fromEntries(items.map((i) => [i.id, i.quantity])));
-    setRemovedIds(new Set());
+    setShapeIds(Object.fromEntries(items.filter((i) => i.shapeId).map((i) => [i.id, i.shapeId as number])));
+    setSizeIds(Object.fromEntries(items.filter((i) => i.sizeId).map((i) => [i.id, i.sizeId as number])));
+    setColorIds(Object.fromEntries(items.filter((i) => i.colorId).map((i) => [i.id, i.colorId as number])));
     setNewLines([]);
+    setEditingRowIds(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   const [prices, setPrices] = useState<Record<number, string>>(
     Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))
   );
-  const [savedPrices, setSavedPrices] = useState(prices);
   const [costPrices, setCostPrices] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costPrice != null ? String(i.costPrice) : ''])));
-  const [savedCostPrices, setSavedCostPrices] = useState(costPrices);
   const [costCurrencies, setCostCurrencies] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costCurrency || 'INR'])));
-  const [savedCostCurrencies, setSavedCostCurrencies] = useState(costCurrencies);
   const [supplierIds, setSupplierIds] = useState<Record<number, number | ''>>(Object.fromEntries(items.map((i) => [i.id, i.supplierId || ''])));
-  const [savedSupplierIds, setSavedSupplierIds] = useState(supplierIds);
-  const [savingPrices, setSavingPrices] = useState(false);
-  const pricesDirty = JSON.stringify(prices) !== JSON.stringify(savedPrices) || JSON.stringify(costPrices) !== JSON.stringify(savedCostPrices) || JSON.stringify(costCurrencies) !== JSON.stringify(savedCostCurrencies) || JSON.stringify(supplierIds) !== JSON.stringify(savedSupplierIds);
+  useEffect(() => {
+    setPrices(Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : ''])));
+    setCostPrices(Object.fromEntries(items.map((i) => [i.id, i.costPrice != null ? String(i.costPrice) : ''])));
+    setCostCurrencies(Object.fromEntries(items.map((i) => [i.id, i.costCurrency || 'INR'])));
+    setSupplierIds(Object.fromEntries(items.map((i) => [i.id, i.supplierId || ''])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
   const hasPricing = items.some((i) => prices[i.id]);
   const grandTotal = items.reduce((sum, i) => sum + (parseFloat(prices[i.id]) || 0) * i.quantity, 0);
+  const visibleItems = items.filter((i) => categoryFilter === 'all' || i.categoryId === categoryFilter);
 
-  async function updateStatus() {
+  async function updateStatus(next: string) {
+    setStatusValue(next);
     setBusy(true);
     try {
-    const res = await fetch(`/api/admin/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: statusValue })
-    });
-    setBusy(false);
-    if (res.ok) { setToast('Status updated.'); router.refresh(); }
-    else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update status.'); }
-    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next })
+      });
+      if (res.ok) { setToast('Status updated.'); router.refresh(); }
+      else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update status.'); setStatusValue(status); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); setStatusValue(status); }
     finally { setBusy(false); }
   }
 
-  async function updatePayment() {
+  async function updatePayment(next: string) {
+    setPaymentValue(next);
     setBusy(true);
     try {
-    const res = await fetch(`/api/admin/orders/${orderId}/payment-status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentStatus: paymentValue })
-    });
-    setBusy(false);
-    if (res.ok) { setToast('Payment status updated.'); router.refresh(); }
-    else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update payment status.'); }
-    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+      const res = await fetch(`/api/admin/orders/${orderId}/payment-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentStatus: next })
+      });
+      if (res.ok) { setToast('Payment status updated.'); router.refresh(); }
+      else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update payment status.'); setPaymentValue(paymentStatus); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); setPaymentValue(paymentStatus); }
     finally { setBusy(false); }
   }
 
@@ -179,26 +197,24 @@ export default function OrderAdminClient({
     fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
   }
 
-  async function savePrices() {
-    if ([...Object.values(prices), ...Object.values(costPrices)].some(value => value.trim() !== '' && (!/^\d+(\.\d+)?$/.test(value.trim()) || !Number.isFinite(Number(value))))) {
-      setToast('Enter valid non-negative CP and SP values, or leave them blank.'); return;
-    }
-    setSavingPrices(true);
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/prices`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prices: items.map(item => ({ itemId: item.id, unitPrice: prices[item.id], costPrice: costPrices[item.id], costCurrency: costCurrencies[item.id], supplierId: supplierIds[item.id] || null })) })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not save prices.');
-      setSavedPrices({ ...prices });
-      setSavedCostPrices({ ...costPrices });
-      setSavedCostCurrencies({ ...costCurrencies });
-      setSavedSupplierIds({ ...supplierIds });
-      setToast('Supplier, CP and SP saved. Generate a fresh PDF to include SP changes.');
-      router.refresh();
-    } catch (error) { setToast(error instanceof Error ? error.message : 'Could not save prices. Please retry.'); }
-    finally { setSavingPrices(false); }
+  // Same manual wa.me mechanism as the status notify above, but with a
+  // message describing that the order's line items themselves changed --
+  // used by the "send updated order to customer" prompt after a line-item
+  // edit/removal/addition is saved.
+  function sendUpdatedOrderViaWhatsApp() {
+    if (!customer?.phone) return;
+    const url = buildWhatsAppUrl(
+      customer.phone,
+      [
+        `Hi ${customer.name || ''}, your YOYO GEMS ${isQuotation ? 'quotation' : 'order'} #${orderId} has been updated.`,
+        currentPdfUrl ? `\n${isQuotation ? 'View your quotation' : 'View your order summary'}: ${currentPdfUrl}` : '',
+        '\nLog in to your account to view full details.'
+      ].join('')
+    );
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
+    setJustUpdated(false);
   }
 
   async function generatePdf() {
@@ -210,6 +226,7 @@ export default function OrderAdminClient({
     if (res.ok && data.url) {
       setCurrentPdfUrl(data.url);
       window.open(data.url, '_blank', 'noopener,noreferrer');
+      setJustUpdated(false);
     } else {
       setToast(data.error || 'Failed to generate PDF.');
     }
@@ -234,29 +251,86 @@ export default function OrderAdminClient({
     setNewLines(newLines.filter((l) => l.tempId !== tempId));
   }
 
-  async function saveItemEdits() {
-    const updates = items
-      .filter((i) => !removedIds.has(i.id) && quantities[i.id] !== i.quantity)
-      .map((i) => ({ id: i.id, quantity: quantities[i.id] }));
-
+  async function saveNewLines() {
     const validNewItems = newLines
       .filter((l) => l.shapeId && l.sizeId && (l.colorId || l.orderSpecs?.kind==='rainbow') && parseInt(l.quantity, 10) > 0)
       .map((l) => ({ orderSpecs:l.orderSpecs, categoryId: l.categoryId, shapeId: l.shapeId, sizeId: l.sizeId, colorId: l.colorId, quantity: parseInt(l.quantity, 10) }));
 
-    if(validNewItems.length!==newLines.length){setToast('Complete the options and quantity for each new line, or remove the unfinished line.');return;}
+    if (validNewItems.length !== newLines.length) { setToast('Complete the options and quantity for each new line, or remove the unfinished line.'); return; }
     setSavingItems(true);
     try {
     const res = await fetch(`/api/admin/orders/${orderId}/edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ updates, removedIds: Array.from(removedIds), newItems: validNewItems })
+      body: JSON.stringify({ updates: [], removedIds: [], newItems: validNewItems })
     });
-    setSavingItems(false);
-
-    if (res.ok) { setEditing(false); router.refresh(); }
-    else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to save changes.'); }
+    if (res.ok) { setNewLines([]); setJustUpdated(true); router.refresh(); }
+    else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to save new lines.'); }
     } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
     finally { setSavingItems(false); }
+  }
+
+  // One row's full edit -- shape/size/color/quantity (order_items core fields,
+  // via /edit) and supplier/CP/SP (pricing fields, via /prices) used to be two
+  // separate save flows on this page; this combines them into the one save
+  // icon a row's edit mode now shows, since from the admin's point of view
+  // it's just "save this row".
+  async function saveRow(item: Item) {
+    setSavingRowId(item.id);
+    try {
+      const quantityChanged = quantities[item.id] !== item.quantity;
+      const shapeChanged = item.shapeId != null && shapeIds[item.id] !== item.shapeId;
+      const sizeChanged = item.sizeId != null && sizeIds[item.id] !== item.sizeId;
+      const colorChanged = item.colorId != null && colorIds[item.id] !== item.colorId;
+      const requests: Promise<Response>[] = [];
+      if (quantityChanged || shapeChanged || sizeChanged || colorChanged) {
+        requests.push(fetch(`/api/admin/orders/${orderId}/edit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            updates: [{
+              id: item.id,
+              quantity: quantities[item.id],
+              ...(shapeChanged ? { shapeId: shapeIds[item.id] } : {}),
+              ...(sizeChanged ? { sizeId: sizeIds[item.id] } : {}),
+              ...(colorChanged ? { colorId: colorIds[item.id] } : {})
+            }],
+            removedIds: [],
+            newItems: []
+          })
+        }));
+      }
+      requests.push(fetch(`/api/admin/orders/${orderId}/prices`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prices: [{ itemId: item.id, unitPrice: prices[item.id], costPrice: costPrices[item.id], costCurrency: costCurrencies[item.id], supplierId: supplierIds[item.id] || null }] })
+      }));
+      const results = await Promise.all(requests);
+      if (results.some((r) => !r.ok)) throw new Error('Some changes could not be saved. Please review and retry.');
+      setEditingRowIds((cur) => { const next = new Set(cur); next.delete(item.id); return next; });
+      setJustUpdated(true);
+      setToast('Line saved. Generate a fresh PDF to include the changes.');
+      router.refresh();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Could not save this line. Please retry.');
+    } finally {
+      setSavingRowId(null);
+    }
+  }
+
+  async function removeRow(item: Item) {
+    if (!confirm(`Remove ${item.shapeName} ${item.sizeMm}mm ${item.colorName} from this order?`)) return;
+    setRemovingRowId(item.id);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: [], removedIds: [item.id], newItems: [] })
+      });
+      if (res.ok) { setJustUpdated(true); router.refresh(); }
+      else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to remove line.'); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setRemovingRowId(null); }
   }
 
   // Uses the saved status, not the (possibly unsaved) dropdown selection --
@@ -283,17 +357,33 @@ export default function OrderAdminClient({
 
   return (
     <div style={{ marginTop: 16 }}>
+      {/* Order # and PDF controls share one row -- side by side on desktop,
+          wraps to stacked on mobile (flex-wrap, no fixed widths). */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h1 style={{ margin: 0 }}>Order #{orderId}</h1>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
+            {generatingPdf ? 'Generating…' : `Generate ${isQuotation ? 'quotation' : 'order'} PDF`}
+          </button>
+          {currentPdfUrl && (
+            <a href={currentPdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost" style={{ display: 'inline-block' }}>
+              View last PDF
+            </a>
+          )}
+        </div>
+      </div>
+
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#756e5c' }}>
           Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
-          {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link">{customer.name || contactName || 'No name'}</Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
+          {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link"><CustomerNameDisplay name={customer.name} company={customer.company} fallback={contactName || 'No name'} /></Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
 
         {customer && customerOrderHistory.length > 0 && (
           <div style={{ marginTop: 10 }}>
             <span style={{ fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              This customer's other orders
+              This customer's last {customerOrderHistory.length} order{customerOrderHistory.length === 1 ? '' : 's'}
             </span>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {customerOrderHistory.map((o) => (
@@ -306,77 +396,78 @@ export default function OrderAdminClient({
         )}
       </section>
 
-      <section className="link-row" style={{ marginBottom: 24 }}>
-        <div>
-          <h3 className="section-label">Status</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select value={statusValue} onChange={(e) => setStatusValue(e.target.value)} style={{ fontSize: 13 }}>
+      {/* Status, payment and notify consolidated into one row (was 3 separate
+          sections with their own "Update" buttons) -- both selects auto-save
+          on change, and the old Update-button slot is now the manual
+          WhatsApp notify with its preview tucked directly below. */}
+      <section style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
+          <div>
+            <h3 className="section-label">Status</h3>
+            <select value={statusValue} onChange={(e) => updateStatus(e.target.value)} disabled={busy} style={{ fontSize: 13 }}>
               {ORDER_MILESTONES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
-            <button className="btn" onClick={updateStatus} disabled={busy || statusValue === status}>Update</button>
           </div>
-        </div>
-        <div>
-          <h3 className="section-label">Payment status</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select value={paymentValue} onChange={(e) => setPaymentValue(e.target.value)} style={{ fontSize: 13 }}>
+          <div>
+            <h3 className="section-label">Payment status</h3>
+            <select value={paymentValue} onChange={(e) => updatePayment(e.target.value)} disabled={busy} style={{ fontSize: 13 }}>
               <option value="pending">Pending</option>
               <option value="partial">Partial</option>
               <option value="paid">Paid</option>
             </select>
-            <button className="btn" onClick={updatePayment} disabled={busy || paymentValue === paymentStatus}>Update</button>
           </div>
+          <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>
+            🟢 Notify
+          </button>
         </div>
-        <div>
-          <h3 className="section-label">{isQuotation ? 'Quotation PDF' : 'Order PDF'}</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf || savingPrices || pricesDirty || editing}>
-              {generatingPdf ? 'Generating…' : 'Generate PDF'}
-            </button>
-            {currentPdfUrl && (
-              <a href={currentPdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost" style={{ display: 'inline-block' }}>
-                View last PDF
-              </a>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
-        <h3 className="section-label">Notify customer</h3>
-        {manualWaUrl && <details style={{ marginBottom: 10 }}><summary>Preview WhatsApp update</summary><p>To: {customer?.phone}</p><pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{new URL(manualWaUrl).searchParams.get('text')}</pre></details>}
-        <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl || pricesDirty || savingPrices}>Notify via WhatsApp</button>
-        <p style={{ fontSize: 11, color: '#756e5c', marginTop: 6 }}>
-          Opens WhatsApp with the current status (and PDF link, if generated) pre-filled -- send whenever you choose, independent of when the status was changed.
-        </p>
+        {manualWaUrl && (
+          <details style={{ marginTop: 10 }}>
+            <summary style={{ fontSize: 12, color: '#756e5c', cursor: 'pointer' }}>Preview WhatsApp update</summary>
+            <p style={{ fontSize: 12 }}>To: {customer?.phone}</p>
+            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 12.5 }}>{new URL(manualWaUrl).searchParams.get('text')}</pre>
+          </details>
+        )}
       </section>
 
       {toast && <p role="status" aria-live="polite" style={{ fontSize: 12.5, color: 'var(--gold)', marginBottom: 16 }}>{toast}</p>}
 
       <section style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Line items</h3>
-          {!editing && (
-            <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>
-              Edit (offline/phone request)
-            </button>
-          )}
-        </div>
+        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Line items</h3>
         <p style={{ fontSize: 11.5, color: '#756e5c', marginBottom: 8 }}>Supplier and cost price (CP) stay internal. Selling price (SP) is the customer price used in the PDF.</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button className="btn" onClick={savePrices} disabled={!pricesDirty || savingPrices}>{savingPrices ? 'Saving…' : 'Save supplier, CP & SP'}</button>
-          <button className="btn-ghost" onClick={() => { setPrices({ ...savedPrices }); setCostPrices({ ...savedCostPrices }); setCostCurrencies({ ...savedCostCurrencies }); setSupplierIds({ ...savedSupplierIds }); }} disabled={!pricesDirty || savingPrices}>Discard changes</button>
-        </div>
-        {pricesDirty && <p role="status">Unsaved prices. Save prices before generating a PDF.</p>}
-        <p>After changing order details, generate a fresh PDF before sharing it.</p>
+        {orderCategories.length > 1 && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, marginBottom: 10 }}>
+            Category
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} style={{ fontSize: 12.5, padding: '3px 6px' }}>
+              <option value="all">All categories</option>
+              {orderCategories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+        )}
         <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
         <table>
           <thead>
-            <tr><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP</th><th>SP</th>{hasPricing && <th>Line total</th>}{editing && <th></th>}</tr>
+            <tr><th></th><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP</th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
           </thead>
           <tbody>
-            {items.filter((i) => !removedIds.has(i.id)).map((i) => (
+            {visibleItems.map((i) => {
+              const rowEditing = editingRowIds.has(i.id);
+              const rowSpecial = specialCategory(i.categoryId);
+              const opts = categoryOptions[i.categoryId];
+              const sizesForShape = opts?.sizes.filter((s) => s.shapeId === shapeIds[i.id]) || [];
+              return (
               <tr key={i.id}>
+                <td>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    aria-label={rowEditing ? `Save ${i.shapeName} ${i.sizeMm}mm ${i.colorName}` : `Edit ${i.shapeName} ${i.sizeMm}mm ${i.colorName}`}
+                    style={{ padding: '3px 7px', fontSize: 13 }}
+                    disabled={savingRowId === i.id}
+                    onClick={() => rowEditing ? saveRow(i) : setEditingRowIds((cur) => new Set(cur).add(i.id))}
+                  >
+                    {savingRowId === i.id ? '…' : rowEditing ? '💾' : '✏️'}
+                  </button>
+                </td>
                 <td>
                   <span
                     className={`payment-badge ${i.requestType === 'Request Quotation' ? 'payment-pending' : 'payment-paid'}`}
@@ -386,67 +477,100 @@ export default function OrderAdminClient({
                   </span>
                 </td>
                 <td>{i.categoryName}</td>
-                <td>{i.shapeName}</td>
-                <td>{i.sizeMm} mm</td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
-                    {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
-                  </span>
+                  {rowEditing && !rowSpecial && opts ? (
+                    <select value={shapeIds[i.id] ?? ''} onChange={(e) => setShapeIds({ ...shapeIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
+                      {opts.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  ) : i.shapeName}
                 </td>
                 <td>
-                  {editing ? (
+                  {rowEditing && !rowSpecial && opts ? (
+                    <select value={sizeIds[i.id] ?? ''} onChange={(e) => setSizeIds({ ...sizeIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
+                      {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+                    </select>
+                  ) : `${i.sizeMm} mm`}
+                </td>
+                <td>
+                  {rowEditing && !rowSpecial && opts && i.categoryId !== 34 ? (
+                    <select value={colorIds[i.id] ?? ''} onChange={(e) => setColorIds({ ...colorIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
+                      {opts.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {rowEditing ? (
                     <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
                       type="text"
                       inputMode="numeric"
                       aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
                       onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
-                      style={{ maxWidth: 80, fontSize: 13 }}
+                      style={{ maxWidth: 70, ...rowInputStyle }}
                     /></label>
                   ) : (
                     i.quantity
                   )}
                 </td>
                 <td>
-                  <select aria-label={`Supplier for ${i.categoryName} ${i.shapeName}`} value={supplierIds[i.id] ?? ''} onChange={(event) => setSupplierIds({ ...supplierIds, [i.id]: event.target.value ? Number(event.target.value) : '' })} style={{ minWidth: 120, fontSize: 12 }}>
-                    <option value="">Not assigned</option>{suppliers.filter((supplier) => supplier.categoryIds.length === 0 || supplier.categoryIds.includes(i.categoryId)).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
-                  </select>
+                  {rowEditing ? (
+                    <IconSelect
+                      options={suppliers.filter((supplier) => supplier.categoryIds.length === 0 || supplier.categoryIds.includes(i.categoryId)).map((s) => ({ id: s.id, name: s.name }))}
+                      value={supplierIds[i.id] || 'all'}
+                      onChange={(v) => setSupplierIds({ ...supplierIds, [i.id]: v === 'all' ? '' : v })}
+                      allLabel="Not assigned"
+                    />
+                  ) : (
+                    suppliers.find((s) => s.id === supplierIds[i.id])?.name || 'Not assigned'
+                  )}
                 </td>
                 <td>
-                  <div className="admin-price-pair"><select aria-label={`Cost currency for ${i.categoryName} ${i.shapeName}`} value={costCurrencies[i.id] || 'INR'} onChange={(event) => setCostCurrencies({ ...costCurrencies, [i.id]: event.target.value })}><option>INR</option><option>RMB</option></select><input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} /></div>
+                  {rowEditing ? (
+                    <div className="admin-price-pair"><select aria-label={`Cost currency for ${i.categoryName} ${i.shapeName}`} value={costCurrencies[i.id] || 'INR'} onChange={(event) => setCostCurrencies({ ...costCurrencies, [i.id]: event.target.value })} style={rowInputStyle}><option>INR</option><option>RMB</option></select><input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} style={{ maxWidth: 70, ...rowInputStyle }} /></div>
+                  ) : (
+                    costPrices[i.id] ? `${costCurrencies[i.id]} ${costPrices[i.id]}` : '—'
+                  )}
                 </td>
                 <td>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="Optional"
-                    value={prices[i.id] ?? ''}
-                    onChange={(e) => setPrices({ ...prices, [i.id]: e.target.value.replace(/[^\d.]/g, '') })}
-                    aria-label={`Selling price in INR for ${i.categoryName} ${i.shapeName} ${i.sizeMm} mm ${i.colorName}`}
-                    disabled={savingPrices}
-                    style={{ maxWidth: 90, fontSize: 13 }}
-                  />
+                  {rowEditing ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Optional"
+                      value={prices[i.id] ?? ''}
+                      onChange={(e) => setPrices({ ...prices, [i.id]: e.target.value.replace(/[^\d.]/g, '') })}
+                      aria-label={`Selling price in INR for ${i.categoryName} ${i.shapeName} ${i.sizeMm} mm ${i.colorName}`}
+                      style={{ maxWidth: 80, ...rowInputStyle }}
+                    />
+                  ) : (
+                    prices[i.id] ? money(Number(prices[i.id])) : '—'
+                  )}
                 </td>
                 {hasPricing && (
                   <td>{prices[i.id] ? money((parseFloat(prices[i.id]) || 0) * i.quantity) : '—'}</td>
                 )}
-                {editing && (
-                  <td>
-                    <button type="button" className="btn-danger" onClick={() => setRemovedIds(new Set([...removedIds, i.id]))}>Remove</button>
-                  </td>
-                )}
+                <td>
+                  <button type="button" className="btn-danger" style={{ padding: '3px 7px', fontSize: 11 }} disabled={removingRowId === i.id} onClick={() => removeRow(i)}>
+                    {removingRowId === i.id ? '…' : '🗑'}
+                  </button>
+                </td>
               </tr>
-            ))}
-            {editing && newLines.map((l) => {
+            );})}
+            {newLines.map((l) => {
               const opts = categoryOptions[l.categoryId];
               const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
-              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={10 + (hasPricing ? 1 : 0)}>
+              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={11 + (hasPricing ? 1 : 0)}>
                 <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
                 {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
                 <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
               </td></tr>;
               return (
                 <tr key={l.tempId}>
+                  <td />
                   <td>Order</td>
                   <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
                   <td>
@@ -485,30 +609,40 @@ export default function OrderAdminClient({
                 </tr>
               );
             })}
+            {visibleItems.length === 0 && newLines.length === 0 && (
+              <tr><td colSpan={11 + (hasPricing ? 1 : 0)} style={{ textAlign: 'center', color: '#756e5c', padding: 20 }}>No lines in this category.</td></tr>
+            )}
           </tbody>
           {hasPricing && (
             <tfoot>
               <tr>
-                <td colSpan={9} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
+                <td colSpan={10} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
                 <td style={{ fontWeight: 700, color: 'var(--ink)' }}>{money(grandTotal)}</td>
-                {editing && <td />}
+                <td />
               </tr>
             </tfoot>
           )}
         </table>
         </div>
 
-        {editing && (
-          <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-ghost" onClick={addNewLine} disabled={orderCategories.length === 0}>+ Add line</button>
-            <button type="button" className="btn" onClick={saveItemEdits} disabled={savingItems}>{savingItems ? 'Saving…' : 'Save changes'}</button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => { setEditing(false); setQuantities(Object.fromEntries(items.map((i) => [i.id, i.quantity]))); setRemovedIds(new Set()); setNewLines([]); }}
-            >
-              Cancel
-            </button>
+        <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn-ghost" onClick={addNewLine} disabled={orderCategories.length === 0}>+ Add line</button>
+          {newLines.length > 0 && (
+            <>
+              <button type="button" className="btn" onClick={saveNewLines} disabled={savingItems}>{savingItems ? 'Saving…' : 'Save new lines'}</button>
+              <button type="button" className="btn-ghost" onClick={() => setNewLines([])}>Cancel</button>
+            </>
+          )}
+        </div>
+
+        {justUpdated && (
+          <div className="card" style={{ marginTop: 16, padding: 14 }}>
+            <p style={{ fontSize: 13, marginBottom: 8 }}>This order was just updated. Send the customer the latest version?</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn-ghost" onClick={sendUpdatedOrderViaWhatsApp} disabled={!manualWaUrl}>🟢 Send via WhatsApp</button>
+              <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>{generatingPdf ? 'Generating…' : 'Send PDF'}</button>
+              <button className="btn-ghost" onClick={() => setJustUpdated(false)}>Dismiss</button>
+            </div>
           </div>
         )}
       </section>
