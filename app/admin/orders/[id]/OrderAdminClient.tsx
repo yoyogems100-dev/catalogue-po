@@ -48,7 +48,10 @@ function money(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
-const rowInputStyle = { fontSize: 12.5, padding: '3px 6px' };
+// A little padding, not the cramped 3px/6px this started at -- too tight
+// made the shared input/select border-radius and border color (both set
+// globally, untouched here) look off rather than just compact.
+const rowInputStyle = { fontSize: 12.5, padding: '6px 9px', borderRadius: 5, border: '1px solid var(--line)' };
 
 export default function OrderAdminClient({
   orderId,
@@ -437,7 +440,7 @@ export default function OrderAdminClient({
         {orderCategories.length > 1 && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, marginBottom: 10 }}>
             Category
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} style={{ fontSize: 12.5, padding: '3px 6px' }}>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} style={rowInputStyle}>
               <option value="all">All categories</option>
               {orderCategories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
