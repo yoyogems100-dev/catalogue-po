@@ -3,6 +3,7 @@ import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from '@/components/IconSelect';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
+import StatusTag from '@/components/admin/StatusTag';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -37,7 +38,7 @@ type CategoryOption = {
 type NewLine = { orderSpecs?: OrderSpecs; tempId: string; categoryId: number; shapeId: number | ''; sizeId: number | ''; colorId: number | ''; quantity: string };
 type HistoryEntry = { id: number; status: string; changed_at: string; message_sent: boolean };
 type Note = { id: number; author_type: string; message: string; internal_only: boolean; created_at: string };
-type Customer = { id: number; name: string | null; phone: string | null; email: string | null; company?: string | null; phone_verified: boolean } | null;
+type Customer = { id: number; name: string | null; phone: string | null; email: string | null; company?: string | null; phone_verified: boolean; place?: string | null } | null;
 type CustomerOrder = { id: number; status: string; created_at: string };
 
 function fmtDate(iso: string) {
@@ -143,6 +144,8 @@ export default function OrderAdminClient({
   const hasPricing = items.some((i) => prices[i.id]);
   const grandTotal = items.reduce((sum, i) => sum + (parseFloat(prices[i.id]) || 0) * i.quantity, 0);
   const visibleItems = items.filter((i) => categoryFilter === 'all' || i.categoryId === categoryFilter);
+  const regularItems = visibleItems.filter((i) => i.requestType !== 'Request Quotation');
+  const quotationItems = visibleItems.filter((i) => i.requestType === 'Request Quotation');
 
   async function updateStatus(next: string) {
     setStatusValue(next);
@@ -368,18 +371,13 @@ export default function OrderAdminClient({
           <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
             {generatingPdf ? 'Generating…' : `Generate ${isQuotation ? 'quotation' : 'order'} PDF`}
           </button>
-          {currentPdfUrl && (
-            <a href={currentPdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost" style={{ display: 'inline-block' }}>
-              View last PDF
-            </a>
-          )}
         </div>
       </div>
 
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#756e5c' }}>
           Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
-          {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link"><CustomerNameDisplay name={customer.name} company={customer.company} fallback={contactName || 'No name'} /></Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}</>}
+          {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link"><CustomerNameDisplay name={customer.name} company={customer.company} fallback={contactName || 'No name'} /></Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}{customer.place ? ` · ${customer.place}` : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}
 
@@ -390,8 +388,8 @@ export default function OrderAdminClient({
             </span>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {customerOrderHistory.map((o) => (
-                <Link key={o.id} href={`/admin/orders/${o.id}`} className="tag-chip">
-                  #{o.id} · {milestoneLabel(o.status)}
+                <Link key={o.id} href={`/admin/orders/${o.id}`} className="tag-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  #{o.id} <StatusTag status={o.status} />
                 </Link>
               ))}
             </div>
@@ -446,18 +444,13 @@ export default function OrderAdminClient({
             </select>
           </label>
         )}
-        <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
-        <table>
-          <thead>
-            <tr><th></th><th>Type</th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP</th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
-          </thead>
-          <tbody>
-            {visibleItems.map((i) => {
-              const rowEditing = editingRowIds.has(i.id);
-              const rowSpecial = specialCategory(i.categoryId);
-              const opts = categoryOptions[i.categoryId];
-              const sizesForShape = opts?.sizes.filter((s) => s.shapeId === shapeIds[i.id]) || [];
-              return (
+        {(() => {
+          const renderRow = (i: Item) => {
+            const rowEditing = editingRowIds.has(i.id);
+            const rowSpecial = specialCategory(i.categoryId);
+            const opts = categoryOptions[i.categoryId];
+            const sizesForShape = opts?.sizes.filter((s) => s.shapeId === shapeIds[i.id]) || [];
+            return (
               <tr key={i.id}>
                 <td>
                   <button
@@ -470,14 +463,6 @@ export default function OrderAdminClient({
                   >
                     {savingRowId === i.id ? '…' : rowEditing ? '💾' : '✏️'}
                   </button>
-                </td>
-                <td>
-                  <span
-                    className={`payment-badge ${i.requestType === 'Request Quotation' ? 'payment-pending' : 'payment-paid'}`}
-                    style={{ fontSize: 10 }}
-                  >
-                    {i.requestType === 'Request Quotation' ? 'RQ' : 'Order'}
-                  </span>
                 </td>
                 <td>{i.categoryName}</td>
                 <td>
@@ -533,7 +518,7 @@ export default function OrderAdminClient({
                 </td>
                 <td>
                   {rowEditing ? (
-                    <div className="admin-price-pair"><select aria-label={`Cost currency for ${i.categoryName} ${i.shapeName}`} value={costCurrencies[i.id] || 'INR'} onChange={(event) => setCostCurrencies({ ...costCurrencies, [i.id]: event.target.value })} style={rowInputStyle}><option>INR</option><option>RMB</option></select><input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} style={{ maxWidth: 70, ...rowInputStyle }} /></div>
+                    <input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} style={{ maxWidth: 70, ...rowInputStyle }} />
                   ) : (
                     costPrices[i.id] ? `${costCurrencies[i.id]} ${costPrices[i.id]}` : '—'
                   )}
@@ -562,71 +547,103 @@ export default function OrderAdminClient({
                   </button>
                 </td>
               </tr>
-            );})}
-            {newLines.map((l) => {
-              const opts = categoryOptions[l.categoryId];
-              const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
-              if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={11 + (hasPricing ? 1 : 0)}>
-                <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
-                {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
-                <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
-              </td></tr>;
-              return (
-                <tr key={l.tempId}>
-                  <td />
-                  <td>Order</td>
-                  <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
-                  <td>
-                    <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
-                      <option value="">Choose shape</option>
-                      {opts?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <select value={l.sizeId} onChange={(e) => updateNewLine(l.tempId, { sizeId: e.target.value ? Number(e.target.value) : '' })} disabled={!l.shapeId} style={{ fontSize: 12 }}>
-                      <option value="">Choose size</option>
-                      {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
-                      <option value="">Choose color</option>
-                      {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Qty"
-                      value={l.quantity}
-                      onChange={(e) => updateNewLine(l.tempId, { quantity: e.target.value.replace(/\D/g, '') })}
-                      style={{ maxWidth: 80, fontSize: 13 }}
-                    />
-                  </td>
-                  <td /><td /><td />
-                  {hasPricing && <td />}
-                  <td>
-                    <button type="button" className="btn-danger" onClick={() => removeNewLine(l.tempId)}>Remove</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {visibleItems.length === 0 && newLines.length === 0 && (
-              <tr><td colSpan={11 + (hasPricing ? 1 : 0)} style={{ textAlign: 'center', color: '#756e5c', padding: 20 }}>No lines in this category.</td></tr>
-            )}
-          </tbody>
-          {hasPricing && (
-            <tfoot>
-              <tr>
-                <td colSpan={10} style={{ textAlign: 'right', fontWeight: 500 }}>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}</td>
-                <td style={{ fontWeight: 700, color: 'var(--ink)' }}>{money(grandTotal)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-        </div>
+            );
+          };
+
+          const renderTable = (rowItems: Item[], includeNewLines: boolean) => (
+            <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
+              <table>
+                <thead>
+                  <tr><th></th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      CP
+                      <select
+                        aria-label="Cost price currency for all lines"
+                        value={items[0] ? (costCurrencies[items[0].id] || 'INR') : 'INR'}
+                        onChange={(e) => setCostCurrencies(Object.fromEntries(items.map((i) => [i.id, e.target.value])))}
+                        style={{ fontSize: 11 }}
+                      >
+                        <option>INR</option>
+                        <option>RMB</option>
+                      </select>
+                    </span>
+                  </th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
+                </thead>
+                <tbody>
+                  {rowItems.map(renderRow)}
+                  {includeNewLines && newLines.map((l) => {
+                    const opts = categoryOptions[l.categoryId];
+                    const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
+                    if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={10 + (hasPricing ? 1 : 0)}>
+                      <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+                      {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
+                      <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
+                    </td></tr>;
+                    return (
+                      <tr key={l.tempId}>
+                        <td />
+                        <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
+                        <td>
+                          <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
+                            <option value="">Choose shape</option>
+                            {opts?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select value={l.sizeId} onChange={(e) => updateNewLine(l.tempId, { sizeId: e.target.value ? Number(e.target.value) : '' })} disabled={!l.shapeId} style={{ fontSize: 12 }}>
+                            <option value="">Choose size</option>
+                            {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
+                            <option value="">Choose color</option>
+                            {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="Qty"
+                            value={l.quantity}
+                            onChange={(e) => updateNewLine(l.tempId, { quantity: e.target.value.replace(/\D/g, '') })}
+                            style={{ maxWidth: 80, fontSize: 13 }}
+                          />
+                        </td>
+                        <td /><td /><td />
+                        {hasPricing && <td />}
+                        <td>
+                          <button type="button" className="btn-danger" onClick={() => removeNewLine(l.tempId)}>Remove</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {rowItems.length === 0 && !(includeNewLines && newLines.length > 0) && (
+                    <tr><td colSpan={10 + (hasPricing ? 1 : 0)} style={{ textAlign: 'center', color: '#756e5c', padding: 20 }}>No lines in this category.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          );
+
+          return (
+            <>
+              {renderTable(regularItems, true)}
+              {quotationItems.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <h4 style={{ fontSize: 13, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Provide quotation</h4>
+                  {renderTable(quotationItems, false)}
+                </div>
+              )}
+              {hasPricing && (
+                <p style={{ textAlign: 'right', fontSize: 13, marginTop: 10 }}>
+                  <strong>{items.every(item => prices[item.id]?.trim()) ? 'Total' : 'Priced lines subtotal'}: {money(grandTotal)}</strong>
+                </p>
+              )}
+            </>
+          );
+        })()}
 
         <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn-ghost" onClick={addNewLine} disabled={orderCategories.length === 0}>+ Add line</button>

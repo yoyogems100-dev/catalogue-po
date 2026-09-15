@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { milestoneLabel } from '@/lib/order-milestones';
 import CustomerProfileEditor from './CustomerProfileEditor';
 import CategoryChips from '@/components/admin/CategoryChips';
+import StatusTag from '@/components/admin/StatusTag';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +32,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
 
   return <>
     <Link className="back-link" href="/admin/customers">← All customers</Link>
-    <div className="admin-page-head"><div><h1>{customer.name || 'Unnamed customer'}</h1><p>{customer.company || 'No company added'} · {customer.phone || customer.email || 'No contact added'}</p></div><Link className="btn" href={`/admin/orders/new?customer=${customer.id}`}>+ New order</Link></div>
+    <div className="admin-page-head"><div><h1>{customer.name || 'Unnamed customer'}</h1><p>{customer.company || 'No company added'} · {customer.phone || customer.email || 'No contact added'}{customer.place ? ` · ${customer.place}` : ''}</p></div><Link className="btn" href={`/admin/orders/new?customer=${customer.id}`}>+ New order</Link></div>
     <nav className="admin-coverage-filters" aria-label="Customer sections">
       <Link href={`/admin/customers/${customerId}`} className={`tag-chip ${tab === 'details' ? 'active' : ''}`} aria-current={tab === 'details' ? 'page' : undefined}>Details</Link>
       <Link href={`/admin/customers/${customerId}?tab=orders`} className={`tag-chip ${tab === 'orders' ? 'active' : ''}`} aria-current={tab === 'orders' ? 'page' : undefined}>Order history ({orders?.length || 0})</Link>
@@ -50,7 +50,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                 <Link className="admin-record-main" href={`/admin/orders/${order.id}`}>
                   <strong>Order #{order.id}</strong>
                   <span>{new Date(order.created_at).toLocaleDateString('en-IN')} · {order.request_type === 'Place Order' ? 'Purchase' : order.request_type}</span>
-                  <span>{milestoneLabel(order.status)} · {order.payment_status || 'pending'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} /> · {order.payment_status || 'pending'}</span>
                 </Link>
                 {/* Outside the record-main link -- CategoryChips' "+N more"
                     is a real button, and nesting it inside that whole-card

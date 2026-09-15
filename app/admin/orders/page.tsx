@@ -1,9 +1,13 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
-import { maskPhone } from '@/lib/mask';
+import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
+import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import StatusTag from '@/components/admin/StatusTag';
 import Link from 'next/link';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
+import AutoSubmitField from '@/components/admin/AutoSubmitField';
+import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
+import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 // (searchParams usage likely already forces this dynamic, but making it
@@ -16,13 +20,14 @@ const PURCHASE_TYPES = ['Place Order'];
 const RQ_TYPES = ['Request Quotation', 'Mixed'];
 const PAGE_SIZE = 50;
 
-export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; payment?: string; from?: string; to?: string; sort?: string }> }) {
+export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string }> }) {
   const searchParams = await searchParamsPromise;
-  const statusFilter = ORDER_MILESTONES.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
+  const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
   const search = (searchParams.q || '').replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 80);
-  const payment = ['pending', 'partial', 'paid'].includes(searchParams.payment || '') ? searchParams.payment : undefined;
+  const places = (searchParams.place || '').split(',').map((v) => v.trim()).filter((v) => (CUSTOMER_PLACES as readonly string[]).includes(v));
   const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value ? value : undefined;
   const from = validDate(searchParams.from), to = validDate(searchParams.to);
+  const filtersActive = Boolean(statusFilter || search || places.length || from || to);
   const oldest = searchParams.sort === 'oldest';
   const parsePage = (raw: string | undefined) => {
     const n = Number(raw || 1);
@@ -30,13 +35,13 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
   };
   const page = parsePage(searchParams.page);
   const rqPage = parsePage(searchParams.rqPage);
-  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1) {
+  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1, sortOldest = oldest) {
     const params = new URLSearchParams();
     if (search) params.set('q', search);
-    if (payment) params.set('payment', payment);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
-    if (oldest) params.set('sort', 'oldest');
+    if (places.length) params.set('place', places.join(','));
+    if (sortOldest) params.set('sort', 'oldest');
     if (status) params.set('status', status);
     if (targetPage > 1) params.set('page', String(targetPage));
     if (targetRqPage > 1) params.set('rqPage', String(targetRqPage));
@@ -54,16 +59,22 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     if (matches?.length) searchFilters.push(`customer_id.in.(${matches.map(row => row.id).join(',')})`);
   }
 
+  let placeCustomerIds: number[] | null = null;
+  if (places.length) {
+    const { data: matches } = await supabaseAdmin.from('customers').select('id').in('place', places).limit(1000);
+    placeCustomerIds = (matches || []).map((row: any) => row.id);
+  }
+
   function baseQuery() {
     let q = supabaseAdmin
       .from('orders')
       .select('id, customer_id, status, payment_status, created_at, contact_name, request_type', { count: 'exact' })
       .order('created_at', { ascending: oldest }).order('id', { ascending: oldest });
     if (statusFilter) q = q.eq('status', statusFilter);
-    if (payment) q = q.eq('payment_status', payment);
     if (from) q = q.gte('created_at', `${from}T00:00:00+05:30`);
     if (to) q = q.lte('created_at', `${to}T23:59:59.999+05:30`);
     if (searchFilters) q = q.or(searchFilters.join(','));
+    if (placeCustomerIds) q = q.in('customer_id', placeCustomerIds.length ? placeCustomerIds : [-1]);
     return q;
   }
 
@@ -96,10 +107,13 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     if (name && !stats[it.order_id].categoryNames.includes(name)) stats[it.order_id].categoryNames.push(name);
   });
 
-  function OrdersTable({ orders, count, currentPage, pageParam, title, emptyText, anchorId }: { orders: any[]; count: number; currentPage: number; pageParam: 'page' | 'rqPage'; title: string; emptyText: string; anchorId?: string }) {
+  function OrdersTable({ orders, count, currentPage, pageParam, title, emptyText, anchorId, headerExtra }: { orders: any[]; count: number; currentPage: number; pageParam: 'page' | 'rqPage'; title: string; emptyText: string; anchorId?: string; headerExtra?: React.ReactNode }) {
     return (
       <section id={anchorId} style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 15, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>{title} <span style={{ color: '#756e5c', textTransform: 'none', letterSpacing: 0, fontSize: 12.5 }}>({count} matching)</span></h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 15, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, margin: 0 }}>{title}{filtersActive && <span style={{ color: '#756e5c', textTransform: 'none', letterSpacing: 0, fontSize: 12.5 }}> ({count} matching)</span>}</h2>
+          {headerExtra}
+        </div>
         {/* Card grid is the mobile layout (table is display:none under 700px,
             see globals.css) -- kept in sync here in one component instead of
             two hand-duplicated blocks. */}
@@ -113,11 +127,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                 <h2>Order #{o.id}</h2>
                 <p>
                   {cust ? <Link className="admin-card-customer-link" href={`/admin/customers/${cust.id}`}><CustomerNameDisplay name={cust.name} company={cust.company} /></Link> : (o.contact_name || 'No contact name')}
-                  {cust?.phone && ` · ${maskPhone(cust.phone)}`}
                 </p>
                 <dl>
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
-                  <div><dt>Status</dt><dd>{milestoneLabel(o.status)}</dd></div>
+                  <div><dt>Status</dt><dd><StatusTag status={o.status} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
                 </dl>
                 {!!s.unpricedQuotes && <p>{s.unpricedQuotes} quotation lines need pricing</p>}
@@ -141,11 +154,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     <td>{o.id}</td>
                     <td>
                       {cust ? <Link className="admin-table-link" href={`/admin/customers/${cust.id}`}><CustomerNameDisplay name={cust.name} company={cust.company} /></Link> : (o.contact_name || '—')}
-                      {cust?.phone && <div style={{ fontSize: 11, color: '#756e5c' }}>{maskPhone(cust.phone)}</div>}
                     </td>
                     <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                     <td><CategoryChips names={s.categoryNames} />{s.unpricedQuotes > 0 && <p className="admin-coverage-note">{s.unpricedQuotes} quote {s.unpricedQuotes === 1 ? 'line needs' : 'lines need'} pricing</p>}</td>
-                    <td>{milestoneLabel(o.status)}</td>
+                    <td><StatusTag status={o.status} /></td>
                     <td><Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link></td>
                   </tr>
                 );
@@ -170,18 +182,24 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <h1>Orders</h1>
         <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
       </div>
-      <form method="get" className="admin-order-search">
+      <form method="get" id="admin-order-search-form" className="admin-order-search">
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
-        <label>Order / customer / phone<input name="q" defaultValue={search} placeholder="Search orders" /></label>
-        <label>Payment<select name="payment" defaultValue={payment || ''}><option value="">All payments</option><option value="pending">Pending</option><option value="partial">Partial</option><option value="paid">Paid</option></select></label>
-        <label>From (India time)<input type="date" name="from" defaultValue={from} /></label>
-        <label>To (India time)<input type="date" name="to" defaultValue={to} /></label>
-        <label>Sort<select name="sort" defaultValue={oldest ? 'oldest' : 'newest'}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
-        <button className="btn" type="submit">Apply filters</button><Link className="btn-ghost" href="/admin/orders">Clear filters</Link>
+        <label>Search<DebouncedSearchField name="q" defaultValue={search} placeholder="Search orders" /></label>
+        <AutoSubmitField>
+          <label style={{ flex: '0 1 200px' }}>
+            Date range
+            <span style={{ display: 'flex', gap: 4 }}>
+              <input type="date" name="from" defaultValue={from} aria-label="From date" style={{ minHeight: 44 }} />
+              <input type="date" name="to" defaultValue={to} aria-label="To date" style={{ minHeight: 44 }} />
+            </span>
+          </label>
+        </AutoSubmitField>
+        <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
+        {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
       </form>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
         <Link href={filterUrl(undefined)} className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All statuses</Link>
-        {ORDER_MILESTONES.map((m) => (
+        {ORDER_STATUS_OPTIONS.map((m) => (
           <Link
             key={m.key}
             href={filterUrl(m.key)}
@@ -192,7 +210,15 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
           </Link>
         ))}
       </div>
-      <OrdersTable orders={purchaseOrders || []} count={purchaseCount || 0} currentPage={page} pageParam="page" title="Orders" emptyText="No orders match this filter." />
+      <OrdersTable
+        orders={purchaseOrders || []} count={purchaseCount || 0} currentPage={page} pageParam="page" title="Orders" emptyText="No orders match this filter."
+        headerExtra={
+          <div className="cat-view-toggle" role="group" aria-label="Sort">
+            <Link href={filterUrl(statusFilter, 1, 1, false)} className={!oldest ? 'active' : ''} aria-current={!oldest ? 'true' : undefined} title="Newest first">↓ Newest</Link>
+            <Link href={filterUrl(statusFilter, 1, 1, true)} className={oldest ? 'active' : ''} aria-current={oldest ? 'true' : undefined} title="Oldest first">↑ Oldest</Link>
+          </div>
+        }
+      />
       <OrdersTable orders={rqOrders || []} count={rqCount || 0} currentPage={rqPage} pageParam="rqPage" title="Request quotations" emptyText="No quotation requests match this filter." anchorId="request-quotations" />
     </>
   );

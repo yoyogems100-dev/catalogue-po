@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CUSTOMER_PLACES } from '@/lib/customer-places';
 
-type Customer = { id: number; name: string | null; company: string | null; phone: string | null; email: string | null; work_stream?: string | null; go_to_requirements?: string | null };
+type Customer = { id: number; name: string | null; company: string | null; phone: string | null; email: string | null; work_stream?: string | null; go_to_requirements?: string | null; place?: string | null };
 
 export default function CustomerProfileEditor({ customer }: { customer: Customer }) {
   const router = useRouter();
-  const [form, setForm] = useState({ name: customer.name || '', company: customer.company || '', phone: customer.phone || '', email: customer.email || '', workStream: customer.work_stream || '', goToRequirements: customer.go_to_requirements || '' });
+  const [form, setForm] = useState({ name: customer.name || '', company: customer.company || '', phone: customer.phone || '', email: customer.email || '', workStream: customer.work_stream || '', goToRequirements: customer.go_to_requirements || '', place: customer.place || '' });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   async function save() {
@@ -26,6 +27,7 @@ export default function CustomerProfileEditor({ customer }: { customer: Customer
       <label>WhatsApp number<input type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label>
       <label>Email<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
       <label>Work stream<select value={form.workStream} onChange={(event) => setForm({ ...form, workStream: event.target.value })}><option value="">Choose work stream</option><option>Silver jewellery</option><option>Gold jewellery</option><option>Commercial jewellery</option><option>Fashion jewellery</option><option>Gemstone trader</option><option>Manufacturer</option><option>Retailer</option><option>Other</option></select></label>
+      <label>Place<select value={form.place} onChange={(event) => setForm({ ...form, place: event.target.value })}><option value="">Choose place</option>{CUSTOMER_PLACES.map((place) => <option key={place}>{place}</option>)}</select></label>
       <label className="admin-profile-wide">Go-to requirements<textarea rows={3} value={form.goToRequirements} onChange={(event) => setForm({ ...form, goToRequirements: event.target.value })} placeholder="Frequent stones, cuts, sizes, colors, quantities or delivery preferences" /></label>
     </div>
     <div className="admin-form-actions"><button className="btn" type="button" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save customer'}</button>{message && <span role="status">{message}</span>}</div>
