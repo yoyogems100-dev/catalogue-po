@@ -4,6 +4,7 @@ import { HotMark } from '@/components/HotSelling';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
+import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import ColorSwatch from '@/components/ColorSwatch';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
@@ -352,11 +353,11 @@ export default function ColorsClient({
                   <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 8 }}>
                     Which categories should offer "{c.name}" as a color option.
                   </p>
-                  <MultiSelect
-                    options={categories.map((cat) => ({ id: cat.id, name: cat.name }))}
-                    selectedIds={linkedCatIds}
+                  <CategoryLinkList
+                    categories={categories}
+                    linkedIds={linkedCatIds}
                     onToggle={(catId, active) => toggleCategory(c.id, catId, active)}
-                    placeholder="Not linked to any category"
+                    tab="colors"
                   />
                 </div>
               )}
