@@ -22,7 +22,11 @@ export default function ColorSwatch({
   // no clip -- forcing them through the hard circle-crop + 280% zoom below
   // (built for looser admin-uploaded photos) would cut into the facets and can
   // show a thin ring where the CSS circle doesn't line up with the photo's own
-  // edge.
+  // edge. These tight crops are essentially never exactly square (real gem
+  // photos, cropped to the stone's own bounding box, come out wider or
+  // taller depending on the cut), so `contain` -- not `100% 100%` -- is
+  // required: forcing a non-square photo to fill a square box stretches it,
+  // visibly squashing the stone.
   const isCleanCutout = refPhotoUrl?.includes('/pearl-colors/') || refPhotoUrl?.includes('/reference/colors/');
   const displaySize = isCleanCutout ? Math.max(size, 28) : size;
   return (
@@ -46,7 +50,7 @@ export default function ColorSwatch({
         // bleed through as a colored square behind the gem's own transparent
         // background.
         background: refPhotoUrl
-          ? (isCleanCutout ? `url(${refPhotoUrl}) center/100% 100% no-repeat` : `url(${refPhotoUrl}) center/280% 280% no-repeat, ${hex || '#ccc'}`)
+          ? (isCleanCutout ? `url(${refPhotoUrl}) center/contain no-repeat` : `url(${refPhotoUrl}) center/280% 280% no-repeat, ${hex || '#ccc'}`)
           : (hex || '#ccc')
       }}
     />
