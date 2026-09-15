@@ -16,6 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     email: String(body.email || '').trim().toLowerCase() || null,
     work_stream: String(body.workStream || '').trim() || null,
     go_to_requirements: String(body.goToRequirements || '').trim() || null,
+    place: String(body.place || '').trim() || null,
   };
   const { data, error } = await supabaseAdmin.from('customers').update(values).eq('id', id).select('id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

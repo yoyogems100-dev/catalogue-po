@@ -170,9 +170,13 @@ a { color: inherit; text-decoration: none; }
 .btn-danger { background: none; color: var(--gold); border: 1px solid var(--gold); padding: 7px 13px; font-size: 12px; cursor: pointer; align-self: flex-start; }
 .btn-danger:hover { background: var(--gold); color: #fff; }
 
-input[type="text"], input[type="password"], input[type="tel"], input[type="email"], input[type="number"], select, textarea {
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%; border-radius: 5px;
 }
+
+/* Dropdowns should size to their content, not stretch to fill the container
+   they happen to sit in -- only text/date inputs and textareas need width:100%. */
+select { width: auto; max-width: 100%; }
 
 html, body { overflow-x: hidden; }
 
@@ -248,12 +252,12 @@ html, body { overflow-x: hidden; }
 }
 
 .cat-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-.cat-view-toggle button {
+.cat-view-toggle button, .cat-view-toggle a {
   background: #fff; border: none; padding: 6px 10px; cursor: pointer; color: #756e5c;
-  display: flex; align-items: center; gap: 5px; font-size: 12px;
+  display: flex; align-items: center; gap: 5px; font-size: 12px; text-decoration: none;
 }
-.cat-view-toggle button.active { background: var(--navy); color: #fff; }
-.cat-view-toggle button + button { border-left: 1px solid var(--line); }
+.cat-view-toggle button.active, .cat-view-toggle a.active { background: var(--navy); color: #fff; }
+.cat-view-toggle button + button, .cat-view-toggle a + a { border-left: 1px solid var(--line); }
 
 .cat-badge-toggle { display: inline-flex; gap: 3px; flex-wrap: wrap; }
 .cat-badge-toggle button {
@@ -857,7 +861,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .order-review-dialog button, .filter-bar select, .photo-add-cart { min-height: 44px; min-width: 44px; }
 .admin-order-search { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0; }
 .admin-order-search label { display: grid; gap: 6px; font-size: 14px; flex: 1 1 160px; }
-.admin-order-search input, .admin-order-search select { min-height: 44px; width: 100%; }
+.admin-order-search input:not([type="checkbox"]):not([type="radio"]), .admin-order-search select { min-height: 44px; width: 100%; }
 .admin-order-cards { display: none; }
 .admin-work-queues { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin: 24px 0; }
 .admin-work-queues a { padding: 20px; text-decoration: none; display: grid; gap: 12px; }
@@ -1304,7 +1308,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .admin-page-head h1, .admin-section-head h2 { margin: 0 0 4px; }
 .admin-page-head p, .admin-section-head p { margin: 0; color: #756e5c; font-size: 13px; }
 .admin-directory-search, .admin-inline-create { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
-.admin-directory-search input { width: min(460px, 100%); }
+.admin-directory-search input:not([type="checkbox"]):not([type="radio"]) { width: min(460px, 100%); }
 .admin-inline-create input { width: 210px; }
 .admin-customer-cards { display: none; }
 .admin-directory-table-wrap { max-width: 100%; overflow-x: auto; }

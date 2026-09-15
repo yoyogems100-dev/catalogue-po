@@ -1,9 +1,14 @@
-import { ORDER_MILESTONES, milestoneIndex, milestoneLabel } from '@/lib/order-milestones';
+import { ORDER_MILESTONES, milestoneIndex, milestoneLabel, milestoneColor } from '@/lib/order-milestones';
 
 export { milestoneIndex, milestoneLabel };
 
 export default function OrderStepper({ status, compact = false }: { status: string; compact?: boolean }) {
   const currentIndex = milestoneIndex(status);
+
+  if (status === 'cancelled') {
+    const { bg, fg } = milestoneColor('cancelled');
+    return <span style={{ display: 'inline-block', background: bg, color: fg, fontSize: compact ? 11 : 13, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>Cancelled</span>;
+  }
 
   if (compact) {
     return (
