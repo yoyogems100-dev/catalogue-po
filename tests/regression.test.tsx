@@ -151,3 +151,72 @@ test('gallery sizes group equivalent dimensions, preserve IDs and sort decimal d
     { key: '4x6', label: '4x6', ids: [1, 2] }, { key: '6x4', label: '6x4', ids: [5] }
   ]);
 });
+
+test('a quotation never shows a price, even where the catalogue has one', async () => {
+  const { cartLinePrice } = await import('../lib/pricing-calc');
+  // POSelector.unitPriceInr short-circuits quotation lines before consulting the
+  // price list; this pins the rule that makes that safe -- the underlying
+  // lookup DOES have a price here, so the null must come from the request type.
+  const pricing = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } };
+  const line = { categoryId: 10, shapeId: 3, sizeId: 4, colorId: 1 };
+  assert.equal(cartLinePrice({ 10: pricing }, line), 55);
+
+  const unitPriceInr = (item: typeof line & { requestType: string }) =>
+    item.requestType === 'Request Quotation' ? null : cartLinePrice({ 10: pricing }, item);
+
+  assert.equal(unitPriceInr({ ...line, requestType: 'Place Order' }), 55);
+  assert.equal(unitPriceInr({ ...line, requestType: 'Request Quotation' }), null);
+});
+
+test('quotation lines may carry no quantity, purchase lines may not', async () => {
+  const { parseQuantity } = await import('../lib/quantity');
+  // Mirrors the guard in app/api/orders/create/route.ts. 0 is the stored
+  // sentinel for "not specified" (order_items.quantity is NOT NULL).
+  const rejects = (item: { qty: unknown; requestType: string }) => {
+    if (typeof item.qty !== 'number' || !Number.isInteger(item.qty) || item.qty < 0) return true;
+    if (item.requestType === 'Request Quotation') return item.qty !== 0 && parseQuantity(String(item.qty)) === null;
+    return parseQuantity(String(item.qty)) === null;
+  };
+
+  assert.equal(rejects({ qty: 0, requestType: 'Request Quotation' }), false, 'blank quotation qty is allowed');
+  assert.equal(rejects({ qty: 500, requestType: 'Request Quotation' }), false, 'quotation with a qty is allowed');
+  assert.equal(rejects({ qty: 0, requestType: 'Place Order' }), true, 'purchase still needs a quantity');
+  assert.equal(rejects({ qty: -5, requestType: 'Request Quotation' }), true, 'negatives rejected either way');
+  assert.equal(rejects({ qty: 1.5, requestType: 'Request Quotation' }), true, 'decimals rejected either way');
+  assert.equal(rejects({ qty: 2147483648, requestType: 'Request Quotation' }), true, 'database overflow rejected');
+});
+
+test('shapes that share no size with the current pick are offered as disabled, never hidden', async () => {
+  // Mirrors incompatibleShapeIds in components/POSelector.tsx.
+  const sizes = [
+    { id: 1, shape_id: 10, size_mm: '4x4' }, { id: 2, shape_id: 10, size_mm: '5x5' },
+    { id: 3, shape_id: 20, size_mm: '5x5' },                     // shares 5x5 with Heart
+    { id: 4, shape_id: 30, size_mm: '9x9' }                      // shares nothing
+  ];
+  const shapes = [{ id: 10 }, { id: 20 }, { id: 30 }];
+  const byShape = new Map<number, Set<string>>();
+  sizes.forEach((s) => {
+    if (!byShape.has(s.shape_id)) byShape.set(s.shape_id, new Set());
+    byShape.get(s.shape_id)!.add(s.size_mm);
+  });
+
+  const incompatible = (picked: number[]) => {
+    if (!picked.length) return [];
+    let shared: Set<string> | null = null;
+    picked.forEach((id) => {
+      const own = byShape.get(id) || new Set<string>();
+      shared = shared === null ? new Set(own) : new Set([...shared].filter((mm) => own.has(mm)));
+    });
+    if (!shared || shared.size === 0) return [];
+    return shapes.filter((s) => !picked.includes(s.id))
+      .filter((s) => ![...shared!].some((mm) => (byShape.get(s.id) || new Set()).has(mm)))
+      .map((s) => s.id);
+  };
+
+  assert.deepEqual(incompatible([]), [], 'nothing picked yet -- everything is offerable');
+  assert.deepEqual(incompatible([10]), [30], 'only the shape sharing no size is disabled');
+  assert.deepEqual(incompatible([10, 20]), [30], 'still disabled once the pick narrows to 5x5');
+  // A selected shape is never disabled, so the buyer can always deselect out.
+  assert.equal(incompatible([10, 20]).includes(10), false);
+  assert.equal(incompatible([10, 20]).includes(20), false);
+});

@@ -19,6 +19,14 @@ type CommonProps = {
   leading?: 'swatch' | 'icon' | 'none';
   /** Show a filter box inside the panel once there are more than a few options. */
   searchable?: boolean;
+  /**
+   * Options that cannot be combined with what is already selected -- shown,
+   * greyed out and unclickable, rather than hidden, so the buyer can still see
+   * the option exists and understand why it is unavailable.
+   */
+  disabledIds?: number[];
+  /** Tooltip/aria hint explaining why a disabled option is unavailable. */
+  disabledReason?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -295,14 +303,22 @@ export default function IconSelect(props: Props) {
 
             {filtered.map((o) => {
               const isActive = isMulti ? multi.values.includes(o.id) : single.value === o.id;
+              // A selected option is never disabled -- the buyer must always be
+              // able to deselect their way out of a combination.
+              const isDisabled = !isActive && (props.disabledIds || []).includes(o.id);
               return (
                 <div
                   key={o.id}
                   role="option"
                   aria-selected={isActive}
-                  tabIndex={0}
-                  className={`icon-select-row ${isActive ? 'active' : ''}`}
-                  onClick={() => (isMulti ? toggleValue(o.id) : pickSingle(o.id))}
+                  aria-disabled={isDisabled || undefined}
+                  title={isDisabled ? props.disabledReason : undefined}
+                  tabIndex={isDisabled ? -1 : 0}
+                  className={`icon-select-row ${isActive ? 'active' : ''}${isDisabled ? ' icon-select-row--disabled' : ''}`}
+                  onClick={() => {
+                    if (isDisabled) return;
+                    return isMulti ? toggleValue(o.id) : pickSingle(o.id);
+                  }}
                 >
                   {isMulti && (
                     <input type="checkbox" checked={isActive} readOnly aria-hidden="true" tabIndex={-1} className="icon-select-checkbox" />

@@ -21,8 +21,16 @@ export async function POST(req: NextRequest) {
   if (cart.length === 0) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   }
-  if (cart.some((item) => typeof item.qty !== 'number' || parseQuantity(String(item.qty)) === null)) {
-    return NextResponse.json({ error: 'Every line needs a positive whole quantity.' }, { status: 400 });
+  // A quotation asks what something would cost, so its quantity is optional:
+  // 0 is stored to mean "not specified" (order_items.quantity is NOT NULL).
+  // Purchase lines still require a positive whole quantity, and a quotation
+  // that DOES carry a quantity is held to the same bounds.
+  if (cart.some((item) => {
+    if (typeof item.qty !== 'number' || !Number.isInteger(item.qty) || item.qty < 0) return true;
+    if (item.requestType === 'Request Quotation') return item.qty !== 0 && parseQuantity(String(item.qty)) === null;
+    return parseQuantity(String(item.qty)) === null;
+  })) {
+    return NextResponse.json({ error: 'Every purchase line needs a positive whole quantity.' }, { status: 400 });
   }
 
   // Placing an order never requires auth -- this phone field is optional and
