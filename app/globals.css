@@ -443,6 +443,11 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-row:focus-visible, .ms-row:focus-visible, [role="option"]:focus-visible { outline: 2px solid var(--navy); outline-offset: -2px; background: #faf8f3; }
 .icon-select-trigger:focus-visible, .ms-trigger:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
 .icon-select-row.active { background: #f1ede2; font-weight: 500; }
+/* Shown but unpickable: a shape that shares no size with what's already
+   selected. Greyed rather than hidden so the option is still visibly part of
+   the catalogue, with the reason on hover/aria. */
+.icon-select-row--disabled { opacity: 0.38; cursor: not-allowed; }
+.icon-select-row--disabled:hover { background: transparent; }
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
 .icon-select-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
 .icon-select-palette-row strong { font-weight: 500; color: var(--navy); }
@@ -563,6 +568,12 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   border-right: 1px solid var(--line);
 }
 .po-type-toggle button:last-child { border-right: none; }
+/* Request Quotation is only offered where the catalogue has no published price
+   for the selection -- there is nothing to quote on a priced item. Shown but
+   dimmed rather than removed, so the option doesn't appear and vanish as the
+   selection changes. */
+.po-type-toggle button.po-type-unavailable { opacity: 0.4; cursor: not-allowed; }
+.po-type-hint { font-size: 11.5px; color: var(--text-dim); margin: -6px 0 12px; }
 .po-type-toggle button.active { background: var(--navy); color: #fff; }
 
 .po-add-line-btn {

@@ -214,6 +214,42 @@ export default function POSelector({
     });
   }, [sizes, pickShapeIds]);
 
+  // Sizes are only offered when every selected shape has them, so it was
+  // possible to pick three shapes, open the size list and be told there is no
+  // size in common -- leaving the buyer to work out which shape to drop. Work
+  // it out for them instead: once a shape is chosen, any shape that shares no
+  // size with the current selection is greyed out in the shape list, so an
+  // impossible combination can't be built in the first place.
+  const sizeMmByShape = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    sizes.forEach((sz) => {
+      if (!map.has(sz.shape_id)) map.set(sz.shape_id, new Set());
+      map.get(sz.shape_id)!.add(sz.size_mm);
+    });
+    return map;
+  }, [sizes]);
+
+  const incompatibleShapeIds = useMemo(() => {
+    if (pickShapeIds.length === 0) return [];
+    // Sizes shared by everything picked so far.
+    let shared: Set<string> | null = null;
+    pickShapeIds.forEach((id) => {
+      const own = sizeMmByShape.get(id) || new Set<string>();
+      shared = shared === null ? new Set(own) : new Set([...shared].filter((mm) => own.has(mm)));
+    });
+    // Already an impossible selection (nothing shared) -- don't compound it by
+    // greying out the whole list; the buyer needs to be able to deselect.
+    if (!shared || shared.size === 0) return [];
+    return shapes
+      .filter((s) => !pickShapeIds.includes(s.id))
+      .filter((s) => {
+        const own = sizeMmByShape.get(s.id);
+        if (!own) return true;
+        return ![...shared!].some((mm) => own.has(mm));
+      })
+      .map((s) => s.id);
+  }, [pickShapeIds, shapes, sizeMmByShape]);
+
   const sizeOptions = useMemo(
     () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })),
     [sizesForShapes]
@@ -244,15 +280,42 @@ export default function POSelector({
   }
 
   const qtyNum = parseQuantity(pickQty) || 0;
-  const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0;
+  const isQuotation = pickRequestType === 'Request Quotation';
+  // A quotation is asking what something would cost, so a quantity is not
+  // required to send one. A purchase still needs one.
+  const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
+    && (isQuotation || qtyNum > 0);
   const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
-
-  const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
   const pricingByCategory = useMemo(
     () => ({ ...otherPricing, ...(pricing ? { [categoryId]: pricing } : {}) }),
     [otherPricing, pricing, categoryId]
   );
+
+
+  // Request Quotation is only offered when something in the current selection
+  // has no price yet -- there is nothing to quote on an item whose price is
+  // already published. Purchase stays available either way.
+  const selectionHasUnpriced = useMemo(() => {
+    if (!pickShapeIds.length || !pickColorIds.length || !pickSizeIdxs.length) return true;
+    for (const shapeId of pickShapeIds) {
+      for (const sizeIdx of pickSizeIdxs) {
+        const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+        if (!match) continue;
+        for (const colorId of pickColorIds) {
+          if (cartLinePrice(pricingByCategory, { categoryId, shapeId, sizeId: match.id, colorId }) === null) return true;
+        }
+      }
+    }
+    return false;
+  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes, pricingByCategory, categoryId]);
+
+  // Never leave the buyer stuck on a request type that is no longer offered.
+  useEffect(() => {
+    if (!selectionHasUnpriced && isQuotation) setPickRequestType('Place Order');
+  }, [selectionHasUnpriced, isQuotation]);
+
+  const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
   // Fetch a price list for every other category sitting in the cart, once each.
   const missingPricingIds = useMemo(() => {
@@ -283,6 +346,10 @@ export default function POSelector({
   // item -- so it always reflects the current admin-set price, and categories
   // with no pricing set up yet just show nothing (no crash).
   function unitPriceInr(item: CartItem): number | null {
+    // A quotation is a request for a price, so it never displays one and never
+    // contributes to the estimated total -- even where the catalogue happens to
+    // have a published price for that shape/size/colour.
+    if (item.requestType === 'Request Quotation') return null;
     return cartLinePrice(pricingByCategory, item);
   }
   const cartTotalInr = cart.reduce((sum, item) => {
@@ -406,7 +473,13 @@ export default function POSelector({
       }
     }
 
-    if (next.some((item) => parseQuantity(String(item.qty)) === null)) {
+    // Quotation lines may carry no quantity at all (0 = "not specified"), so
+    // only purchase lines are held to a positive whole quantity.
+    if (next.some((item) => item.requestType !== 'Request Quotation' && parseQuantity(String(item.qty)) === null)) {
+      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
+      return;
+    }
+    if (next.some((item) => item.requestType === 'Request Quotation' && item.qty > 0 && parseQuantity(String(item.qty)) === null)) {
       setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
       return;
     }
@@ -421,13 +494,22 @@ export default function POSelector({
     setCart(next);
     setJustAdded((n) => n + 1);
     setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
-    // Reset only size + qty so the same shape/color picks can be reused for the next size quickly
+    // Reset only size + qty so the same shape/color picks can be reused for the
+    // next size quickly. Request type always returns to Purchase -- it is the
+    // primary action, and a quotation is a deliberate per-line choice rather
+    // than a mode the buyer should stay stuck in.
     setPickSizeIdxs([]);
     setPickQty('');
+    setPickRequestType('Place Order');
   }
 
   function updateQty(id: string, qty: number) {
-    setCart(cart.map((i) => (i.id === id ? { ...i, qty: Math.max(1, qty) } : i)));
+    setCart(cart.map((i) => {
+      if (i.id !== id) return i;
+      // 0 means "not specified" and is only a valid answer on a quotation.
+      const floor = i.requestType === 'Request Quotation' ? 0 : 1;
+      return { ...i, qty: Math.max(floor, qty) };
+    }));
   }
 
   function updateItemRequestType(id: string, requestType: RequestType) {
@@ -528,6 +610,8 @@ export default function POSelector({
               onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
               placeholder="Choose shape(s)"
               leading="icon"
+              disabledIds={incompatibleShapeIds}
+              disabledReason="No size in common with the shapes already selected"
             />
           </div>}
           <div>
@@ -596,12 +680,15 @@ export default function POSelector({
           <button
             type="button"
             aria-pressed={pickRequestType === 'Request Quotation'}
-            className={pickRequestType === 'Request Quotation' ? 'active' : ''}
-            onClick={() => setPickRequestType('Request Quotation')}
+            aria-disabled={!selectionHasUnpriced || undefined}
+            title={selectionHasUnpriced ? undefined : 'These items already have a published price'}
+            className={`${pickRequestType === 'Request Quotation' ? 'active' : ''}${selectionHasUnpriced ? '' : ' po-type-unavailable'}`}
+            onClick={() => { if (selectionHasUnpriced) setPickRequestType('Request Quotation'); }}
           >
             Request Quotation
           </button>
         </div>
+        {isQuotation && <p className="po-type-hint">Quantity is optional for a quotation — we&rsquo;ll send prices, then you decide.</p>}
 
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
@@ -691,6 +778,20 @@ export default function POSelector({
                     {group.moveLabel}
                   </button>}
                 </div>
+                {item.requestType === 'Request Quotation' && item.qty === 0 ? (
+                  // Quantity is optional on a quotation; offer it rather than
+                  // demand it, so the line can be sent as a pure price enquiry.
+                  <label className="po-item-qty"><span>Qty (optional)</span>
+                    <QuantityInput
+                      value={0}
+                      allowEmpty
+                      placeholder="Any"
+                      label={`Optional quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
+                      onChange={(quantity) => updateQty(item.id, quantity * quantityFactor(item.orderSpecs))}
+                      onInvalid={() => setToast('Enter a positive whole quantity, or leave it blank for a quotation.')}
+                    />
+                  </label>
+                ) : (
                 <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind==='rainbow'?'strips':'pcs'})</span>
                 <QuantityInput
                   value={item.qty / quantityFactor(item.orderSpecs)}
@@ -699,6 +800,7 @@ export default function POSelector({
                   onInvalid={() => setToast('Enter a positive whole quantity. The previous quantity has been kept.')}
                 />
                 </label>
+                )}
                 <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
                 {editingOption?.itemId === item.id && <ItemOptionEditor
                   item={item}
@@ -763,7 +865,7 @@ export default function POSelector({
         <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
         <ul className="order-review-lines">{[...cart].reverse().map(item => <li key={item.id}><StoneReference item={item} /><div>
           <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
-          {item.qty.toLocaleString('en-IN')} pieces · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
+          {item.qty > 0 ? `${item.qty.toLocaleString('en-IN')} pieces` : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
         {loggedIn ? <p>Your saved account details will be used for this requirement.</p> : <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>}
