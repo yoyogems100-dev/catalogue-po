@@ -4,6 +4,7 @@ import SupplierCreateForm from './SupplierCreateForm';
 import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import CategoryFilterField from '@/components/admin/CategoryFilterField';
 import CategoryChips from '@/components/admin/CategoryChips';
+import BulkImportButton from '@/components/admin/BulkImportButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +28,12 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   }
   const { data: suppliers, error } = await supplierQuery;
   const filtersActive = Boolean(q || categoryIds.length);
+  const exportParams = new URLSearchParams();
+  if (q) exportParams.set('q', q);
+  if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Suppliers</h1><p>Supplier coverage, contacts and the latest buying rates.</p></div><SupplierCreateForm categories={allCategories || []} /></div>
+    <div className="admin-page-head"><div><h1>Suppliers</h1><p>Supplier coverage, contacts and the latest buying rates.</p></div><div style={{ display: 'flex', gap: 8 }}><BulkImportButton entity="suppliers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/suppliers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><SupplierCreateForm categories={allCategories || []} /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label style={{ flex: '1 1 220px' }}>Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or contact" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />
