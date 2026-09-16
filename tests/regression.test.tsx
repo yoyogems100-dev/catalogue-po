@@ -56,10 +56,41 @@ test('a cart from another category never inherits the active category price', as
   const { cartLinePrice } = await import('../lib/pricing-calc');
   const pricing = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } };
   const item = { categoryId: 10, shapeId: 3, sizeId: 4, colorId: 1 };
-  assert.equal(cartLinePrice(pricing, 10, item), 55);
-  assert.equal(cartLinePrice(pricing, 11, item), null);
-  assert.equal(cartLinePrice(pricing, 10, { ...item, sizeId: null }), null);
-  assert.equal(cartLinePrice(pricing, 10, { ...item, colorId: 99 }), null);
+  // Priced from its own category's list...
+  assert.equal(cartLinePrice({ 10: pricing }, item), 55);
+  // ...and never from a different category's list, however similar the codes.
+  assert.equal(cartLinePrice({ 11: pricing }, item), null);
+  assert.equal(cartLinePrice({}, item), null);
+  assert.equal(cartLinePrice(undefined, item), null);
+  assert.equal(cartLinePrice({ 10: pricing }, { ...item, sizeId: null }), null);
+  assert.equal(cartLinePrice({ 10: pricing }, { ...item, colorId: 99 }), null);
+});
+
+test('a cart spanning categories prices every line, not just the active one', async () => {
+  const { cartLinePrice } = await import('../lib/pricing-calc');
+  // Same shape/size/colour codes in both categories, deliberately: the only
+  // thing that may decide the price is which category the line belongs to.
+  const crushedIce = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } };
+  const nano = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 18 } };
+  const byCategory = { 10: crushedIce, 20: nano };
+
+  const cart = [
+    { categoryId: 10, shapeId: 3, sizeId: 4, colorId: 1, qty: 100 },
+    { categoryId: 20, shapeId: 3, sizeId: 4, colorId: 1, qty: 200 },
+    { categoryId: 30, shapeId: 3, sizeId: 4, colorId: 1, qty: 400 } // no price list yet
+  ];
+
+  assert.equal(cartLinePrice(byCategory, cart[0]), 55);
+  assert.equal(cartLinePrice(byCategory, cart[1]), 18);
+  assert.equal(cartLinePrice(byCategory, cart[2]), null);
+
+  // The estimated total covers every priced line regardless of which category
+  // page the buyer happens to be looking at.
+  const total = cart.reduce((sum, line) => {
+    const unit = cartLinePrice(byCategory, line);
+    return unit === null ? sum : sum + unit * line.qty;
+  }, 0);
+  assert.equal(total, 55 * 100 + 18 * 200);
 });
 
 test('an unmapped color or unpriced shape/size never silently prices at a wrong value', async () => {

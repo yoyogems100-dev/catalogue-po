@@ -495,10 +495,19 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   font-size: 10.5px; text-transform: none; letter-spacing: 0; font-weight: 400;
   color: var(--navy); text-decoration: underline;
 }
-.po-range-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.po-range-row input { min-width: 0; flex: 1 1 0; }
+/* The size field sits in a two-column grid, so on a phone this row only has
+   about 155px to share between two inputs, the "to" separator and the link --
+   which squeezed both inputs to 37px, too narrow to show "Min mm" or to read
+   back a typed value. Give the inputs a floor and let the row wrap: on desktop
+   there is room for one line and nothing moves, on a phone the link drops to
+   its own line and the inputs keep a usable width. */
+.po-range-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.po-range-row input { flex: 1 1 4rem; min-width: 3.5rem; }
 .po-range-row span { font-size: 11px; color: #756e5c; flex-shrink: 0; }
 .po-range-row .po-inline-link { margin-left: 0; flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 560px) {
+  .po-range-row .po-inline-link { flex: 1 0 100%; margin-top: 2px; }
+}
 .po-search { margin-bottom: 16px; }
 
 .po-shape-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -575,6 +584,53 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   text-align: right; font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.85);
   padding: 10px 0 4px; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 4px;
 }
+
+/* Running requirement total, pinned to the bottom of the viewport. "Add line"
+   sits at the top of the page and the requirement panel below the fold, so on
+   a phone adding lines produced no visible change at all; this keeps the
+   count, pieces and rupee total on screen and flashes on each add. Same ink
+   ground and faceted corner as .po-cart-card so it reads as that panel's edge
+   rather than a foreign floating widget. */
+.po-summary-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: #fff;
+  border-top: 1px solid rgba(201, 169, 78, 0.35);
+  box-shadow: 0 -6px 22px -10px rgba(18, 35, 63, 0.55);
+}
+.po-summary-figures { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.po-summary-label {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+.po-summary-counts {
+  font-size: 13.5px; color: var(--gold-soft); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.po-summary-action {
+  margin-left: auto; flex: 0 0 auto; cursor: pointer; border: none;
+  background: var(--ivory-gold); color: var(--ivory-gold-text);
+  font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 9px 18px;
+  clip-path: polygon(0 var(--facet-sm), var(--facet-sm) 0, 100% 0, 100% calc(100% - var(--facet-sm)), calc(100% - var(--facet-sm)) 100%, 0 100%);
+}
+.po-summary-action:hover { background: var(--ivory-gold-deep); }
+.po-summary-action:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+
+@keyframes po-summary-bump {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+.po-summary-bar--bump { animation: po-summary-bump 420ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .po-summary-bar--bump { animation: none; }
+}
+
+/* The bar floats over the end of the page -- give the footer room underneath so
+   nothing at the very bottom is trapped behind it. */
+body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-item-type-select { font-size: 11px; padding: 5px 6px; flex: 0 0 auto; max-width: 118px; }
 
 /* The requirement/cart panel is the site's one direct equivalent of the
