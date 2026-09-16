@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizePhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 import { randomInt } from 'node:crypto';
@@ -8,7 +9,7 @@ import { allowDevAuthCodes } from '@/lib/dev-auth';
 export async function POST(req: NextRequest) {
   const { phone } = await req.json();
 
-  const digits = (phone || '').replace(/\D/g, '');
+  const digits = normalizePhone(phone);
   if (digits.length < 10) {
     return NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 });
   }

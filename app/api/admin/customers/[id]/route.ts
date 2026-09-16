@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -7,7 +8,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const id = Number((await params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid customer.' }, { status: 400 });
   const body = await request.json();
-  const phone = String(body.phone || '').replace(/\D/g, '');
+  const phone = normalizePhone(body.phone);
   if (phone && phone.length < 10) return NextResponse.json({ error: 'Enter a valid WhatsApp number.' }, { status: 400 });
   const values = {
     name: String(body.name || '').trim() || null,

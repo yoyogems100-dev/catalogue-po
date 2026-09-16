@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import QuantityInput from './QuantityInput';
+import LoginForm from './LoginForm';
 import { specText, quantityFactor } from '@/lib/order-specs';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
@@ -42,14 +44,13 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [hydrated, setHydrated] = useState(false);
   const [pricingByCategory, setPricingByCategory] = useState<Record<number, CategoryPricing>>({});
   const [optionsByCategory, setOptionsByCategory] = useState<Record<number, CategoryOptions>>({});
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
   const [comment, setComment] = useState('');
   const [reviewing, setReviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
+  const router = useRouter();
   const reviewDialog = useRef<HTMLDialogElement>(null);
   const submissionPending = useRef(false);
 
@@ -156,7 +157,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       const res = await fetch('/api/orders/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart, contactName, contactPhone, comment })
+        body: JSON.stringify({ cart, comment })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save order');
@@ -390,25 +391,33 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         </div>}
 
         {cart.length > 0 && <div className="po-send-box">
-          {!loggedIn && <div className="po-send-row">
-            <label>
-              Name / company
-              <input type="text" autoComplete="organization" placeholder="Your name or business (optional)" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-            </label>
-            <label>
-              WhatsApp number (optional)
-              <input type="tel" autoComplete="tel" placeholder="e.g. 9079914601" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-            </label>
-          </div>}
           <label className="po-block-label">
             Additional comment
             <textarea rows={3} placeholder="Message" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
-          <p className="po-send-help">Our team will confirm pricing and availability.{!loggedIn && ' Add your WhatsApp number for updates.'}</p>
-          <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>
-            {sending ? 'Submitting…' : 'Send requirement'}
-          </button>
+
+          {loggedIn ? (
+            <>
+              <p className="po-send-help">Our team will confirm pricing and availability. Your saved details will be used for this requirement.</p>
+              <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>
+                {sending ? 'Submitting…' : 'Send requirement'}
+              </button>
+            </>
+          ) : (
+            // A requirement used to be sendable with no name and no number at
+            // all, which left the team with an order they could not reply to.
+            // Signing in captures the number once, verifies it, and keeps the
+            // order in the buyer's own history instead of stranding it.
+            <div className="cart-signin">
+              <h3 className="po-heading">Sign in to send this requirement</h3>
+              <p className="cart-signin-why">
+                We confirm price and availability by WhatsApp, so we need a verified number to reply to.
+                Signing in also keeps this and every future order in your account.
+              </p>
+              <LoginForm phoneOnly onSuccess={() => router.refresh()} />
+            </div>
+          )}
         </div>}
       </section>
 
@@ -421,7 +430,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           {item.qty > 0 ? `${item.qty.toLocaleString('en-IN')} pieces` : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
-        {loggedIn ? <p>Your saved account details will be used for this requirement.</p> : <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>}
+        <p>Your saved account details will be used for this requirement.</p>
         {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
         <p>Our team will confirm pricing and availability before your order is confirmed.</p>
         <div className="order-review-actions">

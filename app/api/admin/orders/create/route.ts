@@ -1,4 +1,5 @@
 import { validateOrderSpecs } from '@/lib/validate-order-specs';
+import { normalizePhone } from '@/lib/phone';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     customerId = existing.id;
     contactName = existing.name;
   } else if (newCustomerPhone) {
-    const digits = newCustomerPhone.replace(/\D/g, '');
+    const digits = normalizePhone(newCustomerPhone);
     if (digits.length < 10) return NextResponse.json({ error: 'Enter a valid phone number' }, { status: 400 });
 
     let identity;

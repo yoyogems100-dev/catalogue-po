@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   const inserts = valid.map((row) => ({
     name: (row.name || '').trim() || null,
     company: (row.company || '').trim() || null,
-    phone: (row.phone || '').replace(/\D/g, '') || null,
+    phone: normalizePhone(row.phone) || null,
     email: (row.email || '').trim().toLowerCase() || null,
     address: (row.address || '').trim() || null,
     place: (row.place || '').trim() || null,

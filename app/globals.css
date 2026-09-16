@@ -1485,3 +1485,23 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-cart-loading { margin-top: 12px; }
 .po-item-on-request { color: var(--text-dim) !important; font-style: normal; }
 .po-cart-card .po-item-on-request { color: rgba(255,255,255,0.55) !important; }
+
+/* Sign-in step inside the cart. A requirement used to be sendable with no name
+   and no number, leaving the team an order they couldn't reply to. */
+.cart-signin { border-top: 1px solid rgba(255,255,255,0.15); margin-top: 6px; padding-top: 16px; }
+.cart-signin .po-heading { color: #fff; font-size: 16px; margin-bottom: 6px; }
+.cart-signin-why { font-size: 12.5px; color: rgba(255,255,255,0.68); margin: 0 0 14px; max-width: 52ch; line-height: 1.55; }
+.cart-signin .login-box,
+.cart-signin .card { background: #fff; color: var(--ink); border-radius: var(--facet-sm); padding: 16px; }
+
+/* Login mode tabs. Colours live here rather than inline so the same form is
+   legible on the light login page and on the cart's dark requirement panel. */
+.login-mode-tabs { display: flex; gap: 16px; margin-bottom: 16px; }
+.login-mode-tab {
+  background: none; border: none; padding: 0 0 4px; font-size: 13px; cursor: pointer;
+  font-family: inherit; color: var(--text-dim); font-weight: 400;
+  border-bottom: 2px solid transparent;
+}
+.login-mode-tab.active { color: var(--navy); font-weight: 600; border-bottom-color: var(--gold); }
+.po-cart-card .login-mode-tab { color: rgba(255, 255, 255, 0.65); }
+.po-cart-card .login-mode-tab.active { color: #fff; border-bottom-color: var(--gold-soft); }

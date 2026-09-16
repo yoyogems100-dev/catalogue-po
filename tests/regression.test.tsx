@@ -220,3 +220,26 @@ test('shapes that share no size with the current pick are offered as disabled, n
   assert.equal(incompatible([10, 20]).includes(10), false);
   assert.equal(incompatible([10, 20]).includes(20), false);
 });
+
+test('the same number in any written form resolves to one customer', async () => {
+  const { normalizePhone, isUsablePhone } = await import('../lib/phone');
+  // Identity used a bare digit strip, so each of these became a SEPARATE
+  // customer -- signing in with a different form of your own number produced a
+  // new, empty account with none of your orders or profile on it.
+  const forms = ['9079914601', '+91 90799 14601', '+919079914601', '0091 9079914601', '09079914601', '91-90799-14601'];
+  const canonical = forms.map(normalizePhone);
+  assert.deepEqual(new Set(canonical), new Set(['9079914601']), 'every written form collapses to one key');
+
+  // A genuine 10-digit number that happens to start "91" must not be truncated.
+  assert.equal(normalizePhone('9188888888'), '9188888888');
+  assert.equal(normalizePhone('+91 9188888888'), '9188888888');
+
+  // Non-Indian numbers keep their full digit string, matched consistently.
+  assert.equal(normalizePhone('+1 (415) 555-0134'), '14155550134');
+  assert.equal(normalizePhone('+1 415 555 0134'), '14155550134');
+
+  assert.equal(normalizePhone(''), '');
+  assert.equal(normalizePhone(null), '');
+  assert.equal(isUsablePhone('98765'), false);
+  assert.equal(isUsablePhone('+91 90799 14601'), true);
+});
