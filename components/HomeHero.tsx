@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import HeaderLogo from './HeaderLogo';
 import AccountMenu from './AccountMenu';
+import CartBag from './CartBag';
 
 // The full hero (with the large logo) is the only header shown on first load.
 // The slim topbar is fixed-position and stays invisible until the hero has
@@ -28,10 +29,12 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
     <>
       <div className={`topbar topbar-floating ${showTopbar ? 'topbar-visible' : ''}`}>
         <HeaderLogo height={26} />
+        <CartBag />
         <AccountMenu loggedIn={loggedIn} customerName={customerName} />
       </div>
       <div className="hero hero-compact" ref={heroRef}>
         <div className="hero-top-row">
+          <CartBag />
           <AccountMenu loggedIn={loggedIn} customerName={customerName} />
         </div>
         <div className="eyebrow">Digital Catalogue</div>

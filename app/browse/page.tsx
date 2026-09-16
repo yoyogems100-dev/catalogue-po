@@ -5,6 +5,7 @@ import { photoUrl } from '@/lib/photos';
 import { getCustomerId } from '@/lib/customer-auth';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
+import CartBag from '@/components/CartBag';
 import Footer from '@/components/Footer';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
@@ -78,6 +79,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
     <>
       <div className="topbar">
         <Link href="/"><HeaderLogo height={28} /></Link>
+        <CartBag />
         <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>

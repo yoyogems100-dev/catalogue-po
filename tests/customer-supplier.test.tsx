@@ -5,14 +5,17 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import POSelector from '../components/POSelector';
 
-test('logged-in customers do not see duplicate contact fields', () => {
+test('the category builder no longer carries the requirement or its contact fields', () => {
+  // Submitting moved to /cart, so the builder is only a builder: no contact
+  // fields, no send button, and no second copy of the requirement panel.
   const props = { categoryId: 1, categoryName: 'Test', shapes: [], colors: [], sizes: [], active: false };
-  const guest = renderToStaticMarkup(<POSelector {...props} loggedIn={false} />);
-  const customer = renderToStaticMarkup(<POSelector {...props} loggedIn />);
-  assert.match(guest, /Name \/ company/);
-  assert.match(guest, /WhatsApp number/);
-  assert.doesNotMatch(customer, /Name \/ company/);
-  assert.doesNotMatch(customer, /WhatsApp number/);
+  for (const loggedIn of [false, true]) {
+    const markup = renderToStaticMarkup(<POSelector {...props} loggedIn={loggedIn} />);
+    assert.doesNotMatch(markup, /Name \/ company/);
+    assert.doesNotMatch(markup, /WhatsApp number/);
+    assert.doesNotMatch(markup, /Send requirement/);
+    assert.doesNotMatch(markup, /po-cart-card/);
+  }
 });
 
 test('procurement migration links customers, suppliers, categories, rates and order lines', async () => {

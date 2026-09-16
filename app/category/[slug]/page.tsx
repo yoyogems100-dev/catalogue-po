@@ -8,6 +8,7 @@ import CategoryTabs from './CategoryTabs';
 import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
+import CartBag from '@/components/CartBag';
 import Link from 'next/link';
 
 async function getAccountState() {
@@ -127,6 +128,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
     <>
       <div className="topbar">
         <Link href="/"><HeaderLogo height={28} /></Link>
+        <CartBag />
         <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>

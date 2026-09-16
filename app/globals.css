@@ -1425,3 +1425,63 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .supplier-rate-form { grid-template-columns: 1fr; }
   .admin-inline-create input { width: 100%; }
 }
+
+/* ---- Cart bag in the header --------------------------------------------- */
+/* The requirement used to be reachable only from inside a category page. */
+.cart-bag {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  color: inherit; padding: 4px; line-height: 0; text-decoration: none;
+}
+.cart-bag:hover { opacity: 0.85; }
+.cart-bag:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; border-radius: 3px; }
+.cart-bag-count {
+  position: absolute; top: -3px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 9px; background: var(--ivory-gold); color: var(--ivory-gold-text);
+  font-size: 9.5px; font-weight: 600; display: grid; place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Reference gallery, in the space the requirement panel used to take --- */
+.po-gallery-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.po-gallery-count { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.po-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.po-gallery-tile {
+  position: relative; aspect-ratio: 1; padding: 0; border: none; cursor: pointer; overflow: hidden;
+  background: var(--ivory); border-radius: var(--facet-sm);
+}
+.po-gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.po-gallery-tile:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+/* The colour chart is a tall portrait document, illegible at tile size -- it
+   leads the strip as a labelled way in, not as a preview. */
+.po-gallery-tile--chart {
+  display: grid; place-items: center; gap: 6px; align-content: center;
+  background: #fff; box-shadow: inset 0 0 0 1.5px var(--gold-soft);
+}
+.po-gallery-chart-strip {
+  width: 30px; height: 42px; border-radius: 2px;
+  background: linear-gradient(180deg, #c0392b 0 9%, #d98c2b 9% 20%, #d9c72b 20% 32%,
+    #5fae4f 32% 45%, #3fa9b8 45% 58%, #3f5fb8 58% 72%, #8a4fb8 72% 86%, #b84f8a 86% 100%);
+  box-shadow: 0 2px 8px rgba(18, 35, 63, 0.22);
+}
+.po-gallery-chart-label {
+  font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--gold); font-weight: 500;
+}
+.po-gallery-viewer {
+  position: fixed; inset: 0; z-index: 90; background: rgba(11, 17, 25, 0.94);
+  display: grid; place-items: center; padding: 24px;
+}
+.po-gallery-viewer img { max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 4px; }
+.po-gallery-close {
+  position: absolute; top: 14px; right: 18px; background: none; border: none;
+  color: rgba(255,255,255,0.8); font-size: 30px; line-height: 1; cursor: pointer;
+}
+
+/* ---- /cart -------------------------------------------------------------- */
+.cart-page-wrap .po-cart-card { margin-bottom: 0; }
+.cart-empty-state { text-align: center; padding: 48px 20px 60px; }
+.cart-empty-state .po-heading { margin-bottom: 8px; }
+.cart-empty-state p { color: var(--text-dim); max-width: 46ch; margin: 0 auto 20px; }
+.po-cart-loading { margin-top: 12px; }
+.po-item-on-request { color: var(--text-dim) !important; font-style: normal; }
+.po-cart-card .po-item-on-request { color: rgba(255,255,255,0.55) !important; }

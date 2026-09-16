@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
+import CategoryPhotoGallery from './CategoryPhotoGallery';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
@@ -11,6 +13,7 @@ import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
+import { loadCart, saveCart, mergeIntoCart as mergeCartLines, type CartItem, type RequestType } from '@/lib/cart-storage';
 import QuantityInput from './QuantityInput';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
@@ -23,27 +26,6 @@ type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
 
-type RequestType = 'Place Order' | 'Request Quotation';
-
-type CartItem = {
-  orderSpecs?: OrderSpecs;
-  id: string;
-  categoryId: number;
-  categoryName: string;
-  shapeId: number;
-  shapeName: string;
-  shapeRefPhotoUrl?: string | null;
-  shapeIconKey?: string | null;
-  sizeId: number | null;
-  sizeMm: string;
-  colorId: number;
-  colorName: string;
-  colorHex: string;
-  colorRefPhotoUrl?: string | null;
-  qty: number;
-  requestType: RequestType;
-};
-
 // Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" (x/X/* used
 // interchangeably) -- range-select and sort both key off the leading
 // number either way, so "4x6" sits with "4" and a 4x6-to-8x6 range picks
@@ -51,27 +33,6 @@ type CartItem = {
 function strictSizeNum(s: string): number {
   const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
   return m ? parseFloat(m[1]) : NaN;
-}
-
-const CART_KEY = 'yoyo_po_cart_v2';
-
-function loadCart(): CartItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(CART_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCart(cart: CartItem[]) {
-  try {
-    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  } catch {
-    // storage full or disabled -- cart still works in-memory for this session
-  }
 }
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
@@ -122,22 +83,8 @@ export default function POSelector({
   // Per-line, not per-order -- one requirement can mix Place Order and Request
   // Quotation lines. Defaults to Place Order, the more common/actionable case.
   const [pickRequestType, setPickRequestType] = useState<RequestType>('Place Order');
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [comment, setComment] = useState('');
-  const reviewDialog = useRef<HTMLDialogElement>(null);
-  // "Add line" happens at the top of the page while the requirement panel sits
-  // below the fold, so on a phone nothing visibly changed when a buyer added
-  // lines. The summary bar is always on screen and flashes on each add.
-  const cartPanel = useRef<HTMLElement>(null);
   const [justAdded, setJustAdded] = useState(0);
-  const submissionPending = useRef(false);
-  const [reviewing, setReviewing] = useState(false);
-  useEffect(() => { if (reviewing) reviewDialog.current?.showModal(); }, [reviewing]);
-  const [sending, setSending] = useState(false);
-  const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
-  const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
 
   // POSelector isn't remounted when a customer client-side-navigates from one
   // category page to another (same component, new categoryId prop) -- without
@@ -155,7 +102,6 @@ export default function POSelector({
     setRangeMax('');
     setPickQty('');
     setPickRequestType('Place Order');
-    setEditingOption(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId]);
 
@@ -359,78 +305,19 @@ export default function POSelector({
   const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
   const unpricedLines = cart.filter((item) => unitPriceInr(item) === null).length;
 
+  // The dedupe rule itself lives in lib/cart-storage so /cart applies exactly
+  // the same one; only the shape photo/icon enrichment is local, since this is
+  // the one place that has the category's shape list to hand.
   function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
-    const existing = current.find(
-      (i) =>
-        i.categoryId === item.categoryId &&
-        i.shapeId === item.shapeId &&
-        i.colorId === item.colorId &&
-        i.sizeId === item.sizeId &&
-        i.requestType === item.requestType && specKey(i.orderSpecs) === specKey(item.orderSpecs)
-    );
-    if (existing) {
-      return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
-    }
-    const shape = shapes.find(s => s.id === item.shapeId);
-    return [...current, {...item, shapeRefPhotoUrl: shape?.refPhotoUrl, shapeIconKey: shape?.iconKey}];
+    const shape = shapes.find((s) => s.id === item.shapeId);
+    return mergeCartLines(current, { ...item, shapeRefPhotoUrl: shape?.refPhotoUrl, shapeIconKey: shape?.iconKey });
   }
 
   // Clicking away commits whatever's currently checked (like a native <select>
   // dismissing on blur) -- only the explicit close button discards. Scoped to
   // this one panel's own DOM subtree so a click inside the nested IconSelect's
   // own popup (picking an option) never counts as "outside".
-  function ItemOptionEditor({ item, editingOption, onApply, onDiscard }: {
-    item: CartItem;
-    editingOption: { itemId: string; kind: 'size' | 'color'; values: number[] };
-    onApply: () => void;
-    onDiscard: () => void;
-  }) {
-    const panelRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-      function onDocMouseDown(e: MouseEvent) {
-        if (panelRef.current && !panelRef.current.contains(e.target as Node)) onApply();
-      }
-      document.addEventListener('mousedown', onDocMouseDown);
-      return () => document.removeEventListener('mousedown', onDocMouseDown);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onApply]);
 
-    return (
-      <div className="po-item-option-editor" ref={panelRef}>
-        <button type="button" className="po-item-option-close" aria-label="Close without saving" onClick={onDiscard}>&times;</button>
-        <div className="po-item-option-row">
-          <IconSelect
-            categoryId={item.categoryId}
-            multiple
-            optionKind={editingOption.kind === 'size' ? 'size' : undefined}
-            options={editingOption.kind === 'size'
-              ? sizes.filter((option) => option.shape_id === item.shapeId).map((option) => ({ id: option.id, name: `${option.size_mm} mm` }))
-              : colors}
-            values={editingOption.values}
-            onChange={(values) => setEditingOption({ ...editingOption, values })}
-            placeholder={editingOption.kind === 'size' ? 'Choose sizes' : 'Choose colors'}
-            leading={editingOption.kind === 'color' ? 'swatch' : undefined}
-          />
-          <button type="button" className="btn" onClick={onApply}>Apply</button>
-        </div>
-        <p>Select one or more. Clearing all removes this line.</p>
-      </div>
-    );
-  }
-
-  function StoneReference({item}:{item:CartItem}) {
-    // A real photo of this shape -- this category's own upload, or the shared
-    // default (e.g. Moissanite's gemstone photos, close enough across categories
-    // that a dedicated photo per category isn't needed) -- or the vector outline.
-    // Never the color's own photo: that would show a photo of the wrong thing
-    // labeled as the shape. Glass Pearls is the one deliberate exception: shape is
-    // always Round and never shown to the customer, so the color -- the thing that
-    // actually varies -- is the meaningful image here instead.
-    const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
-      ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
-      : (item.shapeRefPhotoUrl || (item.categoryId === categoryId ? shapes.find(s=>s.id===item.shapeId)?.refPhotoUrl : null));
-    return <span className="requirement-stone"><ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shapes.find(s=>s.id===item.shapeId)?.iconKey} fallbackSize={36} /></span>;
-  }
 
   function addLine() {
     if (!canAdd) {
@@ -490,7 +377,6 @@ export default function POSelector({
       setToast('Those selections are no longer valid for this category. Please pick again.');
       return;
     }
-    setReceipt(null);
     setCart(next);
     setJustAdded((n) => n + 1);
     setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
@@ -503,81 +389,10 @@ export default function POSelector({
     setPickRequestType('Place Order');
   }
 
-  function updateQty(id: string, qty: number) {
-    setCart(cart.map((i) => {
-      if (i.id !== id) return i;
-      // 0 means "not specified" and is only a valid answer on a quotation.
-      const floor = i.requestType === 'Request Quotation' ? 0 : 1;
-      return { ...i, qty: Math.max(floor, qty) };
-    }));
-  }
 
-  function updateItemRequestType(id: string, requestType: RequestType) {
-    setCart(cart.map((i) => (i.id === id ? { ...i, requestType } : i)));
-  }
 
-  function removeItem(id: string) {
-    setCart(cart.filter((i) => i.id !== id));
-  }
 
-  function replaceItemOptions(item: CartItem, nextSizeIds: number[], nextColorIds: number[]) {
-    let next = cart.filter((line) => line.id !== item.id);
-    for (const sizeId of nextSizeIds) {
-      const size = sizes.find((option) => option.id === sizeId && option.shape_id === item.shapeId);
-      if (!size) continue;
-      for (const colorId of nextColorIds) {
-        const color = colors.find((option) => option.id === colorId);
-        if (!color) continue;
-        next = mergeIntoCart(next, {
-          ...item,
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          sizeId: size.id,
-          sizeMm: size.size_mm,
-          colorId: color.id,
-          colorName: color.name,
-          colorHex: color.hex || '#ccc',
-          colorRefPhotoUrl: color.refPhotoUrl || null,
-        });
-      }
-    }
-    setCart(next);
-    setEditingOption(null);
-  }
 
-  async function sendRequirement() {
-    if (submissionPending.current) return;
-    if (cart.length === 0) {
-      setToast('Add at least one line to your order first.');
-      return;
-    }
-    submissionPending.current = true;
-    setSending(true);
-    try {
-      const res = await fetch('/api/orders/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart, contactName, contactPhone, comment })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save order');
-
-      const number = (whatsappNumber || '').replace(/\D/g, '');
-      const url = number
-        ? `https://wa.me/${number}?text=${encodeURIComponent(data.message)}`
-        : `https://wa.me/?text=${encodeURIComponent(data.message)}`;
-      setReceipt({ id: data.orderId, whatsappUrl: url, quotation: cart.every(item => item.requestType === 'Request Quotation') });
-
-      setReviewing(false);
-      setCart([]);
-      setComment('');
-      setToast(`Order #${data.orderId} saved successfully.`);
-    } catch (err: any) {
-      setToast(err.message || 'Something went wrong. Please try again.');
-    } finally {
-      submissionPending.current = false;
-      setSending(false);
-    }
-  }
 
   return (
     <div className="po-wrap">
@@ -585,7 +400,7 @@ export default function POSelector({
         <h2 className="po-heading">Add to Order</h2>
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
-        {specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setReceipt(null);}} /> : <>
+        {specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setJustAdded(n=>n+1);}} /> : <>
         <div className="po-add-form">
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
@@ -698,191 +513,18 @@ export default function POSelector({
         </div>
       </section>
 
-      <section className="po-card po-cart-card" ref={cartPanel}>
-        <div className="po-cart-head">
-          <h2 className="po-heading">Your Requirement</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="po-cart-badge">{cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs</span>
-            {cart.length > 0 && (
-              <button
-                type="button"
-                className="btn-ghost po-clear-cart-btn"
-                onClick={() => { if (confirm('Clear every line from your requirement?')) setCart([]); }}
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        </div>
+      {/* The requirement used to sit here, below the fold while lines were
+          being added and unreachable from anywhere else on the site. It now
+          lives at /cart, reachable from the header on every page -- which frees
+          this space for the reference photos, which are what a buyer actually
+          wants beside the controls they are choosing with. */}
+      <CategoryPhotoGallery photos={photos} categoryName={categoryName} colorChartUrl={colorChartUrl} />
 
-        {cart.length === 0 ? (
-          <div className="po-empty po-empty-cart">Your requirement is empty. Choose your options above, then add a line to get started.</div>
-        ) : (
-          <div className="po-requirement-groups">
-            {([
-              { type: 'Place Order' as RequestType, title: 'Purchase', moveLabel: null },
-              { type: 'Request Quotation' as RequestType, title: 'Request quotation', moveLabel: 'Move to purchase' },
-            ]).map((group) => {
-              const groupItems = cart.filter((item) => item.requestType === group.type);
-              if (groupItems.length === 0) return null;
-              const groupPieces = groupItems.reduce((sum, item) => sum + item.qty, 0);
-              // New lines are pushed onto the end of `cart`, so walking it in reverse
-              // surfaces the most recently added line -- and, since that's also the
-              // first time we see its category, the most recently touched category --
-              // first. Items within a category keep that same newest-first order.
-              const categoryGroups: { categoryId: number; categoryName: string; items: CartItem[] }[] = [];
-              const categoryIndex = new Map<number, number>();
-              for (const item of [...groupItems].reverse()) {
-                if (!categoryIndex.has(item.categoryId)) {
-                  categoryIndex.set(item.categoryId, categoryGroups.length);
-                  categoryGroups.push({ categoryId: item.categoryId, categoryName: item.categoryName, items: [] });
-                }
-                categoryGroups[categoryIndex.get(item.categoryId)!].items.push(item);
-              }
-              return <section className="po-requirement-group" key={group.type} aria-label={group.title}>
-                <header className="po-requirement-group-head">
-                  <h3>{group.title}</h3>
-                  <span>{groupItems.length} {groupItems.length === 1 ? 'line' : 'lines'} · {groupPieces.toLocaleString('en-IN')} pcs</span>
-                </header>
-                {categoryGroups.map((catGroup) => (
-                <div className="po-requirement-category" key={catGroup.categoryId}>
-                  <div className="po-requirement-category-head">
-                    <strong>{catGroup.categoryName}</strong>
-                    <span>{catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}</span>
-                  </div>
-                  <div className="po-item-list">
-            {catGroup.items.map((item) => {
-              const unit = unitPriceInr(item);
-              return (
-              <div key={item.id} className="po-item-row">
-                <StoneReference item={item} />
-                <div className="po-item-details">
-                  <strong>{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.categoryId === categoryId && !item.orderSpecs && item.sizeId ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button> : `${item.sizeMm}mm`}</strong>
-                  <span>
-                    {/* Category now lives in the group header above, not repeated per line.
-                        Glass Pearls' main image (StoneReference) is already the color's own
-                        photo -- a swatch here would just show the same picture twice. */}
-                    {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && <ColorSwatch hex={item.colorHex} refPhotoUrl={item.colorRefPhotoUrl} name={item.colorName} size={13} />}
-                    {item.categoryId === categoryId && !item.orderSpecs
-                      ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'color', values: [item.colorId] })}>{item.colorName}</button>
-                      : item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}
-                  </span>
-                  {unit !== null && (
-                    <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                  )}
-                  {group.moveLabel && <button
-                    type="button"
-                    className="po-item-move-btn"
-                    onClick={() => updateItemRequestType(item.id, 'Place Order')}
-                  >
-                    {group.moveLabel}
-                  </button>}
-                </div>
-                {item.requestType === 'Request Quotation' && item.qty === 0 ? (
-                  // Quantity is optional on a quotation; offer it rather than
-                  // demand it, so the line can be sent as a pure price enquiry.
-                  <label className="po-item-qty"><span>Qty (optional)</span>
-                    <QuantityInput
-                      value={0}
-                      allowEmpty
-                      placeholder="Any"
-                      label={`Optional quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
-                      onChange={(quantity) => updateQty(item.id, quantity * quantityFactor(item.orderSpecs))}
-                      onInvalid={() => setToast('Enter a positive whole quantity, or leave it blank for a quotation.')}
-                    />
-                  </label>
-                ) : (
-                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind==='rainbow'?'strips':'pcs'})</span>
-                <QuantityInput
-                  value={item.qty / quantityFactor(item.orderSpecs)}
-                  label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
-                  onChange={(quantity) => updateQty(item.id, quantity * quantityFactor(item.orderSpecs))}
-                  onInvalid={() => setToast('Enter a positive whole quantity. The previous quantity has been kept.')}
-                />
-                </label>
-                )}
-                <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
-                {editingOption?.itemId === item.id && <ItemOptionEditor
-                  item={item}
-                  editingOption={editingOption}
-                  onDiscard={() => setEditingOption(null)}
-                  onApply={() => replaceItemOptions(
-                    item,
-                    editingOption.kind === 'size' ? editingOption.values : (item.sizeId ? [item.sizeId] : []),
-                    editingOption.kind === 'color' ? editingOption.values : [item.colorId]
-                  )}
-                />}
-              </div>
-              );
-            })}
-                  </div>
-                </div>
-                ))}
-              </section>;
-            })}
-          </div>
-        )}
-        {hasAnyPricedLine && (
-          <div className="po-cart-total mono">
-            {unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            {unpricedLines > 0 && <small className="po-price-note">{unpricedLines} {unpricedLines === 1 ? 'line requires' : 'lines require'} price confirmation. Final pricing is confirmed when processed.</small>}
-          </div>
-        )}
+      {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
 
-        {receipt && <div className="po-card" role="status" aria-live="polite">
-          <h3>{receipt.quotation ? 'Quotation requested' : 'Order placed'} — #{receipt.id}</h3>
-          <p>Our team will confirm pricing and availability. Your submission has been saved.</p>
-          <p><a href={`/account/orders/${receipt.id}`}>View in My Orders (sign in)</a></p>
-          {!loggedIn && <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>}
-          <a className="btn-ghost" href={receipt.whatsappUrl} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-        </div>}
-        <div className="po-send-box">
-          {!loggedIn && <div className="po-send-row">
-            <label>
-              Name / company
-              <input type="text" autoComplete="organization" placeholder="Your name or business (optional)" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-            </label>
-            <label>
-              WhatsApp number (optional)
-              <input type="tel" autoComplete="tel" placeholder="e.g. 9079914601" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-            </label>
-          </div>}
-          <label className="po-block-label">
-            Additional comment
-            <textarea rows={3} placeholder="Message" value={comment} onChange={(e) => setComment(e.target.value)} />
-          </label>
-          <p className="po-send-help">Our team will confirm pricing and availability.{!loggedIn && ' Add your WhatsApp number for updates.'}</p>
-          <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>
-            {sending ? 'Submitting…' : cart.length === 0 && receipt ? (receipt.quotation ? 'Quotation requested' : 'Order placed') : 'Send requirement'}
-          </button>
-        </div>
-      </section>
-
-      {reviewing && <dialog ref={reviewDialog} className="order-review-dialog" aria-labelledby="order-review-title"
-        onCancel={(event) => { event.preventDefault(); if (!sending) setReviewing(false); }}>
-        <h2 id="order-review-title">Confirm your requirement</h2>
-        <p>{cart.length} lines · {cart.reduce((sum, item) => sum + item.qty, 0).toLocaleString('en-IN')} pieces</p>
-        <ul className="order-review-lines">{[...cart].reverse().map(item => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>}<br />
-          {item.qty > 0 ? `${item.qty.toLocaleString('en-IN')} pieces` : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
-        </div></li>)}</ul>
-        {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
-        {loggedIn ? <p>Your saved account details will be used for this requirement.</p> : <p><strong>Contact:</strong> {contactName || 'Not provided'}<br />WhatsApp: {contactPhone || 'Not provided'}</p>}
-        {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
-        <p>Our team will confirm pricing and availability before your order is confirmed.</p>
-        <div className="order-review-actions">
-          <button className="btn-ghost" onClick={() => setReviewing(false)} disabled={sending}>Back to edit</button>
-          <button className="btn" onClick={sendRequirement} disabled={sending}>{sending ? 'Submitting…' : 'Send requirement'}</button>
-        </div>
-        {toast && <p role="status">{toast}</p>}
-      </dialog>}
-      {toast && !reviewing && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
-
-      {/* Running total, always on screen once there's something to total. It is
-          deliberately a summary, not a second cart: tapping it takes the buyer
-          to the real requirement panel rather than duplicating it. */}
-      {hydrated && cart.length > 0 && !receipt && (
+      {/* Running total, always on screen once there's something to total, and
+          the route through to the full requirement at /cart. */}
+      {hydrated && cart.length > 0 && (
         <div className={`po-summary-bar${justAdded ? ' po-summary-bar--bump' : ''}`} key={justAdded}>
           <div className="po-summary-figures">
             <span className="po-summary-label">Your requirement</span>
@@ -891,13 +533,7 @@ export default function POSelector({
               {hasAnyPricedLine && <> · ₹{cartTotalInr.toLocaleString('en-IN')}</>}
             </span>
           </div>
-          <button
-            type="button"
-            className="po-summary-action"
-            onClick={() => cartPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          >
-            Review
-          </button>
+          <Link href="/cart" className="po-summary-action">Review &amp; send</Link>
         </div>
       )}
     </div>
