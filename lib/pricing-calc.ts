@@ -14,9 +14,18 @@ export function lineInrPrice(pricing: CategoryPricing, shapeId: number, shapeSiz
   return price === undefined ? null : price;
 }
 
-export function cartLinePrice(pricing: CategoryPricing | undefined, activeCategoryId: number,
+// A saved requirement can span several categories, so pricing is keyed by
+// category: a line is only ever priced from its OWN category's price list, and
+// a category with no entry here simply prices at null. Passing a single price
+// list plus an "active category" used to mean every line from another category
+// silently lost its price -- the same basket showed a total on one category
+// page and nothing at all on the next.
+export type PricingByCategory = Record<number, CategoryPricing | undefined>;
+
+export function cartLinePrice(pricingByCategory: PricingByCategory | undefined,
   item: { orderSpecs?: unknown; categoryId: number; shapeId: number; sizeId: number | null; colorId: number }): number | null {
-  // A saved requirement can contain several categories; the page only has its own price list.
-  if (item.orderSpecs || !pricing || item.categoryId !== activeCategoryId || item.sizeId == null) return null;
+  if (item.orderSpecs || item.sizeId == null) return null;
+  const pricing = pricingByCategory?.[item.categoryId];
+  if (!pricing) return null;
   return lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId);
 }

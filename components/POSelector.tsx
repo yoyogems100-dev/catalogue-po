@@ -105,6 +105,11 @@ export default function POSelector({
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  // The server renders this category's price list, so its own lines are priced
+  // on first paint with no flash. Lines the buyer added in OTHER categories are
+  // priced from lists fetched here -- without them the same basket showed a
+  // total on one category page and nothing at all on the next.
+  const [otherPricing, setOtherPricing] = useState<Record<number, CategoryPricing>>({});
   // Multi-select: an order line can now cover several shapes, colors, and
   // sizes at once -- "Add line" fans out into one cart line per
   // shape x color x size combination.
@@ -121,6 +126,11 @@ export default function POSelector({
   const [contactPhone, setContactPhone] = useState('');
   const [comment, setComment] = useState('');
   const reviewDialog = useRef<HTMLDialogElement>(null);
+  // "Add line" happens at the top of the page while the requirement panel sits
+  // below the fold, so on a phone nothing visibly changed when a buyer added
+  // lines. The summary bar is always on screen and flashes on each add.
+  const cartPanel = useRef<HTMLElement>(null);
+  const [justAdded, setJustAdded] = useState(0);
   const submissionPending = useRef(false);
   const [reviewing, setReviewing] = useState(false);
   useEffect(() => { if (reviewing) reviewDialog.current?.showModal(); }, [reviewing]);
@@ -239,11 +249,41 @@ export default function POSelector({
 
   const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
-  // Unit price is looked up live from the pricing prop, not stored on the cart
-  // item -- so it always reflects the current admin-set price/multiplier, and
-  // categories with no pricing set up yet just show nothing (no crash).
+  const pricingByCategory = useMemo(
+    () => ({ ...otherPricing, ...(pricing ? { [categoryId]: pricing } : {}) }),
+    [otherPricing, pricing, categoryId]
+  );
+
+  // Fetch a price list for every other category sitting in the cart, once each.
+  const missingPricingIds = useMemo(() => {
+    const ids = new Set<number>();
+    cart.forEach((item) => {
+      if (item.categoryId !== categoryId && !otherPricing[item.categoryId]) ids.add(item.categoryId);
+    });
+    return Array.from(ids).sort((a, b) => a - b);
+  }, [cart, categoryId, otherPricing]);
+
+  const missingKey = missingPricingIds.join(',');
+  useEffect(() => {
+    if (!missingKey) return;
+    let active = true;
+    fetch(`/api/category-pricing?ids=${missingKey}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data?.pricing) return;
+        // Merge rather than replace: the buyer may have added another
+        // category while this request was in flight.
+        setOtherPricing((prev) => ({ ...prev, ...data.pricing }));
+      })
+      .catch(() => { /* prices stay unresolved; lines still submit correctly */ });
+    return () => { active = false; };
+  }, [missingKey]);
+
+  // Unit price is looked up live from the pricing map, not stored on the cart
+  // item -- so it always reflects the current admin-set price, and categories
+  // with no pricing set up yet just show nothing (no crash).
   function unitPriceInr(item: CartItem): number | null {
-    return cartLinePrice(pricing, categoryId, item);
+    return cartLinePrice(pricingByCategory, item);
   }
   const cartTotalInr = cart.reduce((sum, item) => {
     const unit = unitPriceInr(item);
@@ -379,6 +419,7 @@ export default function POSelector({
     }
     setReceipt(null);
     setCart(next);
+    setJustAdded((n) => n + 1);
     setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
     // Reset only size + qty so the same shape/color picks can be reused for the next size quickly
     setPickSizeIdxs([]);
@@ -511,7 +552,7 @@ export default function POSelector({
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="Min mm"
+                  placeholder="Min"
                   aria-label="Minimum size in millimetres"
                   value={rangeMin}
                   onChange={(e) => setRangeMin(e.target.value)}
@@ -520,7 +561,7 @@ export default function POSelector({
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="Max mm"
+                  placeholder="Max"
                   aria-label="Maximum size in millimetres"
                   value={rangeMax}
                   onChange={(e) => setRangeMax(e.target.value)}
@@ -570,7 +611,7 @@ export default function POSelector({
         </div>
       </section>
 
-      <section className="po-card po-cart-card">
+      <section className="po-card po-cart-card" ref={cartPanel}>
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -735,6 +776,28 @@ export default function POSelector({
         {toast && <p role="status">{toast}</p>}
       </dialog>}
       {toast && !reviewing && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
+
+      {/* Running total, always on screen once there's something to total. It is
+          deliberately a summary, not a second cart: tapping it takes the buyer
+          to the real requirement panel rather than duplicating it. */}
+      {hydrated && cart.length > 0 && !receipt && (
+        <div className={`po-summary-bar${justAdded ? ' po-summary-bar--bump' : ''}`} key={justAdded}>
+          <div className="po-summary-figures">
+            <span className="po-summary-label">Your requirement</span>
+            <span className="po-summary-counts mono">
+              {cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs
+              {hasAnyPricedLine && <> · ₹{cartTotalInr.toLocaleString('en-IN')}</>}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="po-summary-action"
+            onClick={() => cartPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          >
+            Review
+          </button>
+        </div>
+      )}
     </div>
   );
 }
