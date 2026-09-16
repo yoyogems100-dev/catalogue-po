@@ -6,7 +6,15 @@ import ProfileCompletionForm from './ProfileCompletionForm';
 type Mode = 'phone' | 'email';
 type Step = 'enter' | 'verify' | 'profile';
 
-export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+export default function LoginForm({ onSuccess, phoneOnly = false }: {
+  onSuccess: () => void;
+  /**
+   * Hide the email option. Email delivery isn't configured, so that route
+   * always fails -- fine as a clearly-messaged dead end on the login page, but
+   * not on the path to sending a requirement, where it would stop an order.
+   */
+  phoneOnly?: boolean;
+}) {
   const [mode, setMode] = useState<Mode>('phone');
   const [step, setStep] = useState<Step>('enter');
   const [phone, setPhone] = useState('');
@@ -110,19 +118,19 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div>
-      {step !== 'profile' && (
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+      {step !== 'profile' && !phoneOnly && (
+        <div className="login-mode-tabs">
           <button
             type="button"
             onClick={() => { setMode('phone'); resetToEnter(); }}
-            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'phone' ? 'var(--navy)' : '#756e5c', fontWeight: mode === 'phone' ? 600 : 400, borderBottom: mode === 'phone' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
+            className={`login-mode-tab${mode === 'phone' ? ' active' : ''}`}
           >
             Phone
           </button>
           <button
             type="button"
             onClick={() => { setMode('email'); resetToEnter(); }}
-            style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, cursor: 'pointer', color: mode === 'email' ? 'var(--navy)' : '#756e5c', fontWeight: mode === 'email' ? 600 : 400, borderBottom: mode === 'email' ? '2px solid var(--gold)' : '2px solid transparent', paddingBottom: 4 }}
+            className={`login-mode-tab${mode === 'email' ? ' active' : ''}`}
           >
             Email
           </button>

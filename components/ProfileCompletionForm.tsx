@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Commercial'];
+const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Retailer', 'Wholesaler', 'Exporter', 'Commercial'];
 
 export default function ProfileCompletionForm({
   onSuccess,
@@ -17,6 +17,7 @@ export default function ProfileCompletionForm({
   const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
   const [dealsIn, setDealsIn] = useState<string[]>([]);
+  const [goToRequirements, setGoToRequirements] = useState('');
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +41,7 @@ export default function ProfileCompletionForm({
     const res = await fetch('/api/account/profile/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone: needsPhone ? phone : undefined, company, dealsIn, email: showEmail ? email : undefined })
+      body: JSON.stringify({ name, phone: needsPhone ? phone : undefined, company, dealsIn, goToRequirements, email: showEmail ? email : undefined })
     });
     setSaving(false);
     if (res.ok) {
@@ -100,6 +101,14 @@ export default function ProfileCompletionForm({
           </label>
         ))}
       </div>
+      <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your go-to requirements (optional)</label>
+      <textarea
+        rows={2}
+        placeholder="e.g. Round white CZ 1-3mm, regular monthly"
+        value={goToRequirements}
+        onChange={(e) => setGoToRequirements(e.target.value)}
+        style={{ marginBottom: 12 }}
+      />
       {showEmail && (
         <>
           <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email (optional)</label>

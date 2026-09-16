@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizePhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { customerCookieName, signCustomerToken } from '@/lib/customer-auth';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
 
 export async function POST(req: NextRequest) {
   const { phone, code } = await req.json();
-  const digits = (phone || '').replace(/\D/g, '');
+  const digits = normalizePhone(phone);
   const trimmedCode = (code || '').trim();
 
   if (digits.length < 10 || trimmedCode.length !== 6) {

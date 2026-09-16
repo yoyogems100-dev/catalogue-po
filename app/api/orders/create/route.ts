@@ -2,7 +2,6 @@ import { validateOrderSpecs } from '@/lib/validate-order-specs';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
-import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
@@ -14,8 +13,6 @@ export async function POST(req: NextRequest) {
   let cart: OrderCartItem[] = Array.isArray(body.cart)
     ? body.cart.map((item: OrderCartItem) => ({ ...item, requestType: item.requestType || 'Place Order' }))
     : [];
-  const contactName: string = (body.contactName || '').trim();
-  const contactPhone: string = (body.contactPhone || '').trim();
   const comment: string = (body.comment || '').trim();
 
   if (cart.length === 0) {
@@ -33,30 +30,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Every purchase line needs a positive whole quantity.' }, { status: 400 });
   }
 
-  // Placing an order never requires auth -- this phone field is optional and
-  // unverified, just used to address a notification about this one order (Phase 3
-  // Part 0). A logged-in session still wins when present, purely so the order shows
-  // up in their own history automatically; it's not a requirement to place one.
   try { cart = await validateOrderSpecs(cart); } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:'Invalid order options'},{status:400}); }
-  let customerId: number | null = await getCustomerId();
 
-  if (!customerId && contactPhone) {
-    try {
-      const identity = await findOrCreateCustomer({ phone: contactPhone });
-      customerId = identity.id;
-    } catch (error) {
-      return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not identify the customer.' }, { status: 400 });
-    }
+  // Sending a requirement now requires a verified account. Guest submissions
+  // could arrive with no name and no number at all, leaving the team an order
+  // they had no way to reply to -- and leaving the buyer no record of it. The
+  // cart asks unauthenticated visitors to sign in before it offers Send; this
+  // is the matching server-side rule, so the check can't be skipped.
+  const customerId: number | null = await getCustomerId();
+  if (!customerId) {
+    return NextResponse.json(
+      { error: 'Please sign in so we can confirm price and availability with you.' },
+      { status: 401 }
+    );
   }
 
-  // Never overwrite a name that's already on file (e.g. from Phase 3 profile
-  // completion) -- only fill it in if the customer genuinely has none yet.
-  if (customerId && contactName) {
-    const { data: existing } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
-    if (!existing?.name) {
-      await supabaseAdmin.from('customers').update({ name: contactName }).eq('id', customerId);
-    }
-  }
 
   // Prices are always computed fresh here from the admin-set price/multiplier,
   // never trusted from the client -- a cart can span multiple categories, so
@@ -70,6 +58,10 @@ export async function POST(req: NextRequest) {
     const unitPriceInr = !item.orderSpecs && pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
     return { ...item, unitPriceInr };
   });
+
+  const { data: customerRecord } = await supabaseAdmin
+    .from('customers').select('name, company').eq('id', customerId).maybeSingle();
+  const contactName = (customerRecord?.name || customerRecord?.company || '').trim();
 
   const message = buildOrderMessage(cartWithPrices, contactName, comment);
 

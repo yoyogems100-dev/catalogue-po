@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { normalizePhone } from '@/lib/phone';
 
 // Central identity lookup/creation, used everywhere a customer gets identified:
 // order placement, OTP/email login verification, admin order creation.
@@ -20,7 +21,7 @@ export async function findOrCreateCustomer({
   phone?: string | null;
   email?: string | null;
 }): Promise<{ id: number; name: string | null; isNew: boolean }> {
-  const cleanPhone = phone ? phone.replace(/\D/g, '') : null;
+  const cleanPhone = phone ? (normalizePhone(phone) || null) : null;
   const cleanEmail = email ? email.trim().toLowerCase() : null;
 
   if (cleanPhone) {
