@@ -37,7 +37,7 @@ async function getData() {
     fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabasePublic.from('category_colors').select('category_id, color_id').range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabasePublic.from('category_shape_sizes').select('category_id').range(from, to)),
     supabasePublic.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
-    supabasePublic.from('colors').select('id, name, hex_value').order('sort_order').order('name')
+    supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name')
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {
@@ -85,7 +85,7 @@ async function getData() {
   });
 
   const shapesFormatted = (allShapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key }));
-  const colorsFormatted = (allColors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value }));
+  const colorsFormatted = (allColors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 
   return { categories: categoriesFormatted, allShapes: shapesFormatted, allColors: colorsFormatted };
 }
