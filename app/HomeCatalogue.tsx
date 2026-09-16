@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
 
-type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null };
+type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Category = {
   id: number;
   num: number;
