@@ -43,13 +43,7 @@ function saveCart(cart: any[]) {
   }
 }
 
-const CartIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M4 7h2l1.5 9.5a2 2 0 0 0 2 1.5h7a2 2 0 0 0 2-1.66L20 9H7" />
-    <circle cx="10" cy="20" r="1.4" fill="currentColor" stroke="none" />
-    <circle cx="17" cy="20" r="1.4" fill="currentColor" stroke="none" />
-  </svg>
-);
+
 
 export default function CategoryClient({
   categoryId,
@@ -77,59 +71,6 @@ export default function CategoryClient({
   // elsewhere. Written into the same localStorage cart POSelector reads, so
   // it shows up under "Your Requirement" the moment the customer switches
   // to the "Raise Purchase Order" tab.
-  function addPhotoToCart(photo: Photo) {
-    if(specialCategory(categoryId)) return;
-    if (photo.shapeIds.length === 0 || photo.colorIds.length === 0 || photo.sizeIds.length === 0) {
-      setAddFeedback((cur) => ({ ...cur, [photo.id]: 'Not tagged with a shape/color/size yet.' }));
-      setTimeout(() => setAddFeedback((cur) => { const next = { ...cur }; delete next[photo.id]; return next; }), 2500);
-      return;
-    }
-
-    const cart = loadCart();
-    let addedCount = 0;
-    let firstLine = '';
-
-    photo.shapeIds.forEach((shapeId) => {
-      const shape = shapes.find((s) => s.id === shapeId);
-      if (!shape) return;
-      photo.colorIds.forEach((colorId) => {
-        const color = colors.find((c) => c.id === colorId);
-        if (!color) return;
-        photo.sizeIds.forEach((sizeId) => {
-          const size = sizes.find((s) => s.id === sizeId);
-          if (!size || size.shape_id !== shapeId) return;
-          const existing = cart.find(
-            (i) => i.categoryId === categoryId && i.shapeId === shapeId && i.sizeId === sizeId && i.colorId === colorId && i.requestType === 'Place Order'
-          );
-          if (existing) {
-            existing.qty += DEFAULT_QTY;
-          } else {
-            cart.push({
-              id: `${Date.now()}-${Math.random().toString(16).slice(2)}-${addedCount}`,
-              categoryId,
-              categoryName,
-              shapeId,
-              shapeName: shape.name,
-              sizeId,
-              sizeMm: size.size_mm,
-              colorId,
-              colorName: color.name,
-              colorHex: color.hex || '#ccc',
-              qty: DEFAULT_QTY,
-              requestType: 'Place Order'
-            });
-          }
-          addedCount++;
-          if (addedCount === 1) firstLine = `${color.name} · ${size.size_mm}mm ${shape.name}`;
-        });
-      });
-    });
-
-    saveCart(cart);
-    const message = addedCount === 1 ? `${firstLine} — ${DEFAULT_QTY} pcs added` : `${addedCount} lines added to your requirement`;
-    setAddFeedback((cur) => ({ ...cur, [photo.id]: message }));
-    setTimeout(() => setAddFeedback((cur) => { const next = { ...cur }; delete next[photo.id]; return next; }), 2500);
-  }
 
   const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
   const [colorFilter, setColorFilter] = useState<number | 'all'>('all');
@@ -267,15 +208,9 @@ export default function CategoryClient({
                 style={{ cursor: 'zoom-in' }}
               >
                 {p.url && <img src={p.url} alt={details || 'Product photo'} loading="lazy" />}
-                <button
-                  type="button"
-                  className="photo-add-cart" hidden={!!specialCategory(categoryId)}
-                  aria-label={`Add ${details || 'this photo'} to requirement`}
-                  title="Add to requirement"
-                  onClick={(e) => { e.stopPropagation(); addPhotoToCart(p); }}
-                >
-                  <CartIcon />
-                </button>
+                {/* The add-to-requirement shortcut is gone: Explore Photos is for
+                    looking, and a one-tap add from a photo produced lines whose
+                    shape/size/colour the buyer never actually chose. */}
                 {/* Specs stay hidden until hover, keeping the grid clean --
                     same info detailsFor() already builds. */}
                 {details && <div className="photo-card-details">{details}</div>}
@@ -308,26 +243,28 @@ export default function CategoryClient({
               {detailsFor(filtered[lightbox])}
             </p>
           )}
-          {lightbox > 0 && (
-            <button
-              type="button"
-              aria-label="Previous photo"
-              style={{ position: 'fixed', top: '50%', left: 12, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer' }}
-              onClick={(e) => { e.stopPropagation(); setLightbox(lightbox - 1); }}
-            >
-              &#8249;
-            </button>
-          )}
-          {lightbox < filtered.length - 1 && (
-            <button
-              type="button"
-              aria-label="Next photo"
-              style={{ position: 'fixed', top: '50%', right: 12, transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer' }}
-              onClick={(e) => { e.stopPropagation(); setLightbox(lightbox + 1); }}
-            >
-              &#8250;
-            </button>
-          )}
+          {/* Always present, disabled at the ends, with a position counter --
+              they used to appear and disappear at the first and last photo, so
+              there was no steady way to page back and forth. */}
+          <button
+            type="button"
+            className="photo-dialog-nav photo-dialog-prev"
+            aria-label="Previous photo"
+            disabled={lightbox === 0}
+            onClick={(e) => { e.stopPropagation(); setLightbox(Math.max(0, lightbox - 1)); }}
+          >
+            &#8249;
+          </button>
+          <button
+            type="button"
+            className="photo-dialog-nav photo-dialog-next"
+            aria-label="Next photo"
+            disabled={lightbox >= filtered.length - 1}
+            onClick={(e) => { e.stopPropagation(); setLightbox(Math.min(filtered.length - 1, lightbox + 1)); }}
+          >
+            &#8250;
+          </button>
+          <span className="photo-dialog-count" aria-live="polite">{lightbox + 1} / {filtered.length}</span>
           <button
             ref={lightboxCloseRef}
             type="button"

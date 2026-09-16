@@ -1521,8 +1521,8 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
    when the row runs out of room. */
 .admin-directory-search-field { flex: 1 1 220px; max-width: 460px; }
 
-.admin-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
-.admin-head-actions > * { display: inline-flex; align-self: stretch; }
+.admin-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.admin-head-actions > * { display: inline-flex; }
 .admin-head-actions .btn,
 .admin-head-actions .btn-ghost,
 .admin-head-actions button {
@@ -1530,6 +1530,17 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Matched explicitly rather than by stretching: these sit beside an inline
+     create form that expands to ~480px tall, and stretching would blow the
+     buttons up into tall empty boxes alongside it. */
+  min-height: 36px;
+}
+/* An expanded create form drops onto its own full-width row instead of sitting
+   in the button row, where it dragged its siblings' height with it. */
+.admin-head-actions > .admin-inline-create {
+  flex: 1 0 100%;
+  margin-top: 4px;
+  max-width: 480px;
 }
 @media (max-width: 560px) {
   /* One full-width action per row beats three ragged ones side by side. */
@@ -1540,3 +1551,29 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .admin-head-actions button { width: 100%; }
   .admin-directory-search-field { max-width: none; }
 }
+
+/* Explore Photos viewer: steady paging controls. These were conditionally
+   rendered, so the arrow vanished at the first and last photo and there was no
+   consistent way to move back and forth. */
+.photo-dialog-nav {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 24px; line-height: 1;
+  display: grid; place-items: center;
+}
+.photo-dialog-nav:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+.photo-dialog-nav:disabled { opacity: 0.3; cursor: default; }
+.photo-dialog-nav:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+.photo-dialog-prev { left: 12px; }
+.photo-dialog-next { right: 12px; }
+.photo-dialog-count {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.82); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  background: rgba(0, 0, 0, 0.42); padding: 4px 12px; border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cart bag sits with the account icon, not stranded in the middle of the bar:
+   the topbar is space-between with a logo and an account control, so a third
+   child landed dead centre. */
+.topbar-actions { display: inline-flex; align-items: center; gap: 14px; }
