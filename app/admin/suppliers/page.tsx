@@ -67,9 +67,9 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   }
 
   return <>
-    <div className="admin-page-head"><div><h1>Suppliers</h1><p>Supplier coverage, contacts and the latest buying rates.</p></div><div style={{ display: 'flex', gap: 8 }}><BulkImportButton entity="suppliers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/suppliers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><SupplierCreateForm categories={allCategories || []} /></div></div>
+    <div className="admin-page-head"><div><h1>Suppliers</h1><p>Supplier coverage, contacts and the latest buying rates.</p></div><div className="admin-head-actions"><BulkImportButton entity="suppliers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/suppliers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><SupplierCreateForm categories={allCategories || []} /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
-      <label style={{ flex: '1 1 220px' }}>Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or contact" /></label>
+      <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or contact" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />
       {filtersActive && <Link href="/admin/suppliers" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
     </form>
