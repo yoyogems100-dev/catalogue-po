@@ -54,26 +54,23 @@ test('whole-piece quantities reject decimals, negatives, empty edits and databas
 
 test('a cart from another category never inherits the active category price', async () => {
   const { cartLinePrice } = await import('../lib/pricing-calc');
-  const pricing = { multiplier: 12, colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 5 } };
+  const pricing = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } };
   const item = { categoryId: 10, shapeId: 3, sizeId: 4, colorId: 1 };
-  assert.equal(cartLinePrice(pricing, 10, item), 60);
+  assert.equal(cartLinePrice(pricing, 10, item), 55);
   assert.equal(cartLinePrice(pricing, 11, item), null);
   assert.equal(cartLinePrice(pricing, 10, { ...item, sizeId: null }), null);
   assert.equal(cartLinePrice(pricing, 10, { ...item, colorId: 99 }), null);
 });
 
-test('an unconfigured RMB-to-INR rate never silently prices at 1x', async () => {
-  const { lineInrPrice, lineRmbPrice } = await import('../lib/pricing-calc');
-  const base = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 5 } };
-  // Missing, zero, and negative rates must all fail to null, not fall back to 1.
-  assert.equal(lineInrPrice({ ...base, multiplier: null }, 3, 4, 1), null);
-  assert.equal(lineInrPrice({ ...base, multiplier: 0 }, 3, 4, 1), null);
-  assert.equal(lineInrPrice({ ...base, multiplier: -1 }, 3, 4, 1), null);
-  // The underlying RMB price is still resolvable even when INR conversion isn't --
-  // a missing rate shouldn't also hide the RMB price from admin-side views.
-  assert.equal(lineRmbPrice({ ...base, multiplier: null }, 3, 4, 1), 5);
-  // A real configured rate still prices normally.
-  assert.equal(lineInrPrice({ ...base, multiplier: 11 }, 3, 4, 1), 55);
+test('an unmapped color or unpriced shape/size never silently prices at a wrong value', async () => {
+  const { lineInrPrice } = await import('../lib/pricing-calc');
+  const base = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } };
+  // A color with no pricing-group mapping must fail to null, not fall back to 0.
+  assert.equal(lineInrPrice(base, 3, 4, 99), null);
+  // A shape/size with no saved price must fail to null too.
+  assert.equal(lineInrPrice(base, 3, 999, 1), null);
+  // A real configured price still resolves directly (no conversion applied).
+  assert.equal(lineInrPrice(base, 3, 4, 1), 55);
 });
 
 test('the Edge-runtime session cookie check compares MACs, not just lengths', async () => {

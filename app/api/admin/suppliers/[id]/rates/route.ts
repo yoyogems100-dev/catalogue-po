@@ -5,8 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supplierId = Number((await params).id); const body = await request.json(); const costPrice = Number(body.costPrice); const categoryId = Number(body.categoryId);
-  if (!Number.isSafeInteger(supplierId) || !Number.isSafeInteger(categoryId) || !Number.isFinite(costPrice) || costPrice < 0 || !['INR', 'RMB'].includes(body.currency)) return NextResponse.json({ error: 'Enter a valid category, price and currency.' }, { status: 400 });
-  const { error } = await supabaseAdmin.from('supplier_rates').insert({ supplier_id: supplierId, category_id: categoryId, shape_id: body.shapeId || null, shape_size_id: body.sizeId || null, color_id: body.colorId || null, cost_price: costPrice, currency: body.currency, notes: String(body.notes || '').trim() || null });
+  if (!Number.isSafeInteger(supplierId) || !Number.isSafeInteger(categoryId) || !Number.isFinite(costPrice) || costPrice < 0) return NextResponse.json({ error: 'Enter a valid category and price.' }, { status: 400 });
+  const { error } = await supabaseAdmin.from('supplier_rates').insert({ supplier_id: supplierId, category_id: categoryId, shape_id: body.shapeId || null, shape_size_id: body.sizeId || null, color_id: body.colorId || null, cost_price: costPrice, currency: 'INR', notes: String(body.notes || '').trim() || null });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 }); return NextResponse.json({ ok: true });
 }
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

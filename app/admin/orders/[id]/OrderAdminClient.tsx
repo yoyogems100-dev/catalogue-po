@@ -26,7 +26,6 @@ type Item = {
   quantity: number;
   unitPrice: number | null;
   costPrice: number | null;
-  costCurrency: string;
   supplierId: number | null;
   requestType: string;
 };
@@ -128,12 +127,10 @@ export default function OrderAdminClient({
     Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : '']))
   );
   const [costPrices, setCostPrices] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costPrice != null ? String(i.costPrice) : ''])));
-  const [costCurrencies, setCostCurrencies] = useState<Record<number, string>>(Object.fromEntries(items.map((i) => [i.id, i.costCurrency || 'INR'])));
   const [supplierIds, setSupplierIds] = useState<Record<number, number | ''>>(Object.fromEntries(items.map((i) => [i.id, i.supplierId || ''])));
   useEffect(() => {
     setPrices(Object.fromEntries(items.map((i) => [i.id, i.unitPrice != null ? String(i.unitPrice) : ''])));
     setCostPrices(Object.fromEntries(items.map((i) => [i.id, i.costPrice != null ? String(i.costPrice) : ''])));
-    setCostCurrencies(Object.fromEntries(items.map((i) => [i.id, i.costCurrency || 'INR'])));
     setSupplierIds(Object.fromEntries(items.map((i) => [i.id, i.supplierId || ''])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
@@ -309,7 +306,7 @@ export default function OrderAdminClient({
       requests.push(fetch(`/api/admin/orders/${orderId}/prices`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prices: [{ itemId: item.id, unitPrice: prices[item.id], costPrice: costPrices[item.id], costCurrency: costCurrencies[item.id], supplierId: supplierIds[item.id] || null }] })
+        body: JSON.stringify({ prices: [{ itemId: item.id, unitPrice: prices[item.id], costPrice: costPrices[item.id], supplierId: supplierIds[item.id] || null }] })
       }));
       const results = await Promise.all(requests);
       if (results.some((r) => !r.ok)) throw new Error('Some changes could not be saved. Please review and retry.');
@@ -520,7 +517,7 @@ export default function OrderAdminClient({
                   {rowEditing ? (
                     <input type="text" inputMode="decimal" placeholder="Optional" value={costPrices[i.id] ?? ''} onChange={(event) => setCostPrices({ ...costPrices, [i.id]: event.target.value.replace(/[^\d.]/g, '') })} aria-label={`Cost price for ${i.categoryName} ${i.shapeName}`} style={{ maxWidth: 70, ...rowInputStyle }} />
                   ) : (
-                    costPrices[i.id] ? `${costCurrencies[i.id]} ${costPrices[i.id]}` : '—'
+                    costPrices[i.id] ? `₹${costPrices[i.id]}` : '—'
                   )}
                 </td>
                 <td>
@@ -554,20 +551,7 @@ export default function OrderAdminClient({
             <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
               <table>
                 <thead>
-                  <tr><th></th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      CP
-                      <select
-                        aria-label="Cost price currency for all lines"
-                        value={items[0] ? (costCurrencies[items[0].id] || 'INR') : 'INR'}
-                        onChange={(e) => setCostCurrencies(Object.fromEntries(items.map((i) => [i.id, e.target.value])))}
-                        style={{ fontSize: 11 }}
-                      >
-                        <option>INR</option>
-                        <option>RMB</option>
-                      </select>
-                    </span>
-                  </th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
+                  <tr><th></th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP (₹)</th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
                 </thead>
                 <tbody>
                   {rowItems.map(renderRow)}

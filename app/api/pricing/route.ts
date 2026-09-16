@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       .select('shape_id, shapes(id, name)')
       .eq('category_id', categoryId),
     supabaseAdmin.from('color_price_groups').select('id, name, sort_order').order('sort_order'),
-    supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_rmb').eq('category_id', categoryId),
+    supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id')
   ]);
@@ -45,17 +45,17 @@ export async function GET(req: NextRequest) {
       colors: (colorNamesByGroup.get(group.id) || []).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     })),
     unassignedColors: (categoryColors || []).filter((row: any) => !(groupMembers || []).some((member: any) => member.color_id === row.color_id)).map((row: any) => (Array.isArray(row.colors) ? row.colors[0] : row.colors)?.name).filter(Boolean),
-    prices: (prices || []).map((p: any) => ({ shapeId: p.shape_id, shapeSizeId: p.shape_size_id, groupId: p.price_group_id, priceRmb: p.price_rmb }))
+    prices: (prices || []).map((p: any) => ({ shapeId: p.shape_id, shapeSizeId: p.shape_size_id, groupId: p.price_group_id, priceInr: p.price_inr }))
   });
 }
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { category_id, shape_id, shape_size_id, price_group_id, price_rmb } = await req.json();
+  const { category_id, shape_id, shape_size_id, price_group_id, price_inr } = await req.json();
   if (!category_id || !shape_id || !shape_size_id || !price_group_id) {
     return NextResponse.json({ error: 'category_id, shape_id, shape_size_id, price_group_id required' }, { status: 400 });
   }
-  if (price_rmb === null || price_rmb === '') {
+  if (price_inr === null || price_inr === '') {
     const { error } = await supabaseAdmin
       .from('shape_size_prices')
       .delete()
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
   const { error } = await supabaseAdmin
     .from('shape_size_prices')
     .upsert(
-      { category_id, shape_id, shape_size_id, price_group_id, price_rmb },
+      { category_id, shape_id, shape_size_id, price_group_id, price_inr },
       { onConflict: 'category_id,shape_id,shape_size_id,price_group_id' }
     );
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

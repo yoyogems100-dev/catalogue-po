@@ -4,7 +4,6 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
-import { parseMultiplier } from '@/lib/pricing-calc';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 
@@ -15,15 +14,14 @@ export async function GET(req: NextRequest) {
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
-  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings, multiplierRow] = await Promise.all([
+  const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),
     supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_groups').select('id, name').order('sort_order'),
-    supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_rmb').eq('category_id', categoryId),
+    supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id'),
-    getSettings(),
-    supabaseAdmin.from('settings').select('value').eq('key', 'rmb_inr_multiplier').maybeSingle()
+    getSettings()
   ]);
 
   if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
@@ -44,7 +42,7 @@ export async function GET(req: NextRequest) {
   );
 
   const priceLookup = new Map<string, number>();
-  (prices || []).forEach((p: any) => priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_rmb)));
+  (prices || []).forEach((p: any) => { if (p.price_inr !== null) priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_inr)); });
 
   const selectedColors = new Map<number, string>();
   (categoryColors || []).forEach((row: any) => {
@@ -73,8 +71,8 @@ export async function GET(req: NextRequest) {
       const rows = sizes.map((size) => {
         const rowPrices: Record<number, number | null> = {};
         groupsFormatted.forEach((g) => {
-          const rmb = priceLookup.get(`${size.id}:${g.id}`);
-          rowPrices[g.id] = rmb ?? null;
+          const price = priceLookup.get(`${size.id}:${g.id}`);
+          rowPrices[g.id] = price ?? null;
         });
         return { sizeMm: size.sizeMm, prices: rowPrices };
       });
@@ -82,13 +80,9 @@ export async function GET(req: NextRequest) {
     })
     .filter((section: PriceListShapeSection) => section.rows.some((r) => Object.values(r.prices).some((v) => v !== null)));
 
-  const multiplier = parseMultiplier(multiplierRow.data?.value);
-  if (multiplierRow.error || multiplier === null) return NextResponse.json({ error: 'Save a valid conversion rate before exporting INR prices.' }, { status: 400 });
-
   const data: PriceListData = {
     categoryName: category.name,
     generatedAt: new Date().toISOString(),
-    multiplier,
     groups: groupsFormatted,
     sections,
     logoUrl: await getPdfLogoDataUrl(),

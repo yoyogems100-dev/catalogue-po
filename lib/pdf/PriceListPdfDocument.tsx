@@ -2,13 +2,12 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 import { PDF_BRAND_TAGLINE } from './brand';
 
 export type PriceListGroup = { id: number; name: string; colors?: string[] };
-export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> RMB price
+export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> INR price
 export type PriceListShapeSection = { shapeName: string; rows: PriceListRow[] };
 
 export type PriceListData = {
   categoryName: string;
   generatedAt: string;
-  multiplier: number;
   groups: PriceListGroup[];
   sections: PriceListShapeSection[];
   logoUrl: string;
@@ -55,8 +54,7 @@ const styles = StyleSheet.create({
   tableRowAlt: { backgroundColor: '#FAF8F3' },
   sizeCell: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#12233F', textAlign: 'center' },
   priceCell: { textAlign: 'center' },
-  priceRmb: { fontSize: 7.5, color: '#3A3F44' },
-  priceInr: { fontSize: 7, color: '#9C7A25', fontFamily: 'Helvetica-Bold', marginTop: 1 },
+  priceInr: { fontSize: 7.5, color: '#9C7A25', fontFamily: 'Helvetica-Bold' },
   dash: { fontSize: 7.5, color: '#c9c2ac', textAlign: 'center' },
   footer: {
     position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7.5, color: '#756e5c',
@@ -96,7 +94,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           </View>
           <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
-            <Text style={styles.metaValue}>INR (Rs.) per piece</Text>
+            <Text style={styles.metaValue}>₹ INR per piece</Text>
           </View>
         </View>
 
@@ -125,15 +123,13 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
               <View key={ri} style={[styles.tableRow, ri % 2 === 1 ? styles.tableRowAlt : {}]}>
                 <Text style={[styles.sizeCell, { width: `${sizeColW}%` }]}>{row.sizeMm}</Text>
                 {data.groups.map((g) => {
-                  const rmb = row.prices[g.id] ?? null;
+                  const price = row.prices[g.id] ?? null;
                   return (
                     <View key={g.id} style={[styles.priceCell, { width: `${groupColW}%` }]}>
-                      {rmb === null ? (
+                      {price === null ? (
                         <Text style={styles.dash}>--</Text>
                       ) : (
-                        <>
-                          <Text style={styles.priceInr}>{money(rmb * data.multiplier, 'Rs. ')}</Text>
-                        </>
+                        <Text style={styles.priceInr}>{money(price, '₹')}</Text>
                       )}
                     </View>
                   );

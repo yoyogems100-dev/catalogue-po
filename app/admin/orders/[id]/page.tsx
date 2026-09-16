@@ -81,7 +81,6 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     quantity: it.quantity,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     costPrice: it.cost_price != null ? Number(it.cost_price) : null,
-    costCurrency: it.cost_currency || 'INR',
     supplierId: it.supplier_id || null,
     requestType: it.request_type || 'Place Order'
   }));
