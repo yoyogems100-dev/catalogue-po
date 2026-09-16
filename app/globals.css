@@ -1505,3 +1505,38 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .login-mode-tab.active { color: var(--navy); font-weight: 600; border-bottom-color: var(--gold); }
 .po-cart-card .login-mode-tab { color: rgba(255, 255, 255, 0.65); }
 .po-cart-card .login-mode-tab.active { color: #fff; border-bottom-color: var(--gold-soft); }
+
+/* Admin directory pages (Suppliers, Customers) -------------------------------
+   Two layout bugs lived here.
+
+   The search field's LABEL carried an inline flex:1 1 220px while CSS capped
+   only the input at 460px, so on a wide screen the label stretched to ~980px
+   with a 520px void inside it -- shoving the Category filter to the far edge
+   and leaving the filter row looking like two unrelated controls. Sizing now
+   lives on the label, matched to the input's own cap.
+
+   The header actions wrapped mid-label ("Import from / Excel") and ended up
+   54px, 54px and 44px tall, so the row read as ragged and broken. They now
+   keep their labels on one line and share a height, wrapping as whole buttons
+   when the row runs out of room. */
+.admin-directory-search-field { flex: 1 1 220px; max-width: 460px; }
+
+.admin-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
+.admin-head-actions > * { display: inline-flex; align-self: stretch; }
+.admin-head-actions .btn,
+.admin-head-actions .btn-ghost,
+.admin-head-actions button {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 560px) {
+  /* One full-width action per row beats three ragged ones side by side. */
+  .admin-head-actions { flex-direction: column; align-items: stretch; }
+  .admin-head-actions > *,
+  .admin-head-actions .btn,
+  .admin-head-actions .btn-ghost,
+  .admin-head-actions button { width: 100%; }
+  .admin-directory-search-field { max-width: none; }
+}

@@ -73,9 +73,9 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div style={{ display: 'flex', gap: 8 }}><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><Link className="btn" href="/admin/orders/new">+ New customer order</Link></div></div>
+    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><Link className="btn" href="/admin/orders/new">+ New customer order</Link></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
-      <label style={{ flex: '1 1 220px' }}>Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
+      <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />
       <MultiSelectFilter name="workStream" label="Work stream" options={WORK_STREAMS} selected={workStreams} />
       <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
