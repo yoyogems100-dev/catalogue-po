@@ -17,6 +17,17 @@ async function getAccountState() {
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
+// Only the columns the catalogue grid actually reads: enough to resolve a
+// thumbnail URL (storage_path / drive_id / either saved crop) and to pick the
+// right photo per category. `select('*')` also dragged down every other photo
+// column for all 287 rows on each render.
+const PHOTO_COLUMNS = 'id, category_id, is_cover_only, storage_path, drive_id, photo_crop, cover_crop';
+type PhotoRow = {
+  id: number; category_id: number; is_cover_only: boolean | null;
+  storage_path: string | null; drive_id: string | null;
+  photo_crop: { path?: string } | null; cover_crop: { path?: string } | null;
+};
+
 async function getData() {
   const [
     { data: categories },
@@ -32,10 +43,15 @@ async function getData() {
     // no category to filter by yet -- this is what builds the per-category counts
     // below), so each must page past the project's 1000-row response cap explicitly
     // or silently drop rows for whichever categories land past the first page.
-    fetchAllRows<any>((from, to) => supabasePublic.from('photos').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
-    fetchAllRows<{ category_id: number; shape_id: number }>((from, to) => supabasePublic.from('category_shapes').select('category_id, shape_id').range(from, to)),
-    fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabasePublic.from('category_colors').select('category_id, color_id').range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabasePublic.from('category_shape_sizes').select('category_id').range(from, to)),
+    //
+    // Each asks for { count: 'exact' } so fetchAllRows knows the total up front and
+    // can request every remaining page in parallel. Without the count it falls back
+    // to fetching pages one at a time -- category_shape_sizes alone is 4000+ rows,
+    // so that fallback costs five sequential Supabase round-trips per render.
+    fetchAllRows<PhotoRow>((from, to) => supabasePublic.from('photos').select(PHOTO_COLUMNS, { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
+    fetchAllRows<{ category_id: number; shape_id: number }>((from, to) => supabasePublic.from('category_shapes').select('category_id, shape_id', { count: 'exact' }).range(from, to)),
+    fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabasePublic.from('category_colors').select('category_id, color_id', { count: 'exact' }).range(from, to)),
+    fetchAllRows<{ category_id: number }>((from, to) => supabasePublic.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to)),
     supabasePublic.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
     supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name')
   ]);
