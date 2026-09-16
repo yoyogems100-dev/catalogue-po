@@ -16,7 +16,7 @@ async function check() {
   }} /> as any);
   if (process.env.PDF_QA_OUTPUT) writeFileSync(process.env.PDF_QA_OUTPUT, order);
   const prices = await renderToBuffer(<PriceListPdfDocument data={{
-    categoryName: 'Glass Pearls', generatedAt: '2026-09-08T00:00:00Z', multiplier: 12,
+    categoryName: 'Glass Pearls', generatedAt: '2026-09-08T00:00:00Z',
     groups: [{ id: 1, name: 'White' }], sections: [{ shapeName: 'Round', rows: [{ sizeMm: '6', prices: { 1: 2 } }] }],
     logoUrl, contactWhatsapp: null, contactLocation: null
   }} /> as any);

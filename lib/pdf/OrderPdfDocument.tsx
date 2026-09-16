@@ -97,7 +97,7 @@ const COLS_NO_PRICE = { type: 0.1, category: 0.22, shape: 0.2, size: 0.13, color
 const COLS_WITH_PRICE = { type: 0.08, category: 0.16, shape: 0.14, size: 0.1, color: 0.13, qty: 0.12, price: 0.13, total: 0.14 };
 
 function money(n: number) {
-  return `Rs. ${n.toLocaleString('en-IN')}`;
+  return `₹${n.toLocaleString('en-IN')}`;
 }
 
 export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
