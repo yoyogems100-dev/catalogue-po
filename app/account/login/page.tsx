@@ -1,21 +1,10 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { getCustomerId } from '@/lib/customer-auth';
+import LoginClient from './LoginClient';
 
-import { useRouter } from 'next/navigation';
-import { FullLogo } from '@/components/Logo';
-import LoginForm from '@/components/LoginForm';
-
-export default function CustomerLoginPage() {
-  const router = useRouter();
-
-  return (
-    <div className="login-box card">
-      <div style={{ marginBottom: 20 }}><FullLogo size="md" color="#1B3A6B" /></div>
-      <LoginForm
-        onSuccess={() => {
-          router.push('/account/orders');
-          router.refresh();
-        }}
-      />
-    </div>
-  );
+// "My Account" in the footer points here. A signed-in customer has nothing to
+// do on a sign-in form, so send them straight to their orders.
+export default async function CustomerLoginPage() {
+  if (await getCustomerId()) redirect('/account/orders');
+  return <LoginClient />;
 }
