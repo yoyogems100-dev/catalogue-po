@@ -53,3 +53,32 @@ export async function POST(req: NextRequest) {
     colorLinkRows: colorLinks
   });
 }
+
+// The reverse: unlinks every selected shape/color from every selected
+// category. Only join rows are removed -- the shared master shapes/colors,
+// their photos and historic orders are untouched.
+// Body: { categoryIds: number[], shapeIds?: number[], colorIds?: number[] }
+export async function DELETE(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const ids = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is number => Number.isInteger(v) && v > 0) : []);
+  const catIds = ids(body.categoryIds);
+  const shpIds = ids(body.shapeIds);
+  const clrIds = ids(body.colorIds);
+
+  if (catIds.length === 0 || (shpIds.length === 0 && clrIds.length === 0)) {
+    return NextResponse.json({ error: 'Pick at least one category and at least one shape or color.' }, { status: 400 });
+  }
+
+  if (shpIds.length > 0) {
+    const { error } = await supabaseAdmin.from('category_shapes').delete().in('category_id', catIds).in('shape_id', shpIds);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (clrIds.length > 0) {
+    const { error } = await supabaseAdmin.from('category_colors').delete().in('category_id', catIds).in('color_id', clrIds);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true, categoriesAffected: catIds.length, shapesUnlinked: shpIds.length, colorsUnlinked: clrIds.length });
+}
