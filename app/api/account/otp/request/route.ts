@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const { data: existingCustomer } = await supabaseAdmin.from('customers').select('name').eq('phone', digits).maybeSingle();
+  const { data: existingCustomer } = await supabaseAdmin.from('customers').select('name, company').eq('phone', digits).maybeSingle();
 
   let delivered = false;
   try {
@@ -49,6 +49,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     code: !delivered && allowDevAuthCodes() ? code : undefined,
-    needsName: !existingCustomer?.name
+    needsName: !existingCustomer?.name && !existingCustomer?.company
   });
 }

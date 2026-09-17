@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoginForm from './LoginForm';
 
@@ -14,7 +13,6 @@ const UserIcon = () => (
 
 export default function AccountMenu({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
 
   if (loggedIn) {
     // My Orders sits directly in the header, not behind a click -- it's the
@@ -22,7 +20,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
     // popover to reach. The popover (name + logout) is still one click away.
     return (
       <div className="account-menu account-menu-loggedin">
-        <Link href="/account/orders" className="account-menu-orders-link">My Orders</Link>
+        <Link href="/account/orders" prefetch={false} className="account-menu-orders-link">My Orders</Link>
         <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
           <UserIcon />
           <span>{customerName || 'Account'}</span>
@@ -32,7 +30,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
             <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
             <div className="account-menu-popover card">
               <div className="account-menu-links">
-                <Link href="/account/orders" onClick={() => setOpen(false)}>My Orders</Link>
+                <Link href="/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
               </div>
               <form action="/api/account/logout" method="post">
                 <button type="submit" className="account-menu-logout">Log out</button>
@@ -53,7 +51,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
         <>
           <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
           <div className="account-menu-popover card">
-            <LoginForm onSuccess={() => { setOpen(false); router.refresh(); }} />
+            <LoginForm onSuccess={() => window.location.reload()} />
           </div>
         </>
       )}
