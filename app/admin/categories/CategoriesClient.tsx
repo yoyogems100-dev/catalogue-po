@@ -213,7 +213,11 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
         <div className="admin-cat-grid">
           {visibleRows.map((c) => {
             return (
-              <div key={c.id} className="admin-cat-card">
+              // The whole card opens the category. Buttons, links and the name
+              // (double-click renames it) keep their own behaviour; Manage stays
+              // as the keyboard-reachable way in.
+              <div key={c.id} className="admin-cat-card admin-cat-card--link"
+                onClick={(e) => { if ((e.target as HTMLElement).closest('a, button, input, textarea, select, .admin-cat-card-name')) return; router.push(`/admin/categories/${c.id}`); }}>
                 <div className="admin-cat-cover">
                   {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
                 </div>
