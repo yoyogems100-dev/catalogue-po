@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MultiSelect from '@/components/MultiSelect';
 import CategoryLinkList from '@/components/admin/CategoryLinkList';
+import BulkActionBar from '@/components/admin/BulkActionBar';
 import ColorSwatch from '@/components/ColorSwatch';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
@@ -85,12 +86,11 @@ export default function ColorsClient({
   async function bulkDelete() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    const label = scoped ? `Unlink ${ids.length} color${ids.length > 1 ? 's' : ''} from this category?` : `Delete ${ids.length} color${ids.length > 1 ? 's' : ''}? This can't be undone.`;
-    if (!confirm(label)) return;
-    const results = await Promise.all(ids.map((id) => scoped ? toggleCategory(id, categoryFilter, true).then(() => ({ ok: true })).catch(() => ({ ok: false })) : fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => ({ ok: r.ok }))));
+    if (!confirm(`Delete ${ids.length} color${ids.length > 1 ? 's' : ''} from the whole catalogue? This removes them from every category and can't be undone. To take them out of one category only, use "Remove from category".`)) return;
+    const results = await Promise.all(ids.map((id) => fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => ({ ok: r.ok }))));
     const failed = results.filter((r) => !r.ok).length;
     setSelected(new Set());
-    setToast(failed === 0 ? `${ids.length} color${ids.length > 1 ? 's' : ''} ${scoped ? 'unlinked' : 'deleted'}.` : `${ids.length - failed} of ${ids.length} ${scoped ? 'unlinked' : 'deleted'} -- ${failed} failed.`);
+    setToast(failed === 0 ? `${ids.length} color${ids.length > 1 ? 's' : ''} deleted.` : `${ids.length - failed} of ${ids.length} deleted -- ${failed} failed.`);
     router.refresh();
   }
 
@@ -278,17 +278,13 @@ export default function ColorsClient({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: visibleColors.length ? 'pointer' : 'default' }}>
-          <input type="checkbox" checked={allVisibleSelected} disabled={visibleColors.length === 0} onChange={toggleSelectAllVisible} />
-          Select all shown
-        </label>
-        {selected.size > 0 && (
-          <button className="btn-ghost" style={{ fontSize: 12.5, color: '#a3341f' }} onClick={bulkDelete}>
-            {scoped ? 'Unlink' : 'Delete'} {selected.size} selected
-          </button>
-        )}
-      </div>
+      <label className="bulk-select-all">
+        <input type="checkbox" checked={allVisibleSelected} disabled={visibleColors.length === 0} onChange={toggleSelectAllVisible} />
+        Select all {visibleColors.length} shown
+      </label>
+      <BulkActionBar kind="color" selectedIds={[...selected]} categories={categories} scopedCategoryId={scoped ? categoryFilter : undefined}
+        onClear={() => setSelected(new Set())} onDelete={scoped ? undefined : bulkDelete}
+        onDone={(message) => { setSelected(new Set()); setToast(message); router.refresh(); }} />
 
       {/* Same responsive card grid as the shape reference manager, so the two
           halves of a category read as one screen instead of a card grid beside

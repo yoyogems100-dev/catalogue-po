@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import ShapeIcon from '@/components/ShapeIcon';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
+import BulkActionBar from '@/components/admin/BulkActionBar';
 
 type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
@@ -241,17 +242,13 @@ export default function ShapesClient({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: visibleShapes.length ? 'pointer' : 'default' }}>
-          <input type="checkbox" checked={allVisibleSelected} disabled={visibleShapes.length === 0} onChange={toggleSelectAllVisible} />
-          Select all shown
-        </label>
-        {selected.size > 0 && !scoped && (
-          <button className="btn-ghost" style={{ fontSize: 12.5, color: '#a3341f' }} onClick={bulkDelete}>
-            Delete {selected.size} selected
-          </button>
-        )}
-      </div>
+      <label className="bulk-select-all">
+        <input type="checkbox" checked={allVisibleSelected} disabled={visibleShapes.length === 0} onChange={toggleSelectAllVisible} />
+        Select all {visibleShapes.length} shown
+      </label>
+      <BulkActionBar kind="shape" selectedIds={[...selected]} categories={categories} scopedCategoryId={scoped ? categoryFilter : undefined}
+        onClear={() => setSelected(new Set())} onDelete={scoped ? undefined : bulkDelete}
+        onDone={(message) => { setSelected(new Set()); setToast(message); router.refresh(); }} />
 
       <table>
         <thead>
@@ -272,7 +269,7 @@ export default function ShapesClient({
                   className={canReorder && overIndex === index ? 'drag-over-row' : ''}
                   style={{ opacity: canReorder && dragIndex === index ? 0.4 : 1 }}
                 >
-                  <td>{!scoped && <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelected(s.id)} />}</td>
+                  <td><input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelected(s.id)} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {canReorder && (
                       <>
