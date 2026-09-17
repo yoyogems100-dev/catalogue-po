@@ -74,23 +74,27 @@ export default function HomeCatalogue({
       ) : (
         <div className="grid-cats">
           {filtered.map((cat) => {
-            const parts = [
-              cat.shapeCount > 0 ? `${cat.shapeCount} shape${cat.shapeCount !== 1 ? 's' : ''}` : null,
-              cat.sizeCount > 0 ? `${cat.sizeCount} size${cat.sizeCount !== 1 ? 's' : ''}` : null,
-              cat.colorCount > 0 ? `${cat.colorCount} color${cat.colorCount !== 1 ? 's' : ''}` : null
-            ].filter(Boolean);
-            // Which counts show over the thumbnail, and how many, is chosen
-            // per category in admin (Categories -> Tags toggles) -- defaults
-            // to just shapes, but e.g. a category of loose stones in one
-            // shape might make more sense badged by color count instead, or
-            // by more than one count at once.
-            const badges = cat.badgeTypes
-              .map((type) => {
-                const count = type === 'colors' ? cat.colorCount : type === 'sizes' ? cat.sizeCount : cat.shapeCount;
-                const label = type === 'colors' ? 'color' : type === 'sizes' ? 'size' : 'shape';
-                return count > 0 ? `${count} ${label}${count !== 1 ? 's' : ''}` : null;
-              })
-              .filter(Boolean) as string[];
+            // One tag, not the same counts twice. The card used to badge
+            // counts over the thumbnail AND repeat all three as text under the
+            // name. Worse, a count of 1 tells a buyer nothing -- "1 shape" on a
+            // round-only category is noise where "24 colours" is the reason to
+            // open it.
+            //
+            // Admin's explicit choice wins where it says something (count > 1);
+            // otherwise the card shows whichever dimension this category has
+            // most of.
+            const dimensions = [
+              { type: 'shapes' as const, count: cat.shapeCount, one: 'shape', many: 'shapes' },
+              { type: 'sizes' as const, count: cat.sizeCount, one: 'size', many: 'sizes' },
+              { type: 'colors' as const, count: cat.colorCount, one: 'colour', many: 'colours' }
+            ];
+            const informative = dimensions.filter((d) => d.count > 1);
+            const chosen = informative.filter((d) => cat.badgeTypes.includes(d.type));
+            const best = (chosen.length ? chosen : informative)
+              .slice()
+              .sort((a, b) => b.count - a.count)
+              .slice(0, chosen.length ? chosen.length : 1);
+            const badges = best.map((d) => `${d.count} ${d.count === 1 ? d.one : d.many}`);
             return (
               <Link key={cat.id} href={`/category/${cat.slug}`}>
                 <div className="cat-card">
@@ -104,7 +108,6 @@ export default function HomeCatalogue({
                   </div>
                   <div className="cat-info">
                     <h3>{cat.name}</h3>
-                    {parts.length > 0 && <div className="n">{parts.join(' · ')}</div>}
                   </div>
                 </div>
               </Link>

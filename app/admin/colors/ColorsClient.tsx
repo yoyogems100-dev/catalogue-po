@@ -321,7 +321,7 @@ export default function ColorsClient({
                   style={{ width: 20, height: 20, padding: 0, border: '1px solid var(--line)', cursor: 'pointer', flexShrink: 0 }}
                 />
                 <span style={{ minWidth: 140, flex: '1 1 140px' }}>
-                  <HotMark kind="color" ids={[c.id]} name={c.name} /><NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
+                  <HotMark categoryId={scoped ? categoryFilter : undefined} kind="color" ids={[c.id]} name={c.name} /><NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
                 </span>
                 <span style={{ fontSize: 11, color: '#756e5c', fontFamily: 'monospace' }}>{c.hex_value}</span>
                 <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
