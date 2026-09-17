@@ -395,7 +395,7 @@ export default function POSelector({
 
   return (
     <div className="po-wrap">
-      <section className={`po-card po-compose-card ${colorChartUrl ? "po-compose-with-reference" : ""}`}>
+      <section className="po-card po-compose-card">
         <h2 className="po-heading">Add to Order</h2>
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">

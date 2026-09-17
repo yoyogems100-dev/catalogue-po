@@ -41,7 +41,6 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
             <AccountMenu loggedIn={loggedIn} customerName={customerName} />
           </div>
         </div>
-        <div className="eyebrow">Digital Catalogue</div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderLogo height={88} />
         </div>

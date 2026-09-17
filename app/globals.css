@@ -118,13 +118,10 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(160deg, var(--ink), var(--navy) 70%);
   color: var(--ivory); text-align: center; padding: 52px 20px 40px;
 }
-.hero.hero-compact { padding: 18px 20px 28px; }
-/* Absolutely positioned so the account icon doesn't reserve a full row of
-   height above the eyebrow label -- it used to add ~50px of empty-looking
-   navy space above "DIGITAL CATALOGUE" on its own. */
+.hero.hero-compact { padding: 64px 20px 28px; }
+/* Absolutely positioned top-right, clear of the centered logo below it --
+   the hero's top padding leaves enough room so the two never overlap. */
 .hero-top-row { position: absolute; top: 10px; right: 14px; z-index: 5; margin-bottom: 0; }
-.hero .eyebrow { font-size: 10.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 20px; }
-.hero.hero-compact .eyebrow { margin-bottom: 14px; }
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
 .hero-divider { width: 36px; height: 1px; background: var(--gold-soft); margin: 22px auto 0; }
 .hero.hero-compact .hero-divider { margin-top: 14px; }
@@ -460,15 +457,21 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-empty { padding: 10px 12px; font-size: 12px; color: #756e5c; }
 
 /* Homepage search + filter bar */
-.home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .home-search-input {
-  width: 100%; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line);
-  background: #fff; padding: 10px 14px; border-radius: 24px;
+  width: 100%; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line);
+  background: #fff; padding: 12px 16px; border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(18,35,63,0.05);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.home-search-input input { border: none; padding: 0; font-size: 13.5px; width: 100%; }
+.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 2px 10px rgba(156,122,37,0.14); }
+.home-search-input svg { flex-shrink: 0; opacity: .5; }
+.home-search-input input { border: none; padding: 0; font-size: 14px; width: 100%; background: transparent; }
+.home-search-input input:focus { outline: none; }
+.home-search-input input::placeholder { color: #9a9484; }
 .home-filter-row { display: flex; gap: 8px; align-items: center; }
 .home-filter-row select {
-  width: auto; flex: 1 1 auto; min-width: 0; border-radius: 20px; padding: 8px 14px;
+  width: auto; flex: 1 1 auto; min-width: 0; border-radius: 999px; padding: 9px 16px;
   font-size: 12.5px; border: 1px solid var(--line); background: #fff;
 }
 .home-filter-row .icon-select { flex: 1 1 auto; min-width: 0; }
@@ -854,7 +857,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .home-filter-row .icon-select { min-width: 0; flex: 1 1 45%; }
   .home-filter-row .icon-select-trigger { padding: 8px 10px; }
   .hero { padding: 32px 16px 26px; }
-  .hero.hero-compact { padding: 16px 16px 20px; }
+  .hero.hero-compact { padding: 62px 16px 20px; }
   .hero img { height: 60px !important; }
   .hero.hero-compact img { height: 52px !important; }
   .topbar { padding: 10px 14px; }
@@ -1647,6 +1650,8 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-ref-strip-prev { left: 8px; }
 .po-ref-strip-next { right: 8px; }
 .po-ref-strip-nav:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.po-ref-strip-chart-tile { position: relative; }
+.po-ref-strip-tile-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; font-size: 11px; text-align: center; background: rgb(255 255 255 / 88%); color: var(--navy); border-top: 1px solid var(--line); }
 @media (max-width: 640px) {
   .po-ref-strip-track { grid-auto-columns: 100%; column-gap: 8px; }
   .po-ref-strip-tile { height: clamp(200px, 62vw, 280px); }

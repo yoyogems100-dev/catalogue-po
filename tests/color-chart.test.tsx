@@ -5,12 +5,11 @@ import OrderReferenceCarousel from '../components/OrderReferenceCarousel';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
-test('one reference beside the order form: the chart when there is one, filtered photos otherwise', () => {
-  // Previously the chart rendered NEXT TO the product carousel, so a category
-  // with a chart showed two carousels side by side, and a photo grid was
-  // repeated again under the form. While choosing a colour the chart is the
-  // reference that matters, so it now stands alone; browsing photos lives on
-  // the Explore Photos tab.
+test('the color chart leads the reference strip but does not hide the other photos', () => {
+  // Previously a category with a chart showed ONLY the chart, with no way to
+  // page through its explore/matching photos from the order composer. The
+  // chart now sits as the first tile in the same strip every other category
+  // gets, and the filtered photos still follow it, reachable via the arrows.
   const props = { categoryName: 'Crushed Ice', shapeIds: [2], sizeIds: [], colorIds: [], shapes: [], colors: [], colorChartUrl: '/chart.jpg' };
   const photos = [
     { id: 1, url: '/one.jpg', shapeIds: [1], sizeIds: [], colorIds: [] },
@@ -19,19 +18,21 @@ test('one reference beside the order form: the chart when there is one, filtered
 
   const chartOnly = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={[]} />);
   assert.match(chartOnly, /Enlarge Crushed Ice color chart/);
-  assert.doesNotMatch(chartOnly, /Next reference photo/);
 
-  // A chart wins even when matching photos exist -- one reference, not two.
+  // The chart tile comes first, and the shape-filtered photo (two.jpg matches
+  // shape 2) still renders in the strip alongside it.
   const withChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={photos} />);
   assert.match(withChart, /src="\/chart.jpg"/);
-  assert.doesNotMatch(withChart, /src="\/two.jpg"/);
+  assert.match(withChart, /src="\/two.jpg"/);
   assert.doesNotMatch(withChart, /src="\/one.jpg"/);
+  assert.ok(withChart.indexOf('/chart.jpg') < withChart.indexOf('/two.jpg'), 'chart tile should render before photo tiles');
 
   // Without a chart, the filtered product photos take its place, still
   // filtered to the selected shape (two.jpg matches shape 2; one.jpg doesn't).
   const noChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} colorChartUrl={null} photos={photos} />);
   assert.match(noChart, /src="\/two.jpg"/);
   assert.doesNotMatch(noChart, /src="\/one.jpg"/);
+  assert.doesNotMatch(noChart, /color-chart/);
 
   // Neither chart nor photos: render nothing rather than an empty frame.
   assert.equal(renderToStaticMarkup(<OrderReferenceCarousel {...props} colorChartUrl={null} photos={[]} />), '');
