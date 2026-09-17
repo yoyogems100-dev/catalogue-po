@@ -78,12 +78,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Account menu (header icon: sign-in popover when logged out, My Orders when in) */
 .account-menu { position: relative; }
-.account-menu-loggedin { display: flex; align-items: center; gap: 4px; }
-.account-menu-orders-link {
-  color: #fff; font-size: 13px; padding: 8px 10px; min-height: 44px; display: flex; align-items: center;
-  white-space: nowrap;
-}
-.account-menu-orders-link:hover { color: var(--gold-soft); }
+.account-menu-loggedin { display: flex; align-items: center; }
 .account-menu-trigger {
   display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
   color: #fff; font-size: 13px; padding: 8px; min-height: 44px; min-width: 44px; justify-content: center;
@@ -112,7 +107,12 @@ a { color: inherit; text-decoration: none; }
 .account-menu-logout:hover { background: #f6e2df; border-color: #f0c9c4; }
 
 .hero {
-  position: relative; overflow: hidden;
+  /* No overflow clipping -- the background is a gradient, which is always
+     clipped to the element's own box regardless of this property, so nothing
+     here actually needs it. overflow:hidden used to cut the account popover
+     (position:absolute, anchored to the account trigger inside this section)
+     off short once it grew past the hero's own height. */
+  position: relative;
   background:
     radial-gradient(circle at 82% 18%, rgba(201,169,78,0.16), transparent 45%),
     linear-gradient(160deg, var(--ink), var(--navy) 70%);
@@ -1656,4 +1656,31 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-ref-strip-track { grid-auto-columns: 100%; column-gap: 8px; }
   .po-ref-strip-tile { height: clamp(200px, 62vw, 280px); }
   .po-ref-strip-nav { width: 44px; height: 44px; }
+}
+
+/* Account header (My Orders / My Info / Quick Order / Log out) -- wraps
+   instead of overflowing once four items no longer fit one line on mobile. */
+.account-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; row-gap: 8px; }
+@media (max-width: 480px) {
+  .account-header-actions { gap: 10px; row-gap: 8px; justify-content: flex-end; }
+}
+
+/* Quick Order: a small pill trigger that opens a category-first line builder,
+   writing straight into the shared cart (see components/QuickOrderButton.tsx). */
+.quick-order-btn {
+  background: var(--gold-soft); color: var(--ink); border: none; border-radius: 20px;
+  padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.quick-order-btn:hover { background: var(--gold); color: #fff; }
+.quick-order-dialog { width: min(560px, 94vw); max-height: 90dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: auto; color: var(--ink); background: #fff; }
+.quick-order-dialog::backdrop { background: rgb(12 25 45 / 70%); }
+.quick-order-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 16px; }
+.quick-order-head button { min-width: 36px; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 18px; }
+.quick-order-hint { font-size: 12px; color: #756e5c; margin: 0 0 14px; }
+.quick-order-message { font-size: 12.5px; color: #2f6b3a; margin: 10px 0 0; }
+.quick-order-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: #756e5c; }
+@media (max-width: 480px) {
+  .quick-order-dialog { padding: 16px; }
+  .quick-order-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .quick-order-footer .btn-ghost { text-align: center; }
 }

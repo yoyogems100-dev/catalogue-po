@@ -1,8 +1,7 @@
 import { photoUrl } from '@/lib/photos';
 import { supabasePublic } from '@/lib/supabase-public';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
-import { getCustomerId } from '@/lib/customer-auth';
+import { getAccountState } from '@/lib/account-state';
 import { getCategoryPricing } from '@/lib/pricing';
 import CategoryTabs from './CategoryTabs';
 import Footer from '@/components/Footer';
@@ -10,13 +9,6 @@ import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
 import Link from 'next/link';
-
-async function getAccountState() {
-  const customerId = await getCustomerId();
-  if (!customerId) return { loggedIn: false, customerName: null };
-  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
-  return { loggedIn: true, customerName: data?.name || null };
-}
 
 export const revalidate = 30;
 

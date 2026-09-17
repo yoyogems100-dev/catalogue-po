@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Retailer', 'Wholesaler', 'Exporter', 'Commercial'];
+export const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Retailer', 'Wholesaler', 'Exporter', 'Commercial'];
 
 export default function ProfileCompletionForm({
   onSuccess,

@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { supabasePublic } from '@/lib/supabase-public';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
-import { getCustomerId } from '@/lib/customer-auth';
+import { getAccountState } from '@/lib/account-state';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
@@ -11,13 +10,6 @@ import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
 
 export const revalidate = 30;
-
-async function getAccountState() {
-  const customerId = await getCustomerId();
-  if (!customerId) return { loggedIn: false, customerName: null };
-  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
-  return { loggedIn: true, customerName: data?.name || null };
-}
 
 // Browse everything at a glance, grouped by category, instead of clicking into
 // one category at a time -- default view shows each category's cover photo;

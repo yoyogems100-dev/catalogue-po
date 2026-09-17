@@ -15,12 +15,11 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
   const [open, setOpen] = useState(false);
 
   if (loggedIn) {
-    // My Orders sits directly in the header, not behind a click -- it's the
-    // single most-used destination once logged in, so it shouldn't need a
-    // popover to reach. The popover (name + logout) is still one click away.
+    // Both destinations (My Orders, My Info) sit behind the one account
+    // trigger -- keeping the header to two elements (cart, account) instead
+    // of a separate always-visible "My Orders" link crowding the row.
     return (
       <div className="account-menu account-menu-loggedin">
-        <Link href="/account/orders" prefetch={false} className="account-menu-orders-link">My Orders</Link>
         <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
           <UserIcon />
           <span>{customerName || 'Account'}</span>
@@ -31,6 +30,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
             <div className="account-menu-popover card">
               <div className="account-menu-links">
                 <Link href="/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
+                <Link href="/account/profile" prefetch={false} onClick={() => setOpen(false)}>My Info</Link>
               </div>
               <form action="/api/account/logout" method="post">
                 <button type="submit" className="account-menu-logout">Log out</button>

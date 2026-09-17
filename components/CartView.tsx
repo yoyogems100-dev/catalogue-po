@@ -7,6 +7,7 @@ import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
+import QuickOrderButton from './QuickOrderButton';
 import { specText, quantityFactor } from '@/lib/order-specs';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
@@ -244,7 +245,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       <div className="cart-empty-state">
         <h2 className="po-heading">Your requirement is empty</h2>
         <p>Browse the collection and add shapes, sizes and colours — they&rsquo;ll gather here, across as many categories as you like.</p>
-        <Link className="btn" href="/">Browse the collection</Link>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link className="btn" href="/">Browse the collection</Link>
+          <QuickOrderButton />
+        </div>
       </div>
     );
   }
@@ -254,8 +258,9 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       <section className="po-card po-cart-card">
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span className="po-cart-badge">{cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs</span>
+            <QuickOrderButton label="Add to Order" />
             {cart.length > 0 && (
               <button
                 type="button"
