@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { FullLogo } from './Logo';
 import LoginForm from './LoginForm';
 
 const UserIcon = () => (
@@ -42,18 +43,36 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
     );
   }
 
+  return <LoggedOutAccountMenu />;
+}
+
+// Logged-out: a proper centered modal, not a small anchored dropdown -- the
+// login/signup form is too tall to hang off the header icon without either
+// overlapping the hero/logo behind it or spilling into the page content
+// below, which read as "cropped by the header".
+function LoggedOutAccountMenu() {
+  const [open, setOpen] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (open && !dialog.current?.open) dialog.current?.showModal();
+  }, [open]);
+
   return (
     <div className="account-menu">
-      <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-label="Account" aria-haspopup="dialog" aria-expanded={open}>
+      <button type="button" className="account-menu-trigger" onClick={() => setOpen(true)} aria-label="Account" aria-haspopup="dialog" aria-expanded={open}>
         <UserIcon />
       </button>
       {open && (
-        <>
-          <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
-          <div className="account-menu-popover card">
-            <LoginForm onSuccess={() => window.location.reload()} />
-          </div>
-        </>
+        <dialog
+          ref={dialog}
+          className="login-dialog"
+          onClose={() => setOpen(false)}
+          onClick={(e) => { if (e.target === e.currentTarget) dialog.current?.close(); }}
+        >
+          <div style={{ marginBottom: 18 }}><FullLogo size="md" color="#1B3A6B" /></div>
+          <LoginForm onSuccess={() => window.location.reload()} />
+        </dialog>
       )}
     </div>
   );

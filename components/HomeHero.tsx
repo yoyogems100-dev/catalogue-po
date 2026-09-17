@@ -5,11 +5,10 @@ import HeaderLogo from './HeaderLogo';
 import AccountMenu from './AccountMenu';
 import CartBag from './CartBag';
 
-// The full hero (with the large logo) is the only header shown on first load.
-// The slim topbar is fixed-position and stays invisible until the hero has
-// scrolled out of view, then fades/slides in -- avoiding showing the same
-// logo twice on screen at once, and freeing up space on mobile. The account
-// icon appears in both, though, so it's reachable immediately without scrolling.
+// A single-row, logo-left navbar -- the hero used to center a large logo
+// below the icon row, which forced a tall header just to leave room for it.
+// The slim floating topbar (same layout, smaller logo) stays invisible until
+// this hero scrolls out of view, then fades in.
 export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
   const heroRef = useRef<HTMLDivElement>(null);
   const [showTopbar, setShowTopbar] = useState(false);
@@ -35,16 +34,11 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
         </div>
       </div>
       <div className="hero hero-compact" ref={heroRef}>
-        <div className="hero-top-row">
-          <div className="topbar-actions">
-            <CartBag />
-            <AccountMenu loggedIn={loggedIn} customerName={customerName} />
-          </div>
+        <HeaderLogo height={40} />
+        <div className="topbar-actions">
+          <CartBag />
+          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderLogo height={88} />
-        </div>
-        <div className="hero-divider" />
       </div>
     </>
   );

@@ -118,13 +118,14 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(160deg, var(--ink), var(--navy) 70%);
   color: var(--ivory); text-align: center; padding: 52px 20px 40px;
 }
-.hero.hero-compact { padding: 64px 20px 28px; }
-/* Absolutely positioned top-right, clear of the centered logo below it --
-   the hero's top padding leaves enough room so the two never overlap. */
-.hero-top-row { position: absolute; top: 10px; right: 14px; z-index: 5; margin-bottom: 0; }
+/* Single-row, logo-left navbar -- same shape as .topbar, just taller and on
+   the brand gradient, so the header doesn't need extra height just to leave
+   room for a large centered logo above the icon row. */
+.hero.hero-compact {
+  display: flex; align-items: center; justify-content: space-between;
+  text-align: left; padding: 16px 20px;
+}
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
-.hero-divider { width: 36px; height: 1px; background: var(--gold-soft); margin: 22px auto 0; }
-.hero.hero-compact .hero-divider { margin-top: 14px; }
 
 .topbar-floating {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
@@ -359,6 +360,12 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .browse-photo-tile:hover img { transform: scale(1.05); }
 
 .login-box { max-width: 340px; margin: 100px auto; padding: 32px; }
+
+.login-dialog { width: min(360px, 92vw); max-height: 90dvh; overflow-y: auto; border: none; border-radius: 12px; padding: 28px; margin: auto; color: var(--ink); background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+.login-dialog::backdrop { background: rgb(12 25 45 / 60%); }
+@media (max-width: 480px) {
+  .login-dialog { padding: 22px; }
+}
 
 /* Logo */
 .logo-topbar { height: 30px; width: auto; display: block; }
@@ -857,9 +864,9 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .home-filter-row .icon-select { min-width: 0; flex: 1 1 45%; }
   .home-filter-row .icon-select-trigger { padding: 8px 10px; }
   .hero { padding: 32px 16px 26px; }
-  .hero.hero-compact { padding: 62px 16px 20px; }
+  .hero.hero-compact { padding: 10px 14px; }
   .hero img { height: 60px !important; }
-  .hero.hero-compact img { height: 52px !important; }
+  .hero.hero-compact img { height: 30px !important; }
   .topbar { padding: 10px 14px; }
   .container { padding: 0 14px; }
   .login-box { margin: 40px auto; max-width: 90vw; padding: 24px; }
