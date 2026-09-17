@@ -290,7 +290,10 @@ export default function ColorsClient({
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Same responsive card grid as the shape reference manager, so the two
+          halves of a category read as one screen instead of a card grid beside
+          a stack of full-width rows. */}
+      <div className="option-admin-grid">
         {visibleColors.map((c) => {
           const index = localColors.findIndex((lc) => lc.id === c.id);
           const linkedCatIds = catColors.filter((cc) => cc.color_id === c.id).map((cc) => cc.category_id);

@@ -1588,3 +1588,14 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-requirement-category-head:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; }
 .po-requirement-category-head strong { flex: 1; min-width: 0; }
 .po-cat-caret { font-size: 10px; opacity: 0.7; width: 10px; flex: none; }
+
+/* Shared option-card grid for the category workspace. Shapes already used
+   this shape of layout; colours were a stack of full-width rows, so the two
+   tabs of the same category looked like different products. */
+.option-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+.option-admin-grid > .card { padding: 10px 12px; }
+/* Row actions inside a card wrap rather than pushing the card wider. */
+.option-admin-grid .btn-ghost { white-space: nowrap; }
+@media (max-width: 780px) {
+  .option-admin-grid { grid-template-columns: 1fr; }
+}
