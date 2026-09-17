@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
@@ -55,7 +54,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   // categories is unreadable as one long list; folding a category you've
   // already checked keeps the rest on screen.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const router = useRouter();
   const reviewDialog = useRef<HTMLDialogElement>(null);
   const submissionPending = useRef(false);
 
@@ -436,7 +434,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                 We confirm price and availability by WhatsApp, so we need a verified number to reply to.
                 Signing in also keeps this and every future order in your account.
               </p>
-              <LoginForm phoneOnly onSuccess={() => router.refresh()} />
+              <LoginForm onSuccess={() => window.location.reload()} />
             </div>
           )}
         </div>}

@@ -1599,6 +1599,11 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 @media (max-width: 780px) {
   .option-admin-grid { grid-template-columns: 1fr; }
 }
+.login-hint { font-size: 12.5px; line-height: 1.5; color: #756e5c; margin: 0 0 12px; }
+.po-cart-card .login-hint { color: rgba(255, 255, 255, 0.78); }
+.login-error { color: #a3341f; font-size: 12.5px; margin: 0 0 10px; }
+.po-cart-card .login-error { color: #ffb4a3; }
+
 
 /* Bulk actions for a multi-selection of shapes/colors. Sticks to the top while
    scrolling a long list so the actions stay reachable. */
