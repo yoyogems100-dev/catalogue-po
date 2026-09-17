@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, request_type, created_at, comment, customer_id, contact_name, payment_status')
+    .select('id, status, request_type, created_at, comment, customer_id, contact_name')
     .eq('id', orderId)
     .single();
 
@@ -53,9 +53,6 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 
   const pdfItems = buildPdfItems(items || [], { categoryName: catMap, shapeName: shapeMap, sizeMm: sizeMap, colorName: colorMap });
 
-  const { data: notes, error: notesError } = await supabaseAdmin.from('order_notes')
-    .select('message, created_at').eq('order_id', orderId).eq('internal_only', false).order('created_at');
-  if (notesError) return NextResponse.json({ error: 'Could not load order notes. Please retry.' }, { status: 500 });
   const settings = await getSettings();
 
   // renderToBuffer's TS signature expects a ReactElement<DocumentProps> specifically
@@ -72,8 +69,6 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
         customerPhone: customer?.phone || null,
         customerCompany: (customer as any)?.company || null,
         comment: order.comment,
-        paymentStatus: order.payment_status || null,
-        notes: notes || [],
         items: pdfItems,
         contactWhatsapp: settings.whatsapp_number || null,
         contactLocation: settings.location || null,

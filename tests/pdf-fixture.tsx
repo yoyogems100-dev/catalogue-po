@@ -8,8 +8,7 @@ async function check() {
   const logoUrl = `data:image/png;base64,${readFileSync('public/brand/yoyo-gems-pdf-wordmark.png').toString('base64')}`;
   const order = await renderToBuffer(<OrderPdfDocument data={{
     orderId: 1, statusLabel: 'Placed', requestType: 'Request Quotation', createdAt: '2026-09-08T00:00:00Z',
-    customerName: 'Test buyer', customerPhone: null, customerCompany: null, comment: 'Pack each size separately.', paymentStatus: 'partial',
-    notes: [{ message: 'Price confirmed for the white beads. Please confirm the second line.', created_at: '2026-09-10T00:00:00Z' }],
+    customerName: 'Test buyer', customerPhone: null, customerCompany: null, comment: 'Pack each size separately.',
     items: [{ categoryName: 'Glass Pearls', shapeName: 'Round', sizeMm: '6', colorName: 'White', quantity: 500, unitPrice: 2, requestType: 'Request Quotation' },
       { orderSpecs:{kind:'rainbow',colorMode:'custom',stonesPerStrip:100,colors:[{id:1,name:'Blue'},{id:2,name:'Pink'}]}, categoryName: 'Rainbow Corundum', shapeName: 'Oval', sizeMm: '4x6', colorName: 'Custom colors', quantity: 200, unitPrice: null, requestType: 'Place Order' }, {categoryName:'Hole Punched Stones',shapeName:'Round',sizeMm:'6',colorName:'White',quantity:100,unitPrice:null,requestType:'Place Order',orderSpecs:{kind:'drilled',drill:'half'}}],
     contactWhatsapp: null, contactLocation: 'Jaipur', logoUrl

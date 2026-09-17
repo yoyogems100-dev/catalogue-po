@@ -22,8 +22,6 @@ export type PdfOrderData = {
   customerPhone: string | null;
   customerCompany: string | null;
   comment: string | null;
-  paymentStatus?: string | null;
-  notes?: { message: string; created_at: string }[];
   items: PdfItem[];
   contactWhatsapp: string | null;
   contactLocation: string | null;
@@ -140,7 +138,6 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           <View style={styles.metaBlock}>
             <Text style={styles.metaLabel}>STATUS</Text>
             <Text style={styles.metaValue}>{data.statusLabel}</Text>
-            {data.paymentStatus && <Text style={styles.metaValue}>Payment: {data.paymentStatus}</Text>}
           </View>
         </View>
 
@@ -188,12 +185,9 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
 
         {data.comment && <Text style={styles.comment}>Note: {data.comment}</Text>}
 
-        {(data.notes || []).map((note, i) => <Text key={i} style={styles.comment}>
-          Update ({new Date(note.created_at).toLocaleDateString('en-IN')}): {note.message}
-        </Text>)}
         {!allPriced && <Text style={styles.comment}>Unpriced lines are excluded from the subtotal. Pricing to be confirmed.</Text>}
         <Text style={styles.footer} fixed>
-          {[data.contactLocation, data.contactWhatsapp ? `WhatsApp: ${data.contactWhatsapp}` : null].filter(Boolean).join('   ·   ')}
+          {['Gaurav Jain', data.contactLocation, data.contactWhatsapp ? `WhatsApp: ${data.contactWhatsapp}` : null].filter(Boolean).join('   ·   ')}
           {'\n'}This is a computer-generated document from YOYO GEMS.
         </Text>
       </Page>
