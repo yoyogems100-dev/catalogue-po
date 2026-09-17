@@ -15,8 +15,19 @@ export const dynamic = 'force-dynamic';
 export default async function CategoryAdminPage({ params: paramsPromise, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const params = await paramsPromise;
   const categoryId = Number(params.id);
-  const requestedTab = (await searchParams).tab;
-  const tab = ['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].includes(requestedTab || '') ? requestedTab : 'overview';
+  // Eight tabs collapsed to five. Overview was a signpost plus a count list,
+  // so the counts are now a strip visible on every tab and the tab is gone;
+  // Color chart belongs with Colors, and Specifications with Shapes & sizes,
+  // rather than each being a tab of one control. Photos leads, because that is
+  // what the team opens a category to do.
+  const LEGACY_TABS: Record<string, string> = {
+    overview: 'photos',
+    'color-chart': 'colors',
+    specifications: 'shapes'
+  };
+  const raw = (await searchParams).tab || '';
+  const TABS = ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])];
+  const tab = TABS.includes(raw) ? raw : (LEGACY_TABS[raw] || 'photos');
 
   // Only the "Shapes & sizes" tab needs the full, catalogue-wide shape/size
   // lists (to offer shapes/sizes that aren't linked to this category yet) --
@@ -111,10 +122,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>
       </div>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
-        {['overview','shapes','colors','color-chart','photos','pricing','suppliers','specifications',...(categoryId===29?['strip-counts']:[])].map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'color-chart' ? 'Color chart' : key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        {TABS.map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'color-chart' ? <CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /> : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <ColorsWorkspace initialCategoryId={categoryId} embedded /> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
+      {tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
       {tab === 'shapes' && <ShapeReferenceManager
         categoryId={categoryId}
         references={linkedShapes.map((shape: any) => {

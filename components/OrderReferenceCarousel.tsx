@@ -14,9 +14,18 @@ export default function OrderReferenceCarousel({photos,categoryName,shapeIds,col
   // Reset only when the actual reference set changes, not on quantity edits.
   const setKey = result.photos.map(photo=>photo.id).join(',');
   if (!result.photos.length && !colorChartUrl) return null;
-  return <div className={`po-reference-pair ${colorChartUrl && result.photos.length ? 'has-color-chart' : ''}`}>
+  // One reference beside the controls, not two. Where a category has a colour
+  // chart, that IS the reference a buyer needs while choosing a colour, so it
+  // stands alone; otherwise the filtered product photos take its place. Photos
+  // for browsing live on the Explore Photos tab rather than being repeated
+  // under the order form.
+  if (colorChartUrl) {
+    return <div className="po-reference-pair po-reference-chart-only">
+      <ColorChart url={colorChartUrl} categoryName={categoryName} />
+    </div>;
+  }
+  return <div className="po-reference-pair">
     <ReferenceFrame key={setKey} {...result} categoryName={categoryName} shapes={shapes} colors={colors} />
-    {colorChartUrl && <ColorChart url={colorChartUrl} categoryName={categoryName} />}
   </div>;
 }
 function ReferenceFrame({photos,matching,fallback,categoryName,shapes,colors}: {

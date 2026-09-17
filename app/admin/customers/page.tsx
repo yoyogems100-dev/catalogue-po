@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import CustomerCreateForm from './CustomerCreateForm';
 import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import CategoryFilterField from '@/components/admin/CategoryFilterField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
@@ -73,7 +74,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><Link className="btn" href="/admin/orders/new">+ New customer order</Link></div></div>
+    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />
@@ -86,20 +87,24 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     <div className="admin-customer-cards">
       {(customers || []).map((customer: any) => {
         const customerStats = stats.get(customer.id);
-        return <Link href={`/admin/customers/${customer.id}`} className="card admin-customer-card" key={customer.id}>
+        return <div className="admin-customer-card-wrap" key={customer.id}>
+          <Link href={`/admin/customers/${customer.id}`} className="card admin-customer-card">
           <strong>{customer.name || 'Unnamed customer'}</strong>
           <span>{customer.company || 'No company'} · {customer.phone || 'No WhatsApp number'}</span>
           <span>{customer.work_stream || 'Work stream not added'}{customer.place ? ` · ${customer.place}` : ''}</span>
-          <small>{customerStats?.count || 0} orders{customerStats?.latest ? <> · Latest: <StatusTag status={customerStats.latest.status} /></> : ''}</small>
-        </Link>;
+            <small>{customerStats?.count || 0} orders{customerStats?.latest ? <> · Latest: <StatusTag status={customerStats.latest.status} /></> : ''}</small>
+          </Link>
+          <Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link>
+        </div>;
       })}
     </div>
     <div className="admin-directory-table-wrap" tabIndex={0} role="region" aria-label="Customer directory">
-      <table><thead><tr><th>Customer</th><th>Company</th><th>WhatsApp</th><th>Place</th><th>Work stream</th><th>Go-to requirements</th><th>Orders</th><th>Latest status</th></tr></thead>
+      <table><thead><tr><th>Customer</th><th>Company</th><th>WhatsApp</th><th>Place</th><th>Work stream</th><th>Go-to requirements</th><th>Orders</th><th>Latest status</th><th>Actions</th></tr></thead>
       <tbody>{(customers || []).map((customer: any) => { const customerStats = stats.get(customer.id); return <tr key={customer.id}>
         <td><Link href={`/admin/customers/${customer.id}`} className="admin-table-link">{customer.name || 'Unnamed customer'}</Link></td>
         <td>{customer.company || '—'}</td><td>{customer.phone || '—'}</td><td>{customer.place || '—'}</td><td>{customer.work_stream || '—'}</td><td className="admin-table-wrap-text">{customer.go_to_requirements || '—'}</td>
         <td>{customerStats?.count || 0}</td><td>{customerStats?.latest ? <StatusTag status={customerStats.latest.status} /> : '—'}</td>
+        <td><Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link></td>
       </tr>; })}</tbody></table>
     </div>
   </>;

@@ -5,18 +5,35 @@ import OrderReferenceCarousel from '../components/OrderReferenceCarousel';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
-test('chart remains available without product photos and beside filtered product photos', () => {
+test('one reference beside the order form: the chart when there is one, filtered photos otherwise', () => {
+  // Previously the chart rendered NEXT TO the product carousel, so a category
+  // with a chart showed two carousels side by side, and a photo grid was
+  // repeated again under the form. While choosing a colour the chart is the
+  // reference that matters, so it now stands alone; browsing photos lives on
+  // the Explore Photos tab.
   const props = { categoryName: 'Crushed Ice', shapeIds: [2], sizeIds: [], colorIds: [], shapes: [], colors: [], colorChartUrl: '/chart.jpg' };
+  const photos = [
+    { id: 1, url: '/one.jpg', shapeIds: [1], sizeIds: [], colorIds: [] },
+    { id: 2, url: '/two.jpg', shapeIds: [2], sizeIds: [], colorIds: [] }
+  ];
+
   const chartOnly = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={[]} />);
   assert.match(chartOnly, /Enlarge Crushed Ice color chart/);
   assert.doesNotMatch(chartOnly, /Next reference photo/);
-  const both = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={[
-    { id: 1, url: '/one.jpg', shapeIds: [1], sizeIds: [], colorIds: [] },
-    { id: 2, url: '/two.jpg', shapeIds: [2], sizeIds: [], colorIds: [] }
-  ]} />);
-  assert.match(both, /src="\/two.jpg"/);
-  assert.match(both, /src="\/chart.jpg"/);
-  assert.doesNotMatch(both, /src="\/one.jpg"/);
+
+  // A chart wins even when matching photos exist -- one reference, not two.
+  const withChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={photos} />);
+  assert.match(withChart, /src="\/chart.jpg"/);
+  assert.doesNotMatch(withChart, /src="\/two.jpg"/);
+  assert.doesNotMatch(withChart, /src="\/one.jpg"/);
+
+  // Without a chart, the filtered product photos take its place, still
+  // filtered to the selected shape (two.jpg matches shape 2; one.jpg doesn't).
+  const noChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} colorChartUrl={null} photos={photos} />);
+  assert.match(noChart, /src="\/two.jpg"/);
+  assert.doesNotMatch(noChart, /src="\/one.jpg"/);
+
+  // Neither chart nor photos: render nothing rather than an empty frame.
   assert.equal(renderToStaticMarkup(<OrderReferenceCarousel {...props} colorChartUrl={null} photos={[]} />), '');
 });
 

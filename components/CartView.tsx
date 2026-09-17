@@ -50,6 +50,11 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
+  // Collapsed category groups, keyed by request type + category so Purchase and
+  // Quotation fold independently. A fifty-line requirement spanning several
+  // categories is unreadable as one long list; folding a category you've
+  // already checked keeps the rest on screen.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const reviewDialog = useRef<HTMLDialogElement>(null);
   const submissionPending = useRef(false);
@@ -294,11 +299,27 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                   {isQuote && <p className="po-type-hint">Quantity is optional here — we&rsquo;ll send prices, then you decide.</p>}
                   {categoryGroups.map((catGroup) => (
                     <div className="po-requirement-category" key={catGroup.categoryId}>
-                      <div className="po-requirement-category-head">
-                        <strong>{catGroup.categoryName}</strong>
-                        <span>{catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}</span>
-                      </div>
-                      <div className="po-item-list">
+                      {(() => {
+                        const key = `${group.type}:${catGroup.categoryId}`;
+                        const isCollapsed = !!collapsed[key];
+                        const catPieces = catGroup.items.reduce((sum, i) => sum + i.qty, 0);
+                        return (
+                          <button
+                            type="button"
+                            className="po-requirement-category-head"
+                            aria-expanded={!isCollapsed}
+                            onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))}
+                          >
+                            <span className="po-cat-caret" aria-hidden="true">{isCollapsed ? '\u25B8' : '\u25BE'}</span>
+                            <strong>{catGroup.categoryName}</strong>
+                            <span>
+                              {catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}
+                              {!isQuote && catPieces > 0 && ` \u00b7 ${catPieces.toLocaleString('en-IN')} pcs`}
+                            </span>
+                          </button>
+                        );
+                      })()}
+                      <div className="po-item-list" hidden={!!collapsed[`${group.type}:${catGroup.categoryId}`]}>
                         {catGroup.items.map((item) => {
                           const unit = unitPriceInr(item);
                           const canEdit = !!optionsByCategory[item.categoryId] && !item.orderSpecs;

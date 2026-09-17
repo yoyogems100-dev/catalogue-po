@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
-import CategoryPhotoGallery from './CategoryPhotoGallery';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
@@ -513,12 +512,10 @@ export default function POSelector({
         </div>
       </section>
 
-      {/* The requirement used to sit here, below the fold while lines were
-          being added and unreachable from anywhere else on the site. It now
-          lives at /cart, reachable from the header on every page -- which frees
-          this space for the reference photos, which are what a buyer actually
-          wants beside the controls they are choosing with. */}
-      <CategoryPhotoGallery photos={photos} categoryName={categoryName} colorChartUrl={colorChartUrl} />
+      {/* No photo grid here: the reference beside the controls above already
+          shows what the buyer needs while choosing, and Explore Photos is where
+          the full set lives. Repeating them here meant two carousels on one
+          screen. */}
 
       {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
 

@@ -29,13 +29,17 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
     <>
       <div className={`topbar topbar-floating ${showTopbar ? 'topbar-visible' : ''}`}>
         <HeaderLogo height={26} />
-        <CartBag />
-        <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+        <div className="topbar-actions">
+          <CartBag />
+          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+        </div>
       </div>
       <div className="hero hero-compact" ref={heroRef}>
         <div className="hero-top-row">
-          <CartBag />
-          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+          <div className="topbar-actions">
+            <CartBag />
+            <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+          </div>
         </div>
         <div className="eyebrow">Digital Catalogue</div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>

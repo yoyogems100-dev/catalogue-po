@@ -352,35 +352,33 @@ export default function CategoryAdminClient({
       {/* Overview: just the at-a-glance summary -- collapsed to counts by
           default (the full name lists were overwhelming on categories with
           dozens of shapes/colors/sizes), click a count to expand it. */}
-      {section === 'overview' && (
-        <>
-          <p>Use the tabs above to manage this category’s shapes, sizes, colors, photos and pricing.</p>
-          <section id="category-summary" className="cat-summary-panel" style={{ marginBottom: 20 }}>
-            {summaryBlocks.map((b) => {
-              const expanded = !!expandedSummary[b.key];
-              return (
-                <div key={b.key}>
-                  <button
-                    type="button"
-                    className="cat-summary-label cat-summary-toggle"
-                    onClick={() => toggleSummary(b.key)}
-                    disabled={b.count === 0}
-                  >
-                    {b.count} {b.label}{b.count === 1 ? '' : 's'} {b.count > 0 && (expanded ? '▲' : '▼')}
-                  </button>
-                  {expanded && <p className="cat-summary-value">{b.count ? b.text : 'None linked yet'}</p>}
-                </div>
-              );
-            })}
-          </section>
-        </>
-      )}
+      {/* Counts used to be the whole "Overview" tab -- a signpost plus a list.
+          They are more useful as a strip you can see while actually editing,
+          so they render on every tab and the tab is gone. */}
+      <section id="category-summary" className="cat-summary-panel" style={{ marginBottom: 20 }}>
+        {summaryBlocks.map((b) => {
+          const expanded = !!expandedSummary[b.key];
+          return (
+            <div key={b.key}>
+              <button
+                type="button"
+                className="cat-summary-label cat-summary-toggle"
+                onClick={() => toggleSummary(b.key)}
+                disabled={b.count === 0}
+              >
+                {b.count} {b.label}{b.count === 1 ? '' : 's'} {b.count > 0 && (expanded ? '▲' : '▼')}
+              </button>
+              {expanded && <p className="cat-summary-value">{b.count ? b.text : 'None linked yet'}</p>}
+            </div>
+          );
+        })}
+      </section>
 
       {/* Shapes & sizes -- the only tab that needs the full catalogue-wide
           lists, to offer shapes/sizes beyond what's already linked. */}
       {section === 'shapes' && (
         <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a shape or size to feature it across the catalogue. Click again to remove.</p>
+          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a shape or size to feature it in this category. Flags are per category -- marking Cushion here does not mark it anywhere else.</p>
           <h3 className="section-label">Shapes &amp; sizes</h3>
           <ShapeSizeSelect
             categoryId={categoryId}
@@ -395,12 +393,12 @@ export default function CategoryAdminClient({
         </section>
       )}
 
-      {/* Specifications -- its own tab, separate from the Shapes & sizes and
-          Colors tabs (Colors has its own dedicated workspace, reused from
-          the standalone admin/colors page). */}
-      {section === 'specifications' && (
+      {/* Specifications sits with Shapes & sizes rather than as a tab of its
+          own: it is one more product attribute, and a tab holding a single
+          picker was not worth the click. */}
+      {section === 'shapes' && (
         <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a specification to feature it across the catalogue. Click again to remove.</p>
+          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a specification to feature it in this category. Click again to remove.</p>
           <h3 className="section-label">Specifications</h3>
           <MultiSelect
             categoryId={categoryId}

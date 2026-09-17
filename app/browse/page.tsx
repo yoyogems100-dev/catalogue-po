@@ -79,8 +79,10 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
     <>
       <div className="topbar">
         <Link href="/"><HeaderLogo height={28} /></Link>
-        <CartBag />
-        <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
+        <div className="topbar-actions">
+          <CartBag />
+          <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
+        </div>
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <nav className="breadcrumb-nav" aria-label="Breadcrumb">
