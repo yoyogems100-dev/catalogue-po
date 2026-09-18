@@ -555,7 +555,12 @@ export default function CategoryAdminClient({
           <section id="category-gallery">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{galleryPhotos.length} photos</h3>
-              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ marginLeft: 'auto', fontSize: 12 }} onClick={toggleSelectMode}>
+              {galleryPhotos.length > 0 && (
+                <a className="btn-ghost" style={{ fontSize: 12, marginLeft: 'auto' }} href={`/api/admin/categories/${categoryId}/photos-zip`}>
+                  ⭳ Download all photos
+                </a>
+              )}
+              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
                 {selectMode ? 'Done selecting' : 'Select'}
               </button>
             </div>
@@ -922,6 +927,14 @@ function PhotoRow({
             {photo.product_code}
           </span>
         )}
+        <a
+          href={`/api/admin/photos/${photo.id}/download`}
+          title="Download full-quality photo"
+          aria-label="Download full-quality photo"
+          style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '2px 6px', lineHeight: 1, textDecoration: 'none', color: 'var(--ink)' }}
+        >
+          ⭳
+        </a>
       </div>
       <div style={{ padding: 10 }}>
         <div className="photo-controls">
