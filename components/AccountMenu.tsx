@@ -67,9 +67,28 @@ function LoggedOutAccountMenu() {
         <dialog
           ref={dialog}
           className="login-dialog"
+          aria-label="Log in or sign up"
           onClose={() => setOpen(false)}
+          onCancel={(e) => { e.preventDefault(); dialog.current?.close(); }}
+          // onCancel covers the browser's own Escape handling, but that fires
+          // from an internal close-watcher rather than from the keydown, so it
+          // is easy to lose (a focused input, a nested control). Handling the
+          // key directly means Escape works wherever focus happens to be.
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); dialog.current?.close(); } }}
           onClick={(e) => { if (e.target === e.currentTarget) dialog.current?.close(); }}
         >
+          {/* The sign-up form is tall enough to fill a phone screen top to
+              bottom, leaving only a sliver of backdrop to tap -- without this
+              button someone who opened the dialog by mistake had no obvious
+              way back out. */}
+          <button
+            type="button"
+            className="login-dialog-close"
+            aria-label="Close"
+            onClick={() => dialog.current?.close()}
+          >
+            &#10005;
+          </button>
           <div style={{ marginBottom: 18 }}><FullLogo size="md" color="#1B3A6B" /></div>
           <LoginForm onSuccess={() => window.location.reload()} />
         </dialog>

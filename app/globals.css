@@ -159,7 +159,15 @@ a { color: inherit; text-decoration: none; }
   padding: 9px 16px; font-size: 12px; letter-spacing: 0.5px; cursor: pointer;
   align-self: flex-start;
 }
-.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+/* Disabled buttons used to be indistinguishable from live ones -- "Generate
+   invoice" sat next to "Generate order PDF" looking equally clickable while
+   silently doing nothing. Fade them, drop the hover, and show the
+   not-allowed cursor so the title attribute's explanation gets looked for. */
+.btn:disabled, .btn-ghost:disabled, .btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 /* Ghost, not a solid block -- a full page of admin cards each carrying a
    heavy solid-red button read as noisy/cluttered. Gold border+text keeps
    it visually quiet until you actually reach for it, matching the rest of
@@ -368,8 +376,31 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 
 .login-dialog { width: min(360px, 92vw); max-height: 90dvh; overflow-y: auto; border: none; border-radius: 12px; padding: 28px; margin: auto; color: var(--ink); background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
 .login-dialog::backdrop { background: rgb(12 25 45 / 60%); }
+/* The dialog itself is the scroll container, so an absolutely-positioned close
+   button would scroll out of reach on the long sign-up form. Sticky in normal
+   flow keeps it pinned to the top-right corner the whole way down; the
+   negative margins pull it into the padding so it costs almost no height. */
+.login-dialog-close {
+  position: sticky;
+  top: -4px;
+  z-index: 2;
+  display: block;
+  margin: -10px -10px 0 auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #756e5c;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.login-dialog-close:hover { background: #f4f2ec; color: var(--ink); }
+.login-dialog-close:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 480px) {
   .login-dialog { padding: 22px; }
+  .login-dialog-close { margin: -8px -8px 0 auto; }
 }
 
 /* Logo */
@@ -1200,9 +1231,12 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   font-size: 9.5px;
   white-space: nowrap;
 }
+/* The qty column fits six digits at 16px: trade quantities here run to 25,000
+   or 100,000 pieces, and at the old 86px a five-digit value was clipped on the
+   right with no scrollbar to hint at it -- 25000 simply read as 2500. */
 .po-cart-card .po-item-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 86px 34px;
+  grid-template-columns: 52px minmax(0, 1fr) 100px 34px;
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
@@ -1291,7 +1325,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-requirement-group-head { margin-bottom: 6px; }
   .po-requirement-group-head h3 { font-size: 14px; }
   .po-cart-card .po-item-row {
-    grid-template-columns: 42px minmax(0, 1fr) 66px 32px;
+    grid-template-columns: 42px minmax(0, 1fr) 84px 32px;
     gap: 7px;
     padding: 8px;
     min-height: 66px;
@@ -1306,13 +1340,15 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-cart-card .po-item-price { font-size: 9.5px !important; }
   .po-item-move-btn { font-size: 10px; }
   .po-item-qty { font-size: 9px; }
-  .po-item-qty input.po-cart-qty { height: 36px; min-height: 36px; padding: 4px; }
+  /* Narrow side padding so the column's width is spent on digits, not gutters
+     -- six-figure piece counts have to fit without clipping. */
+  .po-cart-card .po-item-qty input.po-cart-qty { height: 36px; min-height: 36px; padding: 4px 2px; }
   .po-cart-card .po-item-row > .po-remove-btn { width: 32px; height: 36px; }
 }
 
 @media (max-width: 360px) {
   .po-cart-card { padding-inline: 10px; }
-  .po-cart-card .po-item-row { grid-template-columns: 38px minmax(0, 1fr) 58px 30px; gap: 5px; padding: 7px 6px; }
+  .po-cart-card .po-item-row { grid-template-columns: 34px minmax(0, 1fr) 76px 28px; gap: 5px; padding: 7px 6px; }
   .po-cart-card .requirement-stone { width: 38px; height: 38px; flex-basis: 38px; }
   .po-cart-card .po-item-details strong { font-size: 12px; }
   .po-cart-card .po-item-details > span { font-size: 9.5px; }
