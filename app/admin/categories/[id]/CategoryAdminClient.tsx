@@ -668,7 +668,7 @@ export default function CategoryAdminClient({
                 )}
               </>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+            <div className="admin-photo-grid">
               {galleryPhotos.map((p, i) => (
                 <PhotoRow
                   categoryId={categoryId}
@@ -881,7 +881,7 @@ function PhotoRow({
 
   // Field selector + its matching value picker side by side, not stacked.
   const fieldPicker = (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
+    <div className="photo-field-picker" style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
       <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ fontSize: 12, flex: '0 0 auto', width: 'auto', minWidth: 90 }}>
         {visibleFieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>

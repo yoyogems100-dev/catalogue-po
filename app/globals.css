@@ -181,9 +181,37 @@ a { color: inherit; text-decoration: none; }
 .admin-delete-row-btn:hover { background: #f8e2e0; }
 .admin-delete-row-btn:disabled { opacity: 0.5; cursor: default; }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%; border-radius: 5px;
 }
+
+/* File inputs were caught by the rule above, which wrapped the browser's own
+   "Choose file" control in a bordered box -- a box inside a box, in the
+   browser's default font, next to buttons styled like the rest of the admin.
+   Style the real control instead: the picker button matches .btn-ghost and is
+   a 44px touch target, and the filename sits beside it as plain text. */
+input[type="file"] {
+  max-width: 100%;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #756e5c;
+}
+input[type="file"]::file-selector-button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--navy);
+  min-height: 44px;
+  padding: 0 16px;
+  margin-right: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { border-color: var(--gold); color: var(--gold); }
+input[type="file"]:disabled { opacity: 0.5; }
+input[type="file"]:disabled::file-selector-button { cursor: not-allowed; }
 
 /* Dropdowns should size to their content, not stretch to fill the container
    they happen to sit in -- only text/date inputs and textareas need width:100%. */
@@ -992,6 +1020,23 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-recent-orders { padding: 0; list-style: none; }
 .admin-recent-orders li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .admin-recent-orders-meta { display: inline-flex; align-items: center; gap: 10px; }
+.admin-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+/* One 343px column at phone width made a 33-photo category a ~24,000px scroll
+   (342px of photo plus 386px of controls each). Two columns halve that; the
+   photo shrinks to a square thumbnail that still identifies a stone, and the
+   controls stay in place, just narrower. */
+@media (max-width: 600px) {
+  .admin-photo-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .admin-photo-grid .photo-controls button { font-size: 11px; padding: 6px 8px; }
+  .admin-photo-grid select,
+  .admin-photo-grid input[type="text"] { font-size: 12px; padding: 7px 8px; }
+  /* The field picker puts a ~90px "which field" select beside the value
+     control on one row, which leaves the value control too little of a 167px
+     tile and pushes it out past the card edge. Stack them here. */
+  .admin-photo-grid .photo-field-picker { flex-direction: column; }
+  .admin-photo-grid .photo-field-picker > select { width: 100%; }
+  .admin-photo-grid .photo-field-picker > div { width: 100%; }
+}
 .admin-status-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
 @media (max-width: 700px) {
   .admin-status-chips {
@@ -1786,6 +1831,21 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .quick-order-btn:hover { background: var(--gold); color: #fff; }
+/* Gold is right in the header, where starting an order IS the main action.
+   Inside the requirement card it competed with sending the requirement --
+   the solid gold pill read as the page's primary button while the real
+   submit sat below the fold, so "Add to Order" (which only adds another
+   line) looked like the way to finish. Quiet it down to an outline here. */
+.po-cart-card .quick-order-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: var(--ivory-gold);
+}
+.po-cart-card .quick-order-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--gold-soft);
+  color: #fff;
+}
 .quick-order-dialog { width: min(560px, 94vw); max-height: 90dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: auto; color: var(--ink); background: #fff; }
 .quick-order-dialog::backdrop { background: rgb(12 25 45 / 70%); }
 .quick-order-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 16px; }

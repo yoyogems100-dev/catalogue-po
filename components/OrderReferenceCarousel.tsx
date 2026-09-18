@@ -74,7 +74,10 @@ function ReferenceStrip({photos,matching,categoryName,shapes,colors,colorChartUr
         onClick={e=>{chartOpener.current=e.currentTarget;setChartOpen(true);}}>
         {chartFailed ? <span className="po-reference-unavailable">Chart unavailable</span>
           : <img src={colorChartUrl} alt={`${categoryName} color chart`} loading="eager" decoding="async" onError={()=>setChartFailed(true)} />}
-        <span className="po-ref-strip-tile-label">Color chart</span>
+        {/* The chart is a dense grid of 40-plus swatch codes shown here at
+            about 200px, where none of it is readable -- without saying so it
+            reads as a broken image rather than something you open. */}
+        <span className="po-ref-strip-tile-label">Color chart — tap to zoom</span>
       </button>}
       {photos.map((photo,i)=><button key={photo.id} type="button" className="po-ref-strip-tile" aria-label={`Enlarge ${altFor(photo,i)}`}
         onClick={e=>{opener.current=e.currentTarget;setIndex(i);}}>
