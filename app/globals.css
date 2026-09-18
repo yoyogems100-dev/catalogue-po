@@ -1170,12 +1170,6 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   font-weight: 600;
   letter-spacing: .02em;
 }
-.po-requirement-group-head span {
-  color: var(--gold-soft);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10.5px;
-  white-space: nowrap;
-}
 .po-requirement-group .po-item-list {
   max-height: none;
   overflow: visible;
@@ -1296,7 +1290,6 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-requirement-groups { gap: 14px; max-height: none; overflow: visible; padding: 0; }
   .po-requirement-group-head { margin-bottom: 6px; }
   .po-requirement-group-head h3 { font-size: 14px; }
-  .po-requirement-group-head span { font-size: 9.5px; }
   .po-cart-card .po-item-row {
     grid-template-columns: 42px minmax(0, 1fr) 66px 32px;
     gap: 7px;
