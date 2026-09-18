@@ -11,6 +11,11 @@ import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 
+// Shown both as the disabled button's tooltip and as text beside it, so the
+// reason is readable on touch devices too -- a title attribute never appears
+// without a mouse to hover with.
+const INVOICE_BLOCKED_HINT = 'Please enter all the prices to generate the invoice in the order list';
+
 type Item = {
   orderSpecs?: OrderSpecs;
   id: number;
@@ -393,11 +398,11 @@ export default function OrderAdminClient({
             className="btn-ghost"
             onClick={generateInvoice}
             disabled={generatingInvoice || !allItemsPriced}
-            title={allItemsPriced ? undefined : 'Please enter all the selling prices.'}
+            title={allItemsPriced ? undefined : INVOICE_BLOCKED_HINT}
           >
             {generatingInvoice ? 'Generating…' : 'Generate invoice'}
           </button>
-          {!allItemsPriced && <span style={{ fontSize: 11, color: '#756e5c' }}>Please enter all the selling prices.</span>}
+          {!allItemsPriced && <span style={{ fontSize: 11, color: '#756e5c' }}>{INVOICE_BLOCKED_HINT}</span>}
           {currentInvoiceUrl && <a className="btn-ghost" href={currentInvoiceUrl} target="_blank" rel="noopener noreferrer">View last invoice</a>}
         </div>
       </div>

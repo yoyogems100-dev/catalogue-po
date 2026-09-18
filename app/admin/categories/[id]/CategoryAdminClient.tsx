@@ -31,6 +31,17 @@ type Photo = {
   watermarkId: number | null;
 };
 
+// Drawn rather than typed: the download arrow this used to use (U+2B73) is
+// absent from Jost, so it rendered as an empty tofu box. Same inline-SVG
+// approach as DeleteRowButton's trash icon.
+const DownloadIcon = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M12 3v12" />
+    <path d="M7 11l5 5 5-5" />
+    <path d="M4 20h16" />
+  </svg>
+);
+
 type BadgeType = 'shapes' | 'colors' | 'sizes';
 const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
   { value: 'shapes', label: 'Shapes' },
@@ -129,6 +140,7 @@ export default function CategoryAdminClient({
   // stone. The cover photo itself is whichever photo is the thumbnail,
   // cover-only or not.
   const galleryPhotos = localPhotos.filter((p) => !p.isCoverOnly);
+  const untaggedCount = galleryPhotos.filter((p) => !p.shapeIds.length && !p.colorIds.length).length;
   const coverPhoto = localPhotos.find((p) => p.id === thumbnailPhotoId) || null;
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
@@ -603,8 +615,8 @@ export default function CategoryAdminClient({
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{galleryPhotos.length} photos</h3>
               {galleryPhotos.length > 0 && (
-                <a className="btn-ghost" style={{ fontSize: 12, marginLeft: 'auto' }} href={`/api/admin/categories/${categoryId}/photos-zip`}>
-                  ⭳ Download all photos
+                <a className="btn-ghost" style={{ fontSize: 12, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} href={`/api/admin/categories/${categoryId}/photos-zip`}>
+                  <DownloadIcon size={14} /> Download all photos
                 </a>
               )}
               <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
@@ -640,9 +652,21 @@ export default function CategoryAdminClient({
                 </button>
               </div>
             ) : (
-              <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-                "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-              </p>
+              <>
+                <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
+                  "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
+                </p>
+                {/* The buyer-facing reference strip narrows itself to photos
+                    matching the shape and colour being ordered, but only for
+                    photos that carry those links -- with none tagged it just
+                    shows the whole gallery to everyone. Nothing surfaced that,
+                    so the feature looked broken rather than unconfigured. */}
+                {untaggedCount > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--gold)', marginBottom: 12 }}>
+                    {untaggedCount} of {galleryPhotos.length} photos have no shape or colour set. Customers only see reference photos matched to what they are ordering once these are tagged.
+                  </p>
+                )}
+              </>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
               {galleryPhotos.map((p, i) => (
@@ -1015,13 +1039,15 @@ function PhotoRow({
             {photo.product_code}
           </span>
         )}
+        {/* 40px square rather than the old ~22x20 -- it sits over a photo on a
+            touch screen, where a tap that misses opens the crop editor. */}
         <a
           href={`/api/admin/photos/${photo.id}/download`}
           title="Download full-quality photo"
           aria-label="Download full-quality photo"
-          style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '2px 6px', lineHeight: 1, textDecoration: 'none', color: 'var(--ink)' }}
+          style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(255,255,255,0.88)', borderRadius: 6, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'var(--ink)' }}
         >
-          ⭳
+          <DownloadIcon size={18} />
         </a>
       </div>
       <div style={{ padding: 10 }}>

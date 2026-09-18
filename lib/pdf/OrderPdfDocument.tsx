@@ -194,7 +194,17 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
 
         {data.comment && <Text style={styles.comment}>Note: {data.comment}</Text>}
 
-        {!allPriced && <Text style={styles.comment}>Unpriced lines are excluded from the subtotal. Pricing to be confirmed.</Text>}
+        {/* Only explain the subtotal when one was actually printed. With no
+            line priced at all there is no totals block, and this sentence used
+            to dangle beneath the table referring to a subtotal that was not
+            on the page. */}
+        {!allPriced && (
+          <Text style={styles.comment}>
+            {hasPricing
+              ? 'Unpriced lines are excluded from the subtotal. Pricing to be confirmed.'
+              : 'Pricing to be confirmed.'}
+          </Text>
+        )}
         <Text style={styles.footer} fixed>
           {['Gaurav Jain', data.contactLocation, data.contactWhatsapp ? `WhatsApp: ${data.contactWhatsapp}` : null].filter(Boolean).join('   ·   ')}
           {'\n'}This is a computer-generated document from YOYO GEMS.
