@@ -7,6 +7,7 @@ import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import CategoryFilterField from '@/components/admin/CategoryFilterField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
 import BulkImportButton from '@/components/admin/BulkImportButton';
+import DeleteRowButton from '@/components/admin/DeleteRowButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     categoryCustomerIds = await customerIdsOrderedFromCategories(matchedCategoryIds);
   }
 
-  let query = supabaseAdmin.from('customers').select('*').order('created_at', { ascending: false }).limit(250);
+  let query = supabaseAdmin.from('customers').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(250);
   if (safeQ) {
     const orClauses = [`name.ilike.%${safeQ}%`, `company.ilike.%${safeQ}%`, `phone.ilike.%${safeQ}%`];
     if (categoryCustomerIds.length) orClauses.push(`id.in.(${categoryCustomerIds.join(',')})`);
@@ -95,6 +96,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             <small>{customerStats?.count || 0} orders{customerStats?.latest ? <> · Latest: <StatusTag status={customerStats.latest.status} /></> : ''}</small>
           </Link>
           <Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link>
+          <DeleteRowButton endpoint={`/api/admin/customers/${customer.id}`} label={`Move ${customer.name || 'this customer'} to bin`} confirmText={`Move ${customer.name || 'this customer'} to the bin? Their past orders are kept. You can restore them later from Admin → Bin.`} />
         </div>;
       })}
     </div>
@@ -104,7 +106,10 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <td><Link href={`/admin/customers/${customer.id}`} className="admin-table-link">{customer.name || 'Unnamed customer'}</Link></td>
         <td>{customer.company || '—'}</td><td>{customer.phone || '—'}</td><td>{customer.place || '—'}</td><td>{customer.work_stream || '—'}</td><td className="admin-table-wrap-text">{customer.go_to_requirements || '—'}</td>
         <td>{customerStats?.count || 0}</td><td>{customerStats?.latest ? <StatusTag status={customerStats.latest.status} /> : '—'}</td>
-        <td><Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link></td>
+        <td style={{ whiteSpace: 'nowrap' }}>
+          <Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link>
+          <DeleteRowButton endpoint={`/api/admin/customers/${customer.id}`} label={`Move ${customer.name || 'this customer'} to bin`} confirmText={`Move ${customer.name || 'this customer'} to the bin? Their past orders are kept. You can restore them later from Admin → Bin.`} />
+        </td>
       </tr>; })}</tbody></table>
     </div>
   </>;

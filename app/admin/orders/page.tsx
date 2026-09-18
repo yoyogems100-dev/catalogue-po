@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
+import DeleteRowButton from '@/components/admin/DeleteRowButton';
 import Link from 'next/link';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
@@ -69,6 +70,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     let q = supabaseAdmin
       .from('orders')
       .select('id, customer_id, status, payment_status, created_at, contact_name, request_type', { count: 'exact' })
+      .is('deleted_at', null)
       .order('created_at', { ascending: oldest }).order('id', { ascending: oldest });
     if (statusFilter) q = q.eq('status', statusFilter);
     if (from) q = q.gte('created_at', `${from}T00:00:00+05:30`);
@@ -124,6 +126,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
             return (
               <article key={o.id} className="card admin-order-card">
                 <Link href={`/admin/orders/${o.id}`} className="admin-order-card-hit" aria-label={`Open order ${o.id}`} />
+                <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
                 <h2>Order #{o.id}</h2>
                 <p>
                   {cust ? <Link className="admin-card-customer-link" href={`/admin/customers/${cust.id}`}><CustomerNameDisplay name={cust.name} company={cust.company} /></Link> : (o.contact_name || 'No contact name')}
@@ -158,7 +161,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                     <td><CategoryChips names={s.categoryNames} />{s.unpricedQuotes > 0 && <p className="admin-coverage-note">{s.unpricedQuotes} quote {s.unpricedQuotes === 1 ? 'line needs' : 'lines need'} pricing</p>}</td>
                     <td><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
-                    <td><Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>
+                      <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
+                    </td>
                   </tr>
                 );
               })}

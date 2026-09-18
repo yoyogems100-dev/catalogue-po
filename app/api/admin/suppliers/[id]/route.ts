@@ -13,3 +13,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (ids.length) { const inserted = await supabaseAdmin.from('supplier_categories').insert(ids.map((categoryId: number) => ({ supplier_id: id, category_id: categoryId }))); if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 400 }); }
   return NextResponse.json({ ok: true });
 }
+
+// Soft delete -- moves the supplier to the Bin (hidden from the suppliers
+// list) instead of destroying it.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const id = Number((await params).id);
+  const { error } = await supabaseAdmin.from('suppliers').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}
