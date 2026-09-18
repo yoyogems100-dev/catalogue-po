@@ -734,6 +734,7 @@ function PhotoRow({
   const [field, setField] = useState<FieldType>(visibleFieldOptions[0]?.value || 'shape');
   const [otherText, setOtherText] = useState('');
   const [creatingTag, setCreatingTag] = useState(false);
+  const [showAddTag, setShowAddTag] = useState(false);
 
   // Union (not intersection) of sizes across every selected shape -- a photo
   // can show more than one shape, and each shape's sizes are still worth
@@ -772,6 +773,7 @@ function PhotoRow({
     setCreatingTag(false);
     if (!tag) return;
     setOtherText('');
+    setShowAddTag(false);
     const next = [...tagIds, tag.id];
     setTagIds(next);
     onUpdate(photo.id, {}, next);
@@ -859,20 +861,48 @@ function PhotoRow({
           />
         )}
         {field === 'tags' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {tags.length === 0 && <span style={{ fontSize: 11, color: '#756e5c' }}>No specifications on this category yet -- add one via "Other".</span>}
-            {tags.map((t) => (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+              {tags.length === 0 && !showAddTag && <span style={{ fontSize: 11, color: '#756e5c' }}>No specifications on this category yet.</span>}
+              {tags.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={tagIds.includes(t.id)}
+                  className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
+                  style={{ cursor: 'pointer', fontSize: 11 }}
+                  onClick={() => toggleTag(t.id)}
+                >
+                  {t.name}
+                </button>
+              ))}
               <button
-                key={t.id}
                 type="button"
-                aria-pressed={tagIds.includes(t.id)}
-                className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
-                style={{ cursor: 'pointer', fontSize: 11 }}
-                onClick={() => toggleTag(t.id)}
+                className="btn-ghost photo-add-spec-btn"
+                onClick={() => setShowAddTag((v) => !v)}
+                title="Add a custom specification"
+                aria-label="Add a custom specification"
+                aria-expanded={showAddTag}
               >
-                {t.name}
+                +
               </button>
-            ))}
+            </div>
+            {showAddTag && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="New specification, e.g. Brilliant Cut"
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
+                  style={{ fontSize: 12 }}
+                />
+                <button className="btn-ghost" style={{ whiteSpace: 'nowrap' }} onClick={addOtherTag} disabled={creatingTag || !otherText.trim()}>
+                  {creatingTag ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            )}
           </div>
         )}
         {field === 'other' && (
