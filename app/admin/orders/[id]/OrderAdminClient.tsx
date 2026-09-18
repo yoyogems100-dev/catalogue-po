@@ -58,6 +58,7 @@ export default function OrderAdminClient({
   status,
   paymentStatus,
   pdfUrl,
+  invoiceUrl,
   createdAt,
   comment,
   requestType,
@@ -74,6 +75,7 @@ export default function OrderAdminClient({
   status: string;
   paymentStatus: string;
   pdfUrl: string | null;
+  invoiceUrl: string | null;
   createdAt: string;
   comment: string | null;
   requestType: string | null;
@@ -136,6 +138,9 @@ export default function OrderAdminClient({
   }, [items]);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [currentInvoiceUrl, setCurrentInvoiceUrl] = useState(invoiceUrl);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const allItemsPriced = items.length > 0 && items.every((i) => i.unitPrice != null);
 
   const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
   const hasPricing = items.some((i) => prices[i.id]);
@@ -235,6 +240,22 @@ export default function OrderAdminClient({
     }
     } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
     finally { setGeneratingPdf(false); }
+  }
+
+  async function generateInvoice() {
+    setGeneratingInvoice(true);
+    try {
+    const res = await fetch(`/api/admin/orders/${orderId}/invoice`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setGeneratingInvoice(false);
+    if (res.ok && data.url) {
+      setCurrentInvoiceUrl(data.url);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } else {
+      setToast(data.error || 'Failed to generate invoice.');
+    }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setGeneratingInvoice(false); }
   }
 
   function addNewLine() {
@@ -364,10 +385,20 @@ export default function OrderAdminClient({
           wraps to stacked on mobile (flex-wrap, no fixed widths). */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h1 style={{ margin: 0 }}>Order #{orderId}</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
             {generatingPdf ? 'Generating…' : `Generate ${isQuotation ? 'quotation' : 'order'} PDF`}
           </button>
+          <button
+            className="btn-ghost"
+            onClick={generateInvoice}
+            disabled={generatingInvoice || !allItemsPriced}
+            title={allItemsPriced ? undefined : 'Please enter all the selling prices.'}
+          >
+            {generatingInvoice ? 'Generating…' : 'Generate invoice'}
+          </button>
+          {!allItemsPriced && <span style={{ fontSize: 11, color: '#756e5c' }}>Please enter all the selling prices.</span>}
+          {currentInvoiceUrl && <a className="btn-ghost" href={currentInvoiceUrl} target="_blank" rel="noopener noreferrer">View last invoice</a>}
         </div>
       </div>
 
@@ -414,9 +445,15 @@ export default function OrderAdminClient({
               <option value="paid">Paid</option>
             </select>
           </div>
-          <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>
-            🟢 Notify
-          </button>
+          <div>
+            <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl} title={manualWaUrl ? undefined : 'No phone number on file for this order'}>
+              🟢 Notify
+            </button>
+            {/* Silently doing nothing here read as "Notify is broken" -- this is
+                the actual reason: a guest order with no linked customer phone
+                has nothing to send a WhatsApp message to. */}
+            {!manualWaUrl && <p style={{ fontSize: 11, color: '#756e5c', margin: '4px 0 0' }}>No phone number on file -- can't notify via WhatsApp.</p>}
+          </div>
         </div>
         {manualWaUrl && (
           <details style={{ marginTop: 10 }}>

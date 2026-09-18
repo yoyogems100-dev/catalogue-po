@@ -1386,7 +1386,10 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-page-head p, .admin-section-head p { margin: 0; color: #756e5c; font-size: 13px; }
 .admin-directory-search, .admin-inline-create { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
 .admin-directory-search input:not([type="checkbox"]):not([type="radio"]) { width: min(460px, 100%); }
-.admin-inline-create input { width: 210px; }
+/* Direct children only -- the supplier/customer name/company/phone fields --
+   so this doesn't also stretch a checkbox or search box nested inside a
+   category picker dropdown rendered within this same card. */
+.admin-inline-create > input { width: 210px; }
 .admin-customer-cards { display: none; }
 .admin-directory-table-wrap { max-width: 100%; overflow-x: auto; }
 .admin-directory-table-wrap table { min-width: 920px; }
@@ -1433,7 +1436,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 
 @media (max-width: 420px) {
   .supplier-rate-form { grid-template-columns: 1fr; }
-  .admin-inline-create input { width: 100%; }
+  .admin-inline-create > input { width: 100%; }
 }
 
 /* ---- Cart bag in the header --------------------------------------------- */
@@ -1690,4 +1693,17 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .quick-order-dialog { padding: 16px; }
   .quick-order-footer { flex-direction: column; align-items: stretch; gap: 8px; }
   .quick-order-footer .btn-ghost { text-align: center; }
+}
+
+/* Shared small "create/import in a popup" dialog -- Add supplier, Add
+   customer, and the category Photos tab's Drive-import popup. */
+/* overflow: visible, not auto -- these forms are short, and a scrolling
+   ancestor clips an absolutely-positioned dropdown panel (e.g. the category
+   picker) instead of letting it float over the rest of the page. */
+.admin-create-dialog { width: min(480px, 94vw); overflow: visible; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: auto; color: var(--ink); background: #fff; }
+.admin-create-dialog::backdrop { background: rgb(12 25 45 / 70%); }
+.admin-create-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 16px; }
+.admin-create-dialog-head button { min-width: 36px; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 18px; }
+@media (max-width: 480px) {
+  .admin-create-dialog { padding: 16px; }
 }

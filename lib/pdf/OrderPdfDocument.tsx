@@ -26,6 +26,11 @@ export type PdfOrderData = {
   contactWhatsapp: string | null;
   contactLocation: string | null;
   logoUrl: string;
+  /** Renders as "Invoice" instead of the usual Order Summary/Quotation title --
+      used only once every line already has a selling price (enforced by the
+      invoice API route, not here). Cost price never appears in this document
+      either way -- it's an internal-only field, never sent to the customer. */
+  isInvoice?: boolean;
 };
 
 const styles = StyleSheet.create({
@@ -94,8 +99,11 @@ const styles = StyleSheet.create({
 const COLS_NO_PRICE = { type: 0.1, category: 0.22, shape: 0.2, size: 0.13, color: 0.17, qty: 0.18 };
 const COLS_WITH_PRICE = { type: 0.08, category: 0.16, shape: 0.14, size: 0.1, color: 0.13, qty: 0.12, price: 0.13, total: 0.14 };
 
+// The default Helvetica PDF font has no glyph for the Rupee sign (U+20B9) --
+// it renders as a broken/superscript character instead. "Rs." is the plain
+// ASCII fallback every PDF viewer renders correctly.
 function money(n: number) {
-  return `₹${n.toLocaleString('en-IN')}`;
+  return `Rs. ${n.toLocaleString('en-IN')}`;
 }
 
 export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
@@ -104,8 +112,9 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
   const grandTotal = hasPricing ? data.items.reduce((sum, i) => sum + (i.unitPrice || 0) * i.quantity, 0) : null;
   const cols: Record<string, number> = hasPricing ? COLS_WITH_PRICE : COLS_NO_PRICE;
   const distinctTypes = new Set(data.items.map((i) => i.requestType));
-  const docTitle =
-    distinctTypes.size > 1
+  const docTitle = data.isInvoice
+    ? 'Invoice'
+    : distinctTypes.size > 1
       ? 'Order Summary & Quotation'
       : data.requestType === 'Request Quotation'
       ? 'Quotation'

@@ -87,6 +87,9 @@ export default function CategoryAdminClient({
   const [uploadingCover, setUploadingCover] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
+  const [driveDialogOpen, setDriveDialogOpen] = useState(false);
+  const driveDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (driveDialogOpen && !driveDialogRef.current?.open) driveDialogRef.current?.showModal(); }, [driveDialogOpen]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -282,6 +285,7 @@ export default function CategoryAdminClient({
     setImporting(false);
     if (!res.ok) { setToast('Failed to import from Drive -- try again.'); return; }
     setDriveText('');
+    driveDialogRef.current?.close();
     setToast(`${ids.length} photo${ids.length === 1 ? '' : 's'} imported.`);
     router.refresh();
   }
@@ -532,8 +536,10 @@ export default function CategoryAdminClient({
             )}
           </section>
 
-          {/* Upload + bulk Drive import -- side by side on desktop instead of each
-              stacked full-width with a short control leaving most of the row empty. */}
+          {/* Upload + bulk Drive import -- the Drive import used to sit open
+              beside Upload photos at all times, so its blank textarea took up
+              a whole column even when nobody was importing from Drive. It's
+              a popup now, behind a button, like the other admin create forms. */}
           <div id="category-upload" className="admin-upload-row">
             <section>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
@@ -542,14 +548,31 @@ export default function CategoryAdminClient({
             </section>
 
             <section>
-              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
-              <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
-              <textarea aria-label="Google Drive photo links or IDs" rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
-              <div style={{ marginTop: 8 }}>
-                <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
-              </div>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or import from Google Drive</h3>
+              <button type="button" className="btn-ghost" onClick={() => setDriveDialogOpen(true)}>Open from Google Drive</button>
             </section>
           </div>
+
+          {driveDialogOpen && (
+            <dialog
+              ref={driveDialogRef}
+              className="admin-create-dialog"
+              aria-label="Import photos from Google Drive"
+              onCancel={(e) => { e.preventDefault(); driveDialogRef.current?.close(); }}
+              onClose={() => { setDriveDialogOpen(false); setDriveText(''); }}
+              onClick={(e) => { if (e.target === e.currentTarget) driveDialogRef.current?.close(); }}
+            >
+              <div className="admin-create-dialog-head">
+                <strong>Import from Google Drive</strong>
+                <button type="button" autoFocus onClick={() => driveDialogRef.current?.close()} aria-label="Close">✕</button>
+              </div>
+              <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
+              <textarea aria-label="Google Drive photo links or IDs" rows={5} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
+              <div style={{ marginTop: 10 }}>
+                <button className="btn" onClick={importDrive} disabled={importing || !driveText.trim()}>{importing ? 'Importing…' : 'Import'}</button>
+              </div>
+            </dialog>
+          )}
 
           {/* Photo grid with per-photo tagging */}
           <section id="category-gallery">

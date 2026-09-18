@@ -62,6 +62,8 @@ const styles = StyleSheet.create({
   }
 });
 
+// "Rs." not "₹" -- the default Helvetica PDF font has no glyph for the Rupee
+// sign (U+20B9), so it renders as a broken/superscript character instead.
 function money(n: number | null, symbol: string) {
   if (n === null) return null;
   return `${symbol}${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -94,7 +96,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           </View>
           <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
-            <Text style={styles.metaValue}>₹ INR per piece</Text>
+            <Text style={styles.metaValue}>Rs. INR per piece</Text>
           </View>
         </View>
 
@@ -129,7 +131,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
                       {price === null ? (
                         <Text style={styles.dash}>--</Text>
                       ) : (
-                        <Text style={styles.priceInr}>{money(price, '₹')}</Text>
+                        <Text style={styles.priceInr}>{money(price, 'Rs. ')}</Text>
                       )}
                     </View>
                   );
