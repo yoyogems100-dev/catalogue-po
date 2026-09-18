@@ -28,6 +28,7 @@ type Photo = {
   notes: string | null;
   tag_ids: number[];
   isCoverOnly: boolean;
+  watermarkId: number | null;
 };
 
 type BadgeType = 'shapes' | 'colors' | 'sizes';
@@ -53,6 +54,7 @@ export default function CategoryAdminClient({
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
+  watermarks,
   otherCategories,
   badgeTypes
 }: {
@@ -76,6 +78,9 @@ export default function CategoryAdminClient({
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
+  /** Watermark presets available to apply to a photo -- empty on every tab
+      but Photos. */
+  watermarks: { id: number; name: string }[];
   /** Every other category's id/name, for the Photos tab's "Add to category"
       bulk action -- empty on every other tab. */
   otherCategories: { id: number; name: string }[];
@@ -342,6 +347,25 @@ export default function CategoryAdminClient({
       body: JSON.stringify({ category_id: categoryId, photo_id: photoId, direction })
     });
     if (!res.ok) setToast('Failed to reorder -- try again.');
+    router.refresh();
+  }
+
+  async function applyWatermark(photoId: number, watermarkId: number) {
+    setToast('Adding watermark…');
+    const res = await fetch(`/api/photos/${photoId}/watermark`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watermark_id: watermarkId })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to add watermark -- try again.'); return; }
+    setToast('Watermark added.');
+    router.refresh();
+  }
+
+  async function removeWatermark(photoId: number) {
+    const res = await fetch(`/api/photos/${photoId}/watermark`, { method: 'DELETE' });
+    if (!res.ok) { setToast('Failed to remove watermark -- try again.'); return; }
+    setToast('Watermark removed.');
     router.refresh();
   }
 
@@ -638,6 +662,9 @@ export default function CategoryAdminClient({
                   onSetThumbnail={setThumbnail}
                   onMove={movePhoto}
                   onCreateTag={createPhotoTag}
+                  watermarks={watermarks}
+                  onApplyWatermark={applyWatermark}
+                  onRemoveWatermark={removeWatermark}
                   dragHandleProps={dragHandleProps(i)}
                   dropTargetProps={dropTargetProps(i)}
                   isDragging={dragIndex === i}
@@ -690,7 +717,10 @@ function PhotoRow({
   fieldOptions,
   selectMode,
   selected,
-  onToggleSelect
+  onToggleSelect,
+  watermarks,
+  onApplyWatermark,
+  onRemoveWatermark
 }: {
   categoryId: number;
   photo: Photo;
@@ -723,6 +753,11 @@ function PhotoRow({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Not offered on the dedicated Cover Photo section -- a watermark only
+      ever applies to the "photo" variant, never the separate cover crop. */
+  watermarks?: { id: number; name: string }[];
+  onApplyWatermark?: (id: number, watermarkId: number) => void;
+  onRemoveWatermark?: (id: number) => void;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -996,6 +1031,23 @@ function PhotoRow({
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
         {cropControls}
+        {watermarks && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+            <select
+              value={photo.watermarkId || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value) onRemoveWatermark?.(photo.id);
+                else onApplyWatermark?.(photo.id, Number(value));
+              }}
+              style={{ fontSize: 11.5 }}
+              aria-label="Watermark"
+            >
+              <option value="">No watermark</option>
+              {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        )}
         {tagChips}
         {fieldPicker}
         <input

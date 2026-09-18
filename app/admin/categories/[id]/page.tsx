@@ -94,23 +94,29 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     }
   }
 
-  // Photos (with their per-photo tag/shape/size/color joins) are only needed
-  // on the Photos tab -- fetching and formatting every photo on every other
-  // tab was pure waste.
+  // Photos (with their per-photo tag/shape/size/color joins) and the
+  // watermark preset list are only needed on the Photos tab -- fetching and
+  // formatting every photo on every other tab was pure waste.
   let photosFormatted: any[] = [];
+  let watermarks: { id: number; name: string }[] = [];
   if (tab === 'photos') {
-    const { data: photos } = await supabaseAdmin
-      .from('photos')
-      .select('*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
-      .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true });
+    const [{ data: photos }, { data: watermarksRaw }] = await Promise.all([
+      supabaseAdmin
+        .from('photos')
+        .select('*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
+        .eq('category_id', categoryId)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true }),
+      supabaseAdmin.from('watermarks').select('id, name').order('sort_order').order('id')
+    ]);
+    watermarks = watermarksRaw || [];
     photosFormatted = (photos || []).map((p: any) => ({
       id: p.id,
       url: photoUrl(p, 400),
       coverUrl: photoUrl(p, 400, 'cover'),
       photoCrop: p.photo_crop || null,
       coverCrop: p.cover_crop || null,
+      watermarkId: p.watermark_id || null,
       shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
       sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
       colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
@@ -169,6 +175,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         linkedSizeIds={linkedSizeIds}
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
+        watermarks={watermarks}
         otherCategories={otherCategories}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       /></>}

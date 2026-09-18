@@ -49,6 +49,7 @@ const NAV_LINKS = [
   { href: '/admin/pricing', label: 'Pricing' },
   { href: '/admin/bulk-link', label: 'Bulk Link' },
   { href: '/admin/tags', label: 'Tags' },
+  { href: '/admin/watermarks', label: 'Watermarks' },
   { href: '/admin/bin', label: 'Bin' }
 ];
 
