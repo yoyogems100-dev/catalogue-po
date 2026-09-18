@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
-import StatusTag from '@/components/admin/StatusTag';
+import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import Link from 'next/link';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
@@ -130,7 +130,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                 </p>
                 <dl>
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
-                  <div><dt>Status</dt><dd><StatusTag status={o.status} /></dd></div>
+                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
                 </dl>
                 {!!s.unpricedQuotes && <p>{s.unpricedQuotes} quotation lines need pricing</p>}
@@ -157,7 +157,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     </td>
                     <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                     <td><CategoryChips names={s.categoryNames} />{s.unpricedQuotes > 0 && <p className="admin-coverage-note">{s.unpricedQuotes} quote {s.unpricedQuotes === 1 ? 'line needs' : 'lines need'} pricing</p>}</td>
-                    <td><StatusTag status={o.status} /></td>
+                    <td><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
                     <td><Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link></td>
                   </tr>
                 );

@@ -1422,6 +1422,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-order-card-hit { position: absolute; inset: 0; z-index: 1; }
 .admin-order-card > *:not(.admin-order-card-hit) { position: relative; z-index: 2; pointer-events: none; }
 .admin-order-card .admin-card-customer-link, .admin-order-card .btn-ghost { pointer-events: auto; }
+.admin-order-card .admin-order-row-status, .admin-order-card .admin-order-row-status * { pointer-events: auto; }
 .admin-card-customer-link { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 760px) {
