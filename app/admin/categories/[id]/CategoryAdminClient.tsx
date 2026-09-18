@@ -53,6 +53,7 @@ export default function CategoryAdminClient({
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
+  otherCategories,
   badgeTypes
 }: {
   categoryId: number;
@@ -75,6 +76,9 @@ export default function CategoryAdminClient({
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
+  /** Every other category's id/name, for the Photos tab's "Add to category"
+      bulk action -- empty on every other tab. */
+  otherCategories: { id: number; name: string }[];
   badgeTypes: BadgeType[];
 }) {
   const router = useRouter();
@@ -92,6 +96,14 @@ export default function CategoryAdminClient({
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
+
+  // Bulk photo actions (Photos tab only): a "Select" mode toggle keeps the
+  // gallery's normal per-photo controls uncluttered until the admin actually
+  // wants to act on several photos at once.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
+  const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // UI/UX audit ("visible saved-state feedback"): upload/import/delete/set-cover
   // previously refreshed with no acknowledgement -- a failed request and a
@@ -329,6 +341,56 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
+  function toggleSelectMode() {
+    setSelectMode((cur) => !cur);
+    setSelectedPhotoIds([]);
+    setMoveTargetId('');
+  }
+
+  function toggleSelectPhoto(photoId: number) {
+    setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur.filter((id) => id !== photoId) : [...cur, photoId]));
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    setSelectedPhotoIds(checked ? galleryPhotos.map((p) => p.id) : []);
+  }
+
+  async function moveSelectedPhotos() {
+    if (!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const res = await fetch('/api/photos/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selectedPhotoIds, to_category_id: moveTargetId })
+    });
+    setBulkBusy(false);
+    if (!res.ok) { setToast('Failed to move photos -- try again.'); return; }
+    const moved = selectedPhotoIds.length;
+    setLocalPhotos((cur) => cur.filter((p) => !selectedPhotoIds.includes(p.id)));
+    setToast(`Moved ${moved} photo${moved === 1 ? '' : 's'}.`);
+    setSelectedPhotoIds([]);
+    setMoveTargetId('');
+    router.refresh();
+  }
+
+  async function deleteSelectedPhotos() {
+    if (selectedPhotoIds.length === 0 || bulkBusy) return;
+    const count = selectedPhotoIds.length;
+    if (!confirm(`Delete ${count} photo${count === 1 ? '' : 's'}? This removes them from the catalogue and cannot be undone.`)) return;
+    setBulkBusy(true);
+    const results = await Promise.all(
+      selectedPhotoIds.map((id) => fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+    );
+    setBulkBusy(false);
+    const failed = results.filter((r) => !r.ok).length;
+    const deletedIds = selectedPhotoIds.filter((_, i) => results[i].ok);
+    setLocalPhotos((cur) => cur.filter((p) => !deletedIds.includes(p.id)));
+    setSelectedPhotoIds([]);
+    if (failed > 0) setToast(`${deletedIds.length} deleted, ${failed} failed -- try again.`);
+    else setToast(`Deleted ${deletedIds.length} photo${deletedIds.length === 1 ? '' : 's'}.`);
+    router.refresh();
+  }
+
   function toggleSummary(key: string) {
     setExpandedSummary((cur) => ({ ...cur, [key]: !cur[key] }));
   }
@@ -491,10 +553,45 @@ export default function CategoryAdminClient({
 
           {/* Photo grid with per-photo tagging */}
           <section id="category-gallery">
-            <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
-            <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-              "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{galleryPhotos.length} photos</h3>
+              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ marginLeft: 'auto', fontSize: 12 }} onClick={toggleSelectMode}>
+                {selectMode ? 'Done selecting' : 'Select'}
+              </button>
+            </div>
+            {selectMode ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#f4f1e8', borderRadius: 6 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+                  <input
+                    type="checkbox"
+                    checked={galleryPhotos.length > 0 && selectedPhotoIds.length === galleryPhotos.length}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                  />
+                  Select all
+                </label>
+                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length} selected</span>
+                <select
+                  value={moveTargetId}
+                  onChange={(e) => setMoveTargetId(e.target.value ? Number(e.target.value) : '')}
+                  disabled={selectedPhotoIds.length === 0}
+                  style={{ maxWidth: 220 }}
+                  aria-label="Add selected photos to category"
+                >
+                  <option value="">Add to category…</option>
+                  {otherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
+                  {bulkBusy ? 'Working…' : 'Add to category'}
+                </button>
+                <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
+                  {bulkBusy ? 'Working…' : 'Delete selected'}
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
+                "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
+              </p>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
               {galleryPhotos.map((p, i) => (
                 <PhotoRow
@@ -517,6 +614,9 @@ export default function CategoryAdminClient({
                   dropTargetProps={dropTargetProps(i)}
                   isDragging={dragIndex === i}
                   isDragOver={overIndex === i}
+                  selectMode={selectMode}
+                  selected={selectedPhotoIds.includes(p.id)}
+                  onToggleSelect={() => toggleSelectPhoto(p.id)}
                 />
               ))}
             </div>
@@ -559,7 +659,10 @@ function PhotoRow({
   isDragOver,
   hideMoveControls,
   compact,
-  fieldOptions
+  fieldOptions,
+  selectMode,
+  selected,
+  onToggleSelect
 }: {
   categoryId: number;
   photo: Photo;
@@ -587,6 +690,11 @@ function PhotoRow({
       need Size or the full Specifications browse-list, just a quick
       shape/color/other-tag. */
   fieldOptions?: FieldType[];
+  /** Bulk-select mode for the "Add to category" / "Delete selected" toolbar --
+      not offered on the dedicated Cover Photo section (hideMoveControls). */
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -788,7 +896,13 @@ function PhotoRow({
     >
       <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative' }}>
         {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {!hideMoveControls && (
+        {!hideMoveControls && selectMode ? (
+          <label
+            style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 4, padding: '4px 6px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
+            <input type="checkbox" checked={!!selected} onChange={onToggleSelect} aria-label={`Select photo #${photo.id}`} style={{ margin: 0 }} />
+          </label>
+        ) : !hideMoveControls && (
           <span
             {...dragHandleProps}
             className="drag-handle"

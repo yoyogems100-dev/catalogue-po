@@ -37,6 +37,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // page fetched the catalogue-wide lists unconditionally on every single
   // tab click, which is what made switching tabs slow.
   const needsFullShapeSizeCatalogue = tab === 'shapes';
+  // The "move to category" picker on the Photos tab is the only thing that
+  // needs every other category's name -- skip it everywhere else.
+  const needsCategoryList = tab === 'photos';
 
   const [
     { data: category },
@@ -46,7 +49,8 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: linkedColorsRaw },
     { data: linkedTagsRaw },
     { data: linkedSizesRaw },
-    fullSizesResult
+    fullSizesResult,
+    { data: otherCategoriesRaw }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
@@ -59,9 +63,13 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       ? fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
           supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).range(from, to)
         )
-      : Promise.resolve({ data: [] as { id: number; shape_id: number; size_mm: string; weight_ct: number | null }[], error: null })
+      : Promise.resolve({ data: [] as { id: number; shape_id: number; size_mm: string; weight_ct: number | null }[], error: null }),
+    needsCategoryList
+      ? supabaseAdmin.from('categories').select('id, name').neq('id', categoryId).order('num')
+      : Promise.resolve({ data: [] as { id: number; name: string }[], error: null })
   ]);
   const allSizes = fullSizesResult.data || [];
+  const otherCategories = otherCategoriesRaw || [];
 
   if (!category) {
     return <p>Category not found. <Link href="/admin/categories">&larr; Back</Link></p>;
@@ -161,6 +169,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         linkedSizeIds={linkedSizeIds}
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
+        otherCategories={otherCategories}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       /></>}
     </>

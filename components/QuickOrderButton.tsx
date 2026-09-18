@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import SpecialOrderComposer from './SpecialOrderComposer';
+import OrderReferenceCarousel from './OrderReferenceCarousel';
+import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor } from '@/lib/order-specs';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { loadCart, saveCart, mergeIntoCart, cartPieces, type CartItem, type RequestType } from '@/lib/cart-storage';
@@ -13,6 +15,8 @@ type CategoryOptionsData = {
   shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
   colors: { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
+  photos: OrderReferencePhoto[];
+  colorChartUrl?: string | null;
   pricing?: CategoryPricing;
 };
 
@@ -90,7 +94,7 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
     try {
       const res = await fetch(`/api/app/categories/${cat.slug}`);
       const data = await res.json();
-      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [], pricing: data.pricing } }));
+      setOptionsCache((cur) => ({ ...cur, [id]: { shapes: data.shapes || [], colors: data.colors || [], sizes: data.sizes || [], photos: data.photos || [], colorChartUrl: data.colorChartUrl, pricing: data.pricing } }));
     } finally {
       setLoadingOptions(false);
     }
@@ -262,6 +266,19 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
           </div>
 
           {loadingOptions && <p className="quick-order-hint">Loading category options…</p>}
+
+          {currentOptions && currentCategory && (
+            <OrderReferenceCarousel
+              colorChartUrl={currentOptions.colorChartUrl}
+              photos={currentOptions.photos}
+              categoryName={currentCategory.name}
+              shapeIds={pickShapeIds}
+              colorIds={pickColorIds}
+              sizeIds={pickSizeIdxs.flatMap((index) => sizesForShapes[index]?.rows.map((row) => row.id) || [])}
+              shapes={currentOptions.shapes}
+              colors={currentOptions.colors}
+            />
+          )}
 
           {specialCategory(Number(pickCategoryId)) && currentOptions && (
             <SpecialOrderComposer
