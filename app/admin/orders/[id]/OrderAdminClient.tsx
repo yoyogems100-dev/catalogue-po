@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
+import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
 
 // Shown both as the disabled button's tooltip and as text beside it, so the
 // reason is readable on touch devices too -- a title attribute never appears
@@ -451,8 +452,8 @@ export default function OrderAdminClient({
             </select>
           </div>
           <div>
-            <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl} title={manualWaUrl ? undefined : 'No phone number on file for this order'}>
-              🟢 Notify
+            <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={notifyViaWhatsApp} disabled={!manualWaUrl} title={manualWaUrl ? undefined : 'No phone number on file for this order'}>
+              <WhatsAppIcon size={14} /> Notify
             </button>
             {/* Silently doing nothing here read as "Notify is broken" -- this is
                 the actual reason: a guest order with no linked customer phone
@@ -590,6 +591,8 @@ export default function OrderAdminClient({
           };
 
           const renderTable = (rowItems: Item[], includeNewLines: boolean) => (
+            <>
+            <p className="admin-order-lines-hint">Scroll the table sideways for supplier, CP and SP. Category stays pinned.</p>
             <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
               <table>
                 <thead>
@@ -651,6 +654,7 @@ export default function OrderAdminClient({
                 </tbody>
               </table>
             </div>
+            </>
           );
 
           return (
@@ -685,7 +689,7 @@ export default function OrderAdminClient({
           <div className="card" style={{ marginTop: 16, padding: 14 }}>
             <p style={{ fontSize: 13, marginBottom: 8 }}>This order was just updated. Send the customer the latest version?</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn-ghost" onClick={sendUpdatedOrderViaWhatsApp} disabled={!manualWaUrl}>🟢 Send via WhatsApp</button>
+              <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={sendUpdatedOrderViaWhatsApp} disabled={!manualWaUrl}><WhatsAppIcon size={14} /> Send via WhatsApp</button>
               <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>{generatingPdf ? 'Generating…' : 'Send PDF'}</button>
               <button className="btn-ghost" onClick={() => setJustUpdated(false)}>Dismiss</button>
             </div>

@@ -203,7 +203,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
         {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
       </form>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+      {/* Eight statuses wrap to three rows on a phone, pushing the first order
+          most of a screen further down. One swipeable row keeps the filter
+          within reach without hiding it behind a disclosure. */}
+      <div className="admin-status-chips">
         <Link href={filterUrl(undefined)} className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All statuses</Link>
         {ORDER_STATUS_OPTIONS.map((m) => (
           <Link

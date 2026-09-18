@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import StatusTag from './StatusTag';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import WhatsAppIcon from './WhatsAppIcon';
 
 // Lets the admin change status and notify the customer straight from the
 // orders list, instead of having to open each order to do either. Same
@@ -88,15 +89,18 @@ export default function OrderRowStatus({
             <StatusTag status={value} />
           </button>
         )}
+        {/* Was a bare green circle emoji, which said nothing about what it
+            did. A WhatsApp glyph plus the word carries its own meaning, and
+            the 28px-tall button is a realistic tap target in a list row. */}
         <button
           type="button"
+          className="admin-notify-btn"
           onClick={notify}
           disabled={!customerPhone}
-          title={customerPhone ? 'Notify via WhatsApp' : 'No phone number on file'}
-          aria-label="Notify via WhatsApp"
-          style={{ background: 'none', border: 'none', padding: 0, cursor: customerPhone ? 'pointer' : 'not-allowed', fontSize: 13, opacity: customerPhone ? 1 : 0.35 }}
+          title={customerPhone ? 'Notify the customer on WhatsApp' : 'No phone number on file -- nothing to notify'}
         >
-          🟢
+          <WhatsAppIcon />
+          <span>Notify</span>
         </button>
       </span>
       {toast && <span role="status" style={{ fontSize: 10, color: '#a3341f' }}>{toast}</span>}
