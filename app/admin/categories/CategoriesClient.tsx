@@ -1,10 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { COVERAGE_FILTERS, catalogueGaps, matchesCoverage, type CoverageFilter } from '@/lib/catalogue-health';
+
+// Same Google Drive rate-limiting story as the public catalogue (see
+// app/HomeCatalogue.tsx): this page lists every category at once, so eager
+// covers hit lh3.googleusercontent.com hard enough to get 429s back. Lazy load
+// them, and treat a cover that fails to load the same as one that was never
+// set, rather than showing a broken-image icon.
+function CoverThumb({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+
+  // See the matching note in app/HomeCatalogue.tsx: a cover that 429s before
+  // React hydrates never fires onError, so catch that state on mount instead.
+  useEffect(() => {
+    const el = img.current;
+    if (el?.complete && el.naturalWidth === 0) setFailed(true);
+  }, []);
+
+  if (!url || failed) return <span>No photo</span>;
+  return <img ref={img} src={url} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+}
 
 type Row = {
   id: number;
@@ -190,7 +210,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <td>{String(c.num).padStart(2, '0')}</td>
                   <td>
                     <div className="admin-cover-thumb">
-                      {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
+                      <CoverThumb url={c.coverUrl} />
                     </div>
                   </td>
                   <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
@@ -219,7 +239,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
               <div key={c.id} className="admin-cat-card admin-cat-card--link"
                 onClick={(e) => { if ((e.target as HTMLElement).closest('a, button, input, textarea, select, .admin-cat-card-name')) return; router.push(`/admin/categories/${c.id}`); }}>
                 <div className="admin-cat-cover">
-                  {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span>No photo</span>}
+                  <CoverThumb url={c.coverUrl} />
                 </div>
                 <div className="admin-cat-card-body">
                   <div className="admin-cat-card-name">
