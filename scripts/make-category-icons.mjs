@@ -48,19 +48,24 @@ const OUT_DIR = path.join(ROOT, 'public/reference/categories');
 const MAX = 128;
 
 // slug -> source photo + the tolerances that photo needs.
-// The 3A/4A/5A/7A/heighted CZ grades share one source: the owner's photo is
-// filed under all five names, because they are the same stone at different
-// qualities.
+// The 3A/4A/5A/7A/Swiss CZ grades share one source: the owner filed that
+// photo under all of those names, because they are the same stone at
+// different qualities. Heighted CZ had its own photo supplied later and no
+// longer uses the shared one.
 const CATEGORY_ICONS = {
   'crushed-ice-cut':       { src: 'ICE CRUSH (4).JPEG' },
   'rainbow-corundum':      { src: 'rainbow-corundum-300.jpg', near: 22, global: 80 },
-  'ruby-synthetic':        { src: 'ruby.png', near: 40, global: 170, key: true },
+  'ruby-synthetic':        { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
+  'ruby-glass-filled':     { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
   'ruby-green-cabs':       { src: 'green cabs.jpg' },
   'coloured-cz-stones':    { src: 'color cz.jpg' },
   'lab-grown-stones':      { src: 'labEm.webp' },
   'synthetic-opals':       { src: 'syn opal.jpg' },
   'fusion-stones':         { src: 'fusionstone.webp' },
   'turkey-ring-stones':    { src: 'turkey-ring-stones-29.webp', near: 34, global: 125, key: true },
+  // glassbeads.png (the newer photo) is a full-bleed shot of bead strands --
+  // no backdrop to remove, and it carries a stock-library watermark -- so this
+  // stays on the earlier photo until a replacement arrives.
   'cz-glass-beads':        { src: 'GLASS BEADS.jpeg', near: 40, global: 120, key: true },
   'mop-mother-of-pearl':   { src: 'mop.png', near: 34, global: 130 },
   'mop-onyx':              { src: 'onyx.png' },
@@ -79,7 +84,23 @@ const CATEGORY_ICONS = {
   '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
   '4a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
   '3a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
-  'heighted-cz-stones':    { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' }
+  'heighted-cz-stones':    { src: 'heightened cz.jpeg', near: 30, global: 115, key: true },
+  // SWIZZ in that shared filename is Swiss High Density CZ.
+  'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
+  'nano':                  { src: 'blue nano.png' },
+  'moissanite':            { src: 'moissanite.jpg' },
+  'hole-punched-stones':   { src: 'hole.punch.png', near: 30, global: 115 },
+  // The left flank of this stone fades into its black backdrop with no edge
+  // to find, so the cut-out loses it whatever the tolerance; 8/32 keeps the
+  // most stone. A shot on a light backdrop would cut out cleanly.
+  'fancy-special-shapes':  { src: 'fancy special shp.png', near: 8, global: 32 },
+  'green-onyx-chatam':     { src: 'green onyx.webp' },
+  'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg' },
+  'preform-balls':         { src: 'preformballs.tiff' },
+  'synthetic-corundum':    { src: 'synthtic corundum.png' }
+  // Still unillustrated: semi-precious-stones (no photo supplied), and
+  // natural-pearls (the file supplied is a byte-for-byte copy of the Glass
+  // Pearls photo, so it would show the wrong stone).
 };
 
 const dist = (a, b, c, r, g, bl) => Math.abs(a - r) + Math.abs(b - g) + Math.abs(c - bl);
@@ -169,8 +190,8 @@ async function cutout(SRC, OUT, opts) {
       }
       blobs.push(cells);
     }
-    const biggest = blobs.reduce((a, b) => (b.length > a.length ? b : a), []).length;
-    for (const cells of blobs) if (cells.length < biggest * 0.12) for (const p of cells) data[p * C + 3] = 0;
+    const totalKept = blobs.reduce((n, b) => n + b.length, 0);
+    for (const cells of blobs) if (cells.length < totalKept * 0.02) for (const p of cells) data[p * C + 3] = 0;
   }
 
   // Bounding box of what survived, then a small transparent margin so the gem
