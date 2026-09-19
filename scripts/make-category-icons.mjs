@@ -43,9 +43,22 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DIR = path.join(ROOT, 'all each cat');
 const OUT_DIR = path.join(ROOT, 'public/reference/categories');
-// 128px: these render at 22-28px in a dropdown row, so 128 covers retina
-// with room to spare and keeps the whole set around 200 KB.
-const MAX = 128;
+// Every icon is written onto the same 5:4 landscape tile. It is landscape
+// rather than square because these stones are not all round: a rose-cut
+// polki, a strand of rainbow corundum and a pair of foiled crystals are all
+// much wider than they are tall, and inside a square tile they shrank to a
+// sliver while a round CZ filled the whole thing. 160x128 renders at 40x32
+// in a dropdown row, so it covers retina with room to spare.
+const TILE_W = 160, TILE_H = 128;
+
+// How much of the tile a stone's own pixels should cover, so every category
+// carries roughly the same visual weight in the list. Measured against the
+// pixels that are actually stone -- NOT the bounding box -- because a thin
+// diagonal strand fills its box while covering very little of it, and box
+// sizing left those looking tiny next to a round stone of the same box size.
+// A stone is never enlarged past the tile, so very wide ones simply run the
+// full width.
+const TARGET_INK = 0.45;
 
 // slug -> source photo + the tolerances that photo needs.
 // The 3A/4A/5A/7A/Swiss CZ grades share one source: the owner filed that
@@ -63,10 +76,9 @@ const CATEGORY_ICONS = {
   'synthetic-opals':       { src: 'syn opal.jpg' },
   'fusion-stones':         { src: 'fusionstone.webp' },
   'turkey-ring-stones':    { src: 'turkey-ring-stones-29.webp', near: 34, global: 125, key: true },
-  // glassbeads.png (the newer photo) is a full-bleed shot of bead strands --
-  // no backdrop to remove, and it carries a stock-library watermark -- so this
-  // stays on the earlier photo until a replacement arrives.
-  'cz-glass-beads':        { src: 'GLASS BEADS.jpeg', near: 40, global: 120, key: true },
+  // Strands edge to edge: framed, not cut out. The crop is a wide band across
+  // the middle of a portrait photo, which is where every colour appears.
+  'cz-glass-beads':        { src: 'glass beads.png', frame: { w: 150, h: 104, crop: [0, 0.2, 1, 0.59] } },
   'mop-mother-of-pearl':   { src: 'mop.png', near: 34, global: 130 },
   'mop-onyx':              { src: 'onyx.png' },
   'evil-eye-malachite':    { src: 'evileye.png' },
@@ -75,7 +87,9 @@ const CATEGORY_ICONS = {
   'crystal':               { src: 'Amethyst-1-scaled crystal.jpg' },
   'queen-conch':           { src: 'QUEEN CONCH.png', near: 32, global: 125 },
   'foiled-glass-crystal':  { src: 'foiled stone.jpeg' },
-  'natural-emeralds':      { src: 'natEmerald.webp' },
+  // A soft white glow sits between this stone and its backdrop; the fill
+  // stops at it, so key it out by colour as well.
+  'natural-emeralds':      { src: 'natEmerald.webp', near: 20, global: 150, key: true },
   'glass-stones':          { src: 'glass-green gemstone.webp' },
   'star-light':            { src: 'starlighht.webp', circle: [0.487, 0.47, 0.275], skipFill: true },
   'ceramic':               { src: 'ceramic.jpg' },
@@ -97,15 +111,54 @@ const CATEGORY_ICONS = {
   'green-onyx-chatam':     { src: 'green onyx.webp' },
   'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg' },
   'preform-balls':         { src: 'preformballs.tiff' },
-  'synthetic-corundum':    { src: 'synthtic corundum.png' }
-  // Still unillustrated: semi-precious-stones (no photo supplied), and
-  // natural-pearls (the file supplied is a byte-for-byte copy of the Glass
-  // Pearls photo, so it would show the wrong stone).
+  'synthetic-corundum':    { src: 'synthtic corundum.png' },
+  'natural-pearls':        { src: 'pearl.webp' },
+  'semi-precious-stones':  { src: 'semiPrecious.png' }
+  // Every category is illustrated. If a new one is added, give it an entry
+  // here and re-run this script.
 };
 
 const dist = (a, b, c, r, g, bl) => Math.abs(a - r) + Math.abs(b - g) + Math.abs(c - bl);
 
+// Not every category photo is one stone on a backdrop. Glass Beads is a
+// full-bleed shot of strands -- there is no background to remove, only beads
+// edge to edge. Those are shown as a small framed snapshot instead: a crop of
+// the photo fitted to a rectangle on the same tile, with softly rounded
+// corners so it reads as a deliberate swatch rather than a cut-out that
+// failed. The rectangle is sized to sit among the cut-out stones rather than
+// tower over them or disappear beside them.
+async function framedSnapshot(SRC, OUT, opts) {
+  const { w, h, crop } = opts.frame;
+  const meta = await sharp(SRC).metadata();
+  const [cx, cy, cwF, chF] = crop || [0, 0, 1, 1];
+  const region = {
+    left: Math.round(cx * meta.width),
+    top: Math.round(cy * meta.height),
+    width: Math.round(cwF * meta.width),
+    height: Math.round(chF * meta.height)
+  };
+
+  const r = 10;
+  const rounded = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect x="0" y="0" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="#fff"/></svg>`
+  );
+  const tile = await sharp(SRC)
+    .extract(region)
+    .resize(w, h, { fit: 'cover' })
+    .composite([{ input: rounded, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+
+  await sharp({ create: { width: TILE_W, height: TILE_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: tile, left: Math.round((TILE_W - w) / 2), top: Math.round((TILE_H - h) / 2) }])
+    .png({ compressionLevel: 9 })
+    .toFile(OUT);
+
+  return { ink: (w * h) / (TILE_W * TILE_H), outW: w, outH: h };
+}
+
 async function cutout(SRC, OUT, opts) {
+  if (opts.frame) return framedSnapshot(SRC, OUT, opts);
   const NEAR = opts.near ?? 14;
   const GLOBAL = opts.global ?? 52;
   const base = sharp(SRC).rotate();
@@ -204,20 +257,28 @@ async function cutout(SRC, OUT, opts) {
   if (maxX < 0) throw new Error('nothing left after background removal');
 
   const cw = maxX - minX + 1, ch = maxY - minY + 1;
-  const pad = Math.round(Math.max(cw, ch) * 0.04);
-  const side = Math.max(cw, ch) + pad * 2;
+
+  // Scale so this stone's ink covers TARGET_INK of the tile, then clamp so it
+  // still fits inside the tile with a hair of margin.
+  const margin = 0.96;
+  const byInk = Math.sqrt((TARGET_INK * TILE_W * TILE_H) / kept);
+  const toFit = Math.min((TILE_W * margin) / cw, (TILE_H * margin) / ch);
+  const scale = Math.min(byInk, toFit);
+  const outW = Math.max(1, Math.round(cw * scale));
+  const outH = Math.max(1, Math.round(ch * scale));
 
   await sharp(data, { raw: { width: W, height: H, channels: C } })
     .extract({ left: minX, top: minY, width: cw, height: ch })
+    .resize(outW, outH, { fit: 'fill' })
     .extend({
-      top: Math.round((side - ch) / 2), bottom: side - ch - Math.round((side - ch) / 2),
-      left: Math.round((side - cw) / 2), right: side - cw - Math.round((side - cw) / 2),
+      top: Math.round((TILE_H - outH) / 2), bottom: TILE_H - outH - Math.round((TILE_H - outH) / 2),
+      left: Math.round((TILE_W - outW) / 2), right: TILE_W - outW - Math.round((TILE_W - outW) / 2),
       background: { r: 0, g: 0, b: 0, alpha: 0 }
     })
-    .resize(MAX, MAX, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png({ compressionLevel: 9, palette: true })
     .toFile(OUT);
 
+  return { ink: (kept * scale * scale) / (TILE_W * TILE_H), outW, outH };
   }
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -226,9 +287,9 @@ for (const [slug, opts] of Object.entries(CATEGORY_ICONS)) {
   const src = path.join(SRC_DIR, opts.src);
   if (!fs.existsSync(src)) { console.log(`${slug}\tSKIPPED (missing ${opts.src})`); continue; }
   const out = path.join(OUT_DIR, `${slug}.png`);
-  await cutout(src, out, opts);
+  const r = await cutout(src, out, opts);
   written.push(slug);
-  console.log(`${slug}\t${(fs.statSync(out).size / 1024).toFixed(1)} KB`);
+  console.log(`${slug.padEnd(24)}${r.outW}x${r.outH}\tink ${(r.ink * 100).toFixed(0)}%\t${(fs.statSync(out).size / 1024).toFixed(1)} KB`);
 }
 
 // The app can't read the filesystem from a client component, so the list of
