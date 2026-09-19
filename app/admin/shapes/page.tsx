@@ -22,7 +22,7 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
     fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
       supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).order('id').range(from, to)
     ),
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     supabaseAdmin.from('category_shapes').select('category_id, shape_id'),
     categoryFilter
       ? supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id').eq('category_id', categoryFilter)

@@ -5,7 +5,7 @@ import ColorsClient from './ColorsClient';
 export async function ColorsWorkspace({ initialCategoryId, embedded = false }: { initialCategoryId?: number; embedded?: boolean }) {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order').order('sort_order').order('name'),
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     // Unfiltered read of the whole join table -- even embedded in a single
     // category's "Colors" tab, each row still shows how many OTHER
     // categories share that color (and lets you unlink it from them), so

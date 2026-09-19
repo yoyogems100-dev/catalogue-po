@@ -7,6 +7,7 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor } from '@/lib/order-specs';
+import { categoryIconUrl } from '@/lib/category-icons';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { loadCart, saveCart, mergeIntoCart, cartPieces, type CartItem, type RequestType } from '@/lib/cart-storage';
 
@@ -210,10 +211,14 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
           <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
             <div>
               <label className="po-label">Category</label>
-              <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
-                <option value="">{loadingCategories ? 'Loading categories…' : 'Choose category'}</option>
-                {allCategories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <IconSelect
+                options={(allCategories || []).map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+                value={pickCategoryId === '' ? 'all' : pickCategoryId}
+                onChange={(v) => handleCategoryChange(v === 'all' ? '' : String(v))}
+                allLabel={loadingCategories ? 'Loading categories…' : 'Choose category'}
+                leading="photo"
+                searchable
+              />
             </div>
             <div>
               <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>

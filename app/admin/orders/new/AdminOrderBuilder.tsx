@@ -3,13 +3,14 @@ import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { maskPhone } from '@/lib/mask';
 
-type Category = { id: number; num: number; name: string };
+type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null };
 type Options = {
   shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
@@ -310,10 +311,14 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
-            <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-              <option value="all">Choose category</option>
-              {allCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <IconSelect
+              options={allCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+              value={pickCategoryId}
+              onChange={handleCategoryChange}
+              allLabel="Choose category"
+              leading="photo"
+              searchable
+            />
           </div>
           {/* Same IconSelect the customer-facing pickers use: shape icons and
               real gemstone photos, colour swatches, search, hot-selling first

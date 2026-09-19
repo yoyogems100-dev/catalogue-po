@@ -10,7 +10,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
   const initialCustomerId = Number(params.customer) || null;
   const fromOrderId = Number(params.from) || null;
   const [{ data: categories }, { data: customers }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     supabaseAdmin.from('customers').select('id, name, phone, company').order('name')
   ]);
   let repeatItems: any[] = [];
@@ -35,7 +35,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
         Build a purchase order on a customer's behalf -- for orders taken by phone, WhatsApp, or in person.
       </p>
       <AdminOrderBuilder
-        allCategories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name }))}
+        allCategories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name, slug: c.slug }))}
         allCustomers={(customers || []).map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, company: c.company }))}
         initialCustomerId={initialCustomerId}
         repeatItems={repeatItems}

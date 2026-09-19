@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PricingPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   const query = await searchParams;
-  const { data: categories } = await supabaseAdmin.from('categories').select('id, name').order('num');
+  const { data: categories } = await supabaseAdmin.from('categories').select('id, name, slug').order('num');
 
   return (
     <>
@@ -16,7 +16,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </p>
       <PricingClient
         key={query.category || 'all'}
-        categories={(categories || []).map((c: any) => ({ id: c.id, name: c.name }))}
+        categories={(categories || []).map((c: any) => ({ id: c.id, name: c.name, slug: c.slug }))}
         initialCategoryId={Number(query.category) || undefined}
       />
     </>

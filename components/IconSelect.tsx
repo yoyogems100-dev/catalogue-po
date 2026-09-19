@@ -16,7 +16,7 @@ type CommonProps = {
   locked?: boolean;
   optionKind?: OptionKind;
   options: Option[];
-  leading?: 'swatch' | 'icon' | 'none';
+  leading?: 'swatch' | 'icon' | 'photo' | 'none';
   /** Show a filter box inside the panel once there are more than a few options. */
   searchable?: boolean;
   /**
@@ -163,6 +163,16 @@ export default function IconSelect(props: Props) {
     if (!o) return null;
     if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={16} />;
     if (leading === 'icon') return <span className="shape-vector-icon" aria-hidden="true"><ShapeIcon iconKey={o.iconKey} size={28} /></span>;
+    // Category rows: a transparent gemstone cut-out, shown at its natural
+    // aspect ratio inside a fixed square so every row's name still starts at
+    // the same x. Categories whose reference photo the owner hasn't supplied
+    // keep the square as empty space rather than collapsing, so a list that is
+    // only partly illustrated doesn't come out ragged.
+    if (leading === 'photo') return (
+      <span className="icon-select-photo" aria-hidden="true">
+        {o.refPhotoUrl ? <img src={o.refPhotoUrl} alt="" loading="lazy" /> : null}
+      </span>
+    );
     return null;
   }
 

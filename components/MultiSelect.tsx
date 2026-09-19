@@ -27,7 +27,7 @@ export default function MultiSelect({
   options: Option[];
   selectedIds: number[];
   onToggle: (id: number, currentlySelected: boolean) => void | Promise<void>;
-  leading?: 'swatch' | 'icon' | 'none';
+  leading?: 'swatch' | 'icon' | 'photo' | 'none';
   placeholder?: string;
   emptyHint?: string;
   /** Quick-select groups shown above the option list -- checking one selects every member at once. */
@@ -126,6 +126,12 @@ export default function MultiSelect({
   function Leading({ o }: { o: Option }) {
     if (leading === 'swatch') return <ColorSwatch hex={o.hex} refPhotoUrl={o.refPhotoUrl} name={o.name} size={14} />;
     if (leading === 'icon') return <span style={{ color: 'var(--navy)' }}><ShapeIcon iconKey={o.iconKey} size={12} /></span>;
+    // Category cut-out, same as IconSelect's -- see .icon-select-photo.
+    if (leading === 'photo') return (
+      <span className="icon-select-photo" aria-hidden="true">
+        {o.refPhotoUrl ? <img src={o.refPhotoUrl} alt="" loading="lazy" /> : null}
+      </span>
+    );
     return null;
   }
 

@@ -7,6 +7,7 @@ import PhotoCropEditor from '@/components/admin/PhotoCropEditor';
 import type { SavedCrop } from '@/lib/photo-crop';
 import MultiSelect from '@/components/MultiSelect';
 import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
@@ -94,7 +95,7 @@ export default function CategoryAdminClient({
   watermarks: { id: number; name: string }[];
   /** Every other category's id/name, for the Photos tab's "Add to category"
       bulk action -- empty on every other tab. */
-  otherCategories: { id: number; name: string }[];
+  otherCategories: { id: number; name: string; slug: string | null }[];
   badgeTypes: BadgeType[];
 }) {
   const router = useRouter();
@@ -634,16 +635,16 @@ export default function CategoryAdminClient({
                   Select all
                 </label>
                 <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length} selected</span>
-                <select
-                  value={moveTargetId}
-                  onChange={(e) => setMoveTargetId(e.target.value ? Number(e.target.value) : '')}
-                  disabled={selectedPhotoIds.length === 0}
-                  style={{ maxWidth: 220 }}
-                  aria-label="Add selected photos to category"
-                >
-                  <option value="">Add to category…</option>
-                  {otherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div style={{ maxWidth: 220, flex: '1 1 180px', opacity: selectedPhotoIds.length === 0 ? 0.5 : 1, pointerEvents: selectedPhotoIds.length === 0 ? 'none' : undefined }}>
+                  <IconSelect
+                    options={otherCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+                    value={moveTargetId === '' ? 'all' : moveTargetId}
+                    onChange={(v) => setMoveTargetId(v === 'all' ? '' : Number(v))}
+                    allLabel="Add to category…"
+                    leading="photo"
+                    searchable
+                  />
+                </div>
                 <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Add to category'}
                 </button>

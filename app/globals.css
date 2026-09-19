@@ -1229,6 +1229,18 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .shape-vector-icon svg { width:30px; height:30px; }
 .icon-select-trigger .shape-vector-icon { width:25px; height:25px; flex-basis:25px; }
 .icon-select-trigger .shape-vector-icon svg { width:24px; height:24px; }
+
+/* Category rows in a dropdown: the same fixed leading square the shape icon
+   gets, holding a transparent gemstone cut-out from public/reference/categories.
+   `contain` is required -- the cut-outs are cropped to each stone's own
+   bounding box, so almost none of them are square, and stretching one to fill
+   the square visibly squashes the gem. */
+.icon-select-photo { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 32px; padding:0; }
+.icon-select-photo img { width:100%; height:100%; object-fit:contain; display:block; }
+.icon-select-trigger .icon-select-photo { width:25px; height:25px; flex-basis:25px; }
+/* The multi-select trigger previews each pick as a small dot -- keep the
+   category cut-out at that scale so picking several doesn't grow the row. */
+.ms-preview-dot .icon-select-photo { width:18px; height:18px; flex-basis:18px; }
 .icon-select-trigger:disabled { opacity: 1; color: var(--ink); background: #f4f2ec; cursor: default; }
 .size-chart-download { display: inline-flex; align-items: center; margin: 12px 0; min-height: 44px; font-size: 13px; }
 

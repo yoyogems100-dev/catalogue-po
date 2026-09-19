@@ -5,6 +5,7 @@ import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 import ColorSwatch from '@/components/ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
@@ -410,10 +411,14 @@ export default function OrderDetailClient({
               <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
                 <div>
                   <label className="po-label">Category</label>
-                  <select value={pickCategoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
-                    <option value="">Choose category</option>
-                    {allCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <IconSelect
+                    options={allCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+                    value={pickCategoryId === '' ? 'all' : pickCategoryId}
+                    onChange={(v) => handleCategoryChange(v === 'all' ? '' : String(v))}
+                    allLabel="Choose category"
+                    leading="photo"
+                    searchable
+                  />
                 </div>
                 <div>
                   <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>

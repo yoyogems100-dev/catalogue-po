@@ -1,5 +1,7 @@
 'use client';
 import { HotMark } from '@/components/HotSelling';
+import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 
 import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,7 +12,7 @@ import BulkActionBar from '@/components/admin/BulkActionBar';
 
 type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
-type Category = { id: number; num: number; name: string };
+type Category = { id: number; num: number; name: string; slug: string | null };
 type CatShape = { category_id: number; shape_id: number };
 
 export default function ShapesClient({
@@ -230,7 +232,14 @@ export default function ShapesClient({
 
   return (
     <>
-      <label>Filter by category<select aria-label="Shape category filter" value={categoryFilter} onChange={event => setCategoryFilter(Number(event.target.value))}><option value={0}>All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+      <label>Filter by category<span style={{ display: 'block', maxWidth: 260 }}><IconSelect
+        options={categories.map(category => ({ id: category.id, name: category.name, refPhotoUrl: categoryIconUrl(category.slug) }))}
+        value={categoryFilter || 'all'}
+        onChange={v => setCategoryFilter(v === 'all' ? 0 : Number(v))}
+        allLabel="All categories"
+        leading="photo"
+        searchable
+      /></span></label>
       {scoped && <p>Showing shapes and sizes linked to this category. <a href={`/admin/categories/${categoryFilter}?tab=shapes`}>Manage category shapes &amp; sizes</a>. Names are shared across categories.</p>}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{ maxWidth: 280, flex: '1 1 200px' }}>
