@@ -1,9 +1,8 @@
 'use client';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
-import { useHotSelling } from '@/components/HotSelling';
-import { isHot } from '@/lib/hot-selling';
 
+import IconSelect from '@/components/IconSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -13,11 +12,18 @@ import { maskPhone } from '@/lib/mask';
 type Category = { id: number; num: number; name: string };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null };
 type Options = {
-  shapes: { id: number; name: string }[];
-  colors: { id: number; name: string; hex: string | null }[];
+  shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
+  colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
   pricing?: CategoryPricing;
 };
+
+// Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" -- same rule as the
+// customer-facing pickers, so a mixed size list sorts identically everywhere.
+function strictSizeNum(s: string): number {
+  const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
+  return m ? parseFloat(m[1]) : NaN;
+}
 type CartItem = {
   orderSpecs?: OrderSpecs;
   id: string;
@@ -33,7 +39,6 @@ type CartItem = {
 };
 
 export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
-  const { flags } = useHotSelling();
   const router = useRouter();
 
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
@@ -45,9 +50,12 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [pickCategoryId, setPickCategoryId] = useState<number | 'all'>('all');
   const [optionsCache, setOptionsCache] = useState<Record<number, Options>>({});
   const [loadingOptions, setLoadingOptions] = useState(false);
-  const [pickShapeId, setPickShapeId] = useState<number | 'all'>('all');
-  const [pickSizeId, setPickSizeId] = useState<number | 'all'>('all');
-  const [pickColorId, setPickColorId] = useState<number | 'all'>('all');
+  // Multi-select, matching the customer-facing pickers: one pass can add every
+  // shape x colour x size the buyer asked for over the phone, instead of
+  // re-picking the category for each line.
+  const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
+  const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
+  const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickQty, setPickQty] = useState('');
 
   const [cart, setCart] = useState<CartItem[]>(repeatItems);
@@ -68,15 +76,43 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const selectedCustomer = allCustomers.find((c) => c.id === selectedCustomerId) || null;
   const currentOptions = pickCategoryId !== 'all' ? optionsCache[pickCategoryId] : null;
   useEffect(() => {
-    if (pickCategoryId === 34 && currentOptions?.colors.length === 1) setPickColorId(currentOptions.colors[0].id);
+    if (pickCategoryId === 34 && currentOptions?.colors.length === 1) setPickColorIds([currentOptions.colors[0].id]);
   }, [pickCategoryId, currentOptions]);
-  const sizesForShape = currentOptions && pickShapeId !== 'all' ? currentOptions.sizes.filter((s) => s.shapeId === pickShapeId) : [];
+
+  // Only sizes every picked shape actually offers, grouped by the millimetre
+  // label -- picking Round + Oval should not offer a size only Round has.
+  const sizesForShapes = useMemo(() => {
+    if (!currentOptions || pickShapeIds.length === 0) return [] as { sizeMm: string; rows: Options['sizes'] }[];
+    const bySizeMm = new Map<string, Options['sizes']>();
+    currentOptions.sizes.forEach((sz) => {
+      if (!pickShapeIds.includes(sz.shapeId)) return;
+      if (!bySizeMm.has(sz.sizeMm)) bySizeMm.set(sz.sizeMm, []);
+      bySizeMm.get(sz.sizeMm)!.push(sz);
+    });
+    const common: { sizeMm: string; rows: Options['sizes'] }[] = [];
+    bySizeMm.forEach((rows, sizeMm) => {
+      const covered = new Set(rows.map((r) => r.shapeId));
+      if (pickShapeIds.every((id) => covered.has(id))) common.push({ sizeMm, rows });
+    });
+    return common.sort((a, b) => {
+      const na = strictSizeNum(a.sizeMm), nb = strictSizeNum(b.sizeMm);
+      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
+      if (Number.isNaN(na)) return 1;
+      if (Number.isNaN(nb)) return -1;
+      return na - nb;
+    });
+  }, [currentOptions, pickShapeIds]);
+
+  const sizeOptions = useMemo(
+    () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map((row) => row.id), name: `${g.sizeMm} mm` })),
+    [sizesForShapes]
+  );
 
   async function handleCategoryChange(categoryId: number | 'all') {
     setPickCategoryId(categoryId);
-    setPickShapeId('all');
-    setPickSizeId('all');
-    setPickColorId('all');
+    setPickShapeIds([]);
+    setPickSizeIdxs([]);
+    setPickColorIds([]);
     if (categoryId === 'all' || optionsCache[categoryId]) return;
     setLoadingOptions(true);
     const res = await fetch(`/api/admin/categories/${categoryId}/options`);
@@ -86,31 +122,43 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   }
 
   const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = pickCategoryId !== 'all' && pickShapeId !== 'all' && pickSizeId !== 'all' && pickColorId !== 'all' && qtyNum > 0;
+  const canAdd = pickCategoryId !== 'all' && pickShapeIds.length > 0 && pickSizeIdxs.length > 0 && pickColorIds.length > 0 && qtyNum > 0;
+  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
+  // One line per shape x colour x size combination, each at the entered
+  // quantity -- same rule as the customer-facing builder.
   function addLine() {
     if (!canAdd || !currentOptions) return;
     const category = allCategories.find((c) => c.id === pickCategoryId)!;
-    const shape = currentOptions.shapes.find((s) => s.id === pickShapeId)!;
-    const size = currentOptions.sizes.find((s) => s.id === pickSizeId)!;
-    const color = currentOptions.colors.find((c) => c.id === pickColorId)!;
-
-    setCart([
-      ...cart,
-      {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        categoryId: category.id,
-        categoryName: category.name,
-        shapeId: shape.id,
-        shapeName: shape.name,
-        sizeId: size.id,
-        sizeMm: size.sizeMm,
-        colorId: color.id,
-        colorName: color.name,
-        qty: qtyNum
+    const added: CartItem[] = [];
+    for (const shapeId of pickShapeIds) {
+      const shape = currentOptions.shapes.find((s) => s.id === shapeId);
+      if (!shape) continue;
+      for (const colorId of pickColorIds) {
+        const color = currentOptions.colors.find((c) => c.id === colorId);
+        if (!color) continue;
+        for (const sizeIdx of pickSizeIdxs) {
+          const group = sizesForShapes[sizeIdx];
+          const match = group?.rows.find((r) => r.shapeId === shapeId);
+          if (!match) continue;
+          added.push({
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}-${shapeId}-${colorId}-${sizeIdx}`,
+            categoryId: category.id,
+            categoryName: category.name,
+            shapeId: shape.id,
+            shapeName: shape.name,
+            sizeId: match.id,
+            sizeMm: match.sizeMm,
+            colorId: color.id,
+            colorName: color.name,
+            qty: qtyNum
+          });
+        }
       }
-    ]);
-    setPickSizeId('all');
+    }
+    if (!added.length) return;
+    setCart([...cart, ...added]);
+    setPickSizeIdxs([]);
     setPickQty('');
   }
 
@@ -267,26 +315,47 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               {allCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
+          {/* Same IconSelect the customer-facing pickers use: shape icons and
+              real gemstone photos, colour swatches, search, hot-selling first
+              and multi-select. These were bare native selects, which made
+              picking one of two dozen G-code colours by name alone harder for
+              the team than it is for the buyer. */}
           <div>
-            <label className="po-label">Shape</label>
-            <select value={pickShapeId} onChange={(e) => { setPickShapeId(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPickSizeId('all'); }} disabled={!currentOptions}>
-              <option value="all">{loadingOptions ? 'Loading…' : 'Choose shape'}</option>
-              {[...(currentOptions?.shapes || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'shape',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'shape',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,Number(pickCategoryId)||undefined,'shape',[s.id]) ? '🔥 ' : ''}{s.name}</option>)}
-            </select>
+            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+            <IconSelect
+              categoryId={Number(pickCategoryId) || undefined}
+              multiple
+              options={currentOptions?.shapes || []}
+              values={pickShapeIds}
+              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+              placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
+              leading="icon"
+            />
           </div>
           <div>
-            <label className="po-label">Color</label>
-            <select value={pickColorId} onChange={(e) => setPickColorId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={!currentOptions || pickCategoryId === 34}>
-              <option value="all">Choose color</option>
-              {[...(currentOptions?.colors || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'color',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'color',[a.id]))).map((c) => <option key={c.id} value={c.id}>{isHot(flags,Number(pickCategoryId)||undefined,'color',[c.id]) ? '🔥 ' : ''}{c.name}</option>)}
-            </select>
+            <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
+            <IconSelect
+              categoryId={Number(pickCategoryId) || undefined}
+              multiple
+              options={currentOptions?.colors || []}
+              locked={pickCategoryId === 34}
+              values={pickColorIds}
+              onChange={setPickColorIds}
+              placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
+              leading="swatch"
+            />
           </div>
           <div>
-            <label className="po-label">Size (mm)</label>
-            <select value={pickSizeId} onChange={(e) => setPickSizeId(e.target.value === 'all' ? 'all' : Number(e.target.value))} disabled={pickShapeId === 'all'}>
-              <option value="all">{pickShapeId === 'all' ? 'Pick a shape first' : 'Choose size'}</option>
-              {[...(sizesForShape || [])].sort((a,b) => Number(isHot(flags,Number(pickCategoryId)||undefined,'size',[b.id]))-Number(isHot(flags,Number(pickCategoryId)||undefined,'size',[a.id]))).map((s) => <option key={s.id} value={s.id}>{isHot(flags,Number(pickCategoryId)||undefined,'size',[s.id]) ? '🔥 ' : ''}{s.sizeMm} mm</option>)}
-            </select>
+            <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
+            <IconSelect
+              categoryId={Number(pickCategoryId) || undefined}
+              multiple
+              optionKind="size"
+              options={sizeOptions}
+              values={pickSizeIdxs}
+              onChange={setPickSizeIdxs}
+              placeholder={pickShapeIds.length === 0 ? 'Pick a shape first' : sizeOptions.length === 0 ? 'No common size for these shapes' : 'Choose size(s)'}
+            />
           </div>
           <div>
             <label className="po-label">Qty (pcs)</label>
@@ -310,7 +379,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             {cart.map((item) => {
               const unit = unitPriceInr(item);
               return (
-                <div key={item.id} className="po-item-row">
+                <div key={item.id} className="po-item-row po-item-row--simple">
                   <div className="po-item-main">
                     <strong>{item.shapeName} · {item.sizeMm}mm</strong>
                     <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>

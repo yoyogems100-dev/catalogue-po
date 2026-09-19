@@ -1365,6 +1365,27 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   height: 38px;
   border-radius: 6px;
 }
+/* The cart's row is a four-part grid: stone, details, qty input, remove. The
+   admin order builder reuses .po-cart-card but its rows carry only details
+   and a remove button, so those two landed in the 52px stone column and the
+   1fr one -- leaving the details column 52px wide, which wrapped every word
+   one character per line. Rows shaped like that opt out of the grid. */
+.po-cart-card .po-item-row--simple {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  grid-template-columns: none;
+}
+.po-cart-card .po-item-row--simple .po-item-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.po-cart-card .po-item-row--simple > .po-remove-btn { flex: 0 0 auto; }
 .po-item-move-btn {
   width: fit-content;
   margin: 2px 0 0;
