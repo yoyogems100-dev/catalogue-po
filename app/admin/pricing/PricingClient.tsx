@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 
-type Category = { id: number; name: string };
+type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string };
 type Size = { id: number; shapeId: number; sizeMm: string };
 type Group = { id: number; name: string; sort_order: number; colors: string[] };
@@ -123,11 +125,16 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
           <label style={{ display: 'block', fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, fontWeight: 500 }}>
             Category
           </label>
-          <select aria-label="Pricing category" disabled={savingPrice} value={categoryId ?? ''} onChange={(e) => setCategoryId(Number(e.target.value))} style={{ width: '100%', minWidth: 180, maxWidth: 220 }}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <div style={{ width: '100%', minWidth: 180, maxWidth: 220 }}>
+            <IconSelect
+              options={categories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+              value={categoryId ?? 'all'}
+              onChange={(v) => { if (v !== 'all') setCategoryId(Number(v)); }}
+              allLabel="Choose category"
+              leading="photo"
+              searchable
+            />
+          </div>
         </div>
         <button className="btn-ghost" onClick={exportCsv} disabled={!shapes.length || loading || savingPrice}>Export CSV (English)</button>
         <a

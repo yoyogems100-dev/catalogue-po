@@ -33,7 +33,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const workStreams = parseMulti(params.workStream, WORK_STREAMS);
   const categoryIds = (params.category || '').split(',').map((v) => v.trim()).filter((v) => /^\d+$/.test(v)).map(Number);
   const safeQ = q.replace(/[,()%]/g, '');
-  const { data: allCategories } = await supabaseAdmin.from('categories').select('id,name').order('name');
+  const { data: allCategories } = await supabaseAdmin.from('categories').select('id,name,slug').order('name');
 
   let categoryCustomerIds: number[] = [];
   if (safeQ) {

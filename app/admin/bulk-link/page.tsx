@@ -8,7 +8,7 @@ export default async function BulkLinkPage() {
   const [{ data: shapes }, { data: colors }, { data: categories }, { data: colorPalettesRaw }, { data: colorPaletteItems }] = await Promise.all([
     supabaseAdmin.from('shapes').select('id, name').order('sort_order').order('name'),
     supabaseAdmin.from('colors').select('id, name, hex_value').order('sort_order').order('name'),
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
     supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
   ]);
@@ -32,7 +32,7 @@ export default async function BulkLinkPage() {
       <BulkLinkClient
         shapes={(shapes || []).map((s: any) => ({ id: s.id, name: s.name }))}
         colors={(colors || []).map((c: any) => ({ id: c.id, name: c.name, hex_value: c.hex_value }))}
-        categories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name }))}
+        categories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name, slug: c.slug }))}
         colorPalettes={colorPalettes}
       />
     </>

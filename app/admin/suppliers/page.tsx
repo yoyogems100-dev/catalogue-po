@@ -20,7 +20,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   const priceSort = singleCategoryId && (params.sort === 'price_asc' || params.sort === 'price_desc') ? params.sort : null;
 
   const [{ data: allCategories }, { data: categoryLinks }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id,name').order('num'),
+    supabaseAdmin.from('categories').select('id,name,slug').order('num'),
     supabaseAdmin.from('supplier_categories').select('supplier_id,category_id'),
   ]);
   const categoryNames = new Map((allCategories || []).map((category: any) => [category.id, category.name]));

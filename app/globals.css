@@ -1229,6 +1229,21 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .shape-vector-icon svg { width:30px; height:30px; }
 .icon-select-trigger .shape-vector-icon { width:25px; height:25px; flex-basis:25px; }
 .icon-select-trigger .shape-vector-icon svg { width:24px; height:24px; }
+
+/* Category rows in a dropdown: a fixed leading box holding a gemstone tile
+   from public/reference/categories. The box is 5:4 landscape, not square,
+   because these stones aren't all round -- a rose-cut polki, a strand of
+   rainbow corundum and a pair of foiled crystals are all far wider than they
+   are tall, and a square box shrank them to a sliver beside a round CZ. The
+   tiles themselves are pre-sized so every stone covers roughly the same area
+   of its tile (see scripts/make-category-icons.mjs), so `contain` here just
+   places them -- it is never what decides how big a stone looks. */
+.icon-select-photo { width:40px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 40px; padding:0; }
+.icon-select-photo img { width:100%; height:100%; object-fit:contain; display:block; }
+.icon-select-trigger .icon-select-photo { width:31px; height:25px; flex-basis:31px; }
+/* The multi-select trigger previews each pick as a small dot -- keep the
+   category cut-out at that scale so picking several doesn't grow the row. */
+.ms-preview-dot .icon-select-photo { width:22px; height:18px; flex-basis:22px; }
 .icon-select-trigger:disabled { opacity: 1; color: var(--ink); background: #f4f2ec; cursor: default; }
 .size-chart-download { display: inline-flex; align-items: center; margin: 12px 0; min-height: 44px; font-size: 13px; }
 
@@ -1365,6 +1380,27 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   height: 38px;
   border-radius: 6px;
 }
+/* The cart's row is a four-part grid: stone, details, qty input, remove. The
+   admin order builder reuses .po-cart-card but its rows carry only details
+   and a remove button, so those two landed in the 52px stone column and the
+   1fr one -- leaving the details column 52px wide, which wrapped every word
+   one character per line. Rows shaped like that opt out of the grid. */
+.po-cart-card .po-item-row--simple {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  grid-template-columns: none;
+}
+.po-cart-card .po-item-row--simple .po-item-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.po-cart-card .po-item-row--simple > .po-remove-btn { flex: 0 0 auto; }
 .po-item-move-btn {
   width: fit-content;
   margin: 2px 0 0;

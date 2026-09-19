@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import MultiSelect from '@/components/MultiSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 
 type Shape = { id: number; name: string };
 type ColorRow = { id: number; name: string; hex_value: string | null };
-type Category = { id: number; num: number; name: string };
+type Category = { id: number; num: number; name: string; slug: string | null };
 
 export default function BulkLinkClient({
   shapes,
@@ -52,10 +53,11 @@ export default function BulkLinkClient({
       <div>
         <label className="po-label">Categories</label>
         <MultiSelect
-          options={categories.map((c) => ({ id: c.id, name: c.name }))}
+          options={categories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
           selectedIds={categoryIds}
           onToggle={(id, active) => setCategoryIds(active ? categoryIds.filter((x) => x !== id) : [...categoryIds, id])}
           placeholder="Choose categories to link into"
+          leading="photo"
         />
       </div>
       <div>

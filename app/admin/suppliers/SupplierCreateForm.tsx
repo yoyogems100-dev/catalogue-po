@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 
 // A centered modal, not an inline card that expanded into its own row on the
 // page (pushing the button row and everything below it down, and squeezing
 // the category dropdown into a narrow card) -- same <dialog> pattern as the
 // login/Quick Order popups.
-export default function SupplierCreateForm({ categories }: { categories: { id: number; name: string }[] }) {
+export default function SupplierCreateForm({ categories }: { categories: { id: number; name: string; slug?: string | null }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -60,7 +61,7 @@ export default function SupplierCreateForm({ categories }: { categories: { id: n
             <input placeholder="Phone (optional)" value={phone} onChange={(event) => setPhone(event.target.value)} />
             <div>
               <label style={{ display: 'block', fontSize: 12.5, marginBottom: 4 }}>Categories dealt in</label>
-              <IconSelect options={categories} multiple values={categoryIds} onChange={setCategoryIds} placeholder="Choose categories" searchable leading="none" />
+              <IconSelect options={categories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))} multiple values={categoryIds} onChange={setCategoryIds} placeholder="Choose categories" searchable leading="photo" />
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button className="btn" onClick={create} disabled={saving}>{saving ? 'Adding…' : 'Add supplier'}</button>

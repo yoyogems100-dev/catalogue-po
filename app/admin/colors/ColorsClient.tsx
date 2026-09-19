@@ -1,5 +1,7 @@
 'use client';
 import { HotMark } from '@/components/HotSelling';
+import IconSelect from '@/components/IconSelect';
+import { categoryIconUrl } from '@/lib/category-icons';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,7 +12,7 @@ import ColorSwatch from '@/components/ColorSwatch';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null };
-type Category = { id: number; num: number; name: string };
+type Category = { id: number; num: number; name: string; slug: string | null };
 type CatColor = { category_id: number; color_id: number };
 type Palette = { id: number; name: string; colorIds: number[] };
 
@@ -250,9 +252,14 @@ export default function ColorsClient({
 
   return (
     <>
-      {!lockedCategory && <label>Filter by category<select aria-label="Color category filter" value={categoryFilter} onChange={e => { setCategoryFilter(Number(e.target.value)); setExpandedCats(null); }}>
-        <option value={0}>All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-      </select></label>}
+      {!lockedCategory && <label>Filter by category<span style={{ display: 'block', maxWidth: 260 }}><IconSelect
+        options={categories.map(category => ({ id: category.id, name: category.name, refPhotoUrl: categoryIconUrl(category.slug) }))}
+        value={categoryFilter || 'all'}
+        onChange={v => { setCategoryFilter(v === 'all' ? 0 : Number(v)); setExpandedCats(null); }}
+        allLabel="All categories"
+        leading="photo"
+        searchable
+      /></span></label>}
       {scoped && <section className="card" style={{padding:16,marginBottom:16}}>
         <h3>Available colors for {categories.find(category => category.id === categoryFilter)?.name}</h3>
         <MultiSelect options={colors.map(color => ({id:color.id,name:color.name,hex:color.hex_value,refPhotoUrl:color.ref_photo_url}))}
