@@ -11,7 +11,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
 
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_status, created_at, comment, request_type, contact_name, customer_id, whatsapp_message, pdf_url')
+    .select('id, status, payment_status, created_at, comment, request_type, contact_name, customer_id, whatsapp_message, pdf_url, invoice_url')
     .eq('id', orderId)
     .single();
 
@@ -147,6 +147,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         status={order.status}
         paymentStatus={order.payment_status}
         pdfUrl={order.pdf_url}
+        invoiceUrl={order.invoice_url}
         createdAt={order.created_at}
         comment={order.comment}
         requestType={order.request_type}

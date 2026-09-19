@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
-import StatusTag from '@/components/admin/StatusTag';
+import OrderRowStatus from '@/components/admin/OrderRowStatus';
+import DeleteRowButton from '@/components/admin/DeleteRowButton';
 import Link from 'next/link';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
@@ -69,6 +70,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     let q = supabaseAdmin
       .from('orders')
       .select('id, customer_id, status, payment_status, created_at, contact_name, request_type', { count: 'exact' })
+      .is('deleted_at', null)
       .order('created_at', { ascending: oldest }).order('id', { ascending: oldest });
     if (statusFilter) q = q.eq('status', statusFilter);
     if (from) q = q.gte('created_at', `${from}T00:00:00+05:30`);
@@ -124,13 +126,14 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
             return (
               <article key={o.id} className="card admin-order-card">
                 <Link href={`/admin/orders/${o.id}`} className="admin-order-card-hit" aria-label={`Open order ${o.id}`} />
+                <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
                 <h2>Order #{o.id}</h2>
                 <p>
                   {cust ? <Link className="admin-card-customer-link" href={`/admin/customers/${cust.id}`}><CustomerNameDisplay name={cust.name} company={cust.company} /></Link> : (o.contact_name || 'No contact name')}
                 </p>
                 <dl>
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
-                  <div><dt>Status</dt><dd><StatusTag status={o.status} /></dd></div>
+                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
                 </dl>
                 {!!s.unpricedQuotes && <p>{s.unpricedQuotes} quotation lines need pricing</p>}
@@ -157,8 +160,11 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     </td>
                     <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                     <td><CategoryChips names={s.categoryNames} />{s.unpricedQuotes > 0 && <p className="admin-coverage-note">{s.unpricedQuotes} quote {s.unpricedQuotes === 1 ? 'line needs' : 'lines need'} pricing</p>}</td>
-                    <td><StatusTag status={o.status} /></td>
-                    <td><Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link></td>
+                    <td><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>
+                      <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
+                    </td>
                   </tr>
                 );
               })}
@@ -197,7 +203,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
         {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
       </form>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+      {/* Eight statuses wrap to three rows on a phone, pushing the first order
+          most of a screen further down. One swipeable row keeps the filter
+          within reach without hiding it behind a disclosure. */}
+      <div className="admin-status-chips">
         <Link href={filterUrl(undefined)} className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All statuses</Link>
         {ORDER_STATUS_OPTIONS.map((m) => (
           <Link

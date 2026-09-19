@@ -1,19 +1,11 @@
 import { supabasePublic } from '@/lib/supabase-public';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { photoUrl } from '@/lib/photos';
-import { getCustomerId } from '@/lib/customer-auth';
+import { getAccountState } from '@/lib/account-state';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
-
-async function getAccountState() {
-  const customerId = await getCustomerId();
-  if (!customerId) return { loggedIn: false, customerName: null };
-  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
-  return { loggedIn: true, customerName: data?.name || null };
-}
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 

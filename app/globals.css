@@ -78,12 +78,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Account menu (header icon: sign-in popover when logged out, My Orders when in) */
 .account-menu { position: relative; }
-.account-menu-loggedin { display: flex; align-items: center; gap: 4px; }
-.account-menu-orders-link {
-  color: #fff; font-size: 13px; padding: 8px 10px; min-height: 44px; display: flex; align-items: center;
-  white-space: nowrap;
-}
-.account-menu-orders-link:hover { color: var(--gold-soft); }
+.account-menu-loggedin { display: flex; align-items: center; }
 .account-menu-trigger {
   display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
   color: #fff; font-size: 13px; padding: 8px; min-height: 44px; min-width: 44px; justify-content: center;
@@ -112,22 +107,25 @@ a { color: inherit; text-decoration: none; }
 .account-menu-logout:hover { background: #f6e2df; border-color: #f0c9c4; }
 
 .hero {
-  position: relative; overflow: hidden;
+  /* No overflow clipping -- the background is a gradient, which is always
+     clipped to the element's own box regardless of this property, so nothing
+     here actually needs it. overflow:hidden used to cut the account popover
+     (position:absolute, anchored to the account trigger inside this section)
+     off short once it grew past the hero's own height. */
+  position: relative;
   background:
     radial-gradient(circle at 82% 18%, rgba(201,169,78,0.16), transparent 45%),
     linear-gradient(160deg, var(--ink), var(--navy) 70%);
   color: var(--ivory); text-align: center; padding: 52px 20px 40px;
 }
-.hero.hero-compact { padding: 18px 20px 28px; }
-/* Absolutely positioned so the account icon doesn't reserve a full row of
-   height above the eyebrow label -- it used to add ~50px of empty-looking
-   navy space above "DIGITAL CATALOGUE" on its own. */
-.hero-top-row { position: absolute; top: 10px; right: 14px; z-index: 5; margin-bottom: 0; }
-.hero .eyebrow { font-size: 10.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 20px; }
-.hero.hero-compact .eyebrow { margin-bottom: 14px; }
+/* Single-row, logo-left navbar -- same shape as .topbar, just taller and on
+   the brand gradient, so the header doesn't need extra height just to leave
+   room for a large centered logo above the icon row. */
+.hero.hero-compact {
+  display: flex; align-items: center; justify-content: space-between;
+  text-align: left; padding: 16px 20px;
+}
 .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 600; }
-.hero-divider { width: 36px; height: 1px; background: var(--gold-soft); margin: 22px auto 0; }
-.hero.hero-compact .hero-divider { margin-top: 14px; }
 
 .topbar-floating {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
@@ -161,7 +159,15 @@ a { color: inherit; text-decoration: none; }
   padding: 9px 16px; font-size: 12px; letter-spacing: 0.5px; cursor: pointer;
   align-self: flex-start;
 }
-.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+/* Disabled buttons used to be indistinguishable from live ones -- "Generate
+   invoice" sat next to "Generate order PDF" looking equally clickable while
+   silently doing nothing. Fade them, drop the hover, and show the
+   not-allowed cursor so the title attribute's explanation gets looked for. */
+.btn:disabled, .btn-ghost:disabled, .btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 /* Ghost, not a solid block -- a full page of admin cards each carrying a
    heavy solid-red button read as noisy/cluttered. Gold border+text keeps
    it visually quiet until you actually reach for it, matching the rest of
@@ -170,9 +176,42 @@ a { color: inherit; text-decoration: none; }
 .btn-danger { background: none; color: var(--gold); border: 1px solid var(--gold); padding: 7px 13px; font-size: 12px; cursor: pointer; align-self: flex-start; }
 .btn-danger:hover { background: var(--gold); color: #fff; }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
+/* Icon-only "move to bin" button on a list row -- no "Delete" text. */
+.admin-delete-row-btn { background: none; border: none; padding: 6px; margin: 0; color: #a3341f; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; }
+.admin-delete-row-btn:hover { background: #f8e2e0; }
+.admin-delete-row-btn:disabled { opacity: 0.5; cursor: default; }
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea {
   border: 1px solid var(--line); padding: 9px 12px; font-size: 13.5px; color: var(--charcoal); width: 100%; border-radius: 5px;
 }
+
+/* File inputs were caught by the rule above, which wrapped the browser's own
+   "Choose file" control in a bordered box -- a box inside a box, in the
+   browser's default font, next to buttons styled like the rest of the admin.
+   Style the real control instead: the picker button matches .btn-ghost and is
+   a 44px touch target, and the filename sits beside it as plain text. */
+input[type="file"] {
+  max-width: 100%;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #756e5c;
+}
+input[type="file"]::file-selector-button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--navy);
+  min-height: 44px;
+  padding: 0 16px;
+  margin-right: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { border-color: var(--gold); color: var(--gold); }
+input[type="file"]:disabled { opacity: 0.5; }
+input[type="file"]:disabled::file-selector-button { cursor: not-allowed; }
 
 /* Dropdowns should size to their content, not stretch to fill the container
    they happen to sit in -- only text/date inputs and textareas need width:100%. */
@@ -363,6 +402,35 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 
 .login-box { max-width: 340px; margin: 100px auto; padding: 32px; }
 
+.login-dialog { width: min(360px, 92vw); max-height: 90dvh; overflow-y: auto; border: none; border-radius: 12px; padding: 28px; margin: auto; color: var(--ink); background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+.login-dialog::backdrop { background: rgb(12 25 45 / 60%); }
+/* The dialog itself is the scroll container, so an absolutely-positioned close
+   button would scroll out of reach on the long sign-up form. Sticky in normal
+   flow keeps it pinned to the top-right corner the whole way down; the
+   negative margins pull it into the padding so it costs almost no height. */
+.login-dialog-close {
+  position: sticky;
+  top: -4px;
+  z-index: 2;
+  display: block;
+  margin: -10px -10px 0 auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #756e5c;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.login-dialog-close:hover { background: #f4f2ec; color: var(--ink); }
+.login-dialog-close:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .login-dialog { padding: 22px; }
+  .login-dialog-close { margin: -8px -8px 0 auto; }
+}
+
 /* Logo */
 .logo-topbar { height: 30px; width: auto; display: block; }
 .logo-hero { height: clamp(40px, 8vw, 60px); width: auto; margin: 0 auto; }
@@ -460,15 +528,21 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .icon-select-empty { padding: 10px 12px; font-size: 12px; color: #756e5c; }
 
 /* Homepage search + filter bar */
-.home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .home-search-input {
-  width: 100%; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line);
-  background: #fff; padding: 10px 14px; border-radius: 24px;
+  width: 100%; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line);
+  background: #fff; padding: 12px 16px; border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(18,35,63,0.05);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.home-search-input input { border: none; padding: 0; font-size: 13.5px; width: 100%; }
+.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 2px 10px rgba(156,122,37,0.14); }
+.home-search-input svg { flex-shrink: 0; opacity: .5; }
+.home-search-input input { border: none; padding: 0; font-size: 14px; width: 100%; background: transparent; }
+.home-search-input input:focus { outline: none; }
+.home-search-input input::placeholder { color: #9a9484; }
 .home-filter-row { display: flex; gap: 8px; align-items: center; }
 .home-filter-row select {
-  width: auto; flex: 1 1 auto; min-width: 0; border-radius: 20px; padding: 8px 14px;
+  width: auto; flex: 1 1 auto; min-width: 0; border-radius: 999px; padding: 9px 16px;
   font-size: 12.5px; border: 1px solid var(--line); background: #fff;
 }
 .home-filter-row .icon-select { flex: 1 1 auto; min-width: 0; }
@@ -854,9 +928,9 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .home-filter-row .icon-select { min-width: 0; flex: 1 1 45%; }
   .home-filter-row .icon-select-trigger { padding: 8px 10px; }
   .hero { padding: 32px 16px 26px; }
-  .hero.hero-compact { padding: 16px 16px 20px; }
+  .hero.hero-compact { padding: 10px 14px; }
   .hero img { height: 60px !important; }
-  .hero.hero-compact img { height: 52px !important; }
+  .hero.hero-compact img { height: 30px !important; }
   .topbar { padding: 10px 14px; }
   .container { padding: 0 14px; }
   .login-box { margin: 40px auto; max-width: 90vw; padding: 24px; }
@@ -933,8 +1007,48 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-work-queues { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin: 24px 0; }
 .admin-work-queues a { padding: 20px; text-decoration: none; display: grid; gap: 12px; }
 .admin-work-queues strong { font-size: 28px; }
+/* The auto-fit minmax collapses to one 180px-plus column on a phone, so six
+   queues became a ~1500px stack you had to scroll past to reach anything --
+   the opposite of an at-a-glance overview. Two compact columns put all six on
+   one screen. */
+@media (max-width: 600px) {
+  .admin-work-queues { grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .admin-work-queues a { padding: 12px; gap: 4px; }
+  .admin-work-queues span { font-size: 12px; line-height: 1.3; }
+  .admin-work-queues strong { font-size: 22px; }
+}
 .admin-recent-orders { padding: 0; list-style: none; }
 .admin-recent-orders li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.admin-recent-orders-meta { display: inline-flex; align-items: center; gap: 10px; }
+.admin-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+/* One 343px column at phone width made a 33-photo category a ~24,000px scroll
+   (342px of photo plus 386px of controls each). Two columns halve that; the
+   photo shrinks to a square thumbnail that still identifies a stone, and the
+   controls stay in place, just narrower. */
+@media (max-width: 600px) {
+  .admin-photo-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .admin-photo-grid .photo-controls button { font-size: 11px; padding: 6px 8px; }
+  .admin-photo-grid select,
+  .admin-photo-grid input[type="text"] { font-size: 12px; padding: 7px 8px; }
+  /* The field picker puts a ~90px "which field" select beside the value
+     control on one row, which leaves the value control too little of a 167px
+     tile and pushes it out past the card edge. Stack them here. */
+  .admin-photo-grid .photo-field-picker { flex-direction: column; }
+  .admin-photo-grid .photo-field-picker > select { width: 100%; }
+  .admin-photo-grid .photo-field-picker > div { width: 100%; }
+}
+.admin-status-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+@media (max-width: 700px) {
+  .admin-status-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-bottom: 14px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .admin-status-chips::-webkit-scrollbar { display: none; }
+  .admin-status-chips .tag-chip { flex: 0 0 auto; }
+}
 @media (max-width: 700px) {
   .admin-orders-table-wrap { display: none; }
   .admin-order-cards { display: grid; gap: 16px; }
@@ -1155,12 +1269,6 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   font-weight: 600;
   letter-spacing: .02em;
 }
-.po-requirement-group-head span {
-  color: var(--gold-soft);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10.5px;
-  white-space: nowrap;
-}
 .po-requirement-group .po-item-list {
   max-height: none;
   overflow: visible;
@@ -1191,9 +1299,12 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   font-size: 9.5px;
   white-space: nowrap;
 }
+/* The qty column fits six digits at 16px: trade quantities here run to 25,000
+   or 100,000 pieces, and at the old 86px a five-digit value was clipped on the
+   right with no scrollbar to hint at it -- 25000 simply read as 2500. */
 .po-cart-card .po-item-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 86px 34px;
+  grid-template-columns: 52px minmax(0, 1fr) 100px 34px;
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
@@ -1281,9 +1392,8 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-requirement-groups { gap: 14px; max-height: none; overflow: visible; padding: 0; }
   .po-requirement-group-head { margin-bottom: 6px; }
   .po-requirement-group-head h3 { font-size: 14px; }
-  .po-requirement-group-head span { font-size: 9.5px; }
   .po-cart-card .po-item-row {
-    grid-template-columns: 42px minmax(0, 1fr) 66px 32px;
+    grid-template-columns: 42px minmax(0, 1fr) 84px 32px;
     gap: 7px;
     padding: 8px;
     min-height: 66px;
@@ -1298,13 +1408,15 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .po-cart-card .po-item-price { font-size: 9.5px !important; }
   .po-item-move-btn { font-size: 10px; }
   .po-item-qty { font-size: 9px; }
-  .po-item-qty input.po-cart-qty { height: 36px; min-height: 36px; padding: 4px; }
+  /* Narrow side padding so the column's width is spent on digits, not gutters
+     -- six-figure piece counts have to fit without clipping. */
+  .po-cart-card .po-item-qty input.po-cart-qty { height: 36px; min-height: 36px; padding: 4px 2px; }
   .po-cart-card .po-item-row > .po-remove-btn { width: 32px; height: 36px; }
 }
 
 @media (max-width: 360px) {
   .po-cart-card { padding-inline: 10px; }
-  .po-cart-card .po-item-row { grid-template-columns: 38px minmax(0, 1fr) 58px 30px; gap: 5px; padding: 7px 6px; }
+  .po-cart-card .po-item-row { grid-template-columns: 34px minmax(0, 1fr) 76px 28px; gap: 5px; padding: 7px 6px; }
   .po-cart-card .requirement-stone { width: 38px; height: 38px; flex-basis: 38px; }
   .po-cart-card .po-item-details strong { font-size: 12px; }
   .po-cart-card .po-item-details > span { font-size: 9.5px; }
@@ -1376,7 +1488,10 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-page-head p, .admin-section-head p { margin: 0; color: #756e5c; font-size: 13px; }
 .admin-directory-search, .admin-inline-create { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
 .admin-directory-search input:not([type="checkbox"]):not([type="radio"]) { width: min(460px, 100%); }
-.admin-inline-create input { width: 210px; }
+/* Direct children only -- the supplier/customer name/company/phone fields --
+   so this doesn't also stretch a checkbox or search box nested inside a
+   category picker dropdown rendered within this same card. */
+.admin-inline-create > input { width: 210px; }
 .admin-customer-cards { display: none; }
 .admin-directory-table-wrap { max-width: 100%; overflow-x: auto; }
 .admin-directory-table-wrap table { min-width: 920px; }
@@ -1395,7 +1510,8 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-record-main { display: grid; gap: 4px; }
 .admin-record-main span, .admin-record-main small, .admin-supplier-card span, .admin-supplier-card small, .admin-customer-card span, .admin-customer-card small { color: #756e5c; }
 .admin-record-actions { display: flex; gap: 7px; flex-wrap: wrap; }
-.admin-supplier-card, .admin-customer-card { padding: 18px; display: grid; gap: 7px; transition: border-color .16s ease, transform .16s ease; }
+.admin-supplier-card, .admin-customer-card { padding: 18px; display: grid; gap: 7px; transition: border-color .16s ease, transform .16s ease; position: relative; }
+.admin-supplier-card .admin-delete-row-btn { position: absolute; top: 10px; right: 10px; }
 .admin-supplier-card:hover, .admin-customer-card:hover { border-color: var(--gold); transform: translateY(-1px); }
 .admin-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 7px; margin-top: 10px; }
 .admin-check-grid label { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); font-size: 12px; }
@@ -1405,10 +1521,56 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .admin-price-pair input { width: 82px; min-width: 82px; }
 .admin-order-lines-table { max-width: 100%; overflow-x: auto; padding-bottom: 4px; }
 .admin-order-lines-table table { min-width: 1180px; }
+/* At phone width this 1180px table lives in a ~343px window, so entering a
+   selling price means scrolling right until every column identifying the line
+   has gone off-screen. Drop the decorative thumbnail (the category and shape
+   name identify a line perfectly well) and pin Category open, so there is
+   always something naming the row you are typing into. */
+@media (max-width: 780px) {
+  .admin-order-lines-table th:first-child,
+  .admin-order-lines-table td:first-child { display: none; }
+  .admin-order-lines-table th:nth-child(2),
+  .admin-order-lines-table td:nth-child(2) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fff;
+    box-shadow: 1px 0 0 var(--line);
+  }
+}
+.admin-order-lines-hint { display: none; }
+@media (max-width: 780px) {
+  .admin-order-lines-hint {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 11.5px;
+    color: #756e5c;
+  }
+}
 .admin-order-card { position: relative; }
 .admin-order-card-hit { position: absolute; inset: 0; z-index: 1; }
 .admin-order-card > *:not(.admin-order-card-hit) { position: relative; z-index: 2; pointer-events: none; }
 .admin-order-card .admin-card-customer-link, .admin-order-card .btn-ghost { pointer-events: auto; }
+.admin-order-card .admin-order-row-status, .admin-order-card .admin-order-row-status * { pointer-events: auto; }
+.admin-notify-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: none;
+  color: #1f7a4d;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-notify-btn:hover:not(:disabled) { border-color: #1f7a4d; background: #f1f8f3; }
+.admin-notify-btn:disabled { opacity: 0.4; cursor: not-allowed; color: #756e5c; }
+.admin-order-card .admin-delete-row-btn { pointer-events: auto; position: absolute; top: 10px; right: 10px; }
 .admin-card-customer-link { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 760px) {
@@ -1423,7 +1585,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 
 @media (max-width: 420px) {
   .supplier-rate-form { grid-template-columns: 1fr; }
-  .admin-inline-create input { width: 100%; }
+  .admin-inline-create > input { width: 100%; }
 }
 
 /* ---- Cart bag in the header --------------------------------------------- */
@@ -1647,8 +1809,65 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-ref-strip-prev { left: 8px; }
 .po-ref-strip-next { right: 8px; }
 .po-ref-strip-nav:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.po-ref-strip-chart-tile { position: relative; }
+.po-ref-strip-tile-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; font-size: 11px; text-align: center; background: rgb(255 255 255 / 88%); color: var(--navy); border-top: 1px solid var(--line); }
 @media (max-width: 640px) {
   .po-ref-strip-track { grid-auto-columns: 100%; column-gap: 8px; }
   .po-ref-strip-tile { height: clamp(200px, 62vw, 280px); }
   .po-ref-strip-nav { width: 44px; height: 44px; }
+}
+
+/* Account header (My Orders / My Info / Quick Order / Log out) -- wraps
+   instead of overflowing once four items no longer fit one line on mobile. */
+.account-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; row-gap: 8px; }
+@media (max-width: 480px) {
+  .account-header-actions { gap: 10px; row-gap: 8px; justify-content: flex-end; }
+}
+
+/* Quick Order: a small pill trigger that opens a category-first line builder,
+   writing straight into the shared cart (see components/QuickOrderButton.tsx). */
+.quick-order-btn {
+  background: var(--gold-soft); color: var(--ink); border: none; border-radius: 20px;
+  padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.quick-order-btn:hover { background: var(--gold); color: #fff; }
+/* Gold is right in the header, where starting an order IS the main action.
+   Inside the requirement card it competed with sending the requirement --
+   the solid gold pill read as the page's primary button while the real
+   submit sat below the fold, so "Add to Order" (which only adds another
+   line) looked like the way to finish. Quiet it down to an outline here. */
+.po-cart-card .quick-order-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: var(--ivory-gold);
+}
+.po-cart-card .quick-order-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--gold-soft);
+  color: #fff;
+}
+.quick-order-dialog { width: min(560px, 94vw); max-height: 90dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: auto; color: var(--ink); background: #fff; }
+.quick-order-dialog::backdrop { background: rgb(12 25 45 / 70%); }
+.quick-order-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 16px; }
+.quick-order-head button { min-width: 36px; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 18px; }
+.quick-order-hint { font-size: 12px; color: #756e5c; margin: 0 0 14px; }
+.quick-order-message { font-size: 12.5px; color: #2f6b3a; margin: 10px 0 0; }
+.quick-order-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: #756e5c; }
+@media (max-width: 480px) {
+  .quick-order-dialog { padding: 16px; }
+  .quick-order-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .quick-order-footer .btn-ghost { text-align: center; }
+}
+
+/* Shared small "create/import in a popup" dialog -- Add supplier, Add
+   customer, and the category Photos tab's Drive-import popup. */
+/* overflow: visible, not auto -- these forms are short, and a scrolling
+   ancestor clips an absolutely-positioned dropdown panel (e.g. the category
+   picker) instead of letting it float over the rest of the page. */
+.admin-create-dialog { width: min(480px, 94vw); overflow: visible; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: auto; color: var(--ink); background: #fff; }
+.admin-create-dialog::backdrop { background: rgb(12 25 45 / 70%); }
+.admin-create-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 16px; }
+.admin-create-dialog-head button { min-width: 36px; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 18px; }
+@media (max-width: 480px) {
+  .admin-create-dialog { padding: 16px; }
 }

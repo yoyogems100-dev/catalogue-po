@@ -37,6 +37,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // page fetched the catalogue-wide lists unconditionally on every single
   // tab click, which is what made switching tabs slow.
   const needsFullShapeSizeCatalogue = tab === 'shapes';
+  // The "move to category" picker on the Photos tab is the only thing that
+  // needs every other category's name -- skip it everywhere else.
+  const needsCategoryList = tab === 'photos';
 
   const [
     { data: category },
@@ -46,7 +49,8 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: linkedColorsRaw },
     { data: linkedTagsRaw },
     { data: linkedSizesRaw },
-    fullSizesResult
+    fullSizesResult,
+    { data: otherCategoriesRaw }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
@@ -59,9 +63,13 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       ? fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
           supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).range(from, to)
         )
-      : Promise.resolve({ data: [] as { id: number; shape_id: number; size_mm: string; weight_ct: number | null }[], error: null })
+      : Promise.resolve({ data: [] as { id: number; shape_id: number; size_mm: string; weight_ct: number | null }[], error: null }),
+    needsCategoryList
+      ? supabaseAdmin.from('categories').select('id, name').neq('id', categoryId).order('num')
+      : Promise.resolve({ data: [] as { id: number; name: string }[], error: null })
   ]);
   const allSizes = fullSizesResult.data || [];
+  const otherCategories = otherCategoriesRaw || [];
 
   if (!category) {
     return <p>Category not found. <Link href="/admin/categories">&larr; Back</Link></p>;
@@ -86,23 +94,29 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     }
   }
 
-  // Photos (with their per-photo tag/shape/size/color joins) are only needed
-  // on the Photos tab -- fetching and formatting every photo on every other
-  // tab was pure waste.
+  // Photos (with their per-photo tag/shape/size/color joins) and the
+  // watermark preset list are only needed on the Photos tab -- fetching and
+  // formatting every photo on every other tab was pure waste.
   let photosFormatted: any[] = [];
+  let watermarks: { id: number; name: string }[] = [];
   if (tab === 'photos') {
-    const { data: photos } = await supabaseAdmin
-      .from('photos')
-      .select('*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
-      .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true });
+    const [{ data: photos }, { data: watermarksRaw }] = await Promise.all([
+      supabaseAdmin
+        .from('photos')
+        .select('*, photo_tags(tag_id), photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
+        .eq('category_id', categoryId)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true }),
+      supabaseAdmin.from('watermarks').select('id, name').order('sort_order').order('id')
+    ]);
+    watermarks = watermarksRaw || [];
     photosFormatted = (photos || []).map((p: any) => ({
       id: p.id,
       url: photoUrl(p, 400),
       coverUrl: photoUrl(p, 400, 'cover'),
       photoCrop: p.photo_crop || null,
       coverCrop: p.cover_crop || null,
+      watermarkId: p.watermark_id || null,
       shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
       sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
       colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
@@ -161,6 +175,8 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         linkedSizeIds={linkedSizeIds}
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
+        watermarks={watermarks}
+        otherCategories={otherCategories}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       /></>}
     </>

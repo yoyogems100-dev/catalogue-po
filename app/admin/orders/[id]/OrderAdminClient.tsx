@@ -10,6 +10,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
+import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
+
+// Shown both as the disabled button's tooltip and as text beside it, so the
+// reason is readable on touch devices too -- a title attribute never appears
+// without a mouse to hover with.
+const INVOICE_BLOCKED_HINT = 'Please enter all the prices to generate the invoice in the order list';
 
 type Item = {
   orderSpecs?: OrderSpecs;
@@ -58,6 +64,7 @@ export default function OrderAdminClient({
   status,
   paymentStatus,
   pdfUrl,
+  invoiceUrl,
   createdAt,
   comment,
   requestType,
@@ -74,6 +81,7 @@ export default function OrderAdminClient({
   status: string;
   paymentStatus: string;
   pdfUrl: string | null;
+  invoiceUrl: string | null;
   createdAt: string;
   comment: string | null;
   requestType: string | null;
@@ -136,6 +144,9 @@ export default function OrderAdminClient({
   }, [items]);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [currentInvoiceUrl, setCurrentInvoiceUrl] = useState(invoiceUrl);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const allItemsPriced = items.length > 0 && items.every((i) => i.unitPrice != null);
 
   const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
   const hasPricing = items.some((i) => prices[i.id]);
@@ -235,6 +246,22 @@ export default function OrderAdminClient({
     }
     } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
     finally { setGeneratingPdf(false); }
+  }
+
+  async function generateInvoice() {
+    setGeneratingInvoice(true);
+    try {
+    const res = await fetch(`/api/admin/orders/${orderId}/invoice`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setGeneratingInvoice(false);
+    if (res.ok && data.url) {
+      setCurrentInvoiceUrl(data.url);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } else {
+      setToast(data.error || 'Failed to generate invoice.');
+    }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); }
+    finally { setGeneratingInvoice(false); }
   }
 
   function addNewLine() {
@@ -364,10 +391,20 @@ export default function OrderAdminClient({
           wraps to stacked on mobile (flex-wrap, no fixed widths). */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h1 style={{ margin: 0 }}>Order #{orderId}</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>
             {generatingPdf ? 'Generating…' : `Generate ${isQuotation ? 'quotation' : 'order'} PDF`}
           </button>
+          <button
+            className="btn-ghost"
+            onClick={generateInvoice}
+            disabled={generatingInvoice || !allItemsPriced}
+            title={allItemsPriced ? undefined : INVOICE_BLOCKED_HINT}
+          >
+            {generatingInvoice ? 'Generating…' : 'Generate invoice'}
+          </button>
+          {!allItemsPriced && <span style={{ fontSize: 11, color: '#756e5c' }}>{INVOICE_BLOCKED_HINT}</span>}
+          {currentInvoiceUrl && <a className="btn-ghost" href={currentInvoiceUrl} target="_blank" rel="noopener noreferrer">View last invoice</a>}
         </div>
       </div>
 
@@ -414,9 +451,15 @@ export default function OrderAdminClient({
               <option value="paid">Paid</option>
             </select>
           </div>
-          <button className="btn-ghost" onClick={notifyViaWhatsApp} disabled={!manualWaUrl}>
-            🟢 Notify
-          </button>
+          <div>
+            <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={notifyViaWhatsApp} disabled={!manualWaUrl} title={manualWaUrl ? undefined : 'No phone number on file for this order'}>
+              <WhatsAppIcon size={14} /> Notify
+            </button>
+            {/* Silently doing nothing here read as "Notify is broken" -- this is
+                the actual reason: a guest order with no linked customer phone
+                has nothing to send a WhatsApp message to. */}
+            {!manualWaUrl && <p style={{ fontSize: 11, color: '#756e5c', margin: '4px 0 0' }}>No phone number on file -- can't notify via WhatsApp.</p>}
+          </div>
         </div>
         {manualWaUrl && (
           <details style={{ marginTop: 10 }}>
@@ -548,6 +591,8 @@ export default function OrderAdminClient({
           };
 
           const renderTable = (rowItems: Item[], includeNewLines: boolean) => (
+            <>
+            <p className="admin-order-lines-hint">Scroll the table sideways for supplier, CP and SP. Category stays pinned.</p>
             <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
               <table>
                 <thead>
@@ -609,6 +654,7 @@ export default function OrderAdminClient({
                 </tbody>
               </table>
             </div>
+            </>
           );
 
           return (
@@ -643,7 +689,7 @@ export default function OrderAdminClient({
           <div className="card" style={{ marginTop: 16, padding: 14 }}>
             <p style={{ fontSize: 13, marginBottom: 8 }}>This order was just updated. Send the customer the latest version?</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn-ghost" onClick={sendUpdatedOrderViaWhatsApp} disabled={!manualWaUrl}>🟢 Send via WhatsApp</button>
+              <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={sendUpdatedOrderViaWhatsApp} disabled={!manualWaUrl}><WhatsAppIcon size={14} /> Send via WhatsApp</button>
               <button className="btn-ghost" onClick={generatePdf} disabled={generatingPdf}>{generatingPdf ? 'Generating…' : 'Send PDF'}</button>
               <button className="btn-ghost" onClick={() => setJustUpdated(false)}>Dismiss</button>
             </div>

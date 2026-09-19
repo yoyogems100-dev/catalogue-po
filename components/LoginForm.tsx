@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import ProfileCompletionForm from './ProfileCompletionForm';
+import ProfileCompletionForm, { DEALS_IN_OPTIONS } from './ProfileCompletionForm';
 
 type Tab = 'login' | 'signup';
 type Step = 'enter' | 'verify' | 'profile';
 
 // Log in and Sign up both verify the WhatsApp number with a one-time code --
-// there are no passwords. Sign up then asks for the buyer's details (name or
-// company, what they deal in, go-to requirements). The server decides who is
-// actually new: a new number on "Log in" still gets the details step, and an
-// existing number on "Sign up" is simply logged in.
+// there are no passwords. Sign up collects every detail (name/company, what
+// they deal in, go-to requirements, email) on the same screen as the phone
+// number, like an ordinary sign-up form; the code is just the last step that
+// activates it. The server still decides who is actually new: a new number
+// on "Log in" falls back to a short details step after verifying, and an
+// existing number on "Sign up" is simply logged in (its collected details
+// are dropped since the account already has its own).
 export default function LoginForm({ onSuccess, initialTab = 'login' }: {
   onSuccess: () => void;
   initialTab?: Tab;
@@ -27,6 +30,17 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
 
+  // Signup-only profile fields, collected up front alongside the phone number.
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [dealsIn, setDealsIn] = useState<string[]>([]);
+  const [goToRequirements, setGoToRequirements] = useState('');
+  const [email, setEmail] = useState('');
+
+  function toggleDealsIn(option: string) {
+    setDealsIn((prev) => (prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]));
+  }
+
   function reset(nextTab: Tab = tab) {
     setTab(nextTab);
     setStep('enter');
@@ -38,6 +52,10 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
 
   async function requestCode(e: React.FormEvent) {
     e.preventDefault();
+    if (tab === 'signup' && !name.trim() && !company.trim()) {
+      setError('Enter your name or your company name.');
+      return;
+    }
     setError('');
     setSending(true);
     const res = await fetch('/api/account/otp/request', {
@@ -67,11 +85,29 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, code })
     });
-    setSending(false);
     if (!res.ok) {
+      setSending(false);
       const data = await res.json().catch(() => ({}));
       return setError(data.error || 'Invalid code. Please try again.');
     }
+    // Signup already collected the profile fields -- save them now that the
+    // number is verified and the account exists, instead of asking again.
+    if (tab === 'signup' && needsProfile) {
+      const saveRes = await fetch('/api/account/profile/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, company, dealsIn, goToRequirements, email })
+      });
+      setSending(false);
+      if (!saveRes.ok) {
+        // Verified and logged in already -- fall back to the standalone
+        // details step instead of losing the session on a save failure.
+        setStep('profile');
+        return;
+      }
+      return onSuccess();
+    }
+    setSending(false);
     if (needsProfile) setStep('profile');
     else onSuccess();
   }
@@ -90,9 +126,42 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
       {step === 'enter' && (
         <form onSubmit={requestCode}>
           <p className="login-hint">
-            {signup ? 'Step 1 of 2 — verify your WhatsApp number. Next, tell us about your business.' : 'Enter your WhatsApp number. We’ll send a one-time code.'}
+            {signup ? 'Just the essentials -- name or company, and a WhatsApp number to send your one-time code.' : 'Enter your WhatsApp number. We’ll send a one-time code.'}
           </p>
-          <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number, e.g. 9XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus style={{ marginBottom: 14 }} />
+
+          {signup && (
+            <>
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your name</label>
+              <input type="text" placeholder="e.g. Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ marginBottom: 12 }} />
+
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Company name</label>
+              <input type="text" placeholder="e.g. Kumar Gems Pvt Ltd" value={company} onChange={(e) => setCompany(e.target.value)} style={{ marginBottom: 12 }} />
+            </>
+          )}
+
+          <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>WhatsApp number</label>
+          <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number, e.g. 9XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus={!signup} style={{ marginBottom: signup ? 12 : 14 }} />
+
+          {signup && (
+            <>
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>What do you deal in? (optional)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {DEALS_IN_OPTIONS.map((option) => (
+                  <label key={option} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--ink)', cursor: 'pointer' }}>
+                    <input type="checkbox" className="icon-select-checkbox" checked={dealsIn.includes(option)} onChange={() => toggleDealsIn(option)} style={{ pointerEvents: 'auto' }} />
+                    {option}
+                  </label>
+                ))}
+              </div>
+
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your go-to requirements (optional)</label>
+              <textarea rows={2} placeholder="e.g. Round white CZ 1-3mm, regular monthly" value={goToRequirements} onChange={(e) => setGoToRequirements(e.target.value)} style={{ marginBottom: 12 }} />
+
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email (optional)</label>
+              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 14 }} />
+            </>
+          )}
+
           {error && <p className="login-error">{error}</p>}
           <button type="submit" className="btn" style={{ width: '100%' }} disabled={sending}>
             {sending ? 'Sending…' : 'Get code on WhatsApp'}
@@ -129,7 +198,7 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
 
       {step === 'profile' && (
         <>
-          <p className="login-hint"><strong>Step 2 of 2 — your details</strong></p>
+          <p className="login-hint"><strong>Just a couple more details</strong></p>
           <ProfileCompletionForm onSuccess={onSuccess} needsPhone={false} showEmail />
         </>
       )}

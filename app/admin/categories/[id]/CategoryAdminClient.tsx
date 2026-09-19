@@ -28,7 +28,19 @@ type Photo = {
   notes: string | null;
   tag_ids: number[];
   isCoverOnly: boolean;
+  watermarkId: number | null;
 };
+
+// Drawn rather than typed: the download arrow this used to use (U+2B73) is
+// absent from Jost, so it rendered as an empty tofu box. Same inline-SVG
+// approach as DeleteRowButton's trash icon.
+const DownloadIcon = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M12 3v12" />
+    <path d="M7 11l5 5 5-5" />
+    <path d="M4 20h16" />
+  </svg>
+);
 
 type BadgeType = 'shapes' | 'colors' | 'sizes';
 const BADGE_OPTIONS: { value: BadgeType; label: string }[] = [
@@ -53,6 +65,8 @@ export default function CategoryAdminClient({
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
+  watermarks,
+  otherCategories,
   badgeTypes
 }: {
   categoryId: number;
@@ -75,6 +89,12 @@ export default function CategoryAdminClient({
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
+  /** Watermark presets available to apply to a photo -- empty on every tab
+      but Photos. */
+  watermarks: { id: number; name: string }[];
+  /** Every other category's id/name, for the Photos tab's "Add to category"
+      bulk action -- empty on every other tab. */
+  otherCategories: { id: number; name: string }[];
   badgeTypes: BadgeType[];
 }) {
   const router = useRouter();
@@ -83,6 +103,9 @@ export default function CategoryAdminClient({
   const [uploadingCover, setUploadingCover] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
+  const [driveDialogOpen, setDriveDialogOpen] = useState(false);
+  const driveDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (driveDialogOpen && !driveDialogRef.current?.open) driveDialogRef.current?.showModal(); }, [driveDialogOpen]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +115,14 @@ export default function CategoryAdminClient({
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   useEffect(() => setLocalPhotos(photos), [photos]);
+
+  // Bulk photo actions (Photos tab only): a "Select" mode toggle keeps the
+  // gallery's normal per-photo controls uncluttered until the admin actually
+  // wants to act on several photos at once.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
+  const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // UI/UX audit ("visible saved-state feedback"): upload/import/delete/set-cover
   // previously refreshed with no acknowledgement -- a failed request and a
@@ -109,6 +140,7 @@ export default function CategoryAdminClient({
   // stone. The cover photo itself is whichever photo is the thumbnail,
   // cover-only or not.
   const galleryPhotos = localPhotos.filter((p) => !p.isCoverOnly);
+  const untaggedCount = galleryPhotos.filter((p) => !p.shapeIds.length && !p.colorIds.length).length;
   const coverPhoto = localPhotos.find((p) => p.id === thumbnailPhotoId) || null;
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
@@ -270,6 +302,7 @@ export default function CategoryAdminClient({
     setImporting(false);
     if (!res.ok) { setToast('Failed to import from Drive -- try again.'); return; }
     setDriveText('');
+    driveDialogRef.current?.close();
     setToast(`${ids.length} photo${ids.length === 1 ? '' : 's'} imported.`);
     router.refresh();
   }
@@ -326,6 +359,75 @@ export default function CategoryAdminClient({
       body: JSON.stringify({ category_id: categoryId, photo_id: photoId, direction })
     });
     if (!res.ok) setToast('Failed to reorder -- try again.');
+    router.refresh();
+  }
+
+  async function applyWatermark(photoId: number, watermarkId: number) {
+    setToast('Adding watermark…');
+    const res = await fetch(`/api/photos/${photoId}/watermark`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watermark_id: watermarkId })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to add watermark -- try again.'); return; }
+    setToast('Watermark added.');
+    router.refresh();
+  }
+
+  async function removeWatermark(photoId: number) {
+    const res = await fetch(`/api/photos/${photoId}/watermark`, { method: 'DELETE' });
+    if (!res.ok) { setToast('Failed to remove watermark -- try again.'); return; }
+    setToast('Watermark removed.');
+    router.refresh();
+  }
+
+  function toggleSelectMode() {
+    setSelectMode((cur) => !cur);
+    setSelectedPhotoIds([]);
+    setMoveTargetId('');
+  }
+
+  function toggleSelectPhoto(photoId: number) {
+    setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur.filter((id) => id !== photoId) : [...cur, photoId]));
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    setSelectedPhotoIds(checked ? galleryPhotos.map((p) => p.id) : []);
+  }
+
+  async function moveSelectedPhotos() {
+    if (!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const res = await fetch('/api/photos/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selectedPhotoIds, to_category_id: moveTargetId })
+    });
+    setBulkBusy(false);
+    if (!res.ok) { setToast('Failed to move photos -- try again.'); return; }
+    const moved = selectedPhotoIds.length;
+    setLocalPhotos((cur) => cur.filter((p) => !selectedPhotoIds.includes(p.id)));
+    setToast(`Moved ${moved} photo${moved === 1 ? '' : 's'}.`);
+    setSelectedPhotoIds([]);
+    setMoveTargetId('');
+    router.refresh();
+  }
+
+  async function deleteSelectedPhotos() {
+    if (selectedPhotoIds.length === 0 || bulkBusy) return;
+    const count = selectedPhotoIds.length;
+    if (!confirm(`Delete ${count} photo${count === 1 ? '' : 's'}? This removes them from the catalogue and cannot be undone.`)) return;
+    setBulkBusy(true);
+    const results = await Promise.all(
+      selectedPhotoIds.map((id) => fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+    );
+    setBulkBusy(false);
+    const failed = results.filter((r) => !r.ok).length;
+    const deletedIds = selectedPhotoIds.filter((_, i) => results[i].ok);
+    setLocalPhotos((cur) => cur.filter((p) => !deletedIds.includes(p.id)));
+    setSelectedPhotoIds([]);
+    if (failed > 0) setToast(`${deletedIds.length} deleted, ${failed} failed -- try again.`);
+    else setToast(`Deleted ${deletedIds.length} photo${deletedIds.length === 1 ? '' : 's'}.`);
     router.refresh();
   }
 
@@ -470,8 +572,10 @@ export default function CategoryAdminClient({
             )}
           </section>
 
-          {/* Upload + bulk Drive import -- side by side on desktop instead of each
-              stacked full-width with a short control leaving most of the row empty. */}
+          {/* Upload + bulk Drive import -- the Drive import used to sit open
+              beside Upload photos at all times, so its blank textarea took up
+              a whole column even when nobody was importing from Drive. It's
+              a popup now, behind a button, like the other admin create forms. */}
           <div id="category-upload" className="admin-upload-row">
             <section>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
@@ -480,22 +584,91 @@ export default function CategoryAdminClient({
             </section>
 
             <section>
-              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or bulk-import from Google Drive</h3>
-              <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
-              <textarea aria-label="Google Drive photo links or IDs" rows={3} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
-              <div style={{ marginTop: 8 }}>
-                <button className="btn" onClick={importDrive} disabled={importing}>{importing ? 'Importing…' : 'Import'}</button>
-              </div>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Or import from Google Drive</h3>
+              <button type="button" className="btn-ghost" onClick={() => setDriveDialogOpen(true)}>Open from Google Drive</button>
             </section>
           </div>
 
+          {driveDialogOpen && (
+            <dialog
+              ref={driveDialogRef}
+              className="admin-create-dialog"
+              aria-label="Import photos from Google Drive"
+              onCancel={(e) => { e.preventDefault(); driveDialogRef.current?.close(); }}
+              onClose={() => { setDriveDialogOpen(false); setDriveText(''); }}
+              onClick={(e) => { if (e.target === e.currentTarget) driveDialogRef.current?.close(); }}
+            >
+              <div className="admin-create-dialog-head">
+                <strong>Import from Google Drive</strong>
+                <button type="button" autoFocus onClick={() => driveDialogRef.current?.close()} aria-label="Close">✕</button>
+              </div>
+              <p style={{ fontSize: 12.5, color: '#756e5c', marginBottom: 8 }}>Paste Drive share links or file IDs, one per line -- no re-upload needed.</p>
+              <textarea aria-label="Google Drive photo links or IDs" rows={5} style={{ width: '100%' }} value={driveText} onChange={(e) => setDriveText(e.target.value)} />
+              <div style={{ marginTop: 10 }}>
+                <button className="btn" onClick={importDrive} disabled={importing || !driveText.trim()}>{importing ? 'Importing…' : 'Import'}</button>
+              </div>
+            </dialog>
+          )}
+
           {/* Photo grid with per-photo tagging */}
           <section id="category-gallery">
-            <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>{galleryPhotos.length} photos</h3>
-            <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-              "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{galleryPhotos.length} photos</h3>
+              {galleryPhotos.length > 0 && (
+                <a className="btn-ghost" style={{ fontSize: 12, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} href={`/api/admin/categories/${categoryId}/photos-zip`}>
+                  <DownloadIcon size={14} /> Download all photos
+                </a>
+              )}
+              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
+                {selectMode ? 'Done selecting' : 'Select'}
+              </button>
+            </div>
+            {selectMode ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#f4f1e8', borderRadius: 6 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+                  <input
+                    type="checkbox"
+                    checked={galleryPhotos.length > 0 && selectedPhotoIds.length === galleryPhotos.length}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                  />
+                  Select all
+                </label>
+                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length} selected</span>
+                <select
+                  value={moveTargetId}
+                  onChange={(e) => setMoveTargetId(e.target.value ? Number(e.target.value) : '')}
+                  disabled={selectedPhotoIds.length === 0}
+                  style={{ maxWidth: 220 }}
+                  aria-label="Add selected photos to category"
+                >
+                  <option value="">Add to category…</option>
+                  {otherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
+                  {bulkBusy ? 'Working…' : 'Add to category'}
+                </button>
+                <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
+                  {bulkBusy ? 'Working…' : 'Delete selected'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
+                  "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
+                </p>
+                {/* The buyer-facing reference strip narrows itself to photos
+                    matching the shape and colour being ordered, but only for
+                    photos that carry those links -- with none tagged it just
+                    shows the whole gallery to everyone. Nothing surfaced that,
+                    so the feature looked broken rather than unconfigured. */}
+                {untaggedCount > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--gold)', marginBottom: 12 }}>
+                    {untaggedCount} of {galleryPhotos.length} photos have no shape or colour set. Customers only see reference photos matched to what they are ordering once these are tagged.
+                  </p>
+                )}
+              </>
+            )}
+            <div className="admin-photo-grid">
               {galleryPhotos.map((p, i) => (
                 <PhotoRow
                   categoryId={categoryId}
@@ -513,10 +686,16 @@ export default function CategoryAdminClient({
                   onSetThumbnail={setThumbnail}
                   onMove={movePhoto}
                   onCreateTag={createPhotoTag}
+                  watermarks={watermarks}
+                  onApplyWatermark={applyWatermark}
+                  onRemoveWatermark={removeWatermark}
                   dragHandleProps={dragHandleProps(i)}
                   dropTargetProps={dropTargetProps(i)}
                   isDragging={dragIndex === i}
                   isDragOver={overIndex === i}
+                  selectMode={selectMode}
+                  selected={selectedPhotoIds.includes(p.id)}
+                  onToggleSelect={() => toggleSelectPhoto(p.id)}
                 />
               ))}
             </div>
@@ -559,7 +738,13 @@ function PhotoRow({
   isDragOver,
   hideMoveControls,
   compact,
-  fieldOptions
+  fieldOptions,
+  selectMode,
+  selected,
+  onToggleSelect,
+  watermarks,
+  onApplyWatermark,
+  onRemoveWatermark
 }: {
   categoryId: number;
   photo: Photo;
@@ -587,6 +772,16 @@ function PhotoRow({
       need Size or the full Specifications browse-list, just a quick
       shape/color/other-tag. */
   fieldOptions?: FieldType[];
+  /** Bulk-select mode for the "Add to category" / "Delete selected" toolbar --
+      not offered on the dedicated Cover Photo section (hideMoveControls). */
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+  /** Not offered on the dedicated Cover Photo section -- a watermark only
+      ever applies to the "photo" variant, never the separate cover crop. */
+  watermarks?: { id: number; name: string }[];
+  onApplyWatermark?: (id: number, watermarkId: number) => void;
+  onRemoveWatermark?: (id: number) => void;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -598,6 +793,7 @@ function PhotoRow({
   const [field, setField] = useState<FieldType>(visibleFieldOptions[0]?.value || 'shape');
   const [otherText, setOtherText] = useState('');
   const [creatingTag, setCreatingTag] = useState(false);
+  const [showAddTag, setShowAddTag] = useState(false);
 
   // Union (not intersection) of sizes across every selected shape -- a photo
   // can show more than one shape, and each shape's sizes are still worth
@@ -636,6 +832,7 @@ function PhotoRow({
     setCreatingTag(false);
     if (!tag) return;
     setOtherText('');
+    setShowAddTag(false);
     const next = [...tagIds, tag.id];
     setTagIds(next);
     onUpdate(photo.id, {}, next);
@@ -684,7 +881,7 @@ function PhotoRow({
 
   // Field selector + its matching value picker side by side, not stacked.
   const fieldPicker = (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
+    <div className="photo-field-picker" style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
       <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ fontSize: 12, flex: '0 0 auto', width: 'auto', minWidth: 90 }}>
         {visibleFieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -723,20 +920,48 @@ function PhotoRow({
           />
         )}
         {field === 'tags' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {tags.length === 0 && <span style={{ fontSize: 11, color: '#756e5c' }}>No specifications on this category yet -- add one via "Other".</span>}
-            {tags.map((t) => (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+              {tags.length === 0 && !showAddTag && <span style={{ fontSize: 11, color: '#756e5c' }}>No specifications on this category yet.</span>}
+              {tags.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={tagIds.includes(t.id)}
+                  className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
+                  style={{ cursor: 'pointer', fontSize: 11 }}
+                  onClick={() => toggleTag(t.id)}
+                >
+                  {t.name}
+                </button>
+              ))}
               <button
-                key={t.id}
                 type="button"
-                aria-pressed={tagIds.includes(t.id)}
-                className={`tag-chip ${tagIds.includes(t.id) ? 'active' : ''}`}
-                style={{ cursor: 'pointer', fontSize: 11 }}
-                onClick={() => toggleTag(t.id)}
+                className="btn-ghost photo-add-spec-btn"
+                onClick={() => setShowAddTag((v) => !v)}
+                title="Add a custom specification"
+                aria-label="Add a custom specification"
+                aria-expanded={showAddTag}
               >
-                {t.name}
+                +
               </button>
-            ))}
+            </div>
+            {showAddTag && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="New specification, e.g. Brilliant Cut"
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addOtherTag()}
+                  style={{ fontSize: 12 }}
+                />
+                <button className="btn-ghost" style={{ whiteSpace: 'nowrap' }} onClick={addOtherTag} disabled={creatingTag || !otherText.trim()}>
+                  {creatingTag ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            )}
           </div>
         )}
         {field === 'other' && (
@@ -788,7 +1013,13 @@ function PhotoRow({
     >
       <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative' }}>
         {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {!hideMoveControls && (
+        {!hideMoveControls && selectMode ? (
+          <label
+            style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 4, padding: '4px 6px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
+            <input type="checkbox" checked={!!selected} onChange={onToggleSelect} aria-label={`Select photo #${photo.id}`} style={{ margin: 0 }} />
+          </label>
+        ) : !hideMoveControls && (
           <span
             {...dragHandleProps}
             className="drag-handle"
@@ -808,6 +1039,16 @@ function PhotoRow({
             {photo.product_code}
           </span>
         )}
+        {/* 40px square rather than the old ~22x20 -- it sits over a photo on a
+            touch screen, where a tap that misses opens the crop editor. */}
+        <a
+          href={`/api/admin/photos/${photo.id}/download`}
+          title="Download full-quality photo"
+          aria-label="Download full-quality photo"
+          style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(255,255,255,0.88)', borderRadius: 6, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'var(--ink)' }}
+        >
+          <DownloadIcon size={18} />
+        </a>
       </div>
       <div style={{ padding: 10 }}>
         <div className="photo-controls">
@@ -816,6 +1057,23 @@ function PhotoRow({
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
         {cropControls}
+        {watermarks && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+            <select
+              value={photo.watermarkId || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value) onRemoveWatermark?.(photo.id);
+                else onApplyWatermark?.(photo.id, Number(value));
+              }}
+              style={{ fontSize: 11.5 }}
+              aria-label="Watermark"
+            >
+              <option value="">No watermark</option>
+              {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        )}
         {tagChips}
         {fieldPicker}
         <input

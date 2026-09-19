@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   const params = await paramsPromise;
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug')
+    .select('id, num, name, slug, color_chart_url')
     .eq('slug', params.slug)
     .single();
 
@@ -32,16 +32,22 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
 
+  // Same joins as getCategoryData() in app/category/[slug]/page.tsx, so the
+  // Quick Order picker's reference-photo strip filters exactly like the
+  // regular per-category composer. is_cover_only is excluded -- a dedicated
+  // cover upload isn't a catalogue stone.
   const { data: photos } = await supabasePublic
     .from('photos')
-    .select('*')
+    .select('*, photo_shapes(shape_id), photo_sizes(shape_size_id), photo_colors(color_id)')
     .eq('category_id', category.id)
+    .eq('is_cover_only', false)
     .order('sort_order');
 
   const pricing = await getCategoryPricing(category.id);
 
   return NextResponse.json({
     category,
+    colorChartUrl: category.color_chart_url,
     shapes: (shapes || []).map((s: any) => {
       const link: any = linkedShapeIds?.find(link => link.shape_id === s.id);
       // A real photo -- this category's own upload, or the shared default for this shape
@@ -55,7 +61,13 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     }),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
-    photos: (photos || []).map((p: any) => ({ id: p.id, url: photoUrl(p, 600) })),
+    photos: (photos || []).map((p: any) => ({
+      id: p.id,
+      url: photoUrl(p, 600),
+      shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
+      sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
+      colorIds: (p.photo_colors || []).map((r: any) => r.color_id)
+    })),
     pricing
   });
 }

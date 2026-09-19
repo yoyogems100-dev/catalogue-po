@@ -7,6 +7,7 @@ import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
+import QuickOrderButton from './QuickOrderButton';
 import { specText, quantityFactor } from '@/lib/order-specs';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
@@ -244,7 +245,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       <div className="cart-empty-state">
         <h2 className="po-heading">Your requirement is empty</h2>
         <p>Browse the collection and add shapes, sizes and colours — they&rsquo;ll gather here, across as many categories as you like.</p>
-        <Link className="btn" href="/">Browse the collection</Link>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link className="btn" href="/">Browse the collection</Link>
+          <QuickOrderButton />
+        </div>
       </div>
     );
   }
@@ -254,8 +258,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       <section className="po-card po-cart-card">
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="po-cart-badge">{cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <QuickOrderButton label="Add to Order" />
             {cart.length > 0 && (
               <button
                 type="button"
@@ -276,7 +280,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
             ]).map((group) => {
               const groupItems = cart.filter((item) => item.requestType === group.type);
               if (groupItems.length === 0) return null;
-              const groupPieces = groupItems.reduce((sum, item) => sum + item.qty, 0);
               const isQuote = group.type === 'Request Quotation';
               // Newest line first, and therefore newest category first.
               const categoryGroups: { categoryId: number; categoryName: string; items: CartItem[] }[] = [];
@@ -292,7 +295,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                 <section className="po-requirement-group" key={group.type} aria-label={group.title}>
                   <header className="po-requirement-group-head">
                     <h3>{group.title}</h3>
-                    <span>{groupItems.length} {groupItems.length === 1 ? 'line' : 'lines'}{isQuote ? '' : ` · ${groupPieces.toLocaleString('en-IN')} pcs`}</span>
                   </header>
                   {isQuote && <p className="po-type-hint">Quantity is optional here — we&rsquo;ll send prices, then you decide.</p>}
                   {categoryGroups.map((catGroup) => (
@@ -300,7 +302,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                       {(() => {
                         const key = `${group.type}:${catGroup.categoryId}`;
                         const isCollapsed = !!collapsed[key];
-                        const catPieces = catGroup.items.reduce((sum, i) => sum + i.qty, 0);
                         return (
                           <button
                             type="button"
@@ -310,10 +311,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                           >
                             <span className="po-cat-caret" aria-hidden="true">{isCollapsed ? '\u25B8' : '\u25BE'}</span>
                             <strong>{catGroup.categoryName}</strong>
-                            <span>
-                              {catGroup.items.length} {catGroup.items.length === 1 ? 'line' : 'lines'}
-                              {!isQuote && catPieces > 0 && ` \u00b7 ${catPieces.toLocaleString('en-IN')} pcs`}
-                            </span>
                           </button>
                         );
                       })()}

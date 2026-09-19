@@ -5,6 +5,7 @@ import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import CategoryFilterField from '@/components/admin/CategoryFilterField';
 import CategoryChips from '@/components/admin/CategoryChips';
 import BulkImportButton from '@/components/admin/BulkImportButton';
+import DeleteRowButton from '@/components/admin/DeleteRowButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   ]);
   const categoryNames = new Map((allCategories || []).map((category: any) => [category.id, category.name]));
 
-  let supplierQuery = supabaseAdmin.from('suppliers').select('*').order('name');
+  let supplierQuery = supabaseAdmin.from('suppliers').select('*').is('deleted_at', null).order('name');
   if (safeQ) supplierQuery = supplierQuery.or(`name.ilike.%${safeQ}%,company.ilike.%${safeQ}%,contact_name.ilike.%${safeQ}%`);
   if (categoryIds.length) {
     const matchingSupplierIds = [...new Set((categoryLinks || []).filter((link: any) => categoryIds.includes(link.category_id)).map((link: any) => link.supplier_id))];
@@ -85,6 +86,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
       const names = (categoryLinks || []).filter((link: any) => link.supplier_id === supplier.id).map((link: any) => categoryNames.get(link.category_id)).filter(Boolean);
       const bestPrice = bestPriceBySupplier.get(supplier.id);
       return <Link href={`/admin/suppliers/${supplier.id}`} className="card admin-supplier-card" key={supplier.id}>
+        <DeleteRowButton endpoint={`/api/admin/suppliers/${supplier.id}`} label={`Move ${supplier.name} to bin`} confirmText={`Move ${supplier.name} to the bin? You can restore it later from Admin → Bin.`} />
         <strong>{supplier.name}</strong>
         <span>{supplier.company || 'No company'} · {supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span>
         {singleCategoryId && <span style={{ fontWeight: 600, color: bestPrice !== undefined ? 'var(--gold)' : '#756e5c' }}>{bestPrice !== undefined ? `From ₹${bestPrice}` : 'No rate on file'}</span>}

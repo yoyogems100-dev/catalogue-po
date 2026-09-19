@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: customer } = await supabaseAdmin
     .from('customers')
-    .select('id, name, company, phone, email, phone_verified, email_verified')
+    .select('id, name, company, phone, email, phone_verified, email_verified, work_stream, go_to_requirements')
     .eq('id', customerId)
     .maybeSingle();
 

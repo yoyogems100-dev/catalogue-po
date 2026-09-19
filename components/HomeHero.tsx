@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import HeaderLogo from './HeaderLogo';
 import AccountMenu from './AccountMenu';
 import CartBag from './CartBag';
+import QuickOrderButton from './QuickOrderButton';
 
-// The full hero (with the large logo) is the only header shown on first load.
-// The slim topbar is fixed-position and stays invisible until the hero has
-// scrolled out of view, then fades/slides in -- avoiding showing the same
-// logo twice on screen at once, and freeing up space on mobile. The account
-// icon appears in both, though, so it's reachable immediately without scrolling.
+// A single-row, logo-left navbar -- the hero used to center a large logo
+// below the icon row, which forced a tall header just to leave room for it.
+// The slim floating topbar (same layout, smaller logo) stays invisible until
+// this hero scrolls out of view, then fades in.
 export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
   const heroRef = useRef<HTMLDivElement>(null);
   const [showTopbar, setShowTopbar] = useState(false);
@@ -30,22 +30,22 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
       <div className={`topbar topbar-floating ${showTopbar ? 'topbar-visible' : ''}`}>
         <HeaderLogo height={26} />
         <div className="topbar-actions">
+          <QuickOrderButton />
           <CartBag />
           <AccountMenu loggedIn={loggedIn} customerName={customerName} />
         </div>
       </div>
+      {/* Quick Order writes straight to the local cart and needs no account,
+          so it belongs on the public home page for everyone -- it used to
+          appear only in the signed-in account header, which is the one place
+          a first-time buyer never sees. */}
       <div className="hero hero-compact" ref={heroRef}>
-        <div className="hero-top-row">
-          <div className="topbar-actions">
-            <CartBag />
-            <AccountMenu loggedIn={loggedIn} customerName={customerName} />
-          </div>
+        <HeaderLogo height={40} />
+        <div className="topbar-actions">
+          <QuickOrderButton />
+          <CartBag />
+          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
         </div>
-        <div className="eyebrow">Digital Catalogue</div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <HeaderLogo height={88} />
-        </div>
-        <div className="hero-divider" />
       </div>
     </>
   );

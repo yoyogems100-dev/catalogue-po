@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { supabaseAdmin } from '@/lib/supabase-admin';
-import { getCustomerId } from '@/lib/customer-auth';
 import { getSettings } from '@/lib/settings';
+import { getAccountState } from '@/lib/account-state';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
 import HeaderLogo from '@/components/HeaderLogo';
@@ -9,13 +8,6 @@ import Footer from '@/components/Footer';
 import CartView from '@/components/CartView';
 
 export const metadata = { title: 'Your Requirement — YOYO GEMS' };
-
-async function getAccountState() {
-  const customerId = await getCustomerId();
-  if (!customerId) return { loggedIn: false, customerName: null };
-  const { data } = await supabaseAdmin.from('customers').select('name').eq('id', customerId).maybeSingle();
-  return { loggedIn: true, customerName: data?.name || null };
-}
 
 // The requirement draft lives in the browser (localStorage), so there is
 // nothing here for the server to render from -- CartView reads it after mount.

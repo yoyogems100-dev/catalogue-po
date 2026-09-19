@@ -24,3 +24,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!data) return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
+
+// Soft delete -- moves the customer to the Bin (hidden from the customers
+// list). Their past orders keep their own record; orders.customer_id is set
+// null by the database's own ON DELETE SET NULL, only if this is later
+// permanently deleted from the Bin, not by this soft delete.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const id = Number((await params).id);
+  const { error } = await supabaseAdmin.from('customers').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}
