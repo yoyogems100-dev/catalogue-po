@@ -39,6 +39,22 @@ import { fileURLToPath } from 'node:url';
 //                first, for photos that aren't a stone on a backdrop at all
 //                (star-light is a hand holding the stone).
 //   skipFill     circle crop only, no flood fill.
+//   chroma       drop every pixel whose colour is within this much of grey --
+//                for a saturated stone on a white/grey/black backdrop, where
+//                "is it coloured?" separates them far more cleanly than "is it
+//                near the border's mean?" does on a graded studio sweep.
+//   luma         drop every pixel darker than this -- for a bright stone on a
+//                black backdrop, where the fill has no edge to stop at.
+//   holes        after the backdrop is gone, make any transparent island that
+//                does NOT reach the image border opaque again. chroma and luma
+//                judge each pixel alone, so a grey facet inside the stone comes
+//                out as a hole in it; only the outside is really backdrop.
+//   open         erode the cut-out by this many pixels, keep the largest piece,
+//                then dilate it back -- severs a thin bridge joining the stone
+//                to a scrap of backdrop that solo alone can't separate.
+//   solo         keep the single largest blob instead of everything within 2%
+//                of the total. For photos that are one object, anything else
+//                is a tray edge, a ridge shadow or a neighbouring stone.
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DIR = path.join(ROOT, 'all each cat');
@@ -67,7 +83,10 @@ const TARGET_INK = 0.45;
 // longer uses the shared one.
 const CATEGORY_ICONS = {
   'crushed-ice-cut':       { src: 'ICE CRUSH (4).JPEG' },
-  'rainbow-corundum':      { src: 'rainbow-corundum-300.jpg', near: 22, global: 80 },
+  // One strand on a ridged white sweep. The ridges cast shadow lines the fill
+  // can't reach, and one of them survived as a stray streak under the strand;
+  // solo drops it, because there is only ever one object in this shot.
+  'rainbow-corundum':      { src: 'rainbow-corundum-300.jpg', near: 22, global: 92, chroma: 24, holes: true, open: 3, solo: true },
   'ruby-synthetic':        { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
   'ruby-glass-filled':     { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
   'ruby-green-cabs':       { src: 'green cabs.jpg' },
@@ -92,7 +111,10 @@ const CATEGORY_ICONS = {
   'natural-emeralds':      { src: 'natEmerald.webp', near: 20, global: 150, key: true },
   'glass-stones':          { src: 'glass-green gemstone.webp' },
   'star-light':            { src: 'starlighht.webp', circle: [0.487, 0.47, 0.275], skipFill: true },
-  'ceramic':               { src: 'ceramic.jpg' },
+  // A turquoise bead on a grey sweep -- the two are close in brightness and
+  // the border fill left the whole backdrop, but nothing else in the frame is
+  // coloured at all, so key on saturation and close the pale facets after.
+  'ceramic':               { src: 'ceramic.jpg', chroma: 34, holes: true, solo: true },
   'malachite':             { src: 'malachite.jpeg' },
   '7a-quality':            { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
   '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
@@ -103,11 +125,15 @@ const CATEGORY_ICONS = {
   'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
   'nano':                  { src: 'blue nano.png' },
   'moissanite':            { src: 'moissanite.jpg' },
-  'hole-punched-stones':   { src: 'hole.punch.png', near: 30, global: 115 },
-  // The left flank of this stone fades into its black backdrop with no edge
-  // to find, so the cut-out loses it whatever the tolerance; 8/32 keeps the
-  // most stone. A shot on a light backdrop would cut out cleanly.
-  'fancy-special-shapes':  { src: 'fancy special shp.png', near: 8, global: 32 },
+  // A dark backdrop with lighter blobs at the corners; one of them clung to
+  // the top right of the heart as a hairline. It is a separate blob, so solo
+  // removes it.
+  'hole-punched-stones':   { src: 'hole.punch.png', skipFill: true, luma: 70, holes: true, open: 4, solo: true },
+  // The left flank fades into the black backdrop with no edge for the fill to
+  // find, so a flood from the border cut the stone in half. Keyed on
+  // brightness instead -- the backdrop is genuinely black -- then holes closes
+  // the dark facets the threshold punched out, and solo drops the lens flare.
+  'fancy-special-shapes':  { src: 'fancy special shp.png', skipFill: true, luma: 40, holes: true, solo: true },
   'green-onyx-chatam':     { src: 'green onyx.webp' },
   'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg' },
   'preform-balls':         { src: 'preformballs.tiff' },
@@ -221,6 +247,90 @@ async function cutout(SRC, OUT, opts) {
     for (let p = 0; p < W * H; p++) if (bg[p]) data[p * C + 3] = 0;
   }
 
+  // Colour- and brightness-keyed backdrops. Both judge a pixel on its own, so
+  // they run on the whole image rather than from the border, and both leave
+  // holes inside the stone that `holes` closes again.
+  if (opts.chroma || opts.luma) {
+    for (let p = 0; p < W * H; p++) {
+      const r = data[p * C], g = data[p * C + 1], b = data[p * C + 2];
+      if (opts.chroma && Math.max(r, g, b) - Math.min(r, g, b) < opts.chroma) { data[p * C + 3] = 0; continue; }
+      if (opts.luma && (0.299 * r + 0.587 * g + 0.114 * b) < opts.luma) data[p * C + 3] = 0;
+    }
+  }
+
+  // Transparency that can't be reached from the image edge isn't backdrop --
+  // it's a facet inside the stone that happened to be grey or dark. Flood the
+  // transparent pixels from the border and restore everything the flood missed.
+  if (opts.holes) {
+    const outside = new Uint8Array(W * H);
+    const queue = [];
+    for (let x = 0; x < W; x++) for (const p of [x, (H - 1) * W + x]) if (!outside[p] && data[p * C + 3] <= 24) { outside[p] = 1; queue.push(p); }
+    for (let y = 0; y < H; y++) for (const p of [y * W, y * W + W - 1]) if (!outside[p] && data[p * C + 3] <= 24) { outside[p] = 1; queue.push(p); }
+    for (let qi = 0; qi < queue.length; qi++) {
+      const p = queue[qi], x = p % W, y = (p / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const q = ny * W + nx;
+        if (outside[q] || data[q * C + 3] > 24) continue;
+        outside[q] = 1; queue.push(q);
+      }
+    }
+    for (let p = 0; p < W * H; p++) if (!outside[p]) data[p * C + 3] = 255;
+  }
+
+  // A thin bridge to something that isn't the stone -- the sliver of backdrop
+  // trim touching the heart's right lobe -- survives every threshold that
+  // still leaves the stone a clean edge, and connects the two into one blob so
+  // the pass below can't tell them apart. Eroding by a few pixels snaps the
+  // bridge, and dilating the surviving piece back restores the silhouette
+  // exactly, because the result is intersected with the original mask.
+  if (opts.open) {
+    const N = opts.open;
+    let mask = new Uint8Array(W * H);
+    for (let p = 0; p < W * H; p++) mask[p] = data[p * C + 3] > 24 ? 1 : 0;
+    const morph = (src, grow) => {
+      const out = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const p = y * W + x;
+        let hit = grow ? 0 : 1;
+        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          // Outside the frame counts as empty, so a stone running off the edge
+          // erodes there too -- harmless, since the dilate puts it back.
+          const v = nx < 0 || ny < 0 || nx >= W || ny >= H ? 0 : src[ny * W + nx];
+          if (grow) hit |= v; else hit &= v;
+        }
+        out[p] = hit;
+      }
+      return out;
+    };
+    for (let i = 0; i < N; i++) mask = morph(mask, false);
+    // Largest piece of the eroded mask, then grow it back past where it started.
+    const seen = new Uint8Array(W * H);
+    let best = null;
+    for (let p0 = 0; p0 < W * H; p0++) {
+      if (seen[p0] || !mask[p0]) continue;
+      const stack = [p0]; seen[p0] = 1; const cells = [];
+      while (stack.length) {
+        const p = stack.pop(); cells.push(p);
+        const x = p % W, y = (p / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const q = ny * W + nx;
+          if (seen[q] || !mask[q]) continue;
+          seen[q] = 1; stack.push(q);
+        }
+      }
+      if (!best || cells.length > best.length) best = cells;
+    }
+    let grown = new Uint8Array(W * H);
+    for (const p of best || []) grown[p] = 1;
+    for (let i = 0; i < N + 1; i++) grown = morph(grown, true);
+    for (let p = 0; p < W * H; p++) if (!grown[p]) data[p * C + 3] = 0;
+  }
+
   // Keep only the largest surviving blob (plus anything comparable to it) --
   // the flood fill leaves a rim of speckles where a noisy backdrop meets the
   // stone, and at 28px those read as dirt around the gem.
@@ -244,7 +354,13 @@ async function cutout(SRC, OUT, opts) {
       blobs.push(cells);
     }
     const totalKept = blobs.reduce((n, b) => n + b.length, 0);
-    for (const cells of blobs) if (cells.length < totalKept * 0.02) for (const p of cells) data[p * C + 3] = 0;
+    const biggest = blobs.reduce((n, b) => Math.max(n, b.length), 0);
+    // 2% of everything kept, so a photo of several stones keeps all of them.
+    // `solo` instead keeps only the largest, for the photos that really are
+    // one object and where the runner-up is a tray edge or a ridge shadow --
+    // both far too big for the 2% rule to catch.
+    const floor = opts.solo ? biggest : totalKept * 0.02;
+    for (const cells of blobs) if (cells.length < floor) for (const p of cells) data[p * C + 3] = 0;
   }
 
   // Bounding box of what survived, then a small transparent margin so the gem
@@ -282,8 +398,13 @@ async function cutout(SRC, OUT, opts) {
   }
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
+// Naming slugs on the command line re-cuts just those, for tuning one photo
+// without waiting on the other thirty-nine. lib/category-icons.ts is only
+// rewritten on a full run, so a partial run can't shrink the list.
+const only = new Set(process.argv.slice(2));
 const written = [];
 for (const [slug, opts] of Object.entries(CATEGORY_ICONS)) {
+  if (only.size && !only.has(slug)) continue;
   const src = path.join(SRC_DIR, opts.src);
   if (!fs.existsSync(src)) { console.log(`${slug}\tSKIPPED (missing ${opts.src})`); continue; }
   const out = path.join(OUT_DIR, `${slug}.png`);
@@ -311,5 +432,9 @@ export function categoryIconUrl(slug: string | null | undefined): string | null 
   return \`/reference/categories/\${slug}.png\`;
 }
 `;
-fs.writeFileSync(path.join(ROOT, 'lib/category-icons.ts'), lib);
-console.log(`\nlib/category-icons.ts\t${written.length} categories with icons`);
+if (only.size) {
+  console.log('\nPartial run -- lib/category-icons.ts left alone.');
+} else {
+  fs.writeFileSync(path.join(ROOT, 'lib/category-icons.ts'), lib);
+  console.log(`\nlib/category-icons.ts\t${written.length} categories with icons`);
+}
