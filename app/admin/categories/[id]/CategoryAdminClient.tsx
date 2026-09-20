@@ -127,6 +127,7 @@ export default function CategoryAdminClient({
   // wants to act on several photos at once.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
+  const [bulkWatermarkId, setBulkWatermarkId] = useState<number | ''>('');
   const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -384,6 +385,32 @@ export default function CategoryAdminClient({
     const res = await fetch(`/api/photos/${photoId}/watermark`, { method: 'DELETE' });
     if (!res.ok) { setToast('Failed to remove watermark -- try again.'); return; }
     setToast('Watermark removed.');
+    router.refresh();
+  }
+
+  // Watermarking is a per-photo re-encode, so this walks the selection one at
+  // a time rather than firing forty requests at once, and says how far it has
+  // got. Each photo that succeeds is saved; a failure part-way through leaves
+  // the earlier ones watermarked and names how many did not make it.
+  async function watermarkSelectedPhotos() {
+    if (selectedPhotoIds.length === 0 || bulkBusy) return;
+    const ids = [...selectedPhotoIds];
+    setBulkBusy(true);
+    let done = 0, failed = 0;
+    for (const id of ids) {
+      setToast(`Adding watermark… ${done + failed + 1} of ${ids.length}`);
+      const res = bulkWatermarkId === ''
+        ? await fetch(`/api/photos/${id}/watermark`, { method: 'DELETE' })
+        : await fetch(`/api/photos/${id}/watermark`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ watermark_id: bulkWatermarkId })
+          });
+      if (res.ok) done++; else failed++;
+    }
+    setBulkBusy(false);
+    const verb = bulkWatermarkId === '' ? 'cleared' : 'watermarked';
+    setToast(failed ? `${done} ${verb}, ${failed} failed. Retry the ones still unchanged.` : `${done} ${verb}.`);
     router.refresh();
   }
 
@@ -662,6 +689,22 @@ export default function CategoryAdminClient({
                 <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Add to category'}
                 </button>
+                {watermarks.length > 0 && (
+                  <>
+                    <select
+                      value={bulkWatermarkId}
+                      onChange={(e) => setBulkWatermarkId(e.target.value === '' ? '' : Number(e.target.value))}
+                      aria-label="Watermark to apply"
+                      style={{ fontSize: 12.5 }}
+                    >
+                      <option value="">Remove watermark</option>
+                      {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                    <button className="btn" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={watermarkSelectedPhotos}>
+                      {bulkBusy ? 'Working…' : bulkWatermarkId === '' ? 'Clear watermark' : 'Add watermark'}
+                    </button>
+                  </>
+                )}
                 <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Delete selected'}
                 </button>

@@ -1941,3 +1941,70 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 @media (max-width: 480px) {
   .admin-create-dialog { padding: 16px; }
 }
+
+/* ---- Watermarks admin ---------------------------------------------------
+   The editor sits beside a live preview rendered by the server, so the
+   sample is the same picture the photos will get -- not a CSS impression
+   of one. Single column on a phone; the preview follows the fields. */
+.watermark-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 16px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+.watermark-editor-fields { display: flex; flex-direction: column; gap: 10px; }
+.watermark-editor-fields h3 {
+  font-size: 14px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin: 0;
+}
+.watermark-editor-fields label,
+.watermark-card label { display: block; font-size: 12.5px; color: var(--text-dim); }
+.watermark-editor-fields label input[type="text"],
+.watermark-editor-fields label input[type="range"],
+.watermark-card label input[type="range"] { display: block; width: 100%; margin-top: 4px; }
+
+.watermark-swatches { display: flex; gap: 8px; margin-top: 6px; }
+.watermark-swatch {
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line); padding: 0;
+}
+.watermark-swatch.is-on { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.watermark-upload-toggle {
+  align-self: flex-start; background: none; border: none; padding: 4px 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--text-dim);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.watermark-upload { display: flex; flex-direction: column; gap: 8px; }
+.watermark-toast { font-size: 12.5px; color: #756e5c; margin: 0; }
+
+.watermark-preview {
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--ivory);
+  min-height: 160px; display: flex; flex-direction: column; gap: 8px;
+}
+.watermark-preview-label {
+  font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px;
+}
+/* Capped, not stretched: a portrait sample photo across a wide column made
+   the editor several screens tall, with the controls scrolled off. */
+.watermark-preview img {
+  max-width: 100%; max-height: 320px; width: auto; height: auto;
+  border-radius: 6px; display: block; margin: 0 auto;
+}
+.watermark-preview-empty { font-size: 13px; color: #756e5c; margin: 0; }
+
+.watermark-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.watermark-card { padding: 14px; }
+.watermark-card-art {
+  aspect-ratio: 1/1; background: #eee; border-radius: 6px; overflow: hidden; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px;
+}
+.watermark-card-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.watermark-card-art span { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; word-break: break-word; }
+.watermark-card label { margin-top: 8px; }
+.watermark-card .btn-danger { margin-top: 8px; width: 100%; }
+
+@media (max-width: 720px) {
+  .watermark-editor { grid-template-columns: minmax(0, 1fr); }
+}
