@@ -187,38 +187,26 @@ test('quotation lines may carry no quantity, purchase lines may not', async () =
 });
 
 test('shapes that share no size with the current pick are offered as disabled, never hidden', async () => {
-  // Mirrors incompatibleShapeIds in components/POSelector.tsx.
-  const sizes = [
-    { id: 1, shape_id: 10, size_mm: '4x4' }, { id: 2, shape_id: 10, size_mm: '5x5' },
-    { id: 3, shape_id: 20, size_mm: '5x5' },                     // shares 5x5 with Heart
-    { id: 4, shape_id: 30, size_mm: '9x9' }                      // shares nothing
-  ];
+  const { incompatibleShapeIds } = await import('../lib/shape-size-compat');
   const shapes = [{ id: 10 }, { id: 20 }, { id: 30 }];
-  const byShape = new Map<number, Set<string>>();
-  sizes.forEach((s) => {
-    if (!byShape.has(s.shape_id)) byShape.set(s.shape_id, new Set());
-    byShape.get(s.shape_id)!.add(s.size_mm);
-  });
-
-  const incompatible = (picked: number[]) => {
-    if (!picked.length) return [];
-    let shared: Set<string> | null = null;
-    picked.forEach((id) => {
-      const own = byShape.get(id) || new Set<string>();
-      shared = shared === null ? new Set(own) : new Set([...shared].filter((mm) => own.has(mm)));
-    });
-    if (!shared || shared.size === 0) return [];
-    return shapes.filter((s) => !picked.includes(s.id))
-      .filter((s) => ![...shared!].some((mm) => (byShape.get(s.id) || new Set()).has(mm)))
-      .map((s) => s.id);
-  };
+  const sizes = [
+    { shapeId: 10, sizeMm: '4x4' }, { shapeId: 10, sizeMm: '5x5' },
+    { shapeId: 20, sizeMm: ' 5X5 ' },            // shares 5x5 with shape 10, spelled differently
+    { shapeId: 30, sizeMm: '9x9' }               // shares nothing
+  ];
+  const incompatible = (picked: number[]) => incompatibleShapeIds(shapes, sizes, picked);
 
   assert.deepEqual(incompatible([]), [], 'nothing picked yet -- everything is offerable');
   assert.deepEqual(incompatible([10]), [30], 'only the shape sharing no size is disabled');
+  // Sizes are matched on the millimetre label, so casing and stray spaces in
+  // one category's rows never split a size a buyer reads as the same.
   assert.deepEqual(incompatible([10, 20]), [30], 'still disabled once the pick narrows to 5x5');
   // A selected shape is never disabled, so the buyer can always deselect out.
   assert.equal(incompatible([10, 20]).includes(10), false);
   assert.equal(incompatible([10, 20]).includes(20), false);
+  // And a pick that already shares nothing greys out nobody -- otherwise the
+  // whole list locks and there is no way back.
+  assert.deepEqual(incompatible([10, 30]), []);
 });
 
 test('the same number in any written form resolves to one customer', async () => {

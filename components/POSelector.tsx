@@ -7,6 +7,7 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from './IconSelect';
+import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -163,37 +164,12 @@ export default function POSelector({
   // possible to pick three shapes, open the size list and be told there is no
   // size in common -- leaving the buyer to work out which shape to drop. Work
   // it out for them instead: once a shape is chosen, any shape that shares no
-  // size with the current selection is greyed out in the shape list, so an
-  // impossible combination can't be built in the first place.
-  const sizeMmByShape = useMemo(() => {
-    const map = new Map<number, Set<string>>();
-    sizes.forEach((sz) => {
-      if (!map.has(sz.shape_id)) map.set(sz.shape_id, new Set());
-      map.get(sz.shape_id)!.add(sz.size_mm);
-    });
-    return map;
-  }, [sizes]);
-
-  const incompatibleShapeIds = useMemo(() => {
-    if (pickShapeIds.length === 0) return [];
-    // Sizes shared by everything picked so far.
-    let shared: Set<string> | null = null;
-    pickShapeIds.forEach((id) => {
-      const own = sizeMmByShape.get(id) || new Set<string>();
-      shared = shared === null ? new Set(own) : new Set([...shared].filter((mm) => own.has(mm)));
-    });
-    // Already an impossible selection (nothing shared) -- don't compound it by
-    // greying out the whole list; the buyer needs to be able to deselect.
-    if (!shared || shared.size === 0) return [];
-    return shapes
-      .filter((s) => !pickShapeIds.includes(s.id))
-      .filter((s) => {
-        const own = sizeMmByShape.get(s.id);
-        if (!own) return true;
-        return ![...shared!].some((mm) => own.has(mm));
-      })
-      .map((s) => s.id);
-  }, [pickShapeIds, shapes, sizeMmByShape]);
+  // size with the current selection is greyed out in the shape list, with the
+  // reason on the row, so an impossible combination can't be built at all.
+  const incompatibleShapes = useMemo(
+    () => incompatibleShapeIds(shapes, sizes.map((s) => ({ shapeId: s.shape_id, sizeMm: s.size_mm })), pickShapeIds),
+    [pickShapeIds, shapes, sizes]
+  );
 
   const sizeOptions = useMemo(
     () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })),
@@ -318,6 +294,24 @@ export default function POSelector({
   // own popup (picking an option) never counts as "outside".
 
 
+  // Everything the compose form is currently holding. Moissanite's colour is
+  // locked to White (DEF) by the picker itself, so clearing it would only be
+  // re-applied on the next render -- leave it alone rather than flicker.
+  const hasSelection =
+    pickShapeIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== '' ||
+    rangeMin !== '' || rangeMax !== '' ||
+    (categoryId !== 34 && pickColorIds.length > 0);
+
+  function clearSelection() {
+    setPickShapeIds([]);
+    setPickSizeIdxs([]);
+    if (categoryId !== 34) setPickColorIds([]);
+    setRangeMin('');
+    setRangeMax('');
+    setPickQty('');
+    setPickRequestType('Place Order');
+  }
+
   function addLine() {
     if (!canAdd) {
       setToast('Pick at least one shape, color and size, and enter quantity first.');
@@ -424,8 +418,9 @@ export default function POSelector({
               onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
               placeholder="Choose shape(s)"
               leading="icon"
-              disabledIds={incompatibleShapeIds}
-              disabledReason="No size in common with the shapes already selected"
+              disabledIds={incompatibleShapes}
+              disabledReason={NO_SHARED_SIZE_REASON}
+              disabledNote={NO_SHARED_SIZE_NOTE}
             />
           </div>}
           <div>
@@ -508,6 +503,13 @@ export default function POSelector({
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
         {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
+        {/* Adding a line deliberately keeps the shape and colour so several
+            sizes can be added in a row; this is the way back to an empty form
+            without reloading the page. Plain text, not a button -- it sits
+            under the primary action and must not compete with it. */}
+        {hasSelection && (
+          <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>
+        )}
         </>}
         </div>
       </section>

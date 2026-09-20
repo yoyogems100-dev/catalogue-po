@@ -68,7 +68,8 @@ export default function CategoryAdminClient({
   photos,
   watermarks,
   otherCategories,
-  badgeTypes
+  badgeTypes,
+  shapeReference
 }: {
   categoryId: number;
   section?: string;
@@ -97,6 +98,10 @@ export default function CategoryAdminClient({
       bulk action -- empty on every other tab. */
   otherCategories: { id: number; name: string; slug: string | null }[];
   badgeTypes: BadgeType[];
+  /** The Shapes & sizes tab's card grid of linked shapes. Rendered on the
+      server (it reads per-category reference photos) and passed in as a slot
+      so it can sit below the picker, matching the Colors tab's order. */
+  shapeReference?: React.ReactNode;
 }) {
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
@@ -478,30 +483,39 @@ export default function CategoryAdminClient({
       </section>
 
       {/* Shapes & sizes -- the only tab that needs the full catalogue-wide
-          lists, to offer shapes/sizes beyond what's already linked. */}
+          lists, to offer shapes/sizes beyond what's already linked.
+          Laid out to match the Colors tab: the picker that decides what this
+          category carries comes first, in its own card, and the cards for what
+          is already linked follow it. Before this the shape cards came first
+          and the picker sat underneath them, so the two halves of the same
+          workspace read in opposite orders. */}
       {section === 'shapes' && (
-        <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a shape or size to feature it in this category. Flags are per category -- marking Cushion here does not mark it anywhere else.</p>
-          <h3 className="section-label">Shapes &amp; sizes</h3>
-          <ShapeSizeSelect
-            categoryId={categoryId}
-            allShapes={allShapes}
-            allSizes={allSizes}
-            linkedShapeIds={linkedShapeIds}
-            linkedSizeIds={linkedSizeIds}
-            onToggleShape={(id, active) => toggleLink('shape', id, active)}
-            onToggleSize={toggleSize}
-            onBulkSizes={setAllSizesForShape}
-          />
+        <section id="category-options" style={{ marginBottom: 16 }}>
+          <div className="card" style={{ padding: 16 }}>
+            <h3 style={{ marginBottom: 10 }}>Available shapes &amp; sizes</h3>
+            <ShapeSizeSelect
+              categoryId={categoryId}
+              allShapes={allShapes}
+              allSizes={allSizes}
+              linkedShapeIds={linkedShapeIds}
+              linkedSizeIds={linkedSizeIds}
+              onToggleShape={(id, active) => toggleLink('shape', id, active)}
+              onToggleSize={toggleSize}
+              onBulkSizes={setAllSizesForShape}
+            />
+          </div>
         </section>
       )}
+
+      {/* The linked shapes themselves, rendered on the server (it reads the
+          per-category reference photos) and handed down as a slot. */}
+      {section === 'shapes' && shapeReference}
 
       {/* Specifications sits with Shapes & sizes rather than as a tab of its
           own: it is one more product attribute, and a tab holding a single
           picker was not worth the click. */}
       {section === 'shapes' && (
         <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a specification to feature it in this category. Click again to remove.</p>
           <h3 className="section-label">Specifications</h3>
           <MultiSelect
             categoryId={categoryId}
@@ -654,9 +668,6 @@ export default function CategoryAdminClient({
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-                  "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-                </p>
                 {/* The buyer-facing reference strip narrows itself to photos
                     matching the shape and colour being ordered, but only for
                     photos that carry those links -- with none tagged it just

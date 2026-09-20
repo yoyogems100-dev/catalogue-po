@@ -7,6 +7,7 @@ import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
+import { hasFinePointer } from '@/lib/pointer';
 
 type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
@@ -46,6 +47,12 @@ export default function MultiSelect({
   const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Desktop only -- see lib/pointer.ts.
+  useEffect(() => {
+    if (open && hasFinePointer()) searchRef.current?.focus();
+  }, [open]);
 
   function closeAndRefocus() {
     setOpen(false);
@@ -202,7 +209,7 @@ export default function MultiSelect({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Escape') closeAndRefocus(); }}
-            autoFocus
+            ref={searchRef}
             className="ms-search"
           />
           <div className="ms-select-all-row">

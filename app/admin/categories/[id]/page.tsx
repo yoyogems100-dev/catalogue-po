@@ -140,24 +140,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         <Link href={`/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
       {tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
-      {tab === 'shapes' && <ShapeReferenceManager
-        categoryId={categoryId}
-        references={linkedShapes.map((shape: any) => {
-          const link = (linkedShapesRaw || []).find((r: any) => r.shape_id === shape.id);
-          // Same default-to-photo-when-available rule as the public category page: a
-          // category-specific upload wins, otherwise fall back to the shared photo for
-          // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
-          // reference_style is ignored here too -- see the note in the category page.
-          const refPhotoUrl = link?.ref_photo_url || shape?.ref_photo_url || null;
-          return {
-            shapeId: shape.id,
-            name: shape?.name || `Shape #${shape.id}`,
-            iconKey: shape?.icon_key,
-            refPhotoUrl,
-            referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
-          };
-        })}
-      />}
+
       <CategoryAdminClient
         key={categoryId}
         section={tab}
@@ -177,6 +160,24 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         photos={photosFormatted}
         watermarks={watermarks}
         otherCategories={otherCategories}
+        shapeReference={tab === 'shapes' ? <ShapeReferenceManager
+        categoryId={categoryId}
+        references={linkedShapes.map((shape: any) => {
+          const link = (linkedShapesRaw || []).find((r: any) => r.shape_id === shape.id);
+          // Same default-to-photo-when-available rule as the public category page: a
+          // category-specific upload wins, otherwise fall back to the shared photo for
+          // this shape (e.g. the Moissanite gemstone photos), otherwise the vector.
+          // reference_style is ignored here too -- see the note in the category page.
+          const refPhotoUrl = link?.ref_photo_url || shape?.ref_photo_url || null;
+          return {
+            shapeId: shape.id,
+            name: shape?.name || `Shape #${shape.id}`,
+            iconKey: shape?.icon_key,
+            refPhotoUrl,
+            referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
+          };
+        })}
+/> : null}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
       /></>}
     </>

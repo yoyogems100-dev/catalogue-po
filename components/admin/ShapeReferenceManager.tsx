@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ShapeIcon from '@/components/ShapeIcon';
 import ShapeReferenceImage from '@/components/ShapeReferenceImage';
+import { HotMark } from '@/components/HotSelling';
 
 type ReferenceStyle = 'vector' | 'photo';
 type ShapeReference = {
@@ -63,8 +64,7 @@ export default function ShapeReferenceManager({ categoryId, references }: { cate
     <section className="shape-reference-manager" aria-labelledby="shape-reference-title">
       <div className="shape-reference-manager-head">
         <div>
-          <h3 id="shape-reference-title">Shape reference style</h3>
-          <p>Choose what customers see for each shape in this category. A vector is used automatically whenever a gemstone photo is unavailable.</p>
+          <h3 id="shape-reference-title">Shapes in this category</h3>
         </div>
       </div>
       <div className="shape-reference-admin-grid">
@@ -79,7 +79,10 @@ export default function ShapeReferenceManager({ categoryId, references }: { cate
                   : <ShapeIcon iconKey={shape.iconKey} size={42} />}
               </div>
               <div className="shape-reference-admin-copy">
-                <strong>{shape.name}</strong>
+                {/* The flame lives on the card, the way it does on a colour
+                    card, so featuring a shape doesn't mean opening the
+                    shapes & sizes picker to find it. */}
+                <strong><HotMark categoryId={categoryId} kind="shape" ids={[shape.shapeId]} name={shape.name} />{shape.name}</strong>
                 <span>{effectiveStyle === 'photo' ? 'Gemstone photo' : 'Faceted vector'}</span>
               </div>
               <div className="shape-reference-admin-actions">

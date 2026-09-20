@@ -514,15 +514,29 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* Shown but unpickable: a shape that shares no size with what's already
    selected. Greyed rather than hidden so the option is still visibly part of
    the catalogue, with the reason on hover/aria. */
-.icon-select-row--disabled { opacity: 0.38; cursor: not-allowed; }
+/* An unavailable option stays on the list -- a buyer who came looking for
+   Baguette needs to see it exists -- but it has to say so without a hover,
+   which is why the reason is printed on the row rather than left in a title
+   attribute no touchscreen will ever show. */
+.icon-select-row--disabled { opacity: 0.55; cursor: not-allowed; }
 .icon-select-row--disabled:hover { background: transparent; }
+.icon-select-row--disabled .icon-select-photo,
+.icon-select-row--disabled .shape-vector-icon { filter: grayscale(1); }
+.icon-select-row-note {
+  margin-left: auto; padding-left: 8px; flex-shrink: 0;
+  font-size: 10px; letter-spacing: .2px; color: #8a7f63; white-space: nowrap;
+}
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
 .icon-select-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
 .icon-select-palette-row strong { font-weight: 500; color: var(--navy); }
 .icon-select-palette-count { margin-left: auto; font-size: 10px; color: #756e5c; }
-.icon-select-search {
-  width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px;
-  font-size: 12.5px; position: sticky; top: 0; background: #fff;
+/* Same story as .home-search-input: the base input rule outweighs a single
+   class, so this needs the matching :not() chain or the panel draws a second
+   bordered box around its own search line. */
+.icon-select-search:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  width: 100%; border: none; border-bottom: 1px solid var(--line); border-radius: 0;
+  padding: 10px 12px; font-size: 12.5px; position: sticky; top: 0; background: #fff;
+  box-shadow: none;
 }
 .icon-select-search:focus { outline: none; border-bottom-color: var(--gold); }
 .icon-select-empty { padding: 10px 12px; font-size: 12px; color: #756e5c; }
@@ -531,13 +545,21 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .home-search-input {
   width: 100%; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line);
-  background: #fff; padding: 12px 16px; border-radius: 999px;
-  box-shadow: 0 1px 3px rgba(18,35,63,0.05);
+  background: #fff; padding: 9px 16px; border-radius: 999px;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
-.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 2px 10px rgba(156,122,37,0.14); }
+.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(156,122,37,0.10); }
 .home-search-input svg { flex-shrink: 0; opacity: .5; }
-.home-search-input input { border: none; padding: 0; font-size: 14px; width: 100%; background: transparent; }
+/* The field is the pill, not the <input> inside it. The base input rule near
+   the top of this file carries four :not() attribute selectors, so it outweighs
+   a plain `.home-search-input input` and was drawing its own bordered, rounded
+   box INSIDE the pill -- a visible border within a border. Matching that
+   specificity is what actually turns it off; a shorter selector silently
+   loses. Same reason the dropdown panel's search input is neutralised below. */
+.home-search-input input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  border: none; background: transparent; padding: 0; border-radius: 0;
+  font-size: 14px; width: 100%; box-shadow: none;
+}
 .home-search-input input:focus { outline: none; }
 .home-search-input input::placeholder { color: #9a9484; }
 .home-filter-row { display: flex; gap: 8px; align-items: center; }
@@ -975,6 +997,15 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-item-controls .po-item-type-select, .po-item-controls input.po-cart-qty { width: 100%; max-width: none; min-width: 0; height: 44px; min-height: 44px; flex: none; line-height: 1.25; font-size: 16px; padding: 8px; margin: 0; }
 .po-item-controls .po-remove-btn { width: 44px; height: 44px; border-radius: 6px; }
 .po-selection-summary { font-size: 14px; margin-top: 10px; color: var(--ink); }
+/* The way back to an empty compose form. Plain underlined text, centred under
+   the primary action: it must be findable but must never read as a second
+   button competing with "Add line to order". */
+.po-clear-selection {
+  display: block; margin: 8px auto 0; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--text-dim);
+  text-decoration: underline; text-underline-offset: 3px; padding: 6px 8px;
+}
+.po-clear-selection:hover { color: var(--gold); }
 .po-price-note { display: block; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 400; margin-top: 6px; }
 .po-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .admin-coverage-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
@@ -1628,9 +1659,12 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 /* The requirement used to be reachable only from inside a category page. */
 .cart-bag {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
-  color: inherit; padding: 4px; line-height: 0; text-decoration: none;
+  /* Explicitly white, like the account icon beside it. `inherit` picked up the
+     body's dark charcoal, which on the navy header left the bag almost
+     invisible -- a dark icon on a dark bar. */
+  color: #fff; padding: 4px; line-height: 0; text-decoration: none;
 }
-.cart-bag:hover { opacity: 0.85; }
+.cart-bag:hover { color: var(--gold-soft); opacity: 1; }
 .cart-bag:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; border-radius: 3px; }
 .cart-bag-count {
   position: absolute; top: -3px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px;

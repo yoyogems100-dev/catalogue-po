@@ -7,6 +7,7 @@ import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
+import { hasFinePointer } from '@/lib/pointer';
 
 type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
@@ -27,6 +28,13 @@ type CommonProps = {
   disabledIds?: number[];
   /** Tooltip/aria hint explaining why a disabled option is unavailable. */
   disabledReason?: string;
+  /**
+   * Two or three words printed on the row itself for a disabled option. A
+   * title attribute never appears on a touchscreen, so without this the only
+   * signal is a slight fade -- which is how a buyer ends up selecting two
+   * shapes that share no size and only finding out at the size picker.
+   */
+  disabledNote?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -80,6 +88,13 @@ export default function IconSelect(props: Props) {
   const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Focus the search box on open only where that doesn't summon a keyboard.
+  // See lib/pointer.ts for why this is an effect and not a render-time branch.
+  useEffect(() => {
+    if (open && hasFinePointer()) searchRef.current?.focus();
+  }, [open]);
 
   function closeAndRefocus() {
     setOpen(false);
@@ -207,17 +222,27 @@ export default function IconSelect(props: Props) {
 
   function applyPalette(palette: Palette) {
     if (!isMulti) return;
-    const fullySelected = palette.memberIds.length > 0 && palette.memberIds.every((id) => multi.values.includes(id));
+    const blocked = new Set(props.disabledIds || []);
+    const members = palette.memberIds.filter((id) => !blocked.has(id) || multi.values.includes(id));
+    const fullySelected = members.length > 0 && members.every((id) => multi.values.includes(id));
     const next = fullySelected
-      ? multi.values.filter((v) => !palette.memberIds.includes(v))
-      : [...new Set([...multi.values, ...palette.memberIds])];
+      ? multi.values.filter((v) => !members.includes(v))
+      : [...new Set([...multi.values, ...members])];
     multi.onChange(next);
   }
 
   // Select/clear only the currently-filtered (search-matching) options.
+  //
+  // Disabled options are skipped. "Select all" used to take them too, which
+  // walked straight past the very constraint the disabling exists to enforce:
+  // on a category where no single size spans every shape, one click selected
+  // all of them and the size picker went dead with "No common size for these
+  // shapes" and no way to tell which pick caused it.
   function selectAllFiltered() {
     if (!isMulti) return;
-    multi.onChange([...new Set([...multi.values, ...filtered.map((o) => o.id)])]);
+    const blocked = new Set(props.disabledIds || []);
+    const selectable = filtered.filter((o) => !blocked.has(o.id) || multi.values.includes(o.id));
+    multi.onChange([...new Set([...multi.values, ...selectable.map((o) => o.id)])]);
   }
   function clearAllFiltered() {
     if (!isMulti) return;
@@ -256,7 +281,7 @@ export default function IconSelect(props: Props) {
         <div className="icon-select-panel" style={panelStyle}>
           {searchable && (
             <input
-              autoFocus
+              ref={searchRef}
               type="text"
               className="icon-select-search"
               placeholder="Search..."
@@ -335,6 +360,7 @@ export default function IconSelect(props: Props) {
                   )}
                   <Leading o={o} />
                   {o.name}<HotMark categoryId={props.categoryId} kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
+                  {isDisabled && props.disabledNote && <span className="icon-select-row-note">{props.disabledNote}</span>}
                 </div>
               );
             })}

@@ -3,6 +3,7 @@ import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
+import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -121,6 +122,25 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setLoadingOptions(false);
     if (data) setOptionsCache((prev) => ({ ...prev, [categoryId]: data }));
   }
+
+  // A shape sharing no size with what's already picked is greyed out here,
+  // rather than leaving the size list to go dead with no explanation.
+  const incompatibleShapes = useMemo(
+    () => incompatibleShapeIds(currentOptions?.shapes || [], currentOptions?.sizes || [], pickShapeIds),
+    [currentOptions, pickShapeIds]
+  );
+
+  function clearSelection() {
+    setPickCategoryId('all');
+    setPickShapeIds([]);
+    setPickSizeIdxs([]);
+    setPickColorIds([]);
+    setPickQty('');
+  }
+
+  const hasSelection =
+    pickCategoryId !== 'all' || pickShapeIds.length > 0 || pickColorIds.length > 0 ||
+    pickSizeIdxs.length > 0 || pickQty !== '';
 
   const qtyNum = parseInt(pickQty, 10) || 0;
   const canAdd = pickCategoryId !== 'all' && pickShapeIds.length > 0 && pickSizeIdxs.length > 0 && pickColorIds.length > 0 && qtyNum > 0;
@@ -335,6 +355,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
               placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
               leading="icon"
+              disabledIds={incompatibleShapes}
+              disabledReason={NO_SHARED_SIZE_REASON}
+              disabledNote={NO_SHARED_SIZE_NOTE}
             />
           </div>
           <div>
@@ -368,7 +391,10 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           </div>
         </div>
         {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer showRequestType={false} key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setCart(current=>[...current,line])} />}
-<div hidden={!!specialCategory(Number(pickCategoryId))}><button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button></div>
+<div hidden={!!specialCategory(Number(pickCategoryId))}>
+          <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button>
+          {hasSelection && <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>}
+        </div>
       </section>
 
       <section className="po-card po-cart-card">
