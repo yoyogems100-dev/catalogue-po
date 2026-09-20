@@ -58,7 +58,7 @@ function sectionColumns(rows: SizeChartSection['rows']) {
   return Array.from({ length: count }, (_, index) => rows.slice(index * perColumn, (index + 1) * perColumn));
 }
 
-function ShapeSection({ section, includePrices }: { section: SizeChartSection; includePrices: boolean }) {
+function ShapeSection({ section, includePrices, showName }: { section: SizeChartSection; includePrices: boolean; showName: boolean }) {
   const columns = sectionColumns(section.rows);
   return (
     <View style={css.section} wrap={false}>
@@ -66,7 +66,10 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
         <View style={css.imageFrame}>
           {section.image ? <Image src={section.image} style={css.image} /> : <View style={css.vectorFallback}><Text>VECTOR REFERENCE</Text></View>}
         </View>
-        <Text style={css.name}>{section.name === 'Cushion Elongated' ? 'Long cushion' : section.name}</Text>
+        {/* With one shape in the whole chart the name says nothing the photo
+            above it doesn't -- and for the round-only categories it is just
+            the word "Round" over the only table on the page. */}
+        {showName && <Text style={css.name}>{section.name === 'Cushion Elongated' ? 'Long cushion' : section.name}</Text>}
       </View>
       <View style={css.values}>
         <View style={css.valuesHead}>
@@ -141,7 +144,7 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
             <Text>{includePrices ? 'INR per piece - availability and final price confirmed by our team' : 'DEW is approximate diamond-equivalent weight'}</Text>
           </View>
           <View style={css.sectionStack}>
-            {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} />)}
+            {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} showName={sections.length > 1} />)}
           </View>
           <View style={css.footer} fixed>
             <Text>yoyogems.co.in  |  +91 9079914601  |  Jaipur</Text>

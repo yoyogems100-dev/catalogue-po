@@ -9,6 +9,9 @@ export type PriceListData = {
   categoryName: string;
   generatedAt: string;
   groups: PriceListGroup[];
+  /** False when the list covers a single shape: a table headed "Round" under
+      a document already naming the category tells the reader nothing. */
+  showShapeHeadings?: boolean;
   sections: PriceListShapeSection[];
   logoUrl: string;
   contactWhatsapp: string | null;
@@ -56,6 +59,7 @@ const styles = StyleSheet.create({
   priceCell: { textAlign: 'center' },
   priceInr: { fontSize: 7.5, color: '#9C7A25', fontFamily: 'Helvetica-Bold' },
   dash: { fontSize: 7.5, color: '#c9c2ac', textAlign: 'center' },
+  comment: { marginTop: 18, fontSize: 9.5, color: '#756e5c' },
   footer: {
     position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7.5, color: '#756e5c',
     textAlign: 'center', borderTopWidth: 1, borderTopColor: '#e4ddc9', borderTopStyle: 'solid', paddingTop: 6
@@ -70,7 +74,9 @@ function money(n: number | null, symbol: string) {
 }
 
 export default function PriceListPdfDocument({ data }: { data: PriceListData }) {
-  const sizeColW = 12;
+  // A single price column stretched to 88% of a landscape page put one number
+  // adrift in the middle of it. Two columns split evenly instead.
+  const sizeColW = data.groups.length <= 1 ? 50 : 12;
   const groupColW = data.groups.length > 0 ? (100 - sizeColW) / data.groups.length : 0;
 
   return (
@@ -100,21 +106,29 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           </View>
         </View>
 
-        <View style={styles.colorLegend} wrap={false}>
+        {data.groups.some((g) => (g.colors?.length || 0) > 0) && <View style={styles.colorLegend} wrap={false}>
           <Text style={styles.colorLegendTitle}>CURRENTLY AVAILABLE COLORS ({data.groups.reduce((count, group) => count + (group.colors?.length || 0), 0)})</Text>
           <View style={styles.colorLegendGrid}>
             {data.groups.map((group) => (
               <View key={group.id} style={styles.colorLegendItem}>
-                <Text style={styles.colorLegendGroup}>{group.name}</Text>
+                {/* With one column there is no group to name -- repeating
+                    "Price" beside the colours it covers says nothing. */}
+                {data.groups.length > 1 && <Text style={styles.colorLegendGroup}>{group.name}</Text>}
                 <Text style={styles.colorLegendNames}>{(group.colors || []).join(', ')}</Text>
               </View>
             ))}
           </View>
-        </View>
+        </View>}
+
+        {/* A category with no price saved yet used to export a header and an
+            expanse of blank paper, which reads as a broken download. */}
+        {data.sections.length === 0 && (
+          <Text style={styles.comment}>No prices have been saved for this category yet.</Text>
+        )}
 
         {data.sections.map((section, si) => (
           <View key={si} wrap={false}>
-            <Text style={styles.shapeHeading}>{section.shapeName}</Text>
+            {data.showShapeHeadings !== false && <Text style={styles.shapeHeading}>{section.shapeName}</Text>}
             <View style={styles.tableHeaderRow}>
               <Text style={[styles.tableHeaderCell, { width: `${sizeColW}%` }]}>Size (mm)</Text>
               {data.groups.map((g) => (

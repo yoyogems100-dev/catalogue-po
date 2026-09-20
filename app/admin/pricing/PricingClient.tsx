@@ -7,7 +7,7 @@ import { categoryIconUrl } from '@/lib/category-icons';
 type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string };
 type Size = { id: number; shapeId: number; sizeMm: string };
-type Group = { id: number; name: string; sort_order: number; colors: string[] };
+import type { PriceColumn } from '@/lib/price-columns';
 type Price = { shapeId: number; shapeSizeId: number; groupId: number; priceInr: number };
 
 export default function PricingClient({ categories, initialCategoryId }: { categories: Category[]; initialCategoryId?: number }) {
@@ -18,9 +18,8 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
 
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [columns, setColumns] = useState<PriceColumn[]>([]);
   const [prices, setPrices] = useState<Price[]>([]);
-  const [unassignedColors, setUnassignedColors] = useState<string[]>([]);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
@@ -41,12 +40,11 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
       .then((data) => {
         setShapes(data.shapes || []);
         setSizes(data.sizes || []);
-        setGroups(data.groups || []);
+        setColumns(data.columns || []);
         setPrices(data.prices || []);
-        setUnassignedColors(data.unassignedColors || []);
         setActiveShapeId(data.shapes?.[0]?.id ?? null);
       })
-      .catch(error => { if (error.name !== 'AbortError') { setLoadError('Prices could not be loaded. Please reload.'); setShapes([]); setPrices([]); } })
+      .catch(error => { if (error.name !== 'AbortError') { setLoadError('Prices could not be loaded. Please reload.'); setShapes([]); setPrices([]); setColumns([]); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [categoryId]);
@@ -93,15 +91,19 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   }
 
   function exportCsv() {
-    const rows = [['Shape', 'Size (mm)', 'Color', 'Price Group', 'Price (₹)']];
+    const rows = [['Shape', 'Size (mm)', 'Color', 'Price column', 'Price (₹)']];
     for (const shape of shapes) {
       const shapeSizes = sizes.filter((s) => s.shapeId === shape.id);
       for (const size of shapeSizes) {
-        for (const group of groups) {
-          const price = priceAt(size.id, group.id);
+        for (const column of columns) {
+          const price = priceAt(size.id, column.groupId);
           if (price === null) continue;
-          for (const color of group.colors) {
-            rows.push([shape.name, size.sizeMm, color, group.name, price.toFixed(2)]);
+          // One row per colour the column covers. A column covering every
+          // colour in the category still gets a row each, so the sheet reads
+          // the same whether or not the category prices by colour.
+          const colors = column.colors.length ? column.colors : [''];
+          for (const color of colors) {
+            rows.push([shape.name, size.sizeMm, color, column.label, price.toFixed(2)]);
           }
         }
       }
@@ -156,7 +158,6 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
       </div>
 
       <p>₹ prices per piece.</p>
-      {unassignedColors.length > 0 && <p role="alert">{unassignedColors.length} selected colors still need a pricing group: {unassignedColors.join(', ')}.</p>}
       {loadError && <p role="alert">{loadError}</p>}
       {loading ? (
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Loading...</p>
@@ -164,7 +165,10 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>This category has no shapes linked yet.</p>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          {/* One shape is not a choice, and a row holding a single lit button
+              reads as a filter the reader has to understand before they can
+              type a price. */}
+          {shapes.length > 1 && <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
             {shapes.map((s) => (
               <button
                 key={s.id}
@@ -177,30 +181,32 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
                 {s.name}
               </button>
             ))}
-          </div>
+          </div>}
 
-          <p className="pricing-scroll-hint" style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
-            &#8592; Swipe to see all {groups.length} color groups &#8594;
-          </p>
+          {columns.length > 1 && (
+            <p className="pricing-scroll-hint" style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+              &#8592; Swipe to see all {columns.length} price columns &#8594;
+            </p>
+          )}
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>
                 <tr>
                   <th>Size (mm)</th>
-                  {groups.map((g) => <th key={g.id}>{g.name}</th>)}
+                  {columns.map((c) => <th key={c.groupId}>{c.label}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {activeSizes.map((size) => (
                   <tr key={size.id}>
                     <td className="mono" style={{ fontWeight: 600 }}>{size.sizeMm}</td>
-                    {groups.map((g) => {
-                      const price = priceAt(size.id, g.id);
+                    {columns.map((g) => {
+                      const price = priceAt(size.id, g.groupId);
                       return (
-                        <td key={g.id} style={{ minWidth: 100 }}>
+                        <td key={g.groupId} style={{ minWidth: 100 }}>
                           <input
-                            key={`${categoryId}:${activeShapeId}:${size.id}:${g.id}:${price}`}
-                            aria-label={`${size.sizeMm} mm ${g.name} INR price`}
+                            key={`${categoryId}:${activeShapeId}:${size.id}:${g.groupId}:${price}`}
+                            aria-label={`${size.sizeMm} mm ${g.label} INR price`}
                             disabled={savingPrice}
                             type="number"
                             step="0.01"
@@ -208,7 +214,7 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
                             placeholder="--"
                             className="mono"
                             style={{ width: 80, padding: '5px 6px', fontSize: 12.5 }}
-                            onBlur={(e) => savePrice(size.id, g.id, e.target.value)}
+                            onBlur={(e) => savePrice(size.id, g.groupId, e.target.value)}
                           />
                         </td>
                       );

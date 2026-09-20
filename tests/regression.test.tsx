@@ -231,3 +231,79 @@ test('the same number in any written form resolves to one customer', async () =>
   assert.equal(isUsablePhone('98765'), false);
   assert.equal(isUsablePhone('+91 90799 14601'), true);
 });
+
+test('a category that does not price by colour still gets one column, called Price', async () => {
+  const { priceColumns, CATCH_ALL_LABEL, SINGLE_COLUMN_LABEL } = await import('../lib/price-columns');
+  const catchAll = { id: 99, name: 'All other colors', is_catch_all: true };
+  const standard = { id: 1, name: 'Standard', is_catch_all: false };
+  const swiss = { id: 11, name: 'Swiss Heavy Round', is_catch_all: false };
+
+  // Ruby Synthetic: two colours, neither in any group. This rendered with a
+  // Size column and NOTHING else -- no cell anywhere to type a price into.
+  const ruby = priceColumns([standard, swiss, catchAll], [{ id: 5, name: 'Ruby Red' }, { id: 6, name: 'Rose Pink' }], []);
+  assert.equal(ruby.length, 1);
+  assert.equal(ruby[0].groupId, 99);
+  assert.equal(ruby[0].label, SINGLE_COLUMN_LABEL, 'one column names nothing to tell apart');
+  assert.deepEqual(ruby[0].colors, ['Rose Pink', 'Ruby Red']);
+
+  // Nano: 54 ungrouped colours plus one that happens to sit in a group named
+  // after a shape, which used to head the entire category's prices.
+  const nano = priceColumns([standard, swiss, catchAll],
+    [{ id: 1, name: 'Aqua' }, { id: 2, name: 'Olive' }, { id: 7, name: 'Swiss White' }],
+    [{ group_id: 11, color_id: 7 }]);
+  assert.deepEqual(nano.map((c) => c.label), ['Swiss Heavy Round', CATCH_ALL_LABEL]);
+  assert.deepEqual(nano[1].colors, ['Aqua', 'Olive'], 'the catch-all covers exactly the ungrouped colours');
+
+  // Every colour grouped: no catch-all column, and the group names stand.
+  const split = priceColumns([standard, swiss, catchAll],
+    [{ id: 1, name: 'Aqua' }, { id: 7, name: 'Swiss White' }],
+    [{ group_id: 1, color_id: 1 }, { group_id: 11, color_id: 7 }]);
+  assert.deepEqual(split.map((c) => c.label), ['Standard', 'Swiss Heavy Round']);
+
+  // A group whose colours this category doesn't use isn't a column here.
+  const other = priceColumns([standard, catchAll], [{ id: 1, name: 'Aqua' }], [{ group_id: 1, color_id: 4242 }]);
+  assert.deepEqual(other.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+});
+
+test('an ungrouped colour prices off the catch-all, a grouped one never does', async () => {
+  const { lineInrPrice } = await import('../lib/pricing-calc');
+  // Colour 1 is in group 2; colour 9 is in no group at all.
+  const pricing = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55, '3:4:99': 30 }, catchAllGroupId: 99 };
+  assert.equal(lineInrPrice(pricing, 3, 4, 9), 30, 'ungrouped colour takes the general price');
+  assert.equal(lineInrPrice(pricing, 3, 4, 1), 55, 'grouped colour takes its own');
+
+  // An empty cell in a real group means "not priced yet", NOT "charge the
+  // general rate" -- otherwise a category that prices Premium separately would
+  // quietly sell Premium at the standard price wherever its cell was blank.
+  const gap = { colorToGroup: { 1: 2 }, priceMap: { '3:4:99': 30 }, catchAllGroupId: 99 };
+  assert.equal(lineInrPrice(gap, 3, 4, 1), null);
+
+  // And without a catch-all configured nothing changes for anyone.
+  assert.equal(lineInrPrice({ colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } }, 3, 4, 9), null);
+});
+
+test('a price group belongs to one category and does not leak into the others', async () => {
+  const { groupsInScope, priceColumns, SINGLE_COLUMN_LABEL } = await import('../lib/price-columns');
+  // "Colorless / White" is linked to twenty categories, and it sits in a group
+  // made for Swiss High Density CZ. Every one of those twenty used to price
+  // under the heading "Swiss Heavy Round" -- a shape name, from a category
+  // they had nothing to do with, that never changed when the category did.
+  const groups = [
+    { id: 11, name: 'Swiss Heavy Round', is_catch_all: false, category_id: 24 },
+    { id: 9, name: 'Legacy shared', is_catch_all: false, category_id: null },
+    { id: 12, name: 'All other colors', is_catch_all: true, category_id: null }
+  ];
+  const white = [{ id: 2, name: 'Colorless / White' }];
+  const membership = [{ group_id: 11, color_id: 2 }];
+
+  const nano = priceColumns(groupsInScope(groups, 3), white, membership);
+  assert.deepEqual(nano.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+  assert.equal(nano[0].groupId, 12, 'the white price is the general one, not Swiss High Density CZ\'s');
+
+  const swiss = priceColumns(groupsInScope(groups, 24), white, membership);
+  assert.deepEqual(swiss.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+  assert.equal(swiss[0].groupId, 11, 'and its own category still prices under its own group');
+
+  // A group with no category is still shared by everyone, deliberately.
+  assert.equal(groupsInScope(groups, 3).some((g) => g.id === 9), true);
+});
