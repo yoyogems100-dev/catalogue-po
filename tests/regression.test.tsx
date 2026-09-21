@@ -5,6 +5,7 @@ import { signAdminToken } from '../lib/auth';
 import { signCustomerToken } from '../lib/customer-auth';
 import { middleware } from '../middleware';
 import { NextRequest } from 'next/server';
+import { priceUnitLabel, normalizePriceUnit } from '../lib/price-unit';
 
 test('sessions require configured secrets and preserve separate admin/customer identities', async () => {
   const admin = process.env.ADMIN_SESSION_SECRET;
@@ -306,4 +307,29 @@ test('a price group belongs to one category and does not leak into the others', 
 
   // A group with no category is still shared by everyone, deliberately.
   assert.equal(groupsInScope(groups, 3).some((g) => g.id === 9), true);
+});
+
+test('a category quotes its prices per piece unless it says otherwise', () => {
+  // Rainbow Corundum sells by the strip, so "per piece" was wrong on its
+  // price list -- but every other category means piece, and none of them
+  // should need a row in the database to say so.
+  assert.equal(priceUnitLabel(null), 'piece');
+  assert.equal(priceUnitLabel(''), 'piece');
+  assert.equal(priceUnitLabel('   '), 'piece');
+  assert.equal(priceUnitLabel('strip'), 'strip');
+
+  // Blank and the default word both store NULL, so "piece" has exactly one
+  // representation in the column rather than two that must be kept in sync.
+  assert.equal(normalizePriceUnit(''), null);
+  assert.equal(normalizePriceUnit('piece'), null);
+  assert.equal(normalizePriceUnit('Piece'), null);
+  assert.equal(normalizePriceUnit(null), null);
+
+  // A typed unit is kept as typed, minus the whitespace a paste drags in.
+  assert.equal(normalizePriceUnit('  strip '), 'strip');
+  assert.equal(normalizePriceUnit('10 pc\nline'), '10 pc line');
+
+  // Rejected, so the check constraint never has to catch it.
+  assert.equal(normalizePriceUnit('x'.repeat(25)), undefined);
+  assert.equal(normalizePriceUnit(7), undefined);
 });

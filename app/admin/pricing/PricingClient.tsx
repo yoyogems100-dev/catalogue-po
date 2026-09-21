@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
+import { DEFAULT_PRICE_UNIT, PRICE_UNIT_PRESETS, PRICE_UNIT_MAX, priceUnitLabel } from '@/lib/price-unit';
 
 type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string };
@@ -20,6 +21,11 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   const [sizes, setSizes] = useState<Size[]>([]);
   const [columns, setColumns] = useState<PriceColumn[]>([]);
   const [prices, setPrices] = useState<Price[]>([]);
+  const [priceUnit, setPriceUnit] = useState<string>(DEFAULT_PRICE_UNIT);
+  const [customUnit, setCustomUnit] = useState('');
+  // Whether the free-text box is open. Derived state was wrong here: picking
+  // "Other..." while the saved unit is still a preset left nothing to type in.
+  const [otherUnit, setOtherUnit] = useState(false);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
@@ -43,6 +49,13 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         setColumns(data.columns || []);
         setPrices(data.prices || []);
         setActiveShapeId(data.shapes?.[0]?.id ?? null);
+        const unit = priceUnitLabel(data.priceUnit);
+        setPriceUnit(unit);
+        // A unit the owner typed themselves has to survive the round trip, so
+        // the select lands on "Other" with the word still in the box.
+        const preset = (PRICE_UNIT_PRESETS as readonly string[]).includes(unit);
+        setCustomUnit(preset ? '' : unit);
+        setOtherUnit(!preset);
       })
       .catch(error => { if (error.name !== 'AbortError') { setLoadError('Prices could not be loaded. Please reload.'); setShapes([]); setPrices([]); setColumns([]); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -90,8 +103,28 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
     finally { setSavingPrice(false); }
   }
 
+  async function saveUnit(unit: string) {
+    if (!categoryId) return;
+    const previous = priceUnit;
+    setPriceUnit(unit);
+    try {
+      const res = await fetch('/api/pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_id: categoryId, price_unit: unit })
+      });
+      if (!res.ok) throw new Error();
+      setToast(`Prices are now per ${unit}.`);
+    } catch {
+      // Put the old word back rather than leave the screen claiming a unit
+      // the price list will not print.
+      setPriceUnit(previous);
+      setToast('The unit could not be saved. Please retry.');
+    }
+  }
+
   function exportCsv() {
-    const rows = [['Shape', 'Size (mm)', 'Color', 'Price column', 'Price (₹)']];
+    const rows = [['Shape', 'Size (mm)', 'Color', 'Price column', `Price (₹ per ${priceUnit})`]];
     for (const shape of shapes) {
       const shapeSizes = sizes.filter((s) => s.shapeId === shape.id);
       for (const size of shapeSizes) {
@@ -157,7 +190,37 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         </a>
       </div>
 
-      <p>₹ prices per piece.</p>
+      <div className="price-unit-row">
+        <label htmlFor="price-unit">Price per</label>
+        <select
+          id="price-unit"
+          value={otherUnit ? 'other' : priceUnit}
+          disabled={!categoryId || loading || savingPrice}
+          onChange={(e) => {
+            if (e.target.value === 'other') { setOtherUnit(true); return; }
+            setOtherUnit(false);
+            setCustomUnit('');
+            saveUnit(e.target.value);
+          }}
+        >
+          {PRICE_UNIT_PRESETS.map((u) => <option key={u} value={u}>{u}</option>)}
+          <option value="other">Other...</option>
+        </select>
+        {otherUnit ? (
+          <input
+            aria-label="Custom price unit"
+            placeholder="e.g. strip"
+            maxLength={PRICE_UNIT_MAX}
+            value={customUnit}
+            disabled={!categoryId || loading || savingPrice}
+            onChange={(e) => setCustomUnit(e.target.value)}
+            autoFocus
+            onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== priceUnit) saveUnit(v); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          />
+        ) : null}
+        <span className="price-unit-hint">₹ prices below are per {priceUnit}.</span>
+      </div>
       {loadError && <p role="alert">{loadError}</p>}
       {loading ? (
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>Loading...</p>

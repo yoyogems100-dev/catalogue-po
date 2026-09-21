@@ -2008,3 +2008,28 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 @media (max-width: 720px) {
   .watermark-editor { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The unit a category's prices are quoted in, above the price table it
+   describes. The free-text box only appears once "Other..." is chosen. */
+.price-unit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.price-unit-row label {
+  font-size: 11px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+.price-unit-row select,
+.price-unit-row input {
+  padding: 5px 8px;
+  font-size: 13px;
+  min-width: 110px;
+}
+.price-unit-hint { color: var(--text-dim); font-size: 12.5px; }

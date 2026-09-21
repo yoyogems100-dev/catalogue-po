@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
+import { priceUnitLabel } from '../price-unit';
 
 export type SizeChartSection = {
   name: string;
@@ -83,7 +84,7 @@ function ShapeSection({ section, includePrices, showName }: { section: SizeChart
                 <View key={`${row.size}-${rowIndex}`} style={[css.cell, rowIndex % 2 ? css.cellAlt : {}]}>
                   <Text style={css.size}>{row.size.replace(/x/g, ' x ')}</Text>
                   {includePrices
-                    ? <Text style={css.price}>{row.priceInr == null ? 'On request' : `Rs ${row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}</Text>
+                    ? <Text style={css.price}>{row.priceInr == null ? 'On request' : row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text>
                     : <Text style={css.meta}>{formatDew(row.diamondEquivalentCt)}</Text>}
                 </View>
               ))}
@@ -95,7 +96,7 @@ function ShapeSection({ section, includePrices, showName }: { section: SizeChart
   );
 }
 
-export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '' }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string }) {
+export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '', priceUnit = null }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string; priceUnit?: string | null }) {
   const pages = Array.from({ length: Math.ceil(sections.length / 2) }, (_, index) => sections.slice(index * 2, (index + 1) * 2));
   const showColorPage = colors.length > 1;
   const totalPages = pages.length + (showColorPage ? 1 : 0);
@@ -141,7 +142,7 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
           </View>
           <View style={css.legend}>
             <Text>Dimensions in millimetres</Text>
-            <Text>{includePrices ? 'INR per piece - availability and final price confirmed by our team' : 'DEW is approximate diamond-equivalent weight'}</Text>
+            <Text>{includePrices ? `Prices in INR (Rs.) per ${priceUnitLabel(priceUnit)} - availability and final price confirmed by our team` : 'DEW is approximate diamond-equivalent weight'}</Text>
           </View>
           <View style={css.sectionStack}>
             {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} showName={sections.length > 1} />)}

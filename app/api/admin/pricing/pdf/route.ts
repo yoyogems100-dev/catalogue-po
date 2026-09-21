@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, name, price_unit').eq('id', categoryId).single(),
     supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_groups').select('id, name, is_catch_all, category_id').order('sort_order'),
     supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
     // heading over it -- most of these categories are round only.
     showShapeHeadings: showShapeHeadings(sections.length),
     sections,
+    priceUnit: (category as any).price_unit ?? null,
     logoUrl: await getPdfLogoDataUrl(),
     contactWhatsapp: settings.whatsapp_number || null,
     contactLocation: settings.location || null
