@@ -10,6 +10,10 @@ type Size = { id: number; shape_id: number; size_mm: string };
 type Photo = {
   id: number;
   url: string | null;
+  /** Set when this photo is another angle of a grouped stone. */
+  parentId?: number | null;
+  productCode?: string | null;
+  notes?: string | null;
   shapeIds: number[];
   sizeIds: number[];
   colorIds: number[];
@@ -30,7 +34,8 @@ export default function CategoryTabs({
   colorChartUrl,
   colorPalettes,
   loggedIn,
-  pricing
+  pricing,
+  priceUnit
 }: {
   categoryId: number;
   categoryName: string;
@@ -44,6 +49,9 @@ export default function CategoryTabs({
   colorPalettes?: Palette[];
   loggedIn?: boolean;
   pricing?: CategoryPricing;
+  /** What one unit of price buys in this category -- "piece" unless the
+      category says otherwise (Rainbow Corundum is priced per strip). */
+  priceUnit?: string | null;
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
 
@@ -98,6 +106,9 @@ export default function CategoryTabs({
           tags={tags}
           sizes={sizes}
           photos={photos}
+          pricing={pricing}
+          priceUnit={priceUnit}
+          onRaiseOrder={() => setTab('order')}
         />
         </div>
       )}

@@ -15,7 +15,7 @@ export const revalidate = 30;
 async function getCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug, color_chart_url')
+    .select('id, num, name, slug, color_chart_url, price_unit')
     .eq('slug', slug)
     .single();
 
@@ -54,6 +54,11 @@ async function getCategoryData(slug: string) {
   const photosWithUrl = (photos || []).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 800),
+    // Set when this photo is another angle of a grouped stone -- the grid
+    // shows one card per group and swipes through the angles inside it.
+    parentId: p.parent_photo_id ?? null,
+    productCode: p.product_code ?? null,
+    notes: p.notes ?? null,
     shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
     sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
     colorIds: (p.photo_colors || []).map((r: any) => r.color_id),
@@ -139,6 +144,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           sizes={data.sizes}
           photos={data.photos}
           colorChartUrl={data.category.color_chart_url}
+          priceUnit={(data.category as any).price_unit ?? null}
           colorPalettes={data.colorPalettes}
           loggedIn={account.loggedIn}
           pricing={data.pricing}
