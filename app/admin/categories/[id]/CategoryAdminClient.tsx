@@ -110,6 +110,9 @@ export default function CategoryAdminClient({
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  // Upload several angles of one stone straight into a group, instead of
+  // uploading them loose and having to find and group them afterwards.
+  const [uploadAsGroup, setUploadAsGroup] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
@@ -238,14 +241,23 @@ export default function CategoryAdminClient({
     if (!files || files.length === 0) return;
     setUploading(true);
     let failures = 0;
+    // The first file of a group is its cover; every later one attaches to it,
+    // which is why these go up one at a time rather than all at once.
+    let parentId: number | null = null;
     for (const file of Array.from(files)) {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('category_id', String(categoryId));
+      if (uploadAsGroup && parentId !== null) fd.append('parent_photo_id', String(parentId));
       const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
-      if (!res.ok) failures++;
+      if (!res.ok) { failures++; continue; }
+      if (uploadAsGroup && parentId === null) {
+        const photo = await res.json().catch(() => null);
+        if (photo?.id) parentId = photo.id;
+      }
     }
     setUploading(false);
+    setUploadAsGroup(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     const count = files.length;
     setToast(
@@ -687,6 +699,13 @@ export default function CategoryAdminClient({
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
               <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
               {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+              <label className="photo-upload-group" style={{ marginTop: 10 }}>
+                <input type="checkbox" checked={uploadAsGroup} onChange={(e) => setUploadAsGroup(e.target.checked)} disabled={uploading} />
+                <span>
+                  Group these as one product
+                  <em>Several angles of the same stone: the first file becomes the cover, and customers swipe through the rest.</em>
+                </span>
+              </label>
             </section>
 
             <section>
@@ -791,6 +810,13 @@ export default function CategoryAdminClient({
                     photos that carry those links -- with none tagged it just
                     shows the whole gallery to everyone. Nothing surfaced that,
                     so the feature looked broken rather than unconfigured. */}
+                {/* Grouping already-uploaded photos lives behind Select, which
+                    is not somewhere anyone would think to look for it. */}
+                {galleryPhotos.length > 1 && (
+                  <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
+                    Several photos of the same stone? Tap <strong>Select</strong>, tick them, then <strong>Group as one product</strong> — customers see one card and swipe through the angles.
+                  </p>
+                )}
                 {untaggedCount > 0 && (
                   <p style={{ fontSize: 12, color: 'var(--gold)', marginBottom: 12 }}>
                     {untaggedCount} of {galleryPhotos.length} photos have no shape or colour set. Customers only see reference photos matched to what they are ordering once these are tagged.
