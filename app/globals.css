@@ -2033,3 +2033,158 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   min-width: 110px;
 }
 .price-unit-hint { color: var(--text-dim); font-size: 12.5px; }
+
+/* ---------------------------------------------------------------------------
+   Explore Photos as products: one card per stone, swipeable through the
+   group's other angles, opening a full product sheet.
+   Mobile-first -- two cards per row on a phone, and the sheet is a full-screen
+   panel there with the add-to-requirement button always reachable.
+   --------------------------------------------------------------------------- */
+.grid-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.product-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.product-card:hover { box-shadow: 0 6px 18px rgba(18, 35, 63, 0.12); transform: translateY(-1px); }
+.product-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* The angles live in a scroll-snapped row, so the group is browsable without
+   leaving the grid. touch-action keeps a vertical page scroll working while a
+   horizontal drag pages through the photos. */
+.product-card-media {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+  background: #f1efe9;
+}
+.product-card-media::-webkit-scrollbar { display: none; }
+.product-card-slide { flex: 0 0 100%; aspect-ratio: 1/1; scroll-snap-align: start; }
+.product-card-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.product-card-count {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(18, 35, 63, 0.72); color: #fff;
+  font-size: 11px; line-height: 1; padding: 4px 7px; border-radius: 999px;
+}
+.product-card-dots { position: absolute; left: 0; right: 0; top: calc(100% - 46px); display: flex; justify-content: center; gap: 4px; }
+.product-card-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.6); }
+.product-card-dots i.on { background: #fff; }
+.product-card-foot { padding: 8px 9px 9px; display: flex; flex-direction: column; gap: 2px; min-height: 38px; }
+.product-card-foot strong { font-size: 12px; color: var(--ink); }
+.product-card-foot span {
+  font-size: 11px; color: #756e5c; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.product-sheet {
+  position: fixed; inset: 0; width: 100vw; height: 100dvh;
+  max-width: 100vw; max-height: 100dvh; margin: 0;
+  border: 0; padding: 0; background: var(--ivory);
+  display: flex; flex-direction: column; z-index: 120;
+}
+.product-sheet::backdrop { background: rgba(10, 16, 28, 0.6); }
+.ps-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+  background: #fff; flex: 0 0 auto;
+}
+.ps-head-title { display: flex; flex-direction: column; min-width: 0; }
+.ps-head-title strong { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-position { font-size: 11px; color: #756e5c; }
+.ps-head-nav { margin-left: auto; display: flex; gap: 4px; }
+.ps-head-nav button {
+  width: 36px; height: 36px; border: 1px solid var(--line); background: #fff;
+  border-radius: 6px; font-size: 17px; color: var(--ink); cursor: pointer;
+}
+.ps-head-nav button:hover { border-color: var(--gold); }
+.ps-body { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; }
+.ps-gallery { padding: 12px 14px 0; }
+.ps-stage { position: relative; background: #f1efe9; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.ps-stage img { width: 100%; max-height: 46vh; object-fit: contain; display: block; }
+/* Tapping the stone fills the panel with it -- the closest thing to picking it
+   up, and the reason this sheet replaced the old bare lightbox. */
+.ps-stage.zoomed img { max-height: 78vh; object-fit: contain; }
+.ps-stage-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 38px; height: 38px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.86); color: var(--ink);
+  font-size: 20px; cursor: pointer;
+}
+.ps-stage-prev { left: 8px; }
+.ps-stage-next { right: 8px; }
+.ps-stage-count {
+  position: absolute; bottom: 8px; right: 10px;
+  background: rgba(18,35,63,0.72); color: #fff;
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+}
+.ps-thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 2px; }
+.ps-thumbs button {
+  flex: 0 0 auto; width: 54px; height: 54px; padding: 0;
+  border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+  background: #fff; cursor: pointer;
+}
+.ps-thumbs button.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.ps-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ps-info { padding: 12px 14px 24px; }
+.ps-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ps-chip {
+  font-size: 11.5px; color: var(--ink); background: #fff;
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+}
+.ps-notes { font-size: 12.5px; color: #3A3F44; margin-bottom: 12px; }
+.ps-order { display: flex; flex-direction: column; gap: 12px; }
+.ps-field { display: flex; flex-direction: column; gap: 5px; }
+.ps-field label { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
+.ps-fixed { font-size: 14px; color: var(--ink); }
+.ps-hint { font-size: 12px; color: #756e5c; }
+.ps-field-qty input { width: 130px; padding: 9px 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 6px; }
+.ps-type-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: fit-content; }
+.ps-type-toggle button {
+  border: none; background: #fff; color: var(--ink);
+  font-size: 12.5px; padding: 9px 14px; cursor: pointer; min-height: 40px;
+}
+.ps-type-toggle button.active { background: var(--navy); color: #fff; }
+.ps-price { font-size: 16px; color: var(--ink); }
+.ps-price span { font-size: 11.5px; color: #756e5c; }
+.ps-add { min-height: 46px; font-size: 14px; }
+.ps-add:disabled { opacity: 0.5; cursor: not-allowed; }
+.ps-added { font-size: 12.5px; color: #1f7a4d; }
+
+@media (min-width: 860px) {
+  .product-sheet { inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(1040px, 94vw); height: auto; max-height: 92vh; border-radius: 10px; }
+  .ps-body { flex-direction: row; }
+  .ps-gallery { flex: 1 1 52%; min-width: 0; padding: 16px; }
+  .ps-info { flex: 1 1 48%; min-width: 0; border-left: 1px solid var(--line); overflow-y: auto; padding: 16px; }
+  .ps-stage img { max-height: 54vh; }
+  .ps-stage.zoomed img { max-height: 74vh; }
+}
+@media (max-width: 560px) {
+  .grid-products { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .product-card-foot { padding: 7px 8px 8px; }
+}
+
+/* Standalone photo uploader (/admin/photos): tag a batch once as it lands,
+   and give an uncategorised photo its category later from the inbox. */
+.photo-upload-head { font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.photo-upload-head span { text-transform: none; letter-spacing: 0; color: #756e5c; font-size: 11.5px; margin-left: 8px; }
+.photo-upload-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.photo-upload-group { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0 0 12px; cursor: pointer; }
+.photo-upload-group input { margin-top: 3px; }
+.photo-upload-group em { display: block; font-style: normal; font-size: 11.5px; color: #756e5c; margin-top: 2px; }
+.photo-dropzone {
+  border: 1px dashed var(--line); border-radius: 8px; padding: 18px 14px;
+  display: flex; flex-direction: column; gap: 10px; background: #fbfaf6;
+}
+.photo-dropzone.dragging { border-color: var(--gold); background: #f6f1e2; }
+.photo-dropzone span { font-size: 12.5px; color: #756e5c; }
+.ps-actions {
+  position: sticky; bottom: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 0 2px; margin-top: 2px;
+  background: linear-gradient(to bottom, rgba(250,248,243,0) 0%, var(--ivory) 22%);
+}

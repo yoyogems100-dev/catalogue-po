@@ -10,6 +10,7 @@ import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
+import { groupMemberIds } from '@/lib/photo-groups';
 
 type Ref = { id: number; name: string };
 type ColorRef = Ref & { hexValue?: string | null; refPhotoUrl?: string | null };
@@ -30,6 +31,9 @@ type Photo = {
   tag_ids: number[];
   isCoverOnly: boolean;
   watermarkId: number | null;
+  /** Set when this photo is another angle of a grouped stone. The lead photo
+      is the group's cover and carries its shape/size/colour/spec tags. */
+  parentPhotoId: number | null;
 };
 
 // Drawn rather than typed: the download arrow this used to use (U+2B73) is
@@ -359,6 +363,17 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
+  async function ungroupOne(photoId: number) {
+    const res = await fetch('/api/photos/group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photo_ids: [photoId], ungroup: true })
+    });
+    if (!res.ok) { setToast('Failed to ungroup -- try again.'); return; }
+    setToast('Ungrouped.');
+    router.refresh();
+  }
+
   async function movePhoto(photoId: number, direction: 'left' | 'right') {
     const res = await fetch('/api/photos/reorder', {
       method: 'POST',
@@ -428,18 +443,65 @@ export default function CategoryAdminClient({
     setSelectedPhotoIds(checked ? galleryPhotos.map((p) => p.id) : []);
   }
 
+  // A group is one stone photographed from several angles, so a bulk action on
+  // any member applies to the whole group: moving or deleting a lead while its
+  // angles stayed behind would leave angles no category page could ever show.
+  function withWholeGroups(ids: number[]): number[] {
+    const flat = localPhotos.map((p) => ({ id: p.id, parentId: p.parentPhotoId }));
+    return Array.from(new Set(ids.flatMap((id) => groupMemberIds(flat, id))));
+  }
+
+  async function groupSelectedPhotos() {
+    if (selectedPhotoIds.length < 2 || bulkBusy) return;
+    // The lead is whichever selected photo comes first in the gallery's own
+    // order -- the same "first photo I added is the cover" rule the owner asked
+    // for, and visible on screen rather than dependent on click order.
+    const ordered = galleryPhotos.filter((p) => selectedPhotoIds.includes(p.id)).map((p) => p.id);
+    setBulkBusy(true);
+    const res = await fetch('/api/photos/group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photo_ids: ordered, lead_id: ordered[0] })
+    });
+    setBulkBusy(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setToast(body.error || 'Failed to group these photos -- try again.');
+      return;
+    }
+    setToast(`Grouped ${ordered.length} photos as one product.`);
+    setSelectedPhotoIds([]);
+    router.refresh();
+  }
+
+  async function ungroupSelectedPhotos() {
+    if (selectedPhotoIds.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const res = await fetch('/api/photos/group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photo_ids: selectedPhotoIds, ungroup: true })
+    });
+    setBulkBusy(false);
+    if (!res.ok) { setToast('Failed to ungroup -- try again.'); return; }
+    setToast('Ungrouped -- each photo is its own product again.');
+    setSelectedPhotoIds([]);
+    router.refresh();
+  }
+
   async function moveSelectedPhotos() {
     if (!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy) return;
     setBulkBusy(true);
     const res = await fetch('/api/photos/move', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selectedPhotoIds, to_category_id: moveTargetId })
+      body: JSON.stringify({ ids: withWholeGroups(selectedPhotoIds), to_category_id: moveTargetId })
     });
     setBulkBusy(false);
     if (!res.ok) { setToast('Failed to move photos -- try again.'); return; }
-    const moved = selectedPhotoIds.length;
-    setLocalPhotos((cur) => cur.filter((p) => !selectedPhotoIds.includes(p.id)));
+    const movedIds = withWholeGroups(selectedPhotoIds);
+    const moved = movedIds.length;
+    setLocalPhotos((cur) => cur.filter((p) => !movedIds.includes(p.id)));
     setToast(`Moved ${moved} photo${moved === 1 ? '' : 's'}.`);
     setSelectedPhotoIds([]);
     setMoveTargetId('');
@@ -448,15 +510,17 @@ export default function CategoryAdminClient({
 
   async function deleteSelectedPhotos() {
     if (selectedPhotoIds.length === 0 || bulkBusy) return;
-    const count = selectedPhotoIds.length;
-    if (!confirm(`Delete ${count} photo${count === 1 ? '' : 's'}? This removes them from the catalogue and cannot be undone.`)) return;
+    const targetIds = withWholeGroups(selectedPhotoIds);
+    const count = targetIds.length;
+    const extra = count - selectedPhotoIds.length;
+    if (!confirm(`Delete ${count} photo${count === 1 ? '' : 's'}${extra > 0 ? ` (including ${extra} grouped angle${extra === 1 ? '' : 's'})` : ''}? This removes them from the catalogue and cannot be undone.`)) return;
     setBulkBusy(true);
     const results = await Promise.all(
-      selectedPhotoIds.map((id) => fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+      targetIds.map((id) => fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
     );
     setBulkBusy(false);
     const failed = results.filter((r) => !r.ok).length;
-    const deletedIds = selectedPhotoIds.filter((_, i) => results[i].ok);
+    const deletedIds = targetIds.filter((_, i) => results[i].ok);
     setLocalPhotos((cur) => cur.filter((p) => !deletedIds.includes(p.id)));
     setSelectedPhotoIds([]);
     if (failed > 0) setToast(`${deletedIds.length} deleted, ${failed} failed -- try again.`);
@@ -705,6 +769,17 @@ export default function CategoryAdminClient({
                     </button>
                   </>
                 )}
+                <button
+                  className="btn"
+                  disabled={selectedPhotoIds.length < 2 || bulkBusy}
+                  onClick={groupSelectedPhotos}
+                  title="Show these as one product a customer swipes through. The first one in this gallery becomes the cover."
+                >
+                  {bulkBusy ? 'Working…' : 'Group as one product'}
+                </button>
+                <button className="btn-ghost" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={ungroupSelectedPhotos}>
+                  {bulkBusy ? 'Working…' : 'Ungroup'}
+                </button>
                 <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Delete selected'}
                 </button>
@@ -751,6 +826,9 @@ export default function CategoryAdminClient({
                   selectMode={selectMode}
                   selected={selectedPhotoIds.includes(p.id)}
                   onToggleSelect={() => toggleSelectPhoto(p.id)}
+                  angleCount={galleryPhotos.filter((other) => other.parentPhotoId === p.id).length}
+                  leadOf={p.parentPhotoId}
+                  onUngroup={ungroupOne}
                 />
               ))}
             </div>
@@ -799,7 +877,10 @@ function PhotoRow({
   onToggleSelect,
   watermarks,
   onApplyWatermark,
-  onRemoveWatermark
+  onRemoveWatermark,
+  angleCount = 0,
+  leadOf = null,
+  onUngroup
 }: {
   categoryId: number;
   photo: Photo;
@@ -837,6 +918,11 @@ function PhotoRow({
   watermarks?: { id: number; name: string }[];
   onApplyWatermark?: (id: number, watermarkId: number) => void;
   onRemoveWatermark?: (id: number) => void;
+  /** How many other photos hang off this one as extra angles of the same stone. */
+  angleCount?: number;
+  /** Set when this photo is itself an angle -- the id of its group's cover. */
+  leadOf?: number | null;
+  onUngroup?: (id: number) => void;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -1094,6 +1180,17 @@ function PhotoRow({
             {photo.product_code}
           </span>
         )}
+        {/* Grouping is invisible in a flat grid otherwise: a lead looks like
+            any other photo, and an angle looks like a duplicate someone
+            uploaded twice. */}
+        {(angleCount > 0 || leadOf) && (
+          <span
+            style={{ position: 'absolute', bottom: 6, left: isThumbnail ? 70 : 6, background: 'rgba(156,122,37,0.92)', color: '#fff', fontSize: 10, padding: '3px 7px', letterSpacing: 0.3 }}
+            title={leadOf ? `Extra angle shown inside photo #${leadOf}'s product card` : 'Cover of a product group customers swipe through'}
+          >
+            {leadOf ? `ANGLE OF #${leadOf}` : `COVER +${angleCount}`}
+          </span>
+        )}
         {/* 40px square rather than the old ~22x20 -- it sits over a photo on a
             touch screen, where a tap that misses opens the crop editor. */}
         <a
@@ -1147,6 +1244,11 @@ function PhotoRow({
           onBlur={() => onUpdate(photo.id, { notes })}
           style={{ marginBottom: 8, fontSize: 12 }}
         />
+        {(angleCount > 0 || leadOf) && onUngroup && (
+          <button className="btn-ghost" style={{ width: '100%', fontSize: 11.5, marginBottom: 6 }} onClick={() => onUngroup(photo.id)}>
+            {leadOf ? 'Detach from group' : `Ungroup (${angleCount} angle${angleCount === 1 ? '' : 's'})`}
+          </button>
+        )}
         {onDelete && <button className="btn-danger" style={{ width: '100%' }} onClick={() => onDelete(photo.id)}>Delete photo</button>}
       </div>
     </div>

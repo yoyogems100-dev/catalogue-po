@@ -12,22 +12,27 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   const categoryId = Number(params.id);
 
-  const [{ data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
+  const [{ data: catShapes }, { data: catColors }, { data: catSizes }, { data: catTags }] = await Promise.all([
     // ref_photo_url here is the category's own shape photo, which wins over the
     // shape's shared default -- same precedence the public category route uses.
     supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id').eq('category_id', categoryId),
-    supabaseAdmin.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId)
+    supabaseAdmin.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId),
+    supabaseAdmin.from('category_tags').select('tag_id').eq('category_id', categoryId)
   ]);
 
   const shapeIds = (catShapes || []).map((r: any) => r.shape_id);
   const colorIds = (catColors || []).map((r: any) => r.color_id);
   const sizeIds = (catSizes || []).map((r: any) => r.shape_size_id);
+  const tagIds = (catTags || []).map((r: any) => r.tag_id);
 
-  const [{ data: shapes }, { data: colors }, { data: sizes }] = await Promise.all([
+  const [{ data: shapes }, { data: colors }, { data: sizes }, { data: tags }] = await Promise.all([
     shapeIds.length ? supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
     colorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds).order('sort_order').order('name') : Promise.resolve({ data: [] }),
-    sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
+    sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] }),
+    // Specifications too, so the standalone photo uploader can tag a batch with
+    // everything a photo carries without a second trip per category.
+    tagIds.length ? supabaseAdmin.from('tags').select('id, name').in('id', tagIds).order('name') : Promise.resolve({ data: [] })
   ]);
 
   const pricing = await getCategoryPricing(categoryId, supabaseAdmin);
@@ -41,6 +46,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     }),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
+    tags: (tags || []).map((t: any) => ({ id: t.id, name: t.name })),
     pricing
   });
 }

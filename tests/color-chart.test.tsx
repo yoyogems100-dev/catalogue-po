@@ -22,20 +22,21 @@ test('the color chart closes the reference strip without hiding the other photos
   const chartOnly = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={[]} />);
   assert.match(chartOnly, /Enlarge Crushed Ice color chart/);
 
-  // The shape-filtered photo (two.jpg matches shape 2) leads, and the chart
-  // still renders -- at the end, so it never displaces the stone a buyer
-  // opened the category to look at.
+  // The photo matching the selected shape (two.jpg, shape 2) leads the strip,
+  // the unmatched photo stays available behind it, and the chart still renders
+  // last so it never displaces the stone a buyer opened the category to see.
   const withChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} photos={photos} />);
   assert.match(withChart, /src="\/chart.jpg"/);
   assert.match(withChart, /src="\/two.jpg"/);
-  assert.doesNotMatch(withChart, /src="\/one.jpg"/);
-  assert.ok(withChart.indexOf('/two.jpg') < withChart.indexOf('/chart.jpg'), 'photo tiles should render before the chart tile');
+  assert.match(withChart, /src="\/one.jpg"/);
+  assert.ok(withChart.indexOf('/two.jpg') < withChart.indexOf('/one.jpg'), 'the matching photo should lead');
+  assert.ok(withChart.indexOf('/one.jpg') < withChart.indexOf('/chart.jpg'), 'photo tiles should render before the chart tile');
 
-  // Without a chart, the filtered product photos take its place, still
-  // filtered to the selected shape (two.jpg matches shape 2; one.jpg doesn't).
+  // Without a chart the product photos take its place, still ranked by the
+  // selected shape rather than filtered down to it.
   const noChart = renderToStaticMarkup(<OrderReferenceCarousel {...props} colorChartUrl={null} photos={photos} />);
   assert.match(noChart, /src="\/two.jpg"/);
-  assert.doesNotMatch(noChart, /src="\/one.jpg"/);
+  assert.ok(noChart.indexOf('/two.jpg') < noChart.indexOf('/one.jpg'), 'the matching photo should lead');
   assert.doesNotMatch(noChart, /color-chart/);
 
   // Neither chart nor photos: render nothing rather than an empty frame.

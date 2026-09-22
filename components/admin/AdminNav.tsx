@@ -44,6 +44,7 @@ const NAV_LINKS = [
   { href: '/admin/customers', label: 'Customers' },
   { href: '/admin/suppliers', label: 'Suppliers' },
   { href: '/admin/categories', label: 'Categories' },
+  { href: '/admin/photos', label: 'Upload photos' },
   { href: '/admin/shapes', label: 'Shapes' },
   { href: '/admin/colors', label: 'Colors' },
   { href: '/admin/pricing', label: 'Pricing' },

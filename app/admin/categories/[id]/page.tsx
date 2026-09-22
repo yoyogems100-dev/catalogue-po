@@ -123,6 +123,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       product_code: p.product_code,
       notes: p.notes,
       tag_ids: (p.photo_tags || []).map((t: any) => t.tag_id),
+      // Set when this photo is another angle of a grouped stone: the lead
+      // carries the tags and is the cover the catalogue shows.
+      parentPhotoId: p.parent_photo_id ?? null,
       isCoverOnly: p.is_cover_only
     }));
   }
