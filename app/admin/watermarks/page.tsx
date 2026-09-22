@@ -10,14 +10,17 @@ export default async function WatermarksPage() {
     id: w.id,
     name: w.name,
     opacity: Number(w.opacity),
-    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${PHOTOS_BUCKET}/${w.storage_path}`
+    text: w.text || null,
+    color: w.color || null,
+    // Null for a typed watermark -- it is drawn on demand, not stored as a file.
+    url: w.storage_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${PHOTOS_BUCKET}/${w.storage_path}` : null
   }));
 
   return (
     <>
       <h1>Watermarks</h1>
       <p style={{ color: '#756e5c', fontSize: 13, marginBottom: 20 }}>
-        Manage the watermark presets available when adding a watermark to a photo (Category &rarr; Photos &rarr; Watermark). Each preset has its own transparency.
+        Presets for the Watermark control on Category &rarr; Photos, where they can be applied to a whole selection at once.
       </p>
       <WatermarksClient initialWatermarks={watermarks} />
     </>

@@ -5,11 +5,21 @@
 export type CategoryPricing = {
   colorToGroup: Record<number, number>;
   priceMap: Record<string, number>; // `${shapeId}:${shapeSizeId}:${groupId}` -> price in INR
+  /** The reserved group meaning "every colour with no group of its own".
+      Most categories don't price by colour at all, so this is where their one
+      price per shape+size lives. Optional so a caller holding only a price map
+      -- a test, a cached payload from before this existed -- still type-checks
+      and simply gets no fallback. */
+  catchAllGroupId?: number | null;
 };
 
 export function lineInrPrice(pricing: CategoryPricing, shapeId: number, shapeSizeId: number, colorId: number): number | null {
-  const groupId = pricing.colorToGroup[colorId];
-  if (groupId === undefined) return null;
+  // A colour in a real price group is priced by that group, full stop: an
+  // empty cell there means "not priced yet", not "fall back to the general
+  // price", or a category that prices Premium separately would quietly sell
+  // Premium at the standard rate wherever its own cell was still blank.
+  const groupId = pricing.colorToGroup[colorId] ?? pricing.catchAllGroupId;
+  if (groupId === undefined || groupId === null) return null;
   const price = pricing.priceMap[`${shapeId}:${shapeSizeId}:${groupId}`];
   return price === undefined ? null : price;
 }

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
+import { watermarkOverlay } from '@/lib/watermark-render';
 
 export const runtime = 'nodejs';
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -38,15 +39,6 @@ async function currentPhotoSource(photo: any): Promise<Buffer> {
   throw new Error('No source image is available.');
 }
 
-// Scales an already-transparent PNG's alpha channel by `opacity` (0-1) --
-// sharp's composite() has no opacity option of its own, and ensureAlpha()
-// only fills in a MISSING alpha channel, it doesn't scale an existing one.
-async function withOpacity(buffer: Buffer, opacity: number): Promise<Buffer> {
-  const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  for (let i = 3; i < data.length; i += 4) data[i] = Math.round(data[i] * opacity);
-  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
-}
-
 export async function POST(req: NextRequest, context: Context) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   let uploaded: string | undefined;
@@ -58,24 +50,27 @@ export async function POST(req: NextRequest, context: Context) {
     const { data: watermark, error: wmError } = await supabaseAdmin.from('watermarks').select('*').eq('id', watermark_id).single();
     if (wmError || !watermark) return NextResponse.json({ error: 'Watermark preset not found.' }, { status: 404 });
 
-    const [sourceBuffer, watermarkFile] = await Promise.all([
+    // A typed watermark has no file to fetch; an uploaded one still does.
+    const [sourceBuffer, watermarkBuffer] = await Promise.all([
       currentPhotoSource(photo),
-      supabaseAdmin.storage.from(PHOTOS_BUCKET).download(watermark.storage_path)
+      watermark.storage_path
+        ? supabaseAdmin.storage.from(PHOTOS_BUCKET).download(watermark.storage_path).then((r) => {
+            if (r.error || !r.data) throw new Error('Watermark image could not be loaded.');
+            return r.data.arrayBuffer().then(Buffer.from);
+          })
+        : Promise.resolve(null)
     ]);
-    if (watermarkFile.error || !watermarkFile.data) throw new Error('Watermark image could not be loaded.');
-    const watermarkBuffer = Buffer.from(await watermarkFile.data.arrayBuffer());
 
     const source = sharp(sourceBuffer, { limitInputPixels: 40000000 }).rotate();
-    const { width: sourceWidth = 800, height: sourceHeight = 800 } = await source.metadata();
+    const { width: sourceWidth = 800 } = await source.metadata();
 
-    // Sized relative to the photo (40% of its width) and centered -- a fixed
-    // pixel size would look tiny on a large photo and oversized on a small one.
-    const targetWidth = Math.max(40, Math.round(sourceWidth * 0.4));
-    const resizedWatermark = await sharp(watermarkBuffer).resize({ width: targetWidth, withoutEnlargement: false }).toBuffer();
-    const opacityWatermark = await withOpacity(resizedWatermark, Number(watermark.opacity) || 0.5);
+    // Sized relative to the photo and centered -- a fixed pixel size would
+    // look tiny on a large photo and oversized on a small one. The preview in
+    // the watermark editor goes through this same function.
+    const overlay = await watermarkOverlay(watermark, watermarkBuffer, sourceWidth);
 
     const output = await source
-      .composite([{ input: opacityWatermark, gravity: 'center' }])
+      .composite([{ input: overlay, gravity: 'center' }])
       .webp({ quality: 90 })
       .toBuffer();
 
@@ -83,10 +78,15 @@ export async function POST(req: NextRequest, context: Context) {
     const { error: uploadError } = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(uploaded, output, { contentType: 'image/webp', upsert: false });
     if (uploadError) throw new Error('Could not save the watermarked image. Please retry.');
 
+    const previous = photo.watermarked_path;
     const { error: saveError } = await supabaseAdmin.from('photos').update({ watermark_id, watermarked_path: uploaded }).eq('id', photo.id);
     if (saveError) throw new Error('Could not save the watermark. The photo is unchanged.');
 
     uploaded = undefined;
+    // Only once the new one is safely on record. Re-watermarking used to
+    // leave the old rendering in storage for good, which across a whole
+    // gallery adds up to a copy of it per pass.
+    if (previous) await supabaseAdmin.storage.from(PHOTOS_BUCKET).remove([previous]);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (uploaded) await supabaseAdmin.storage.from(PHOTOS_BUCKET).remove([uploaded]);
@@ -102,6 +102,9 @@ export async function DELETE(req: NextRequest, context: Context) {
     const photo = await getPhoto(context);
     const { error } = await supabaseAdmin.from('photos').update({ watermark_id: null, watermarked_path: null }).eq('id', photo.id);
     if (error) throw new Error(error.message);
+    // The rendering is disposable -- it can be rebuilt from the original at
+    // any time -- and nothing points at it once the row is cleared.
+    if (photo.watermarked_path) await supabaseAdmin.storage.from(PHOTOS_BUCKET).remove([photo.watermarked_path]);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Could not remove the watermark. Please retry.' }, { status: 400 });

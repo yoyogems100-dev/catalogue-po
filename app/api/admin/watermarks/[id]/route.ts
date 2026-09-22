@@ -5,10 +5,14 @@ import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = Number((await params).id);
-  const { name, opacity } = await req.json();
+  const { name, opacity, text, color } = await req.json();
   const patch: Record<string, any> = {};
   if (typeof name === 'string' && name.trim()) patch.name = name.trim();
   if (typeof opacity === 'number' && Number.isFinite(opacity)) patch.opacity = Math.min(1, Math.max(0.05, opacity));
+  // Only for typed watermarks; an uploaded one has no text to edit, and the
+  // table's check constraint stops a typed one being emptied out.
+  if (typeof text === 'string' && text.trim()) patch.text = text.trim();
+  if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) patch.color = color;
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
 
   const { error } = await supabaseAdmin.from('watermarks').update(patch).eq('id', id);

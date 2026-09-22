@@ -514,15 +514,29 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* Shown but unpickable: a shape that shares no size with what's already
    selected. Greyed rather than hidden so the option is still visibly part of
    the catalogue, with the reason on hover/aria. */
-.icon-select-row--disabled { opacity: 0.38; cursor: not-allowed; }
+/* An unavailable option stays on the list -- a buyer who came looking for
+   Baguette needs to see it exists -- but it has to say so without a hover,
+   which is why the reason is printed on the row rather than left in a title
+   attribute no touchscreen will ever show. */
+.icon-select-row--disabled { opacity: 0.55; cursor: not-allowed; }
 .icon-select-row--disabled:hover { background: transparent; }
+.icon-select-row--disabled .icon-select-photo,
+.icon-select-row--disabled .shape-vector-icon { filter: grayscale(1); }
+.icon-select-row-note {
+  margin-left: auto; padding-left: 8px; flex-shrink: 0;
+  font-size: 10px; letter-spacing: .2px; color: #8a7f63; white-space: nowrap;
+}
 .icon-select-checkbox { flex-shrink: 0; width: 14px; height: 14px; accent-color: var(--navy); pointer-events: none; }
 .icon-select-palette-section { border-bottom: 1px solid var(--line); background: #fcfaf4; }
 .icon-select-palette-row strong { font-weight: 500; color: var(--navy); }
 .icon-select-palette-count { margin-left: auto; font-size: 10px; color: #756e5c; }
-.icon-select-search {
-  width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px;
-  font-size: 12.5px; position: sticky; top: 0; background: #fff;
+/* Same story as .home-search-input: the base input rule outweighs a single
+   class, so this needs the matching :not() chain or the panel draws a second
+   bordered box around its own search line. */
+.icon-select-search:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  width: 100%; border: none; border-bottom: 1px solid var(--line); border-radius: 0;
+  padding: 10px 12px; font-size: 12.5px; position: sticky; top: 0; background: #fff;
+  box-shadow: none;
 }
 .icon-select-search:focus { outline: none; border-bottom-color: var(--gold); }
 .icon-select-empty { padding: 10px 12px; font-size: 12px; color: #756e5c; }
@@ -531,13 +545,21 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .home-search-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .home-search-input {
   width: 100%; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line);
-  background: #fff; padding: 12px 16px; border-radius: 999px;
-  box-shadow: 0 1px 3px rgba(18,35,63,0.05);
+  background: #fff; padding: 9px 16px; border-radius: 999px;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
-.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 2px 10px rgba(156,122,37,0.14); }
+.home-search-input:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(156,122,37,0.10); }
 .home-search-input svg { flex-shrink: 0; opacity: .5; }
-.home-search-input input { border: none; padding: 0; font-size: 14px; width: 100%; background: transparent; }
+/* The field is the pill, not the <input> inside it. The base input rule near
+   the top of this file carries four :not() attribute selectors, so it outweighs
+   a plain `.home-search-input input` and was drawing its own bordered, rounded
+   box INSIDE the pill -- a visible border within a border. Matching that
+   specificity is what actually turns it off; a shorter selector silently
+   loses. Same reason the dropdown panel's search input is neutralised below. */
+.home-search-input input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  border: none; background: transparent; padding: 0; border-radius: 0;
+  font-size: 14px; width: 100%; box-shadow: none;
+}
 .home-search-input input:focus { outline: none; }
 .home-search-input input::placeholder { color: #9a9484; }
 .home-filter-row { display: flex; gap: 8px; align-items: center; }
@@ -975,6 +997,15 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .po-item-controls .po-item-type-select, .po-item-controls input.po-cart-qty { width: 100%; max-width: none; min-width: 0; height: 44px; min-height: 44px; flex: none; line-height: 1.25; font-size: 16px; padding: 8px; margin: 0; }
 .po-item-controls .po-remove-btn { width: 44px; height: 44px; border-radius: 6px; }
 .po-selection-summary { font-size: 14px; margin-top: 10px; color: var(--ink); }
+/* The way back to an empty compose form. Plain underlined text, centred under
+   the primary action: it must be findable but must never read as a second
+   button competing with "Add line to order". */
+.po-clear-selection {
+  display: block; margin: 8px auto 0; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--text-dim);
+  text-decoration: underline; text-underline-offset: 3px; padding: 6px 8px;
+}
+.po-clear-selection:hover { color: var(--gold); }
 .po-price-note { display: block; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 400; margin-top: 6px; }
 .po-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .admin-coverage-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
@@ -1628,9 +1659,12 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 /* The requirement used to be reachable only from inside a category page. */
 .cart-bag {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
-  color: inherit; padding: 4px; line-height: 0; text-decoration: none;
+  /* Explicitly white, like the account icon beside it. `inherit` picked up the
+     body's dark charcoal, which on the navy header left the bag almost
+     invisible -- a dark icon on a dark bar. */
+  color: #fff; padding: 4px; line-height: 0; text-decoration: none;
 }
-.cart-bag:hover { opacity: 0.85; }
+.cart-bag:hover { color: var(--gold-soft); opacity: 1; }
 .cart-bag:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; border-radius: 3px; }
 .cart-bag-count {
   position: absolute; top: -3px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px;
@@ -1907,3 +1941,95 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 @media (max-width: 480px) {
   .admin-create-dialog { padding: 16px; }
 }
+
+/* ---- Watermarks admin ---------------------------------------------------
+   The editor sits beside a live preview rendered by the server, so the
+   sample is the same picture the photos will get -- not a CSS impression
+   of one. Single column on a phone; the preview follows the fields. */
+.watermark-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 16px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+.watermark-editor-fields { display: flex; flex-direction: column; gap: 10px; }
+.watermark-editor-fields h3 {
+  font-size: 14px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin: 0;
+}
+.watermark-editor-fields label,
+.watermark-card label { display: block; font-size: 12.5px; color: var(--text-dim); }
+.watermark-editor-fields label input[type="text"],
+.watermark-editor-fields label input[type="range"],
+.watermark-card label input[type="range"] { display: block; width: 100%; margin-top: 4px; }
+
+.watermark-swatches { display: flex; gap: 8px; margin-top: 6px; }
+.watermark-swatch {
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line); padding: 0;
+}
+.watermark-swatch.is-on { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.watermark-upload-toggle {
+  align-self: flex-start; background: none; border: none; padding: 4px 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--text-dim);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.watermark-upload { display: flex; flex-direction: column; gap: 8px; }
+.watermark-toast { font-size: 12.5px; color: #756e5c; margin: 0; }
+
+.watermark-preview {
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--ivory);
+  min-height: 160px; display: flex; flex-direction: column; gap: 8px;
+}
+.watermark-preview-label {
+  font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px;
+}
+/* Capped, not stretched: a portrait sample photo across a wide column made
+   the editor several screens tall, with the controls scrolled off. */
+.watermark-preview img {
+  max-width: 100%; max-height: 320px; width: auto; height: auto;
+  border-radius: 6px; display: block; margin: 0 auto;
+}
+.watermark-preview-empty { font-size: 13px; color: #756e5c; margin: 0; }
+
+.watermark-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.watermark-card { padding: 14px; }
+.watermark-card-art {
+  aspect-ratio: 1/1; background: #eee; border-radius: 6px; overflow: hidden; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px;
+}
+.watermark-card-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.watermark-card-art span { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; word-break: break-word; }
+.watermark-card label { margin-top: 8px; }
+.watermark-card .btn-danger { margin-top: 8px; width: 100%; }
+
+@media (max-width: 720px) {
+  .watermark-editor { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The unit a category's prices are quoted in, above the price table it
+   describes. The free-text box only appears once "Other..." is chosen. */
+.price-unit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.price-unit-row label {
+  font-size: 11px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+.price-unit-row select,
+.price-unit-row input {
+  padding: 5px 8px;
+  font-size: 13px;
+  min-width: 110px;
+}
+.price-unit-hint { color: var(--text-dim); font-size: 12.5px; }

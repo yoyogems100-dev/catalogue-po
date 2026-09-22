@@ -1,37 +1,83 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Watermark = { id: number; name: string; opacity: number; url: string };
+type Watermark = { id: number; name: string; opacity: number; url: string | null; text: string | null; color: string | null };
+
+const COLORS = [
+  { value: '#ffffff', label: 'White' },
+  { value: '#12233f', label: 'Deep ink' },
+  { value: '#9c7a25', label: 'Gold' }
+];
+
+/** The watermark drawn on a real catalogue photo by the server, at exactly
+    the settings on screen. Debounced so dragging the slider doesn't fire a
+    request per pixel. */
+function usePreviewUrl(text: string, color: string, opacity: number) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!text.trim()) { setUrl(null); return; }
+    const t = setTimeout(() => {
+      const q = new URLSearchParams({ text, color, opacity: String(opacity) });
+      setUrl(`/api/admin/watermarks/preview?${q.toString()}`);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [text, color, opacity]);
+  return url;
+}
 
 export default function WatermarksClient({ initialWatermarks }: { initialWatermarks: Watermark[] }) {
   const router = useRouter();
   const [watermarks, setWatermarks] = useState(initialWatermarks);
-  const [name, setName] = useState('');
-  const [opacity, setOpacity] = useState(0.5);
-  const [uploading, setUploading] = useState(false);
+  const [text, setText] = useState('');
+  const [color, setColor] = useState('#ffffff');
+  const [opacity, setOpacity] = useState(0.45);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadName, setUploadName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const previewUrl = usePreviewUrl(text, color, opacity);
+
+  async function refresh() {
+    const res = await fetch('/api/admin/watermarks');
+    const data = await res.json().catch(() => ({}));
+    if (data.watermarks) setWatermarks(data.watermarks);
+    router.refresh();
+  }
+
+  async function addText() {
+    if (!text.trim()) { setToast('Enter the watermark text.'); return; }
+    setSaving(true);
+    const res = await fetch('/api/admin/watermarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.trim(), color, opacity })
+    });
+    setSaving(false);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Could not add this watermark.'); return; }
+    setText('');
+    setToast('Watermark added.');
+    await refresh();
+  }
 
   async function upload() {
     const file = fileInputRef.current?.files?.[0];
-    if (!file || !name.trim()) { setToast('Enter a name and choose an image.'); return; }
-    setUploading(true);
+    if (!file || !uploadName.trim()) { setToast('Enter a name and choose an image.'); return; }
+    setSaving(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', name.trim());
+    formData.append('name', uploadName.trim());
     formData.append('opacity', String(opacity));
     const res = await fetch('/api/admin/watermarks', { method: 'POST', body: formData });
-    setUploading(false);
+    setSaving(false);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Could not add this watermark.'); return; }
-    setName(''); setOpacity(0.5);
+    setUploadName('');
     if (fileInputRef.current) fileInputRef.current.value = '';
     setToast('Watermark added.');
-    router.refresh();
-    const listRes = await fetch('/api/admin/watermarks');
-    const data = await listRes.json().catch(() => ({}));
-    if (data.watermarks) setWatermarks(data.watermarks);
+    await refresh();
   }
 
   async function updateOpacity(id: number, next: number) {
@@ -50,33 +96,73 @@ export default function WatermarksClient({ initialWatermarks }: { initialWaterma
 
   return (
     <>
-      <section className="card" style={{ padding: 16, maxWidth: 480, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Add a watermark</h3>
-        <input type="text" placeholder="Name, e.g. wm1" value={name} onChange={(e) => setName(e.target.value)} />
-        <input ref={fileInputRef} type="file" accept="image/png,image/webp" />
-        <label style={{ fontSize: 12.5 }}>
-          Transparency: {Math.round(opacity * 100)}%
-          <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} style={{ display: 'block', width: '100%' }} />
-        </label>
-        <button className="btn" onClick={upload} disabled={uploading}>{uploading ? 'Adding…' : 'Add watermark'}</button>
-        {toast && <p role="status" style={{ fontSize: 12.5, color: '#756e5c' }}>{toast}</p>}
+      <section className="card watermark-editor">
+        <div className="watermark-editor-fields">
+          <h3>Add a watermark</h3>
+          <label>
+            Text
+            <input type="text" placeholder="YOYO GEMS" value={text} onChange={(e) => setText(e.target.value)} maxLength={60} />
+          </label>
+          <label>
+            Colour
+            <span className="watermark-swatches">
+              {COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  className={color === c.value ? 'watermark-swatch is-on' : 'watermark-swatch'}
+                  style={{ background: c.value }}
+                  aria-label={c.label}
+                  aria-pressed={color === c.value}
+                  onClick={() => setColor(c.value)}
+                />
+              ))}
+            </span>
+          </label>
+          <label>
+            Transparency: {Math.round(opacity * 100)}%
+            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} />
+          </label>
+          <button className="btn" onClick={addText} disabled={saving || !text.trim()}>{saving ? 'Adding…' : 'Add watermark'}</button>
+
+          <button type="button" className="watermark-upload-toggle" onClick={() => setShowUpload((v) => !v)}>
+            {showUpload ? 'Hide image upload' : 'Upload an image instead'}
+          </button>
+          {showUpload && (
+            <div className="watermark-upload">
+              <input type="text" placeholder="Name, e.g. logo mark" value={uploadName} onChange={(e) => setUploadName(e.target.value)} />
+              <input ref={fileInputRef} type="file" accept="image/png,image/webp" />
+              <button className="btn-ghost" onClick={upload} disabled={saving}>Add image watermark</button>
+            </div>
+          )}
+          {toast && <p role="status" className="watermark-toast">{toast}</p>}
+        </div>
+
+        <div className="watermark-preview">
+          <span className="watermark-preview-label">Preview on a real photo</span>
+          {previewUrl
+            ? <img src={previewUrl} alt="The watermark drawn on a sample photo" />
+            : <p className="watermark-preview-empty">Type the text to see it on a photo.</p>}
+        </div>
       </section>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+      <div className="watermark-grid">
         {watermarks.map((w) => (
-          <div key={w.id} className="card" style={{ padding: 14 }}>
-            <div style={{ aspectRatio: '1/1', background: '#eee', borderRadius: 6, overflow: 'hidden', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src={w.url} alt={w.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          <div key={w.id} className="card watermark-card">
+            <div className="watermark-card-art" style={w.text ? { background: '#5d5445' } : undefined}>
+              {w.text
+                ? <span style={{ color: w.color || '#fff', opacity: w.opacity }}>{w.text}</span>
+                : w.url && <img src={w.url} alt={w.name} />}
             </div>
             <strong>{w.name}</strong>
-            <label style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            <label>
               Transparency: {Math.round(w.opacity * 100)}%
-              <input type="range" min={5} max={100} value={Math.round(w.opacity * 100)} onChange={(e) => updateOpacity(w.id, Number(e.target.value) / 100)} style={{ display: 'block', width: '100%' }} />
+              <input type="range" min={5} max={100} value={Math.round(w.opacity * 100)} onChange={(e) => updateOpacity(w.id, Number(e.target.value) / 100)} />
             </label>
-            <button className="btn-danger" style={{ marginTop: 8, width: '100%' }} onClick={() => remove(w.id, w.name)}>Delete</button>
+            <button className="btn-danger" onClick={() => remove(w.id, w.name)}>Delete</button>
           </div>
         ))}
-        {watermarks.length === 0 && <p style={{ fontSize: 13, color: '#756e5c' }}>No watermarks yet -- add one above.</p>}
+        {watermarks.length === 0 && <p className="watermark-preview-empty">No watermarks yet — add one above.</p>}
       </div>
     </>
   );

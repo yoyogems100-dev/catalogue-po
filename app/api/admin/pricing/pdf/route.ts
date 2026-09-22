@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
+import { priceColumns, groupsInScope, showShapeHeadings } from '@/lib/price-columns';
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -15,9 +16,9 @@ export async function GET(req: NextRequest) {
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, name').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, name, price_unit').eq('id', categoryId).single(),
     supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name)').eq('category_id', categoryId),
-    supabaseAdmin.from('color_price_groups').select('id, name').order('sort_order'),
+    supabaseAdmin.from('color_price_groups').select('id, name, is_catch_all, category_id').order('sort_order'),
     supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id'),
@@ -44,24 +45,13 @@ export async function GET(req: NextRequest) {
   const priceLookup = new Map<string, number>();
   (prices || []).forEach((p: any) => { if (p.price_inr !== null) priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_inr)); });
 
-  const selectedColors = new Map<number, string>();
-  (categoryColors || []).forEach((row: any) => {
-    const color = Array.isArray(row.colors) ? row.colors[0] : row.colors;
-    if (color?.name) selectedColors.set(row.color_id, color.name);
-  });
-  const colorNamesByGroup = new Map<number, string[]>();
-  (groupMembers || []).forEach((member: any) => {
-    const colorName = selectedColors.get(member.color_id);
-    if (!colorName) return;
-    colorNamesByGroup.set(member.group_id, [...(colorNamesByGroup.get(member.group_id) || []), colorName]);
-  });
-  const groupsFormatted = (groups || [])
-    .filter((group: any) => colorNamesByGroup.has(group.id))
-    .map((group: any) => ({
-      id: group.id,
-      name: group.name,
-      colors: (colorNamesByGroup.get(group.id) || []).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    }));
+  const colorsFormatted = (categoryColors || [])
+    .map((row: any) => ({ id: row.color_id, name: (Array.isArray(row.colors) ? row.colors[0] : row.colors)?.name }))
+    .filter((c: any): c is { id: number; name: string } => Boolean(c.name));
+  // Same columns and the same naming rule the admin table uses, so the PDF a
+  // customer receives matches the screen the price was typed into.
+  const columns = priceColumns(groupsInScope(groups || [], categoryId), colorsFormatted, groupMembers || []);
+  const groupsFormatted = columns.map((c) => ({ id: c.groupId, name: c.label, colors: c.colors }));
 
   // Only shapes that actually have a priced size are worth a page section --
   // a linked-but-unpriced shape would just render an empty table.
@@ -70,7 +60,7 @@ export async function GET(req: NextRequest) {
       const sizes = sizesByShape[s.shape_id] || [];
       const rows = sizes.map((size) => {
         const rowPrices: Record<number, number | null> = {};
-        groupsFormatted.forEach((g) => {
+        groupsFormatted.forEach((g: { id: number }) => {
           const price = priceLookup.get(`${size.id}:${g.id}`);
           rowPrices[g.id] = price ?? null;
         });
@@ -84,7 +74,11 @@ export async function GET(req: NextRequest) {
     categoryName: category.name,
     generatedAt: new Date().toISOString(),
     groups: groupsFormatted,
+    // With one shape there is nothing to tell apart, so the table needs no
+    // heading over it -- most of these categories are round only.
+    showShapeHeadings: showShapeHeadings(sections.length),
     sections,
+    priceUnit: (category as any).price_unit ?? null,
     logoUrl: await getPdfLogoDataUrl(),
     contactWhatsapp: settings.whatsapp_number || null,
     contactLocation: settings.location || null

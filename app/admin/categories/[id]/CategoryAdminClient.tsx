@@ -68,7 +68,8 @@ export default function CategoryAdminClient({
   photos,
   watermarks,
   otherCategories,
-  badgeTypes
+  badgeTypes,
+  shapeReference
 }: {
   categoryId: number;
   section?: string;
@@ -97,6 +98,10 @@ export default function CategoryAdminClient({
       bulk action -- empty on every other tab. */
   otherCategories: { id: number; name: string; slug: string | null }[];
   badgeTypes: BadgeType[];
+  /** The Shapes & sizes tab's card grid of linked shapes. Rendered on the
+      server (it reads per-category reference photos) and passed in as a slot
+      so it can sit below the picker, matching the Colors tab's order. */
+  shapeReference?: React.ReactNode;
 }) {
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
@@ -122,6 +127,7 @@ export default function CategoryAdminClient({
   // wants to act on several photos at once.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
+  const [bulkWatermarkId, setBulkWatermarkId] = useState<number | ''>('');
   const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -382,6 +388,32 @@ export default function CategoryAdminClient({
     router.refresh();
   }
 
+  // Watermarking is a per-photo re-encode, so this walks the selection one at
+  // a time rather than firing forty requests at once, and says how far it has
+  // got. Each photo that succeeds is saved; a failure part-way through leaves
+  // the earlier ones watermarked and names how many did not make it.
+  async function watermarkSelectedPhotos() {
+    if (selectedPhotoIds.length === 0 || bulkBusy) return;
+    const ids = [...selectedPhotoIds];
+    setBulkBusy(true);
+    let done = 0, failed = 0;
+    for (const id of ids) {
+      setToast(`Adding watermark… ${done + failed + 1} of ${ids.length}`);
+      const res = bulkWatermarkId === ''
+        ? await fetch(`/api/photos/${id}/watermark`, { method: 'DELETE' })
+        : await fetch(`/api/photos/${id}/watermark`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ watermark_id: bulkWatermarkId })
+          });
+      if (res.ok) done++; else failed++;
+    }
+    setBulkBusy(false);
+    const verb = bulkWatermarkId === '' ? 'cleared' : 'watermarked';
+    setToast(failed ? `${done} ${verb}, ${failed} failed. Retry the ones still unchanged.` : `${done} ${verb}.`);
+    router.refresh();
+  }
+
   function toggleSelectMode() {
     setSelectMode((cur) => !cur);
     setSelectedPhotoIds([]);
@@ -478,30 +510,39 @@ export default function CategoryAdminClient({
       </section>
 
       {/* Shapes & sizes -- the only tab that needs the full catalogue-wide
-          lists, to offer shapes/sizes beyond what's already linked. */}
+          lists, to offer shapes/sizes beyond what's already linked.
+          Laid out to match the Colors tab: the picker that decides what this
+          category carries comes first, in its own card, and the cards for what
+          is already linked follow it. Before this the shape cards came first
+          and the picker sat underneath them, so the two halves of the same
+          workspace read in opposite orders. */}
       {section === 'shapes' && (
-        <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a shape or size to feature it in this category. Flags are per category -- marking Cushion here does not mark it anywhere else.</p>
-          <h3 className="section-label">Shapes &amp; sizes</h3>
-          <ShapeSizeSelect
-            categoryId={categoryId}
-            allShapes={allShapes}
-            allSizes={allSizes}
-            linkedShapeIds={linkedShapeIds}
-            linkedSizeIds={linkedSizeIds}
-            onToggleShape={(id, active) => toggleLink('shape', id, active)}
-            onToggleSize={toggleSize}
-            onBulkSizes={setAllSizesForShape}
-          />
+        <section id="category-options" style={{ marginBottom: 16 }}>
+          <div className="card" style={{ padding: 16 }}>
+            <h3 style={{ marginBottom: 10 }}>Available shapes &amp; sizes</h3>
+            <ShapeSizeSelect
+              categoryId={categoryId}
+              allShapes={allShapes}
+              allSizes={allSizes}
+              linkedShapeIds={linkedShapeIds}
+              linkedSizeIds={linkedSizeIds}
+              onToggleShape={(id, active) => toggleLink('shape', id, active)}
+              onToggleSize={toggleSize}
+              onBulkSizes={setAllSizesForShape}
+            />
+          </div>
         </section>
       )}
+
+      {/* The linked shapes themselves, rendered on the server (it reads the
+          per-category reference photos) and handed down as a slot. */}
+      {section === 'shapes' && shapeReference}
 
       {/* Specifications sits with Shapes & sizes rather than as a tab of its
           own: it is one more product attribute, and a tab holding a single
           picker was not worth the click. */}
       {section === 'shapes' && (
         <section id="category-options" style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 10 }}>Click 🔥 beside a specification to feature it in this category. Click again to remove.</p>
           <h3 className="section-label">Specifications</h3>
           <MultiSelect
             categoryId={categoryId}
@@ -648,15 +689,28 @@ export default function CategoryAdminClient({
                 <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Add to category'}
                 </button>
+                {watermarks.length > 0 && (
+                  <>
+                    <select
+                      value={bulkWatermarkId}
+                      onChange={(e) => setBulkWatermarkId(e.target.value === '' ? '' : Number(e.target.value))}
+                      aria-label="Watermark to apply"
+                      style={{ fontSize: 12.5 }}
+                    >
+                      <option value="">Remove watermark</option>
+                      {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                    <button className="btn" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={watermarkSelectedPhotos}>
+                      {bulkBusy ? 'Working…' : bulkWatermarkId === '' ? 'Clear watermark' : 'Add watermark'}
+                    </button>
+                  </>
+                )}
                 <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Delete selected'}
                 </button>
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-                  "Set cover" picks which photo represents this category on the homepage. Drag the &#9776; handle to reorder, or use ← / → -- affects the order on this page and the public site.
-                </p>
                 {/* The buyer-facing reference strip narrows itself to photos
                     matching the shape and colour being ordered, but only for
                     photos that carry those links -- with none tagged it just

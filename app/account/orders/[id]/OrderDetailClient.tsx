@@ -5,6 +5,7 @@ import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
 import ColorSwatch from '@/components/ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
@@ -169,6 +170,25 @@ export default function OrderDetailClient({
   }, [currentOptions, pickShapeIds]);
 
   const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
+
+  // Grey out shapes that share no size with the current pick -- same rule as
+  // the category page and the admin builder.
+  const incompatibleShapes = useMemo(
+    () => incompatibleShapeIds(currentOptions?.shapes || [], currentOptions?.sizes || [], pickShapeIds),
+    [currentOptions, pickShapeIds]
+  );
+
+  function clearSelection() {
+    setPickCategoryId('');
+    setPickShapeIds([]);
+    setPickColorIds([]);
+    setPickSizeIdxs([]);
+    setPickQty('');
+  }
+
+  const hasSelection =
+    pickCategoryId !== '' || pickShapeIds.length > 0 || pickColorIds.length > 0 ||
+    pickSizeIdxs.length > 0 || pickQty !== '';
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -443,6 +463,9 @@ export default function OrderDetailClient({
                     onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                     leading="icon"
+                    disabledIds={incompatibleShapes}
+                    disabledReason={NO_SHARED_SIZE_REASON}
+                    disabledNote={NO_SHARED_SIZE_NOTE}
                   />
                 </div>
                 <div>
@@ -499,7 +522,9 @@ export default function OrderDetailClient({
 
               <button type="button" className="po-add-line-btn" onClick={addPendingLines} disabled={!canAddPending}>
                 + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
-              </button></div>
+              </button>
+              {hasSelection && <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>}
+              </div>
             </div>
 
             <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>

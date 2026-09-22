@@ -5,6 +5,7 @@ import { signAdminToken } from '../lib/auth';
 import { signCustomerToken } from '../lib/customer-auth';
 import { middleware } from '../middleware';
 import { NextRequest } from 'next/server';
+import { priceUnitLabel, normalizePriceUnit } from '../lib/price-unit';
 
 test('sessions require configured secrets and preserve separate admin/customer identities', async () => {
   const admin = process.env.ADMIN_SESSION_SECRET;
@@ -187,38 +188,26 @@ test('quotation lines may carry no quantity, purchase lines may not', async () =
 });
 
 test('shapes that share no size with the current pick are offered as disabled, never hidden', async () => {
-  // Mirrors incompatibleShapeIds in components/POSelector.tsx.
-  const sizes = [
-    { id: 1, shape_id: 10, size_mm: '4x4' }, { id: 2, shape_id: 10, size_mm: '5x5' },
-    { id: 3, shape_id: 20, size_mm: '5x5' },                     // shares 5x5 with Heart
-    { id: 4, shape_id: 30, size_mm: '9x9' }                      // shares nothing
-  ];
+  const { incompatibleShapeIds } = await import('../lib/shape-size-compat');
   const shapes = [{ id: 10 }, { id: 20 }, { id: 30 }];
-  const byShape = new Map<number, Set<string>>();
-  sizes.forEach((s) => {
-    if (!byShape.has(s.shape_id)) byShape.set(s.shape_id, new Set());
-    byShape.get(s.shape_id)!.add(s.size_mm);
-  });
-
-  const incompatible = (picked: number[]) => {
-    if (!picked.length) return [];
-    let shared: Set<string> | null = null;
-    picked.forEach((id) => {
-      const own = byShape.get(id) || new Set<string>();
-      shared = shared === null ? new Set(own) : new Set([...shared].filter((mm) => own.has(mm)));
-    });
-    if (!shared || shared.size === 0) return [];
-    return shapes.filter((s) => !picked.includes(s.id))
-      .filter((s) => ![...shared!].some((mm) => (byShape.get(s.id) || new Set()).has(mm)))
-      .map((s) => s.id);
-  };
+  const sizes = [
+    { shapeId: 10, sizeMm: '4x4' }, { shapeId: 10, sizeMm: '5x5' },
+    { shapeId: 20, sizeMm: ' 5X5 ' },            // shares 5x5 with shape 10, spelled differently
+    { shapeId: 30, sizeMm: '9x9' }               // shares nothing
+  ];
+  const incompatible = (picked: number[]) => incompatibleShapeIds(shapes, sizes, picked);
 
   assert.deepEqual(incompatible([]), [], 'nothing picked yet -- everything is offerable');
   assert.deepEqual(incompatible([10]), [30], 'only the shape sharing no size is disabled');
+  // Sizes are matched on the millimetre label, so casing and stray spaces in
+  // one category's rows never split a size a buyer reads as the same.
   assert.deepEqual(incompatible([10, 20]), [30], 'still disabled once the pick narrows to 5x5');
   // A selected shape is never disabled, so the buyer can always deselect out.
   assert.equal(incompatible([10, 20]).includes(10), false);
   assert.equal(incompatible([10, 20]).includes(20), false);
+  // And a pick that already shares nothing greys out nobody -- otherwise the
+  // whole list locks and there is no way back.
+  assert.deepEqual(incompatible([10, 30]), []);
 });
 
 test('the same number in any written form resolves to one customer', async () => {
@@ -242,4 +231,105 @@ test('the same number in any written form resolves to one customer', async () =>
   assert.equal(normalizePhone(null), '');
   assert.equal(isUsablePhone('98765'), false);
   assert.equal(isUsablePhone('+91 90799 14601'), true);
+});
+
+test('a category that does not price by colour still gets one column, called Price', async () => {
+  const { priceColumns, CATCH_ALL_LABEL, SINGLE_COLUMN_LABEL } = await import('../lib/price-columns');
+  const catchAll = { id: 99, name: 'All other colors', is_catch_all: true };
+  const standard = { id: 1, name: 'Standard', is_catch_all: false };
+  const swiss = { id: 11, name: 'Swiss Heavy Round', is_catch_all: false };
+
+  // Ruby Synthetic: two colours, neither in any group. This rendered with a
+  // Size column and NOTHING else -- no cell anywhere to type a price into.
+  const ruby = priceColumns([standard, swiss, catchAll], [{ id: 5, name: 'Ruby Red' }, { id: 6, name: 'Rose Pink' }], []);
+  assert.equal(ruby.length, 1);
+  assert.equal(ruby[0].groupId, 99);
+  assert.equal(ruby[0].label, SINGLE_COLUMN_LABEL, 'one column names nothing to tell apart');
+  assert.deepEqual(ruby[0].colors, ['Rose Pink', 'Ruby Red']);
+
+  // Nano: 54 ungrouped colours plus one that happens to sit in a group named
+  // after a shape, which used to head the entire category's prices.
+  const nano = priceColumns([standard, swiss, catchAll],
+    [{ id: 1, name: 'Aqua' }, { id: 2, name: 'Olive' }, { id: 7, name: 'Swiss White' }],
+    [{ group_id: 11, color_id: 7 }]);
+  assert.deepEqual(nano.map((c) => c.label), ['Swiss Heavy Round', CATCH_ALL_LABEL]);
+  assert.deepEqual(nano[1].colors, ['Aqua', 'Olive'], 'the catch-all covers exactly the ungrouped colours');
+
+  // Every colour grouped: no catch-all column, and the group names stand.
+  const split = priceColumns([standard, swiss, catchAll],
+    [{ id: 1, name: 'Aqua' }, { id: 7, name: 'Swiss White' }],
+    [{ group_id: 1, color_id: 1 }, { group_id: 11, color_id: 7 }]);
+  assert.deepEqual(split.map((c) => c.label), ['Standard', 'Swiss Heavy Round']);
+
+  // A group whose colours this category doesn't use isn't a column here.
+  const other = priceColumns([standard, catchAll], [{ id: 1, name: 'Aqua' }], [{ group_id: 1, color_id: 4242 }]);
+  assert.deepEqual(other.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+});
+
+test('an ungrouped colour prices off the catch-all, a grouped one never does', async () => {
+  const { lineInrPrice } = await import('../lib/pricing-calc');
+  // Colour 1 is in group 2; colour 9 is in no group at all.
+  const pricing = { colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55, '3:4:99': 30 }, catchAllGroupId: 99 };
+  assert.equal(lineInrPrice(pricing, 3, 4, 9), 30, 'ungrouped colour takes the general price');
+  assert.equal(lineInrPrice(pricing, 3, 4, 1), 55, 'grouped colour takes its own');
+
+  // An empty cell in a real group means "not priced yet", NOT "charge the
+  // general rate" -- otherwise a category that prices Premium separately would
+  // quietly sell Premium at the standard price wherever its cell was blank.
+  const gap = { colorToGroup: { 1: 2 }, priceMap: { '3:4:99': 30 }, catchAllGroupId: 99 };
+  assert.equal(lineInrPrice(gap, 3, 4, 1), null);
+
+  // And without a catch-all configured nothing changes for anyone.
+  assert.equal(lineInrPrice({ colorToGroup: { 1: 2 }, priceMap: { '3:4:2': 55 } }, 3, 4, 9), null);
+});
+
+test('a price group belongs to one category and does not leak into the others', async () => {
+  const { groupsInScope, priceColumns, SINGLE_COLUMN_LABEL } = await import('../lib/price-columns');
+  // "Colorless / White" is linked to twenty categories, and it sits in a group
+  // made for Swiss High Density CZ. Every one of those twenty used to price
+  // under the heading "Swiss Heavy Round" -- a shape name, from a category
+  // they had nothing to do with, that never changed when the category did.
+  const groups = [
+    { id: 11, name: 'Swiss Heavy Round', is_catch_all: false, category_id: 24 },
+    { id: 9, name: 'Legacy shared', is_catch_all: false, category_id: null },
+    { id: 12, name: 'All other colors', is_catch_all: true, category_id: null }
+  ];
+  const white = [{ id: 2, name: 'Colorless / White' }];
+  const membership = [{ group_id: 11, color_id: 2 }];
+
+  const nano = priceColumns(groupsInScope(groups, 3), white, membership);
+  assert.deepEqual(nano.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+  assert.equal(nano[0].groupId, 12, 'the white price is the general one, not Swiss High Density CZ\'s');
+
+  const swiss = priceColumns(groupsInScope(groups, 24), white, membership);
+  assert.deepEqual(swiss.map((c) => c.label), [SINGLE_COLUMN_LABEL]);
+  assert.equal(swiss[0].groupId, 11, 'and its own category still prices under its own group');
+
+  // A group with no category is still shared by everyone, deliberately.
+  assert.equal(groupsInScope(groups, 3).some((g) => g.id === 9), true);
+});
+
+test('a category quotes its prices per piece unless it says otherwise', () => {
+  // Rainbow Corundum sells by the strip, so "per piece" was wrong on its
+  // price list -- but every other category means piece, and none of them
+  // should need a row in the database to say so.
+  assert.equal(priceUnitLabel(null), 'piece');
+  assert.equal(priceUnitLabel(''), 'piece');
+  assert.equal(priceUnitLabel('   '), 'piece');
+  assert.equal(priceUnitLabel('strip'), 'strip');
+
+  // Blank and the default word both store NULL, so "piece" has exactly one
+  // representation in the column rather than two that must be kept in sync.
+  assert.equal(normalizePriceUnit(''), null);
+  assert.equal(normalizePriceUnit('piece'), null);
+  assert.equal(normalizePriceUnit('Piece'), null);
+  assert.equal(normalizePriceUnit(null), null);
+
+  // A typed unit is kept as typed, minus the whitespace a paste drags in.
+  assert.equal(normalizePriceUnit('  strip '), 'strip');
+  assert.equal(normalizePriceUnit('10 pc\nline'), '10 pc line');
+
+  // Rejected, so the check constraint never has to catch it.
+  assert.equal(normalizePriceUnit('x'.repeat(25)), undefined);
+  assert.equal(normalizePriceUnit(7), undefined);
 });

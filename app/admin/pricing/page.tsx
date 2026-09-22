@@ -12,7 +12,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     <>
       <h1>Pricing</h1>
       <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
-        Manage per-piece ₹ prices by category, shape, size and color group.
+        Manage ₹ prices by category, shape, size and color group.
       </p>
       <PricingClient
         key={query.category || 'all'}

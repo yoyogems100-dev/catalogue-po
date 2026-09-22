@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
+import { priceUnitLabel } from '../price-unit';
 
 export type PriceListGroup = { id: number; name: string; colors?: string[] };
 export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> INR price
@@ -9,7 +10,13 @@ export type PriceListData = {
   categoryName: string;
   generatedAt: string;
   groups: PriceListGroup[];
+  /** False when the list covers a single shape: a table headed "Round" under
+      a document already naming the category tells the reader nothing. */
+  showShapeHeadings?: boolean;
   sections: PriceListShapeSection[];
+  /** What one price buys -- "piece" for most categories, "strip" for Rainbow
+      Corundum. Null falls back to "piece". */
+  priceUnit?: string | null;
   logoUrl: string;
   contactWhatsapp: string | null;
   contactLocation: string | null;
@@ -56,21 +63,44 @@ const styles = StyleSheet.create({
   priceCell: { textAlign: 'center' },
   priceInr: { fontSize: 7.5, color: '#9C7A25', fontFamily: 'Helvetica-Bold' },
   dash: { fontSize: 7.5, color: '#c9c2ac', textAlign: 'center' },
+  comment: { marginTop: 18, fontSize: 9.5, color: '#756e5c' },
   footer: {
     position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7.5, color: '#756e5c',
     textAlign: 'center', borderTopWidth: 1, borderTopColor: '#e4ddc9', borderTopStyle: 'solid', paddingTop: 6
   }
 });
 
-// "Rs." not "₹" -- the default Helvetica PDF font has no glyph for the Rupee
-// sign (U+20B9), so it renders as a broken/superscript character instead.
-function money(n: number | null, symbol: string) {
+// Bare numbers: the currency is stated once in the meta bar, so repeating a
+// symbol in every cell of a whole page of prices only adds noise. (When one is
+// needed it is "Rs." not "₹" -- the default Helvetica PDF font has no glyph for
+// the Rupee sign (U+20B9) and renders it as a broken/superscript character.)
+function money(n: number | null) {
   if (n === null) return null;
-  return `${symbol}${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+// Rows a table can hold and still fit on one landscape page beneath the
+// masthead, the meta bar and the colour legend. A longer table is cut into
+// chunks of this size, each one an unbreakable block carrying its own column
+// header, so a table that runs past page one keeps its headings instead of
+// continuing as three unlabelled columns of numbers.
+//
+// The chunking also avoids a react-pdf trap: a wrap={false} block TALLER than
+// the page made it squeeze the whole page to fit, collapsing the masthead onto
+// the rule and printing every meta label on top of its own value.
+const ROWS_PER_PAGE = 16;
+
+function chunkRows(rows: PriceListRow[]): PriceListRow[][] {
+  if (rows.length <= ROWS_PER_PAGE) return [rows];
+  const chunks: PriceListRow[][] = [];
+  for (let i = 0; i < rows.length; i += ROWS_PER_PAGE) chunks.push(rows.slice(i, i + ROWS_PER_PAGE));
+  return chunks;
 }
 
 export default function PriceListPdfDocument({ data }: { data: PriceListData }) {
-  const sizeColW = 12;
+  // A single price column stretched to 88% of a landscape page put one number
+  // adrift in the middle of it. Two columns split evenly instead.
+  const sizeColW = data.groups.length <= 1 ? 50 : 12;
   const groupColW = data.groups.length > 0 ? (100 - sizeColW) / data.groups.length : 0;
 
   return (
@@ -96,50 +126,62 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           </View>
           <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
-            <Text style={styles.metaValue}>Rs. INR per piece</Text>
+            <Text style={styles.metaValue}>INR (Rs.) per {priceUnitLabel(data.priceUnit)}</Text>
           </View>
         </View>
 
-        <View style={styles.colorLegend} wrap={false}>
+        {data.groups.some((g) => (g.colors?.length || 0) > 0) && <View style={styles.colorLegend} wrap={false}>
           <Text style={styles.colorLegendTitle}>CURRENTLY AVAILABLE COLORS ({data.groups.reduce((count, group) => count + (group.colors?.length || 0), 0)})</Text>
           <View style={styles.colorLegendGrid}>
             {data.groups.map((group) => (
               <View key={group.id} style={styles.colorLegendItem}>
-                <Text style={styles.colorLegendGroup}>{group.name}</Text>
+                {/* With one column there is no group to name -- repeating
+                    "Price" beside the colours it covers says nothing. */}
+                {data.groups.length > 1 && <Text style={styles.colorLegendGroup}>{group.name}</Text>}
                 <Text style={styles.colorLegendNames}>{(group.colors || []).join(', ')}</Text>
               </View>
             ))}
           </View>
-        </View>
+        </View>}
 
-        {data.sections.map((section, si) => (
-          <View key={si} wrap={false}>
-            <Text style={styles.shapeHeading}>{section.shapeName}</Text>
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.tableHeaderCell, { width: `${sizeColW}%` }]}>Size (mm)</Text>
-              {data.groups.map((g) => (
-                <Text key={g.id} style={[styles.tableHeaderCell, { width: `${groupColW}%` }]}>{g.name}</Text>
+        {/* A category with no price saved yet used to export a header and an
+            expanse of blank paper, which reads as a broken download. */}
+        {data.sections.length === 0 && (
+          <Text style={styles.comment}>No prices have been saved for this category yet.</Text>
+        )}
+
+        {data.sections.map((section, si) =>
+          chunkRows(section.rows).map((rows, ci) => (
+            <View key={`${si}-${ci}`} wrap={false}>
+              {/* The shape is named once, over the first chunk -- a repeated
+                  "Round" on each continuation page would read as a new shape. */}
+              {data.showShapeHeadings !== false && ci === 0 && <Text style={styles.shapeHeading}>{section.shapeName}</Text>}
+              <View style={styles.tableHeaderRow}>
+                <Text style={[styles.tableHeaderCell, { width: `${sizeColW}%` }]}>Size (mm)</Text>
+                {data.groups.map((g) => (
+                  <Text key={g.id} style={[styles.tableHeaderCell, { width: `${groupColW}%` }]}>{g.name}</Text>
+                ))}
+              </View>
+              {rows.map((row, ri) => (
+                <View key={ri} style={[styles.tableRow, ri % 2 === 1 ? styles.tableRowAlt : {}]}>
+                  <Text style={[styles.sizeCell, { width: `${sizeColW}%` }]}>{row.sizeMm}</Text>
+                  {data.groups.map((g) => {
+                    const price = row.prices[g.id] ?? null;
+                    return (
+                      <View key={g.id} style={[styles.priceCell, { width: `${groupColW}%` }]}>
+                        {price === null ? (
+                          <Text style={styles.dash}>--</Text>
+                        ) : (
+                          <Text style={styles.priceInr}>{money(price)}</Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
               ))}
             </View>
-            {section.rows.map((row, ri) => (
-              <View key={ri} style={[styles.tableRow, ri % 2 === 1 ? styles.tableRowAlt : {}]}>
-                <Text style={[styles.sizeCell, { width: `${sizeColW}%` }]}>{row.sizeMm}</Text>
-                {data.groups.map((g) => {
-                  const price = row.prices[g.id] ?? null;
-                  return (
-                    <View key={g.id} style={[styles.priceCell, { width: `${groupColW}%` }]}>
-                      {price === null ? (
-                        <Text style={styles.dash}>--</Text>
-                      ) : (
-                        <Text style={styles.priceInr}>{money(price, 'Rs. ')}</Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        ))}
+          ))
+        )}
 
         <Text style={styles.footer}>
           {[data.contactLocation, data.contactWhatsapp ? `WhatsApp: ${data.contactWhatsapp}` : null].filter(Boolean).join('   ·   ')}

@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
+import { priceUnitLabel } from '../price-unit';
 
 export type SizeChartSection = {
   name: string;
@@ -58,7 +59,7 @@ function sectionColumns(rows: SizeChartSection['rows']) {
   return Array.from({ length: count }, (_, index) => rows.slice(index * perColumn, (index + 1) * perColumn));
 }
 
-function ShapeSection({ section, includePrices }: { section: SizeChartSection; includePrices: boolean }) {
+function ShapeSection({ section, includePrices, showName }: { section: SizeChartSection; includePrices: boolean; showName: boolean }) {
   const columns = sectionColumns(section.rows);
   return (
     <View style={css.section} wrap={false}>
@@ -66,7 +67,10 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
         <View style={css.imageFrame}>
           {section.image ? <Image src={section.image} style={css.image} /> : <View style={css.vectorFallback}><Text>VECTOR REFERENCE</Text></View>}
         </View>
-        <Text style={css.name}>{section.name === 'Cushion Elongated' ? 'Long cushion' : section.name}</Text>
+        {/* With one shape in the whole chart the name says nothing the photo
+            above it doesn't -- and for the round-only categories it is just
+            the word "Round" over the only table on the page. */}
+        {showName && <Text style={css.name}>{section.name === 'Cushion Elongated' ? 'Long cushion' : section.name}</Text>}
       </View>
       <View style={css.values}>
         <View style={css.valuesHead}>
@@ -80,7 +84,7 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
                 <View key={`${row.size}-${rowIndex}`} style={[css.cell, rowIndex % 2 ? css.cellAlt : {}]}>
                   <Text style={css.size}>{row.size.replace(/x/g, ' x ')}</Text>
                   {includePrices
-                    ? <Text style={css.price}>{row.priceInr == null ? 'On request' : `Rs ${row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}</Text>
+                    ? <Text style={css.price}>{row.priceInr == null ? 'On request' : row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text>
                     : <Text style={css.meta}>{formatDew(row.diamondEquivalentCt)}</Text>}
                 </View>
               ))}
@@ -92,7 +96,7 @@ function ShapeSection({ section, includePrices }: { section: SizeChartSection; i
   );
 }
 
-export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '' }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string }) {
+export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '', priceUnit = null }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string; priceUnit?: string | null }) {
   const pages = Array.from({ length: Math.ceil(sections.length / 2) }, (_, index) => sections.slice(index * 2, (index + 1) * 2));
   const showColorPage = colors.length > 1;
   const totalPages = pages.length + (showColorPage ? 1 : 0);
@@ -138,10 +142,10 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
           </View>
           <View style={css.legend}>
             <Text>Dimensions in millimetres</Text>
-            <Text>{includePrices ? 'INR per piece - availability and final price confirmed by our team' : 'DEW is approximate diamond-equivalent weight'}</Text>
+            <Text>{includePrices ? `Prices in INR (Rs.) per ${priceUnitLabel(priceUnit)} - availability and final price confirmed by our team` : 'DEW is approximate diamond-equivalent weight'}</Text>
           </View>
           <View style={css.sectionStack}>
-            {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} />)}
+            {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} showName={sections.length > 1} />)}
           </View>
           <View style={css.footer} fixed>
             <Text>yoyogems.co.in  |  +91 9079914601  |  Jaipur</Text>

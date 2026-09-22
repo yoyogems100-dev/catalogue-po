@@ -180,12 +180,6 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
         </div>
       </div>
       <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} categories. Missing links are review prompts; they do not change product availability.</p>
-      <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 12 }}>
-        {view === 'list' && !filtered
-          ? 'Drag the ☰ handle to reorder -- sets both the display order and the "#" number below. Double-click a category name to rename it. Manage a category to set its homepage tag.'
-          : 'Double-click a category name to rename it. Manage a category to set its homepage tag.'}
-      </p>
-
       {view === 'list' ? (
         <table>
           <thead>

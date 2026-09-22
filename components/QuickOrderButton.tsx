@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
+import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
@@ -103,6 +104,14 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
 
   const currentOptions = typeof pickCategoryId === 'number' ? optionsCache[pickCategoryId] : null;
   const currentCategory = typeof pickCategoryId === 'number' ? allCategories?.find((c) => c.id === pickCategoryId) : null;
+
+  // Same rule as the category page's builder -- a shape that shares no size
+  // with what's already picked is greyed out where it's picked, not left to
+  // be discovered at the size list.
+  const incompatibleShapes = useMemo(
+    () => incompatibleShapeIds(currentOptions?.shapes || [], currentOptions?.sizes || [], pickShapeIds),
+    [currentOptions, pickShapeIds]
+  );
 
   const sizesForShapes = useMemo(() => {
     if (!currentOptions || pickShapeIds.length === 0) return [];
@@ -243,6 +252,9 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
                 onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
                 placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                 leading="icon"
+                disabledIds={incompatibleShapes}
+                disabledReason={NO_SHARED_SIZE_REASON}
+                disabledNote={NO_SHARED_SIZE_NOTE}
               />
             </div>
             <div>
@@ -304,6 +316,11 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
             <button type="button" className="po-add-line-btn" onClick={addLines} disabled={!canAdd}>
               + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to cart
             </button>
+            {/* Adding keeps the category, shape and colour so the next line is
+                quick; this empties the form completely, category included. */}
+            {(pickCategoryId !== '' || pickShapeIds.length > 0 || pickColorIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== '') && (
+              <button type="button" className="po-clear-selection" onClick={reset}>Clear selection</button>
+            )}
           </div>
 
           {message && <p className="quick-order-message" aria-live="polite">{message}</p>}
