@@ -2188,3 +2188,25 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   padding: 10px 0 2px; margin-top: 2px;
   background: linear-gradient(to bottom, rgba(250,248,243,0) 0%, var(--ivory) 22%);
 }
+
+/* A group inside its cover's admin card: the angles, each detachable, plus a
+   way to add more photos of the same stone without leaving the card. */
+.admin-angle-strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; }
+.admin-angle { position: relative; width: 46px; height: 46px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.admin-angle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-angle button {
+  position: absolute; top: 1px; right: 1px;
+  width: 18px; height: 18px; padding: 0; line-height: 1;
+  border: none; border-radius: 50%;
+  background: rgba(18, 35, 63, 0.82); color: #fff;
+  font-size: 10px; cursor: pointer;
+}
+.admin-angle button:hover { background: #a3341f; }
+.admin-angle-add {
+  width: 46px; height: 46px; flex: 0 0 auto;
+  border: 1px dashed var(--line); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #756e5c; font-size: 11px; text-align: center;
+}
+.admin-angle-add:hover { border-color: var(--gold); color: var(--gold); }
+.admin-angle-add input { display: none; }

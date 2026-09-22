@@ -10,7 +10,7 @@ import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
-import { groupMemberIds } from '@/lib/photo-groups';
+import { buildPhotoGroups, groupMemberIds } from '@/lib/photo-groups';
 
 type Ref = { id: number; name: string };
 type ColorRef = Ref & { hexValue?: string | null; refPhotoUrl?: string | null };
@@ -113,6 +113,7 @@ export default function CategoryAdminClient({
   // Upload several angles of one stone straight into a group, instead of
   // uploading them loose and having to find and group them afterwards.
   const [uploadAsGroup, setUploadAsGroup] = useState(false);
+  const [angleBusyId, setAngleBusyId] = useState<number | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
@@ -154,18 +155,27 @@ export default function CategoryAdminClient({
   // stone. The cover photo itself is whichever photo is the thumbnail,
   // cover-only or not.
   const galleryPhotos = localPhotos.filter((p) => !p.isCoverOnly);
+  // One card per stone. An angle is shown inside its cover's card rather than
+  // as a card of its own -- grouping random photos used to scatter the angles
+  // across the grid with nothing but a badge to say which group they belonged
+  // to, so finding a group meant hunting for it.
+  const galleryGroups = buildPhotoGroups(galleryPhotos.map((p) => ({ ...p, parentId: p.parentPhotoId })));
   const untaggedCount = galleryPhotos.filter((p) => !p.shapeIds.length && !p.colorIds.length).length;
   const coverPhoto = localPhotos.find((p) => p.id === thumbnailPhotoId) || null;
 
-  const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
+  // Dragging moves a whole group, cover and angles together: the grid's
+  // positions are groups now, and an order that split a group apart would put
+  // the angles back where they were scattered before.
+  async function reorderGroups(from: number, to: number) {
     const prevAll = localPhotos;
-    const next = moveItem(galleryPhotos, from, to);
+    const next = moveItem(galleryGroups, from, to);
+    const flat = next.flatMap((group) => group.media);
     const coverOnly = localPhotos.filter((p) => p.isCoverOnly);
-    setLocalPhotos([...next, ...coverOnly]);
+    setLocalPhotos([...flat, ...coverOnly]);
     const res = await fetch('/api/photos/reorder-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category_id: categoryId, orderedIds: next.map((p) => p.id) })
+      body: JSON.stringify({ category_id: categoryId, orderedIds: flat.map((p) => p.id) })
     });
     if (!res.ok) {
       setLocalPhotos(prevAll);
@@ -173,7 +183,9 @@ export default function CategoryAdminClient({
       return;
     }
     router.refresh();
-  });
+  }
+
+  const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(reorderGroups);
 
   async function toggleLink(kind: 'shape' | 'color' | 'tag', id: number, currentlyLinked: boolean) {
     const key = kind === 'shape' ? 'shape_id' : kind === 'color' ? 'color_id' : 'tag_id';
@@ -383,6 +395,32 @@ export default function CategoryAdminClient({
     });
     if (!res.ok) { setToast('Failed to ungroup -- try again.'); return; }
     setToast('Ungrouped.');
+    router.refresh();
+  }
+
+  function moveGroup(leadId: number, direction: 'left' | 'right') {
+    const from = galleryGroups.findIndex((group) => group.lead.id === leadId);
+    const to = direction === 'left' ? from - 1 : from + 1;
+    if (from < 0 || to < 0 || to >= galleryGroups.length) return;
+    return reorderGroups(from, to);
+  }
+
+  /** Adds more angles to an existing group, straight from its own card. */
+  async function addAngles(leadId: number, files: FileList | null) {
+    const list = Array.from(files || []);
+    if (list.length === 0) return;
+    setAngleBusyId(leadId);
+    let failures = 0;
+    for (const file of list) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('category_id', String(categoryId));
+      fd.append('parent_photo_id', String(leadId));
+      const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
+      if (!res.ok) failures++;
+    }
+    setAngleBusyId(null);
+    setToast(failures === 0 ? `${list.length} angle${list.length === 1 ? '' : 's'} added.` : `${failures} of ${list.length} failed to upload.`);
     router.refresh();
   }
 
@@ -825,13 +863,13 @@ export default function CategoryAdminClient({
               </>
             )}
             <div className="admin-photo-grid">
-              {galleryPhotos.map((p, i) => (
+              {galleryGroups.map(({ lead: p, media }, i) => (
                 <PhotoRow
                   categoryId={categoryId}
                   key={p.id}
                   photo={p}
                   index={i}
-                  total={galleryPhotos.length}
+                  total={galleryGroups.length}
                   isThumbnail={thumbnailPhotoId === p.id}
                   shapes={linkedShapes}
                   colors={linkedColors}
@@ -840,7 +878,7 @@ export default function CategoryAdminClient({
                   onUpdate={updatePhoto}
                   onDelete={deletePhoto}
                   onSetThumbnail={setThumbnail}
-                  onMove={movePhoto}
+                  onMove={moveGroup}
                   onCreateTag={createPhotoTag}
                   watermarks={watermarks}
                   onApplyWatermark={applyWatermark}
@@ -852,9 +890,11 @@ export default function CategoryAdminClient({
                   selectMode={selectMode}
                   selected={selectedPhotoIds.includes(p.id)}
                   onToggleSelect={() => toggleSelectPhoto(p.id)}
-                  angleCount={galleryPhotos.filter((other) => other.parentPhotoId === p.id).length}
-                  leadOf={p.parentPhotoId}
+                  angles={media.slice(1)}
                   onUngroup={ungroupOne}
+                  onDetachAngle={ungroupOne}
+                  onAddAngles={addAngles}
+                  angleBusy={angleBusyId === p.id}
                 />
               ))}
             </div>
@@ -904,9 +944,11 @@ function PhotoRow({
   watermarks,
   onApplyWatermark,
   onRemoveWatermark,
-  angleCount = 0,
-  leadOf = null,
-  onUngroup
+  angles = [],
+  onUngroup,
+  onDetachAngle,
+  onAddAngles,
+  angleBusy
 }: {
   categoryId: number;
   photo: Photo;
@@ -944,11 +986,13 @@ function PhotoRow({
   watermarks?: { id: number; name: string }[];
   onApplyWatermark?: (id: number, watermarkId: number) => void;
   onRemoveWatermark?: (id: number) => void;
-  /** How many other photos hang off this one as extra angles of the same stone. */
-  angleCount?: number;
-  /** Set when this photo is itself an angle -- the id of its group's cover. */
-  leadOf?: number | null;
+  /** The other photos of this stone, shown inside this card instead of as
+      cards of their own. */
+  angles?: Photo[];
   onUngroup?: (id: number) => void;
+  onDetachAngle?: (id: number) => void;
+  onAddAngles?: (leadId: number, files: FileList | null) => void;
+  angleBusy?: boolean;
 }) {
   const [shapeIds, setShapeIds] = useState<number[]>(photo.shapeIds);
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
@@ -1175,10 +1219,14 @@ function PhotoRow({
   return (
     <div
       className={`card ${isDragOver ? 'drag-over-card' : ''}`}
-      style={{ overflow: 'hidden', opacity: isDragging ? 0.4 : 1 }}
+      /* overflow stays visible here: it used to be hidden on the card to round
+         the photo's corners, which also clipped every dropdown opened inside
+         the card -- the shape picker's panel was cut off mid-option. The photo
+         does its own clipping below instead. */
+      style={{ opacity: isDragging ? 0.4 : 1 }}
       {...dropTargetProps}
     >
-      <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative' }}>
+      <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative', overflow: 'hidden', borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
         {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         {!hideMoveControls && selectMode ? (
           <label
@@ -1206,15 +1254,12 @@ function PhotoRow({
             {photo.product_code}
           </span>
         )}
-        {/* Grouping is invisible in a flat grid otherwise: a lead looks like
-            any other photo, and an angle looks like a duplicate someone
-            uploaded twice. */}
-        {(angleCount > 0 || leadOf) && (
+        {angles.length > 0 && (
           <span
             style={{ position: 'absolute', bottom: 6, left: isThumbnail ? 70 : 6, background: 'rgba(156,122,37,0.92)', color: '#fff', fontSize: 10, padding: '3px 7px', letterSpacing: 0.3 }}
-            title={leadOf ? `Extra angle shown inside photo #${leadOf}'s product card` : 'Cover of a product group customers swipe through'}
+            title="Customers see one card for this stone and swipe through its angles"
           >
-            {leadOf ? `ANGLE OF #${leadOf}` : `COVER +${angleCount}`}
+            {angles.length + 1} PHOTOS
           </span>
         )}
         {/* 40px square rather than the old ~22x20 -- it sits over a photo on a
@@ -1228,6 +1273,40 @@ function PhotoRow({
           <DownloadIcon size={18} />
         </a>
       </div>
+      {/* The group, in the one place it makes sense: inside its own cover's
+          card. Each angle can be detached without going near Select mode, and
+          more angles can be added straight into the group. */}
+      {(angles.length > 0 || onAddAngles) && (
+        <div className="admin-angle-strip">
+          {angles.map((angle) => (
+            <span key={angle.id} className="admin-angle">
+              {angle.url && <img src={angle.url} alt="" loading="lazy" />}
+              {onDetachAngle && (
+                <button
+                  type="button"
+                  aria-label={`Remove this angle from the group (photo #${angle.id})`}
+                  title="Remove from group -- becomes its own photo again"
+                  onClick={() => onDetachAngle(angle.id)}
+                >
+                  ✕
+                </button>
+              )}
+            </span>
+          ))}
+          {onAddAngles && (
+            <label className="admin-angle-add" title="Add more photos of this same stone">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={angleBusy}
+                onChange={(e) => { onAddAngles(photo.id, e.target.files); e.target.value = ''; }}
+              />
+              <span>{angleBusy ? '…' : angles.length > 0 ? '+' : '+ Angle'}</span>
+            </label>
+          )}
+        </div>
+      )}
       <div style={{ padding: 10 }}>
         <div className="photo-controls">
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'left')} disabled={index === 0}>&larr;</button>}
@@ -1270,9 +1349,9 @@ function PhotoRow({
           onBlur={() => onUpdate(photo.id, { notes })}
           style={{ marginBottom: 8, fontSize: 12 }}
         />
-        {(angleCount > 0 || leadOf) && onUngroup && (
+        {angles.length > 0 && onUngroup && (
           <button className="btn-ghost" style={{ width: '100%', fontSize: 11.5, marginBottom: 6 }} onClick={() => onUngroup(photo.id)}>
-            {leadOf ? 'Detach from group' : `Ungroup (${angleCount} angle${angleCount === 1 ? '' : 's'})`}
+            Ungroup ({angles.length} angle{angles.length === 1 ? '' : 's'})
           </button>
         )}
         {onDelete && <button className="btn-danger" style={{ width: '100%' }} onClick={() => onDelete(photo.id)}>Delete photo</button>}
