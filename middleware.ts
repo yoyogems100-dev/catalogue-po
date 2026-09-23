@@ -36,36 +36,83 @@ async function verify(signed: string, secret: string | undefined, kind: 'admin' 
   return timingSafeEqualHex(expected, mac);
 }
 
-export async function middleware(req: NextRequest) {
-  if (req.nextUrl.pathname.startsWith('/account')) {
-    if (req.nextUrl.pathname === '/account/login') return NextResponse.next();
-
-    const cookie = req.cookies.get(CUSTOMER_COOKIE_NAME);
-    const secret = sessionSecret('customer');
-    const authed = cookie ? await verify(cookie.value, secret, 'customer') : false;
-
-    if (!authed) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/account/login';
-      return NextResponse.redirect(url);
-    }
-
-    return NextResponse.next();
-  }
-
+async function isAdmin(req: NextRequest) {
   const cookie = req.cookies.get(ADMIN_COOKIE_NAME);
-  const secret = sessionSecret('admin');
-  const authed = cookie ? await verify(cookie.value, secret, 'admin') : false;
+  return cookie ? await verify(cookie.value, sessionSecret('admin'), 'admin') : false;
+}
 
-  if (!authed) {
+// The web uses a cookie; the mobile app sends the same signed token from
+// signCustomerToken() as `Authorization: Bearer <token>` (it has no cookie
+// jar), so both have to count as signed in or gating the site logs the app out.
+async function isCustomer(req: NextRequest) {
+  const secret = sessionSecret('customer');
+  const cookie = req.cookies.get(CUSTOMER_COOKIE_NAME);
+  if (cookie && (await verify(cookie.value, secret, 'customer'))) return true;
+
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) return await verify(authHeader.slice(7).trim(), secret, 'customer');
+
+  return false;
+}
+
+// The catalogue is private: a visitor who is not signed in sees the sign-in
+// page and nothing else. Only the doors themselves stay open -- the two sign-in
+// screens and the endpoints that issue a session. Everything not listed here is
+// gated, so a route added later is private by default rather than public by
+// omission.
+const PUBLIC_PATHS = new Set([
+  '/login', // admin sign-in
+  '/account/login', // customer sign-in, and the site's front door
+  '/api/admin-login',
+  '/api/admin-logout',
+  '/api/account/otp/request',
+  '/api/account/otp/verify',
+  '/api/account/email/request',
+  '/api/account/email/verify',
+  '/api/account/logout',
+  '/api/account/me', // the sign-in screen reads its own session state
+  '/robots.txt',
+  '/sitemap.xml',
+  '/manifest.json'
+]);
+
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+
+  if (pathname.startsWith('/admin')) {
+    if (await isAdmin(req)) return NextResponse.next();
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  // Admin counts as signed in everywhere else too. Without this, the admin
+  // workspace would break the moment it called one of the shared /api/* routes
+  // that live outside /api/admin -- an admin holds an admin cookie, not a
+  // customer one.
+  if ((await isCustomer(req)) || (await isAdmin(req))) return NextResponse.next();
+
+  // An API caller wants an answer, not a login page: a 307 to HTML would show
+  // up at the fetch() call site as a confusing parse error.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Sign in to continue' }, { status: 401 });
+  }
+
+  // Send them back where they were headed once they are in, so a shared link
+  // to a category still lands on that category after sign-in.
+  const url = req.nextUrl.clone();
+  url.pathname = '/account/login';
+  url.search = '';
+  const next = `${pathname}${req.nextUrl.search}`;
+  if (next !== '/') url.searchParams.set('next', next);
+  return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/account/:path*']
+  // Everything except Next's own build output and static files in /public
+  // (images, fonts, stylesheets). Those carry no catalogue data on their own
+  // and gating them would block the sign-in page's own logo and styles.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|svg|webp|ico|css|js|mjs|txt|woff2?|ttf|otf|pdf)$).*)']
 };
