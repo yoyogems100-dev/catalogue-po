@@ -400,7 +400,14 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .browse-photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
 .browse-photo-tile:hover img { transform: scale(1.05); }
 
-.login-box { max-width: 340px; margin: 100px auto; padding: 32px; }
+.login-box { max-width: 360px; margin: 100px auto; padding: 32px; }
+
+/* This box is the entire signed-out site, so it carries the brand line and a
+   sentence of context above the form rather than a lone phone-number field. */
+.login-tagline { margin: 0 0 12px; font-size: 12px; letter-spacing: 0.3px; color: var(--gold); }
+.login-intro { margin: 0 0 20px; font-size: 13.5px; line-height: 1.55; color: var(--charcoal); }
+.login-help { margin: 18px 0 0; font-size: 12.5px; color: var(--charcoal); text-align: center; }
+.login-help a { color: var(--navy); text-decoration: underline; }
 
 .login-dialog { width: min(360px, 92vw); max-height: 90dvh; overflow-y: auto; border: none; border-radius: 12px; padding: 28px; margin: auto; color: var(--ink); background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
 .login-dialog::backdrop { background: rgb(12 25 45 / 60%); }
