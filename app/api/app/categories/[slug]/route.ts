@@ -3,7 +3,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
 import { getCategoryPricing } from '@/lib/pricing';
 
-// JSON equivalent of getCategoryData() in app/category/[slug]/page.tsx -- powers the
+// JSON equivalent of getCategoryData() in app/po/category/[slug]/page.tsx -- powers the
 // app's category detail / Place Order flow (needs the linked shapes/colors/sizes to
 // build the picker).
 export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ slug: string }> }) {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] })
   ]);
 
-  // Same joins as getCategoryData() in app/category/[slug]/page.tsx, so the
+  // Same joins as getCategoryData() in app/po/category/[slug]/page.tsx, so the
   // Quick Order picker's reference-photo strip filters exactly like the
   // regular per-category composer. is_cover_only is excluded -- a dedicated
   // cover upload isn't a catalogue stone.

@@ -49,15 +49,15 @@ export async function POST(req: NextRequest) {
 }
 
 // Real magic-link click path -- for when actual email sending is wired up later.
-// Always redirects to the homepage per Part 4 (never straight to /account/orders);
-// if the customer's name is still missing, /account/orders and the header icon both
+// Always redirects to the homepage per Part 4 (never straight to /po/account/orders);
+// if the customer's name is still missing, /po/account/orders and the header icon both
 // surface the one-time profile prompt on their own, so no special redirect is needed.
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token') || '';
   const identity = await verifyToken(token);
 
   const url = req.nextUrl.clone();
-  url.pathname = '/';
+  url.pathname = '/po';
   url.search = identity ? '' : '?login_error=1';
   const res = NextResponse.redirect(url);
 

@@ -11,13 +11,13 @@ import RepeatOrderRedirect from './RepeatOrderRedirect';
 export default async function NewOrderPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ from?: string }> }) {
   const searchParams = await searchParamsPromise;
   const customerId = await getCustomerId();
-  if (!customerId) redirect('/account/login');
+  if (!customerId) redirect('/po/account/login');
 
   const fromOrderId = searchParams.from ? Number(searchParams.from) : null;
-  if (!fromOrderId) redirect('/account/orders');
+  if (!fromOrderId) redirect('/po/account/orders');
 
   const { data: order } = await supabaseAdmin.from('orders').select('id, customer_id').eq('id', fromOrderId).single();
-  if (!order || order.customer_id !== customerId) redirect('/account/orders');
+  if (!order || order.customer_id !== customerId) redirect('/po/account/orders');
 
   const { data: items } = await supabaseAdmin.from('order_items').select('*').eq('order_id', fromOrderId);
 

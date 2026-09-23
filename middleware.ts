@@ -61,8 +61,9 @@ async function isCustomer(req: NextRequest) {
 // gated, so a route added later is private by default rather than public by
 // omission.
 const PUBLIC_PATHS = new Set([
+  '/', // the placeholder landing page; the catalogue itself lives under /po
   '/login', // admin sign-in
-  '/account/login', // customer sign-in, and the site's front door
+  '/po/account/login', // customer sign-in, and the catalogue's front door
   '/api/admin-login',
   '/api/admin-logout',
   '/api/account/otp/request',
@@ -76,8 +77,20 @@ const PUBLIC_PATHS = new Set([
   '/manifest.json'
 ]);
 
+// The catalogue used to live at the site root. Bookmarks, WhatsApp links and
+// order PDFs sent before the move still point at those addresses, so they are
+// forwarded to the same page under /po rather than 404ing. This runs before the
+// auth check so a signed-out visitor's ?next= already carries the new path.
+const MOVED_PREFIXES = ['/category', '/cart', '/browse', '/account'];
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (MOVED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/po${pathname}`;
+    return NextResponse.redirect(url, 308);
+  }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
@@ -103,10 +116,10 @@ export async function middleware(req: NextRequest) {
   // Send them back where they were headed once they are in, so a shared link
   // to a category still lands on that category after sign-in.
   const url = req.nextUrl.clone();
-  url.pathname = '/account/login';
+  url.pathname = '/po/account/login';
   url.search = '';
   const next = `${pathname}${req.nextUrl.search}`;
-  if (next !== '/') url.searchParams.set('next', next);
+  if (next !== '/po') url.searchParams.set('next', next);
   return NextResponse.redirect(url);
 }
 

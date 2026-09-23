@@ -40,11 +40,11 @@ export default function Footer({ settings }: { settings: Record<string, string> 
 
         <div className="footer-col">
           <div className="footer-heading">Account</div>
-          <Link href="/account/login" className="footer-link">
+          <Link href="/po/account/login" className="footer-link">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" /></svg>
             My Account
           </Link>
-          <Link href="/account/orders" prefetch={false} className="footer-link">
+          <Link href="/po/account/orders" prefetch={false} className="footer-link">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M4 12h16M4 17h10" /></svg>
             My Orders
           </Link>

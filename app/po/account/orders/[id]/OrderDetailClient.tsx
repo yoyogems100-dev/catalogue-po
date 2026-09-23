@@ -308,7 +308,7 @@ export default function OrderDetailClient({
     // The new-order page fetches this order's items itself server-side --
     // no client-side cart staging needed, and it works reliably regardless
     // of localStorage state.
-    router.push(`/account/orders/new?from=${orderId}`);
+    router.push(`/po/account/orders/new?from=${orderId}`);
   }
 
   // Existing items carry their price from when the order was placed (frozen,

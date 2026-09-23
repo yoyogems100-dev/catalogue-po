@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import POSelector from '../components/POSelector';
 
 test('the category builder no longer carries the requirement or its contact fields', () => {
-  // Submitting moved to /cart, so the builder is only a builder: no contact
+  // Submitting moved to /po/cart, so the builder is only a builder: no contact
   // fields, no send button, and no second copy of the requirement panel.
   const props = { categoryId: 1, categoryName: 'Test', shapes: [], colors: [], sizes: [], active: false };
   for (const loggedIn of [false, true]) {

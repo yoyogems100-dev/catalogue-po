@@ -30,8 +30,8 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
             <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
             <div className="account-menu-popover card">
               <div className="account-menu-links">
-                <Link href="/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
-                <Link href="/account/profile" prefetch={false} onClick={() => setOpen(false)}>My Info</Link>
+                <Link href="/po/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
+                <Link href="/po/account/profile" prefetch={false} onClick={() => setOpen(false)}>My Info</Link>
               </div>
               <form action="/api/account/logout" method="post">
                 <button type="submit" className="account-menu-logout">Log out</button>

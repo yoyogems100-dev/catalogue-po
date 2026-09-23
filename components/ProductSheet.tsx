@@ -180,7 +180,7 @@ export default function ProductSheet({
       requestType
     };
     // Written through the shared cart helpers, so this lands as one line in the
-    // same requirement the Raise Purchase Order tab and /cart read -- merged
+    // same requirement the Raise Purchase Order tab and /po/cart read -- merged
     // with an identical line rather than added as a duplicate row.
     saveCart(mergeIntoCart(loadCart(), item));
     setAdded(`Added ${shape.name} · ${size.size_mm} mm · ${color.name}${quantity ? ` × ${quantity}` : ''} to your requirement.`);

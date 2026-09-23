@@ -70,7 +70,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
   return (
     <>
       <div className="topbar">
-        <Link href="/"><HeaderLogo height={28} /></Link>
+        <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
           <CartBag />
           <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
@@ -89,11 +89,11 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
 
         {tags && tags.length > 0 && (
           <div className="browse-tag-row">
-            <Link href="/browse" className={`tag-chip-filter ${!selectedTagId ? 'active' : ''}`} aria-current={!selectedTagId ? 'page' : undefined}>All</Link>
+            <Link href="/po/browse" className={`tag-chip-filter ${!selectedTagId ? 'active' : ''}`} aria-current={!selectedTagId ? 'page' : undefined}>All</Link>
             {tags.map((t: any) => (
               <Link
                 key={t.id}
-                href={`/browse?tag=${t.id}`}
+                href={`/po/browse?tag=${t.id}`}
                 className={`tag-chip-filter ${selectedTagId === t.id ? 'active' : ''}`}
                 aria-current={selectedTagId === t.id ? 'page' : undefined}
               >
@@ -112,11 +112,11 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
             <section key={category.id} className="browse-category-section">
               <div className="browse-category-head">
                 <h2>{category.name}</h2>
-                <Link href={`/category/${category.slug}`}>View category &rarr;</Link>
+                <Link href={`/po/category/${category.slug}`}>View category &rarr;</Link>
               </div>
               <div className="browse-photo-grid">
                 {photos.map((p) => (
-                  <Link key={p.id} href={`/category/${category.slug}`} className="browse-photo-tile">
+                  <Link key={p.id} href={`/po/category/${category.slug}`} className="browse-photo-tile">
                     {p.url && <img src={p.url} alt={category.name} loading="lazy" />}
                   </Link>
                 ))}

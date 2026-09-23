@@ -1,7 +1,7 @@
 import { specKey, type OrderSpecs } from './order-specs';
 
 // The requirement draft is shared between the category-page builder (which adds
-// lines) and /cart (which reviews and submits them), so the shape of a line and
+// lines) and /po/cart (which reviews and submits them), so the shape of a line and
 // the rules for storing/merging one live here rather than inside either screen.
 
 export type RequestType = 'Place Order' | 'Request Quotation';

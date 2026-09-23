@@ -18,14 +18,14 @@ export default async function CartPage() {
   return (
     <>
       <div className="topbar">
-        <Link href="/"><HeaderLogo height={28} /></Link>
+        <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
           <CartBag />
           <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
         </div>
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <Link href="/" className="back-link">&larr; Continue browsing</Link>
+        <Link href="/po" className="back-link">&larr; Continue browsing</Link>
         <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 18px' }}>Your Requirement</h1>
         <CartView loggedIn={account.loggedIn} whatsappNumber={settings.whatsapp_number} />
       </div>
