@@ -12,6 +12,37 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 //
 // POST { photo_ids: number[], lead_id?: number }  -- group (lead defaults to the first id)
 // POST { photo_ids: number[], ungroup: true }     -- detach those photos from their group
+/** Renumbers one category's photos so every angle sits directly after its own
+ *  cover, preserving the existing order of the covers themselves. */
+async function resequence(categoryId: number | null) {
+  if (categoryId === null) return;
+  const { data: all } = await supabaseAdmin
+    .from('photos')
+    .select('id, parent_photo_id, sort_order')
+    .eq('category_id', categoryId)
+    .eq('is_cover_only', false)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+  if (!all) return;
+
+  const anglesByLead = new Map<number, any[]>();
+  for (const photo of all) {
+    const parentId = (photo as any).parent_photo_id;
+    if (parentId === null || parentId === undefined) continue;
+    anglesByLead.set(parentId, [...(anglesByLead.get(parentId) || []), photo]);
+  }
+
+  const ordered: number[] = [];
+  for (const photo of all) {
+    if ((photo as any).parent_photo_id) continue;
+    ordered.push(photo.id, ...(anglesByLead.get(photo.id) || []).map((a: any) => a.id));
+  }
+
+  await Promise.all(ordered.map((id, index) =>
+    supabaseAdmin.from('photos').update({ sort_order: index }).eq('id', id)
+  ));
+}
+
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { photo_ids, lead_id, ungroup } = await req.json();
@@ -74,6 +105,12 @@ export async function POST(req: NextRequest) {
   }
   // The lead must not remain someone else's angle.
   await supabaseAdmin.from('photos').update({ parent_photo_id: null }).eq('id', leadId);
+
+  // Close the group up in the running order: an angle picked from the far end
+  // of the gallery keeps its old sort_order otherwise, so the group is
+  // contiguous on screen but scattered in the data -- and the next reorder,
+  // or any consumer reading photos in sort order, would pull it apart again.
+  await resequence(photos[0].category_id);
 
   return NextResponse.json({ ok: true, leadId, angles: angleIds.length });
 }
