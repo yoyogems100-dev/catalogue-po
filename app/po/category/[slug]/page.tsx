@@ -116,7 +116,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
     return (
       <div className="container" style={{ padding: 60 }}>
         <p>Category not found.</p>
-        <Link href="/">&larr; Back</Link>
+        <Link href="/po">&larr; Back</Link>
       </div>
     );
   }
@@ -124,14 +124,14 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
   return (
     <>
       <div className="topbar">
-        <Link href="/"><HeaderLogo height={28} /></Link>
+        <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
           <CartBag />
           <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
         </div>
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
-        <Link href="/" className="back-link">&larr; All categories</Link>
+        <Link href="/po" className="back-link">&larr; All categories</Link>
         <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
         {data.category.id === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart?type=prices">Price list</a><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
         <CategoryTabs

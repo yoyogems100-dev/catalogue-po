@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import { milestoneLabel } from '@/lib/order-milestones';
 
-// JSON equivalent of app/account/orders/[id]/page.tsx + OrderDetailClient's data --
+// JSON equivalent of app/po/account/orders/[id]/page.tsx + OrderDetailClient's data --
 // powers the app's order detail screen (items, timeline, edit-while-early-stage
 // options, reorder data).
 export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {

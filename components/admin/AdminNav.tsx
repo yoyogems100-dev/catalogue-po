@@ -72,7 +72,7 @@ export default function AdminNav() {
           <Link href="/admin" className="admin-mobile-home" aria-label="Admin overview">
             <HomeIcon />
           </Link>
-          <a href="/" target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label="View public site">
+          <a href="/po" target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label="View public site">
             <ExternalIcon />
           </a>
           <NotificationBell />
@@ -98,7 +98,7 @@ export default function AdminNav() {
             {l.label}
           </Link>
         ))}
-        <Link href="/" target="_blank" onClick={close}>View public site &rarr;</Link>
+        <Link href="/po" target="_blank" onClick={close}>View public site &rarr;</Link>
         <form action="/api/admin-logout" method="post" style={{ marginTop: 20 }}>
           <button type="submit" style={{ background: 'none', border: 'none', color: '#cbd3e0', padding: '10px 24px', fontSize: 13.5, cursor: 'pointer' }}>
             Log out

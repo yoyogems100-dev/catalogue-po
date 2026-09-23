@@ -30,7 +30,7 @@ export default function CartBag() {
 
   return (
     <Link
-      href="/cart"
+      href="/po/cart"
       className="cart-bag"
       aria-label={count ? `Your requirement, ${count} ${count === 1 ? 'line' : 'lines'}` : 'Your requirement'}
     >

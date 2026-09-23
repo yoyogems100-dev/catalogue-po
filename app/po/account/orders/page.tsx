@@ -10,7 +10,7 @@ import RepeatOrderButton from './RepeatOrderButton';
 
 export default async function AccountOrdersPage() {
   const customerId = await getCustomerId();
-  if (!customerId) redirect('/account/login');
+  if (!customerId) redirect('/po/account/login');
 
   const { data: customer } = await supabaseAdmin.from('customers').select('name, company, phone, email').eq('id', customerId).maybeSingle();
   if (!customer?.name && !customer?.company) {
@@ -55,14 +55,14 @@ export default async function AccountOrdersPage() {
 
         {(orders || []).length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center', color: '#756e5c', border: '1px dashed var(--line)' }}>
-            You haven't placed any orders yet. <Link href="/" style={{ color: 'var(--navy)' }}>Browse the catalogue &rarr;</Link>
+            You haven't placed any orders yet. <Link href="/po" style={{ color: 'var(--navy)' }}>Browse the catalogue &rarr;</Link>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(orders || []).map((o) => {
               const stats = statsByOrder[o.id] || { lines: 0, pieces: 0 };
               return (
-                <Link key={o.id} href={`/account/orders/${o.id}`} className="account-order-row card">
+                <Link key={o.id} href={`/po/account/orders/${o.id}`} className="account-order-row card">
                   <div className="account-order-row-top">
                     <span className="account-order-id">Order #{o.id}</span>
                     <span className="account-order-date">

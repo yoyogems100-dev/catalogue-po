@@ -26,7 +26,7 @@ export default async function CustomerLoginPage({
   // "My Account" in the footer points here. A signed-in customer has nothing
   // to do on a sign-in form, so send them where they were going -- or to their
   // orders, which is what that footer link has always meant.
-  if (await getCustomerId()) redirect(next || '/account/orders');
+  if (await getCustomerId()) redirect(next || '/po/account/orders');
 
   // The footer is behind the gate now, so this screen carries the only way to
   // reach YOYO GEMS for a buyer who cannot get past it.
@@ -35,5 +35,5 @@ export default async function CustomerLoginPage({
     ? buildWhatsAppUrl(settings.whatsapp_number, `Hi YOYO GEMS, I'd like access to your catalogue.`)
     : null;
 
-  return <LoginClient next={next || '/'} whatsappUrl={waUrl} />;
+  return <LoginClient next={next || '/po'} whatsappUrl={waUrl} />;
 }

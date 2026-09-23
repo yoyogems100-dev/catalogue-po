@@ -400,6 +400,18 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 .browse-photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
 .browse-photo-tile:hover img { transform: scale(1.05); }
 
+/* The site root. The catalogue moved to /po and is behind sign-in, so this is
+   the only page a stranger sees: brand, one line of what YOYO GEMS does, and
+   the way through to the trade catalogue. Deliberately shows no product. */
+.landing { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 48px 20px; }
+.landing-inner { max-width: 440px; text-align: center; }
+.landing-lead { margin: 22px 0 0; font-size: 15px; line-height: 1.6; color: var(--charcoal); }
+.landing-note { margin: 10px 0 24px; font-size: 13px; color: var(--text-dim); }
+.landing-cta { display: inline-block; }
+.landing-contact { margin: 20px 0 0; font-size: 12.5px; color: var(--charcoal); }
+.landing-contact a { color: var(--navy); text-decoration: underline; }
+.landing-address { margin: 28px 0 0; font-size: 11.5px; letter-spacing: 0.2px; color: var(--text-dim); }
+
 .login-box { max-width: 360px; margin: 100px auto; padding: 32px; }
 
 /* This box is the entire signed-out site, so it carries the brand line and a

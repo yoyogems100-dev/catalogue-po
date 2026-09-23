@@ -327,7 +327,7 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
 
           <div className="quick-order-footer">
             <span>{addedCount > 0 ? `${addedCount} line${addedCount === 1 ? '' : 's'} added this session` : ''}</span>
-            <Link href="/cart" className="btn-ghost" onClick={close}>Go to cart{cartCount > 0 ? ` (${cartCount})` : ''}</Link>
+            <Link href="/po/cart" className="btn-ghost" onClick={close}>Go to cart{cartCount > 0 ? ` (${cartCount})` : ''}</Link>
           </div>
         </dialog>
       )}

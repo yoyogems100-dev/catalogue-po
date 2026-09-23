@@ -24,10 +24,10 @@ test('sessions require configured secrets and preserve separate admin/customer i
     const customerToken = signCustomerToken(123);
     const request = (path: string, name: string, token: string) => new NextRequest(`http://localhost${path}`, { headers: { cookie: `${name}=${token}` } });
     assert.equal((await middleware(request('/admin/categories', 'yoyo_admin_session', adminToken))).status, 200);
-    assert.equal((await middleware(request('/account/orders', 'yoyo_customer_session', customerToken))).status, 200);
+    assert.equal((await middleware(request('/po/account/orders', 'yoyo_customer_session', customerToken))).status, 200);
     assert.equal((await middleware(request('/admin/categories', 'yoyo_admin_session', customerToken))).status, 307);
-    assert.equal((await middleware(request('/account/orders', 'yoyo_customer_session', adminToken))).status, 307);
-    assert.equal((await middleware(new NextRequest('http://localhost/account/login'))).status, 200);
+    assert.equal((await middleware(request('/po/account/orders', 'yoyo_customer_session', adminToken))).status, 307);
+    assert.equal((await middleware(new NextRequest('http://localhost/po/account/login'))).status, 200);
   } finally {
     if (admin === undefined) delete process.env.ADMIN_SESSION_SECRET; else process.env.ADMIN_SESSION_SECRET = admin;
     if (customer === undefined) delete process.env.CUSTOMER_SESSION_SECRET; else process.env.CUSTOMER_SESSION_SECRET = customer;

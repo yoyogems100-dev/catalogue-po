@@ -3,7 +3,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 
 // The shapes, colours and sizes a category offers, for one or more categories.
 //
-// /cart holds lines from any number of categories and lets a buyer change a
+// /po/cart holds lines from any number of categories and lets a buyer change a
 // line's size or colour there. The category page gets these options
 // server-rendered; the cart page has no single category to render from, so it
 // asks for exactly the categories sitting in the basket.

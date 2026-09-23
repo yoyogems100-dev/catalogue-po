@@ -10,7 +10,7 @@ export const metadata = { title: 'My Info — YOYO GEMS' };
 
 export default async function ProfilePage() {
   const customerId = await getCustomerId();
-  if (!customerId) redirect('/account/login');
+  if (!customerId) redirect('/po/account/login');
 
   const { data: customer } = await supabaseAdmin
     .from('customers')
@@ -18,7 +18,7 @@ export default async function ProfilePage() {
     .eq('id', customerId)
     .maybeSingle();
 
-  if (!customer) redirect('/account/login');
+  if (!customer) redirect('/po/account/login');
 
   return (
     <>
@@ -27,7 +27,7 @@ export default async function ProfilePage() {
         <nav className="breadcrumb-nav" aria-label="Breadcrumb">
           <BreadcrumbHome />
           <span className="breadcrumb-sep" aria-hidden="true">/</span>
-          <Link href="/account/orders">My Orders</Link>
+          <Link href="/po/account/orders">My Orders</Link>
           <span className="breadcrumb-sep" aria-hidden="true">/</span>
           <span className="breadcrumb-current" aria-current="page">My Info</span>
         </nav>

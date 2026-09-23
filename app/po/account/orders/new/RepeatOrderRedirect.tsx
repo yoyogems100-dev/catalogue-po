@@ -8,7 +8,7 @@ import { loadCart, saveCart, mergeIntoCart, type CartItem } from '@/lib/cart-sto
 // of the category-page builder that never got the reference-photo strip,
 // the per-category cart grouping, or any field added since. Now it just
 // merges that order's lines into the SAME shared cart every other page reads
-// and writes, then lands on /cart -- the one current requirement screen.
+// and writes, then lands on /po/cart -- the one current requirement screen.
 export default function RepeatOrderRedirect({ seedItems }: { seedItems: CartItem[] }) {
   const router = useRouter();
   // React Strict Mode (dev only) mounts, unmounts and remounts this effect --
@@ -24,7 +24,7 @@ export default function RepeatOrderRedirect({ seedItems }: { seedItems: CartItem
         saveCart(cart);
       }
     }
-    router.replace('/cart');
+    router.replace('/po/cart');
   }, [seedItems, router]);
 
   return <div className="po-empty" style={{ margin: '40px auto', textAlign: 'center' }}>Adding items to your cart…</div>;

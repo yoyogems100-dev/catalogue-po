@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, context: Context) {
     if (saveError || !data) throw saveError || new Error('Save failed');
     // Retain previous files for cached pages; replacement never destroys the old chart.
     uploaded = undefined;
-    revalidatePath(`/category/${category.slug}`);
+    revalidatePath(`/po/category/${category.slug}`);
     revalidatePath(`/admin/categories/${id}`);
     return NextResponse.json({ url });
   } catch {

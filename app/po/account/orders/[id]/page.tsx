@@ -11,7 +11,7 @@ import OrderDetailClient from './OrderDetailClient';
 export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
   const customerId = await getCustomerId();
-  if (!customerId) redirect('/account/login');
+  if (!customerId) redirect('/po/account/login');
 
   const orderId = Number(params.id);
 
@@ -107,7 +107,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
         <nav className="breadcrumb-nav" aria-label="Breadcrumb">
           <BreadcrumbHome />
           <span className="breadcrumb-sep" aria-hidden="true">/</span>
-          <Link href="/account/orders">My Orders</Link>
+          <Link href="/po/account/orders">My Orders</Link>
           <span className="breadcrumb-sep" aria-hidden="true">/</span>
           <span className="breadcrumb-current" aria-current="page">Order #{order.id}</span>
         </nav>

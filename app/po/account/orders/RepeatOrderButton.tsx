@@ -12,7 +12,7 @@ export default function RepeatOrderButton({ orderId }: { orderId: number }) {
   function repeat(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/account/orders/new?from=${orderId}`);
+    router.push(`/po/account/orders/new?from=${orderId}`);
   }
 
   return (

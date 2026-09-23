@@ -246,7 +246,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         <h2 className="po-heading">Your requirement is empty</h2>
         <p>Browse the collection and add shapes, sizes and colours — they&rsquo;ll gather here, across as many categories as you like.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link className="btn" href="/">Browse the collection</Link>
+          <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
         </div>
       </div>
@@ -401,7 +401,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         {receipt && <div className="po-card" role="status" aria-live="polite">
           <h3>{receipt.quotation ? 'Quotation requested' : 'Order placed'} — #{receipt.id}</h3>
           <p>Our team will confirm pricing and availability. Your submission has been saved.</p>
-          <p><a href={`/account/orders/${receipt.id}`}>View in My Orders (sign in)</a></p>
+          <p><a href={`/po/account/orders/${receipt.id}`}>View in My Orders (sign in)</a></p>
           {!loggedIn && <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>}
           <a className="btn-ghost" href={receipt.whatsappUrl} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
         </div>}

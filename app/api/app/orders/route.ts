@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 
-// JSON equivalent of app/account/orders/page.tsx -- powers the app's My Orders list.
+// JSON equivalent of app/po/account/orders/page.tsx -- powers the app's My Orders list.
 // Auth via getCustomerId(), which accepts the app's Bearer token the same as the
 // web cookie.
 export async function GET() {

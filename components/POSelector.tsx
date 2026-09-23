@@ -280,7 +280,7 @@ export default function POSelector({
   const hasAnyPricedLine = cart.some((item) => unitPriceInr(item) !== null);
   const unpricedLines = cart.filter((item) => unitPriceInr(item) === null).length;
 
-  // The dedupe rule itself lives in lib/cart-storage so /cart applies exactly
+  // The dedupe rule itself lives in lib/cart-storage so /po/cart applies exactly
   // the same one; only the shape photo/icon enrichment is local, since this is
   // the one place that has the category's shape list to hand.
   function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
@@ -522,7 +522,7 @@ export default function POSelector({
       {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
 
       {/* Running total, always on screen once there's something to total, and
-          the route through to the full requirement at /cart. */}
+          the route through to the full requirement at /po/cart. */}
       {hydrated && cart.length > 0 && (
         <div className={`po-summary-bar${justAdded ? ' po-summary-bar--bump' : ''}`} key={justAdded}>
           <div className="po-summary-figures">
@@ -532,7 +532,7 @@ export default function POSelector({
               {hasAnyPricedLine && <> · ₹{cartTotalInr.toLocaleString('en-IN')}</>}
             </span>
           </div>
-          <Link href="/cart" className="po-summary-action">Review &amp; send</Link>
+          <Link href="/po/cart" className="po-summary-action">Review &amp; send</Link>
         </div>
       )}
     </div>

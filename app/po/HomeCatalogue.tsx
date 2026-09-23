@@ -138,7 +138,7 @@ export default function HomeCatalogue({
               .slice(0, chosen.length ? chosen.length : 1);
             const badges = best.map((d) => `${d.count} ${d.count === 1 ? d.one : d.many}`);
             return (
-              <Link key={cat.id} href={`/category/${cat.slug}`}>
+              <Link key={cat.id} href={`/po/category/${cat.slug}`}>
                 <div className="cat-card">
                   <div className="cat-thumb">
                     {cat.thumb ? <CategoryThumb src={cat.thumb} alt={cat.name} index={cardIndex} /> : null}
