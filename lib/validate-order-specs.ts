@@ -1,5 +1,5 @@
 import {supabaseAdmin} from './supabase-admin';
-import {specialCategory,validSpecQuantity,type OrderSpecs} from './order-specs';
+import {specialCategory,validSpecQuantity,categoryGrades,type OrderSpecs} from './order-specs';
 // Canonicalize only the two scoped category configurations before any order writes.
 export async function validateOrderSpecs<T extends {categoryId:number;shapeId:number;sizeId:number|null;colorId:number|null;qty:number;orderSpecs?:OrderSpecs|null}>(items:T[], database:any=supabaseAdmin):Promise<T[]> {
  const result:T[]=[];
@@ -18,7 +18,15 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
   const kind=specialCategory(item.categoryId);
   if(!validSpecQuantity(item.orderSpecs,item.qty))throw Error('Use whole quantities; rainbow quantities must be complete strips.');
   if(!kind) {
-   if(item.orderSpecs)throw Error('Extra specifications are not supported for this category.');
+   // A quality grade is the one spec an ordinary category can carry, and only
+   // one of the grades that category offers. It stays optional so older
+   // screens that don't ask for it (admin order builder, order edits) still work.
+   let canonical:OrderSpecs|undefined;
+   if(item.orderSpecs) {
+    const spec=item.orderSpecs as any;
+    if(spec?.kind!=='grade'||!categoryGrades(item.categoryId).includes(spec.grade))throw Error('Extra specifications are not supported for this category.');
+    canonical={kind:'grade',grade:spec.grade};
+   }
    // Every other category (everything but Moissanite/Rainbow Corundum/Hole
    // Punched, handled above) previously skipped verification entirely -- a
    // request could reference any real shape/size/color id in the system, not
@@ -36,7 +44,7 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
     if(size.error)throw Error('Could not validate category options. Please retry.');
     if(!size.data||size.data.shape_id!==item.shapeId)throw Error('Choose a size that matches the selected shape.');
    }
-   result.push(item);continue;
+   result.push(canonical?{...item,orderSpecs:canonical}:item);continue;
   }
   const spec=item.orderSpecs;
   if(!spec||spec.kind!==kind)throw Error('Choose the strip or drill options for this category before submitting.');

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
 import { COLOR_FAMILIES, colorFamilyId, colorSearchText } from '@/lib/color-family';
+import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
 // lh3.googleusercontent.com, which starts returning 429 when a page asks for
@@ -177,6 +178,25 @@ export default function HomeCatalogue({
           )}
         </div>
       </div>
+
+      {!hasActiveFilter && familyOptions.length > 0 && (
+        <div className="home-color-start">
+          <span className="home-color-start-label">Order by colour</span>
+          <div className="home-color-chips">
+            {familyOptions.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className="qo-family-chip"
+                onClick={() => window.dispatchEvent(new CustomEvent(QUICK_ORDER_COLOR_EVENT, { detail: { familyId: f.id } }))}
+              >
+                <span className="qo-family-dot" style={{ background: f.hex }} aria-hidden="true" />
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {mostOrdered.length > 0 && (
         <>

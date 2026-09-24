@@ -7,7 +7,13 @@ import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from
 import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
-import { specialCategory, specText, quantityFactor } from '@/lib/order-specs';
+import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
+import { COLOR_FAMILIES, colorFamilyId } from '@/lib/color-family';
+import { preferenceForFamily } from '@/lib/customer-preferences';
+import { useOrderPreferences } from './useOrderPreferences';
+
+/** Home-page colour chips open Quick Order already started on a colour. */
+export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
 import { categoryIconUrl } from '@/lib/category-icons';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { loadCart, saveCart, mergeIntoCart, cartPieces, type CartItem, type RequestType } from '@/lib/cart-storage';
@@ -38,7 +44,7 @@ function strictSizeNum(s: string): number {
  * resets shape/color/size/qty so several lines can be added back to back,
  * same as the category-page builder.
  */
-export default function QuickOrderButton({ label = 'Quick Order' }: { label?: string }) {
+export default function QuickOrderButton({ label = 'Quick Order', listenForColorStart = false }: { label?: string; listenForColorStart?: boolean }) {
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -58,6 +64,40 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
   const [message, setMessage] = useState('');
   const [cartCount, setCartCount] = useState(0);
 
+  // Colour-first ordering: "Red" + the buyer's usual picks -> Ruby Corundum 5A.
+  const preferences = useOrderPreferences();
+  const [pickFamily, setPickFamily] = useState<number | null>(null);
+  const [pickGrade, setPickGrade] = useState('');
+  const [pendingCategoryId, setPendingCategoryId] = useState<number | null>(null);
+
+  function chooseFamily(familyId: number | null) {
+    setPickFamily(familyId);
+    setPickColorIds([]);
+    setMessage('');
+    const pref = familyId ? preferenceForFamily(preferences, familyId) : null;
+    if (pref) setPendingCategoryId(pref.categoryId);
+  }
+
+  // The category list may still be loading when a colour is chosen (a home
+  // chip opens the dialog and picks in one go), so the jump waits for it.
+  useEffect(() => {
+    if (pendingCategoryId == null || !allCategories) return;
+    const id = pendingCategoryId;
+    setPendingCategoryId(null);
+    if (allCategories.some((c) => c.id === id)) void handleCategoryChange(String(id), { keepFamily: true });
+  }, [pendingCategoryId, allCategories]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!listenForColorStart) return;
+    function onStart(e: Event) {
+      const familyId = Number((e as CustomEvent).detail?.familyId);
+      setOpen(true);
+      if (familyId) chooseFamily(familyId);
+    }
+    window.addEventListener(QUICK_ORDER_COLOR_EVENT, onStart);
+    return () => window.removeEventListener(QUICK_ORDER_COLOR_EVENT, onStart);
+  }); // re-bound each render so chooseFamily sees the latest preferences
+
   useEffect(() => { if (open && !dialog.current?.open) dialog.current?.showModal(); }, [open]);
 
   useEffect(() => {
@@ -73,6 +113,9 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
   function close() { dialog.current?.close(); }
 
   function reset() {
+    setPickFamily(null);
+    setPickGrade('');
+    setPendingCategoryId(null);
     setPickCategoryId('');
     setPickShapeIds([]);
     setPickColorIds([]);
@@ -82,13 +125,20 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
     setMessage('');
   }
 
-  async function handleCategoryChange(idStr: string) {
+  async function handleCategoryChange(idStr: string, opts: { keepFamily?: boolean } = {}) {
     const id = idStr ? Number(idStr) : '';
     setPickCategoryId(id);
     setPickShapeIds([]);
     setPickColorIds([]);
     setPickSizeIdxs([]);
     setMessage('');
+    if (!opts.keepFamily) setPickFamily(null);
+    // The buyer's usual grade for this stone -- from the colour they started
+    // with if that points here, else any usual pick for this category.
+    const grades = typeof id === 'number' ? categoryGrades(id) : [];
+    const fromFamily = opts.keepFamily && pickFamily ? preferenceForFamily(preferences, pickFamily) : null;
+    const usual = (fromFamily?.categoryId === id ? fromFamily : null) || preferences.find((p) => p.categoryId === id && p.grade);
+    setPickGrade(usual?.grade && grades.includes(usual.grade) ? usual.grade : '');
     if (!id || optionsCache[id]) return;
     const cat = allCategories?.find((c) => c.id === id);
     if (!cat) return;
@@ -138,13 +188,28 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
 
   const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map((row) => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
 
+  const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId) : [];
+
+  // With a colour chosen, only that family's colours are offered -- unless the
+  // category has none in it, in which case hiding everything would be a dead end.
+  const familyColors = useMemo(
+    () => (currentOptions && pickFamily ? currentOptions.colors.filter((c) => colorFamilyId(c.name, c.hex) === pickFamily) : []),
+    [currentOptions, pickFamily]
+  );
+  const colorOptions = pickFamily && familyColors.length > 0 ? familyColors : currentOptions?.colors || [];
+  const familyMissing = !!pickFamily && !!currentOptions && familyColors.length === 0;
+  useEffect(() => {
+    if (familyColors.length === 1 && pickColorIds.length === 0) setPickColorIds([familyColors[0].id]);
+  }, [familyColors]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = !!currentOptions && pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0;
+  const canAdd = !!currentOptions && pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0
+    && (grades.length === 0 || grades.includes(pickGrade));
   const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
   function addLines() {
     if (!canAdd || !currentOptions || !currentCategory) {
-      setMessage('Pick a shape, color and size, and enter quantity first.');
+      setMessage(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick a shape, color and size, and enter quantity first.');
       return;
     }
     let cart = loadCart();
@@ -174,7 +239,8 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
-            requestType: pickRequestType
+            requestType: pickRequestType,
+            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
           };
           cart = mergeIntoCart(cart, item);
           added++;
@@ -215,7 +281,30 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
             <strong>Quick Order</strong>
             <button type="button" autoFocus onClick={close} aria-label="Close quick order">✕</button>
           </div>
-          <p className="quick-order-hint">Pick a category, then shape, color, size and quantity to add straight to your cart.</p>
+          <p className="quick-order-hint">Start with a colour or a category, then shape, size and quantity.</p>
+
+          <div className="qo-family-chips" role="group" aria-label="Start with a colour">
+            {COLOR_FAMILIES.map((f) => {
+              const usual = preferenceForFamily(preferences, f.id);
+              const usualName = usual ? allCategories?.find((c) => c.id === usual.categoryId)?.name : null;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`qo-family-chip${pickFamily === f.id ? ' active' : ''}`}
+                  aria-pressed={pickFamily === f.id}
+                  title={usualName ? `${usualName}${usual?.grade ? ` ${usual.grade}` : ''}` : undefined}
+                  onClick={() => chooseFamily(pickFamily === f.id ? null : f.id)}
+                >
+                  <span className="qo-family-dot" style={{ background: f.hex }} aria-hidden="true" />
+                  {f.name}
+                </button>
+              );
+            })}
+          </div>
+          {pickFamily && !pickCategoryId && !pendingCategoryId && (
+            <p className="quick-order-hint">Now choose the stone.{preferences.length === 0 ? ' Tip: save your usual picks in My Info and this fills in for you.' : ''}</p>
+          )}
 
           <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
             <div>
@@ -229,12 +318,23 @@ export default function QuickOrderButton({ label = 'Quick Order' }: { label?: st
                 searchable
               />
             </div>
+            {grades.length > 0 && (
+              <div>
+                <label className="po-label" id="qo-grade-label">Quality</label>
+                <div className="po-type-toggle po-grade-toggle" role="group" aria-labelledby="qo-grade-label">
+                  {grades.map((g) => (
+                    <button key={g} type="button" aria-pressed={pickGrade === g} className={pickGrade === g ? 'active' : ''} onClick={() => setPickGrade(g)}>{g}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
+              {familyMissing && <p className="quick-order-hint" style={{ margin: '0 0 6px' }}>No {COLOR_FAMILIES.find((f) => f.id === pickFamily)?.name.toLowerCase()} in this stone — showing all colours.</p>}
               <IconSelect
                 categoryId={Number(pickCategoryId) || undefined}
                 multiple
-                options={currentOptions?.colors || []}
+                options={colorOptions}
                 locked={pickCategoryId === 34}
                 values={pickColorIds}
                 onChange={setPickColorIds}

@@ -18,7 +18,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const orderIds = (orders || []).map((order: any) => order.id);
   const [{ data: items }, { data: categories }] = await Promise.all([
     orderIds.length ? supabaseAdmin.from('order_items').select('order_id,quantity,category_id').in('order_id', orderIds) : Promise.resolve({ data: [] as any[] }),
-    supabaseAdmin.from('categories').select('id,name')
+    supabaseAdmin.from('categories').select('id,name').order('num')
   ]);
   const categoryNameById: Record<number, string> = Object.fromEntries((categories || []).map((c: any) => [c.id, c.name]));
   const counts = new Map<number, { lines: number; pieces: number; categoryNames: string[] }>();
@@ -38,7 +38,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
       <Link href={`/admin/customers/${customerId}?tab=orders`} className={`tag-chip ${tab === 'orders' ? 'active' : ''}`} aria-current={tab === 'orders' ? 'page' : undefined}>Order history ({orders?.length || 0})</Link>
     </nav>
     {tab === 'details' ? (
-      <CustomerProfileEditor customer={customer} />
+      <CustomerProfileEditor customer={customer} categories={categories || []} />
     ) : (
       <section className="admin-linked-records">
         <div className="admin-section-head"><div><h2>Order history</h2><p>Every order and quotation linked to this customer.</p></div></div>

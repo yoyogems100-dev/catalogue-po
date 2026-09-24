@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
-import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
+import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
+import { useOrderPreferences } from './useOrderPreferences';
 import IconSelect from './IconSelect';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import ColorSwatch from './ColorSwatch';
@@ -208,12 +209,21 @@ export default function POSelector({
     setRangeMax('');
   }
 
+  // Quality grade, for categories that offer one inside the category (Ruby
+  // Corundum 5A / 7A). Starts on the buyer's usual grade for this category,
+  // if they have one on file; required before a line can be added.
+  const grades = categoryGrades(categoryId);
+  const preferences = useOrderPreferences();
+  const [pickGrade, setPickGrade] = useState('');
+  const preferredGrade = preferences.find((p) => p.categoryId === categoryId && p.grade && grades.includes(p.grade))?.grade || '';
+  useEffect(() => { if (preferredGrade) setPickGrade((g) => g || preferredGrade); }, [preferredGrade]);
+
   const qtyNum = parseQuantity(pickQty) || 0;
   const isQuotation = pickRequestType === 'Request Quotation';
   // A quotation is asking what something would cost, so a quantity is not
   // required to send one. A purchase still needs one.
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
-    && (isQuotation || qtyNum > 0);
+    && (isQuotation || qtyNum > 0) && (grades.length === 0 || grades.includes(pickGrade));
   const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
 
   const pricingByCategory = useMemo(
@@ -343,7 +353,7 @@ export default function POSelector({
 
   function addLine() {
     if (!canAdd) {
-      setToast('Pick at least one shape, color and size, and enter quantity first.');
+      setToast(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick at least one shape, color and size, and enter quantity first.');
       return;
     }
 
@@ -374,7 +384,8 @@ export default function POSelector({
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
-            requestType: pickRequestType
+            requestType: pickRequestType,
+            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
           };
           next = mergeIntoCart(next, item);
           added++;
@@ -434,6 +445,16 @@ export default function POSelector({
           </div>
         ) : specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setJustAdded(n=>n+1);}} /> : <>
         <div className="po-add-form">
+          {grades.length > 0 && (
+            <div>
+              <label className="po-label" id="po-grade-label">Quality</label>
+              <div className="po-type-toggle po-grade-toggle" role="group" aria-labelledby="po-grade-label">
+                {grades.map((g) => (
+                  <button key={g} type="button" aria-pressed={pickGrade === g} className={pickGrade === g ? 'active' : ''} onClick={() => setPickGrade(g)}>{g}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
             <IconSelect
@@ -550,6 +571,7 @@ export default function POSelector({
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
+        {grades.length > 0 && !pickGrade && pickShapeIds.length > 0 && <p className="po-type-hint">Choose a quality ({grades.join(' or ')}) to add this.</p>}
         {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
         {/* Adding a line deliberately keeps the shape and colour so several
             sizes can be added in a row; this is the way back to an empty form

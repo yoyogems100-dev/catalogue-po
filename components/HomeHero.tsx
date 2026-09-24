@@ -42,7 +42,8 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
       <div className="hero hero-compact" ref={heroRef}>
         <HeaderLogo height={40} />
         <div className="topbar-actions">
-          <QuickOrderButton />
+          {/* This one also answers the home page's colour chips. */}
+          <QuickOrderButton listenForColorStart />
           <CartBag />
           <AccountMenu loggedIn={loggedIn} customerName={customerName} />
         </div>

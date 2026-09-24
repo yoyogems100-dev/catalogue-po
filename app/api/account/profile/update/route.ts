@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
+import { preferencesFromBody } from '@/lib/customer-preferences';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await supabaseAdmin.from('customers').select('email, email_verified').eq('id', customerId).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
-  const { name, company, dealsIn, goToRequirements, email } = await req.json();
+  const { name, company, dealsIn, goToRequirements, email, orderPreferences } = await req.json();
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   const trimmedCompany = typeof company === 'string' ? company.trim() : '';
 
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
     work_stream: Array.isArray(dealsIn) ? dealsIn.filter((d) => typeof d === 'string' && d.trim()).join(', ') || null : null,
     go_to_requirements: typeof goToRequirements === 'string' ? goToRequirements.trim().slice(0, 500) || null : null
   };
+
+  // Only when the form sent the list (the mobile app's profile screen doesn't).
+  const prefs = await preferencesFromBody(orderPreferences, supabaseAdmin);
+  if (prefs) update.order_preferences = prefs;
 
   // Email can only be set once and never overwritten here -- once verified it's
   // another login identity, same reasoning as phone above.

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { DEALS_IN_OPTIONS } from './ProfileCompletionForm';
+import PreferencesEditor, { completePreferences, useCategoryList } from './PreferencesEditor';
+import type { OrderPreference } from '@/lib/customer-preferences';
 
 type Customer = {
   name: string | null;
@@ -11,6 +13,7 @@ type Customer = {
   email_verified: boolean;
   work_stream: string | null;
   go_to_requirements: string | null;
+  order_preferences?: OrderPreference[] | null;
 };
 
 // Everything filled in at sign-up, editable again here -- except the phone
@@ -23,6 +26,8 @@ export default function ProfileEditForm({ customer }: { customer: Customer }) {
   );
   const [goToRequirements, setGoToRequirements] = useState(customer.go_to_requirements || '');
   const [email, setEmail] = useState(customer.email || '');
+  const [preferences, setPreferences] = useState<OrderPreference[]>(customer.order_preferences || []);
+  const categories = useCategoryList();
   const emailLocked = !!customer.email;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +51,7 @@ export default function ProfileEditForm({ customer }: { customer: Customer }) {
       const res = await fetch('/api/account/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, company, dealsIn, goToRequirements, email: emailLocked ? undefined : email })
+        body: JSON.stringify({ name, company, dealsIn, goToRequirements, orderPreferences: completePreferences(preferences), email: emailLocked ? undefined : email })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to save. Please try again.');
@@ -82,6 +87,12 @@ export default function ProfileEditForm({ customer }: { customer: Customer }) {
 
       <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your go-to requirements</label>
       <textarea rows={3} placeholder="e.g. Round white CZ 1-3mm, regular monthly" value={goToRequirements} onChange={(e) => setGoToRequirements(e.target.value)} style={{ marginBottom: 14 }} />
+
+      <label className="po-label" style={{ marginBottom: 4, display: 'block' }}>Your usual picks</label>
+      <p style={{ fontSize: 12, color: '#756e5c', margin: '0 0 8px' }}>When you order by colour alone, we&rsquo;ll use these. E.g. Red &rarr; Ruby Corundum, 5A.</p>
+      <div style={{ marginBottom: 14 }}>
+        <PreferencesEditor categories={categories} value={preferences} onChange={setPreferences} />
+      </div>
 
       <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email {emailLocked ? '' : '(optional)'}</label>
       <input
