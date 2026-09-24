@@ -26,7 +26,9 @@ export default async function CartPage() {
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <Link href="/po" className="back-link">&larr; Continue browsing</Link>
-        <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 18px' }}>Your Requirement</h1>
+        {/* CartView's card carries the visible "Your Requirement" title. */}
+        <h1 className="visually-hidden">Your Requirement</h1>
+        <div style={{ height: 14 }} />
         <CartView loggedIn={account.loggedIn} whatsappNumber={settings.whatsapp_number} />
       </div>
       <Footer settings={settings} />

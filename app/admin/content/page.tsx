@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 const sections = [
+  {title: 'Most ordered categories', href:'/admin/content/most-ordered', detail:'Choose and order the categories shown first on the catalogue home page.'},
   {title: 'Categories & product photos', href:'/admin/categories', detail:'Add or rename categories, arrange their order, choose covers and manage product photos.'},
   {title: 'Header logo', href:'/admin/brand-upload', detail:'Upload the logo used in the website header. Other designed wordmarks are managed separately.'},
   {title: 'Shapes & sizes', href:'/admin/shapes', detail:'Manage the shapes and sizes available for your catalogue.'},

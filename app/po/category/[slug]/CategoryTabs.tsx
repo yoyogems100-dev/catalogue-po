@@ -90,6 +90,7 @@ export default function CategoryTabs({
           sizes={sizes}
           colorPalettes={colorPalettes}
           pricing={pricing}
+          priceUnit={priceUnit}
           photos={photos}
           colorChartUrl={colorChartUrl}
           loggedIn={loggedIn}

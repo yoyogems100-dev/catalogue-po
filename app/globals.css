@@ -224,7 +224,17 @@ html, body { overflow-x: hidden; }
 .filter-bar {
   display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; align-items: center;
 }
-.filter-bar select { width: auto; min-width: 140px; }
+.filter-bar select {
+  width: auto; min-width: 140px;
+  /* Same pill as the custom shape/colour dropdowns beside it. */
+  appearance: none; -webkit-appearance: none;
+  border: 1px solid var(--line); background-color: #fff; border-radius: 20px;
+  padding: 8px 30px 8px 14px; font-size: 12.5px; color: var(--charcoal); font-family: inherit; line-height: 1.3;
+  background-image: linear-gradient(45deg, transparent 50%, #756e5c 50%), linear-gradient(135deg, #756e5c 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 12px) 52%;
+  background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+}
+.filter-bar select:hover { border-color: var(--gold); }
 .filter-bar .icon-select-trigger { width: auto; min-width: 140px; }
 
 .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 8px 0 20px; flex-wrap: wrap; gap: 8px; }
@@ -240,8 +250,15 @@ html, body { overflow-x: hidden; }
 }
 .cat-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -14px rgba(15,30,56,0.28); }
 .cat-thumb { aspect-ratio: 1/1; background: #eee; overflow: hidden; position: relative; }
-.cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.cat-badge-stack { position: absolute; bottom: 8px; left: 8px; right: 8px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-items: flex-start; }
+.cat-thumb img { width: 100%; height: 100%; object-fit: cover; position: relative; }
+/* A category with no photo yet: a quiet monogram instead of a blank grey box. */
+.cat-thumb-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 56px; color: var(--gold, #9C7A25); background: linear-gradient(135deg, #F3EEE2, #FAF8F3); }
+.cat-most-ordered { z-index: 1; position: absolute; top: 8px; left: 8px; background: var(--gold, #9C7A25); color: #fff; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; font-weight: 500; }
+.home-empty { padding: 40px 20px; text-align: center; color: #756e5c; border: 1px dashed var(--line); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.home-empty p { margin: 0; }
+.home-empty-hint { font-size: 13px; }
+.home-empty .btn-ghost { margin-top: 8px; border-radius: 20px; }
+.cat-badge-stack { z-index: 1; position: absolute; bottom: 8px; left: 8px; right: 8px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-items: flex-start; }
 .cat-badge {
   font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
   color: #fff; background: rgba(15,30,56,0.82); padding: 4px 8px;
@@ -757,6 +774,12 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
 /* The bar floats over the end of the page -- give the footer room underneath so
    nothing at the very bottom is trapped behind it. */
 body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
+/* Keep "Added to your order" above the bar instead of on top of it. */
+body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+.po-summary-total { font-size: 15px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+@media (max-width: 400px) {
+  .po-summary-action { padding: 9px 14px; }
+}
 .po-item-type-select { font-size: 11px; padding: 5px 6px; flex: 0 0 auto; max-width: 118px; }
 
 /* The requirement/cart panel is the site's one direct equivalent of the
@@ -960,7 +983,7 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
   .grid-cats { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
   .grid-photos { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
   .filter-bar { gap: 6px; }
-  .filter-bar select { min-width: 0; flex: 1 1 auto; font-size: 12.5px; padding: 8px; }
+  .filter-bar select { min-width: 0; flex: 1 1 auto; font-size: 12.5px; padding: 8px 26px 8px 10px; }
   .filter-bar .icon-select { min-width: 0; flex: 1 1 auto; }
   .filter-bar .icon-select-trigger { min-width: 0; font-size: 12.5px; padding: 8px 10px; }
   .home-search-bar { gap: 8px; }
@@ -2204,9 +2227,13 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 .ps-actions {
   position: sticky; bottom: 0;
   display: flex; flex-direction: column; gap: 6px;
-  padding: 10px 0 2px; margin-top: 2px;
-  background: linear-gradient(to bottom, rgba(250,248,243,0) 0%, var(--ivory) 22%);
+  padding: 10px 0 2px; margin-top: 12px;
+  /* Solid, not a fade: the fade let the request-type toggle above show
+     through half-covered behind the button while scrolling. */
+  background: var(--ivory);
+  box-shadow: 0 -8px 12px -8px rgba(18, 35, 63, 0.12);
 }
+.ps-actions .ps-add { width: 100%; }
 
 /* A group inside its cover's admin card: the angles, each detachable, plus a
    way to add more photos of the same stone without leaving the card. */
@@ -2229,3 +2256,18 @@ body:has(.po-summary-bar) .site-footer { padding-bottom: 86px; }
 }
 .admin-angle-add:hover { border-color: var(--gold); color: var(--gold); }
 .admin-angle-add input { display: none; }
+
+/* Admin > Website content > Most ordered categories */
+.most-ordered-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.most-ordered-list li { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); background: #fff; }
+.most-ordered-list .btn-ghost { min-width: 40px; min-height: 40px; padding: 0; }
+.most-ordered-rank { width: 24px; text-align: center; color: var(--gold); font-weight: 600; }
+.most-ordered-name { flex: 1; min-width: 0; }
+
+/* Composer: price of the current pick, before it is added. */
+.po-price-preview { margin: 10px 0 12px; font-size: 14px; color: var(--ink); }
+.po-price-preview strong { font-size: 16px; }
+/* A category with no shapes/sizes linked yet. */
+.po-no-options { padding: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; }
+.po-no-options p { margin: 0; font-size: 14px; }
+.po-no-options-action { display: flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 6px; }

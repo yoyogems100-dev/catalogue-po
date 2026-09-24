@@ -15,6 +15,8 @@ import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import { loadCart, saveCart, mergeIntoCart as mergeCartLines, type CartItem, type RequestType } from '@/lib/cart-storage';
 import QuantityInput from './QuantityInput';
+import { priceUnitLabel } from '@/lib/price-unit';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
@@ -35,6 +37,10 @@ function strictSizeNum(s: string): number {
   return m ? parseFloat(m[1]) : NaN;
 }
 
+function formatInr(n: number): string {
+  return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
 type ColorPalette = { id: number; name: string; memberIds: number[] };
 
 export default function POSelector({
@@ -49,7 +55,8 @@ export default function POSelector({
   colorChartUrl,
   loggedIn = false,
   active = true,
-  pricing
+  pricing,
+  priceUnit
 }: {
   categoryId: number;
   categoryName: string;
@@ -63,6 +70,7 @@ export default function POSelector({
   loggedIn?: boolean;
   colorPalettes?: ColorPalette[];
   pricing?: CategoryPricing;
+  priceUnit?: string | null;
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -191,7 +199,7 @@ export default function POSelector({
       .map((g) => g.i);
 
     if (matchIdxs.length === 0) {
-      setToast(`No existing sizes between ${lo}-${hi}mm for these shapes -- add that size in Admin first.`);
+      setToast(`No sizes between ${lo}–${hi} mm for these shapes.`);
       return;
     }
     setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
@@ -229,6 +237,27 @@ export default function POSelector({
       }
     }
     return false;
+  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes, pricingByCategory, categoryId]);
+
+  // The price of what is picked, shown before it is added -- a buyer used to
+  // only learn it from the running total after adding. Only when every picked
+  // combination has a price: a partial figure would read as the whole story.
+  const selectionPrice = useMemo(() => {
+    if (!pickShapeIds.length || !pickColorIds.length || !pickSizeIdxs.length) return null;
+    const prices: number[] = [];
+    for (const shapeId of pickShapeIds) {
+      for (const sizeIdx of pickSizeIdxs) {
+        const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+        if (!match) continue;
+        for (const colorId of pickColorIds) {
+          const p = cartLinePrice(pricingByCategory, { categoryId, shapeId, sizeId: match.id, colorId });
+          if (p === null) return null;
+          prices.push(p);
+        }
+      }
+    }
+    if (!prices.length) return null;
+    return { min: Math.min(...prices), max: Math.max(...prices), sum: prices.reduce((a, b) => a + b, 0) };
   }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes, pricingByCategory, categoryId]);
 
   // Never leave the buyer stuck on a request type that is no longer offered.
@@ -393,7 +422,17 @@ export default function POSelector({
         <h2 className="po-heading">Add to Order</h2>
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
-        {specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setJustAdded(n=>n+1);}} /> : <>
+        {!specialCategory(categoryId) && shapes.length === 0 ? (
+          <div className="po-no-options">
+            <p><strong>Sizes for {categoryName} are being added.</strong></p>
+            <p>See the range under Explore Photos, or send us the shapes, sizes and quantities you need.</p>
+            {whatsappNumber && (
+              <a className="po-add-line-btn po-no-options-action" href={buildWhatsAppUrl(whatsappNumber, `Hi YOYO GEMS, I'd like to order ${categoryName}:\n`)} target="_blank" rel="noopener noreferrer">
+                Message your requirement
+              </a>
+            )}
+          </div>
+        ) : specialCategory(categoryId) ? <SpecialOrderComposer key={categoryId} categoryId={categoryId} categoryName={categoryName} shapes={shapes} colors={colors} sizes={sizes.map(s=>({id:s.id,shapeId:s.shape_id,sizeMm:s.size_mm}))} onAdd={line=>{setCart(current=>mergeIntoCart(current,line));setJustAdded(n=>n+1);}} /> : <>
         <div className="po-add-form">
           <div>
             <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
@@ -490,7 +529,7 @@ export default function POSelector({
             type="button"
             aria-pressed={pickRequestType === 'Request Quotation'}
             aria-disabled={!selectionHasUnpriced || undefined}
-            title={selectionHasUnpriced ? undefined : 'These items already have a published price'}
+            aria-describedby={selectionHasUnpriced ? undefined : 'po-type-priced-note'}
             className={`${pickRequestType === 'Request Quotation' ? 'active' : ''}${selectionHasUnpriced ? '' : ' po-type-unavailable'}`}
             onClick={() => { if (selectionHasUnpriced) setPickRequestType('Request Quotation'); }}
           >
@@ -498,6 +537,15 @@ export default function POSelector({
           </button>
         </div>
         {isQuotation && <p className="po-type-hint">Quantity is optional for a quotation — we&rsquo;ll send prices, then you decide.</p>}
+        {/* A tooltip never shows on a phone, so the reason is printed. */}
+        {!selectionHasUnpriced && <p className="po-type-hint" id="po-type-priced-note">Price already listed — no quotation needed.</p>}
+        {selectionPrice && (
+          <p className="po-price-preview" role="status">
+            <strong>₹{formatInr(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatInr(selectionPrice.max)}</>}</strong>
+            {' '}per {priceUnitLabel(priceUnit)}
+            {qtyNum > 0 && <> · est. ₹{Math.round(selectionPrice.sum * qtyNum).toLocaleString('en-IN')}</>}
+          </p>
+        )}
 
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
@@ -527,10 +575,11 @@ export default function POSelector({
         <div className={`po-summary-bar${justAdded ? ' po-summary-bar--bump' : ''}`} key={justAdded}>
           <div className="po-summary-figures">
             <span className="po-summary-label">Your requirement</span>
-            <span className="po-summary-counts mono">
+            <span className="po-summary-counts">
               {cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs
-              {hasAnyPricedLine && <> · ₹{cartTotalInr.toLocaleString('en-IN')}</>}
             </span>
+            {/* Its own line: squeezed onto the counts it was cut to "₹12,1…" on a phone. */}
+            {hasAnyPricedLine && <span className="po-summary-total">₹{cartTotalInr.toLocaleString('en-IN')}</span>}
           </div>
           <Link href="/po/cart" className="po-summary-action">Review &amp; send</Link>
         </div>
