@@ -336,7 +336,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                   {item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}
                                 </span>
                                 {unit !== null && (
-                                  <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                  <span className="po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                                 )}
                                 {isQuote && <span className="po-item-price po-item-on-request">Price on request</span>}
                                 {group.moveLabel && (
@@ -392,9 +392,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         )}
 
         {hasAnyPricedLine && (
-          <div className="po-cart-total mono">
+          <div className="po-cart-total">
             {unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            {unpricedLines > 0 && <small className="po-price-note">{unpricedLines} {unpricedLines === 1 ? 'line requires' : 'lines require'} price confirmation. Final pricing is confirmed when processed.</small>}
+            {/* No "N lines need price confirmation" note: buyers already know
+                unlisted items are priced by the team (owner, 2026-09-25). */}
           </div>
         )}
 
