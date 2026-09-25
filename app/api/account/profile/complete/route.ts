@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import { normalizePhone } from '@/lib/phone';
+import { preferencesFromBody } from '@/lib/customer-preferences';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await supabaseAdmin.from('customers').select('phone, email').eq('id', customerId).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
-  const { name, phone, company, dealsIn, goToRequirements, email } = await req.json();
+  const { name, phone, company, dealsIn, goToRequirements, email, orderPreferences } = await req.json();
   const trimmedName = (name || '').trim();
   const trimmedCompany = (company || '').trim();
 
@@ -53,6 +54,11 @@ export async function POST(req: NextRequest) {
   // a blank if they skip it on a later pass.
   const trimmedGoTo = typeof goToRequirements === 'string' ? goToRequirements.trim() : '';
   if (trimmedGoTo) update.go_to_requirements = trimmedGoTo.slice(0, 500);
+
+  // Their usual picks (Red -> Ruby 5A ...). Same fill-in-only rule: an empty
+  // list here never clears what the team already set up for them.
+  const prefs = await preferencesFromBody(orderPreferences, supabaseAdmin);
+  if (prefs && prefs.length > 0) update.order_preferences = prefs;
 
   const { error } = await supabaseAdmin.from('customers').update(update).eq('id', customerId);
 

@@ -12,13 +12,14 @@ export default async function ProfilePage() {
   const customerId = await getCustomerId();
   if (!customerId) redirect('/po/account/login');
 
-  const { data: customer } = await supabaseAdmin
-    .from('customers')
-    .select('name, company, phone, email, email_verified, work_stream, go_to_requirements')
-    .eq('id', customerId)
-    .maybeSingle();
+  // '*' so the page still opens if order_preferences hasn't been migrated yet.
+  const { data: row } = await supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle();
 
-  if (!customer) redirect('/po/account/login');
+  if (!row) redirect('/po/account/login');
+  const customer = {
+    name: row.name, company: row.company, phone: row.phone, email: row.email, email_verified: row.email_verified,
+    work_stream: row.work_stream, go_to_requirements: row.go_to_requirements, order_preferences: row.order_preferences || []
+  };
 
   return (
     <>

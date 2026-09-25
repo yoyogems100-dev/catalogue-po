@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import PreferencesEditor, { completePreferences, useCategoryList } from './PreferencesEditor';
+import type { OrderPreference } from '@/lib/customer-preferences';
 
 export const DEALS_IN_OPTIONS = ['Gold Jewellery Manufacturer', 'Silver Jewellery Manufacturer', 'Retailer', 'Wholesaler', 'Exporter', 'Commercial'];
 
@@ -19,6 +21,8 @@ export default function ProfileCompletionForm({
   const [dealsIn, setDealsIn] = useState<string[]>([]);
   const [goToRequirements, setGoToRequirements] = useState('');
   const [email, setEmail] = useState('');
+  const [preferences, setPreferences] = useState<OrderPreference[]>([]);
+  const categories = useCategoryList();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,7 +45,7 @@ export default function ProfileCompletionForm({
     const res = await fetch('/api/account/profile/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone: needsPhone ? phone : undefined, company, dealsIn, goToRequirements, email: showEmail ? email : undefined })
+      body: JSON.stringify({ name, phone: needsPhone ? phone : undefined, company, dealsIn, goToRequirements, orderPreferences: completePreferences(preferences), email: showEmail ? email : undefined })
     });
     setSaving(false);
     if (res.ok) {
@@ -109,6 +113,11 @@ export default function ProfileCompletionForm({
         onChange={(e) => setGoToRequirements(e.target.value)}
         style={{ marginBottom: 12 }}
       />
+      <label className="po-label" style={{ marginBottom: 4, display: 'block' }}>Your usual picks (optional)</label>
+      <p style={{ fontSize: 12, color: '#756e5c', margin: '0 0 8px' }}>When you order by colour alone, we&rsquo;ll use these. E.g. Red &rarr; Ruby Corundum, 5A.</p>
+      <div style={{ marginBottom: 14 }}>
+        <PreferencesEditor categories={categories} value={preferences} onChange={setPreferences} />
+      </div>
       {showEmail && (
         <>
           <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email (optional)</label>

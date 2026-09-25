@@ -2271,3 +2271,36 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-no-options { padding: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; }
 .po-no-options p { margin: 0; font-size: 14px; }
 .po-no-options-action { display: flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 6px; }
+/* Usual picks: "Red means Ruby Corundum 5A" (sign-up, My Info, admin customer). */
+.pref-editor { display: flex; flex-direction: column; gap: 10px; }
+.pref-empty { margin: 0; font-size: 12.5px; color: #756e5c; }
+.pref-row { border: 1px solid var(--line); background: #fff; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pref-row-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px; }
+.pref-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pref-field-label { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.pref-grade { margin: 0; }
+.pref-remove { align-self: flex-start; background: none; border: none; padding: 4px 0; color: #a3341f; font-size: 12.5px; cursor: pointer; text-decoration: underline; min-height: 32px; }
+.pref-add { align-self: flex-start; border-radius: 20px; }
+@media (max-width: 420px) {
+  .pref-row-fields { grid-template-columns: 1fr; }
+}
+.po-grade-toggle { margin-bottom: 0; }
+.po-grade-toggle button { min-width: 64px; }
+
+/* Colour-first ordering: chips in Quick Order and on the home page. */
+.qo-family-chips { display: flex; gap: 6px; margin: 4px -4px 12px; padding: 0 4px 2px; overflow-x: auto; scrollbar-width: none; }
+.qo-family-chips::-webkit-scrollbar { display: none; }
+.qo-family-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; flex: 0 0 auto;
+  border: 1px solid var(--line); background: #fff; border-radius: 18px;
+  padding: 6px 12px; font-size: 12.5px; color: var(--charcoal); cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.qo-family-chip:hover { border-color: var(--gold); }
+.qo-family-chip.active { border-color: #1B3A6B; background: #eef1f7; color: var(--ink); font-weight: 500; }
+.qo-family-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); flex: 0 0 auto; }
+.home-color-start { margin: 0 0 22px; }
+.home-color-start-label { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+/* One swipeable row on a phone rather than four wrapped lines of chips. */
+.home-color-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 2px; }
+.home-color-chips::-webkit-scrollbar { display: none; }
+@media (min-width: 900px) { .home-color-chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; } }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { preferencesFromBody } from '@/lib/customer-preferences';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -10,7 +11,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const body = await request.json();
   const phone = normalizePhone(body.phone);
   if (phone && phone.length < 10) return NextResponse.json({ error: 'Enter a valid WhatsApp number.' }, { status: 400 });
-  const values = {
+  const prefs = await preferencesFromBody(body.orderPreferences, supabaseAdmin);
+  const values: Record<string, unknown> = {
     name: String(body.name || '').trim() || null,
     company: String(body.company || '').trim() || null,
     phone: phone || null,
@@ -19,6 +21,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     go_to_requirements: String(body.goToRequirements || '').trim() || null,
     place: String(body.place || '').trim() || null,
   };
+  if (prefs) values.order_preferences = prefs;
   const { data, error } = await supabaseAdmin.from('customers').update(values).eq('id', id).select('id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data) return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });
