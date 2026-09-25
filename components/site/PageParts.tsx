@@ -5,6 +5,7 @@ import { Arrow, WhatsApp } from './icons';
 import s from './site.module.css';
 import c from './category.module.css';
 import p from './pages.module.css';
+import { pic } from '@/lib/site/optimize';
 
 // Pieces shared by the standalone pages (About, Charts, Quality, ...).
 
@@ -34,7 +35,7 @@ export function PageHead({ eyebrow, title, intro, image, children }: {
         </div>
         {image && (
           <div className={p.headImg}>
-            <img src={image.src} srcSet={image.srcSet} sizes="(min-width: 900px) 50vw, 100vw" alt={image.alt} width={image.width} height={image.height} fetchPriority="high" />
+            <img {...pic(image)} sizes="(min-width: 900px) 50vw, 100vw" alt={image.alt} width={image.width} height={image.height} fetchPriority="high" />
           </div>
         )}
       </div>
@@ -68,7 +69,7 @@ export function JsonLd({ data }: { data: unknown }) {
 export function Figure({ image, caption, className, sizes = '(min-width: 900px) 33vw, 100vw' }: { image: PublicImage; caption?: string; className?: string; sizes?: string }) {
   return (
     <figure className={`${p.figure} ${className || ''}`}>
-      <img src={image.src} srcSet={image.srcSet} sizes={sizes} alt={image.alt || caption || ''} width={image.width} height={image.height} loading="lazy" decoding="async" />
+      <img {...pic(image)} sizes={sizes} alt={image.alt || caption || ''} width={image.width} height={image.height} loading="lazy" decoding="async" />
       {caption && <figcaption>{caption}</figcaption>}
     </figure>
   );

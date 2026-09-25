@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getChartTeaser, getGlobal, getMedia, getNavTree, getPage, telHref, toImage, whatsappHref } from '@/lib/site/public';
-import { mediaSrc } from '@/lib/site/media-url';
+import { OG_BASE, shareImages } from '@/lib/site/page-meta';
 import { Arrow, Phone, Pin, Receipt, WhatsApp } from '@/components/site/icons';
 import HideOnError from '@/components/site/HideOnError';
 import s from '@/components/site/site.module.css';
+import { pic } from '@/lib/site/optimize';
 
 export const revalidate = 3600;
 
@@ -15,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: home.seo?.title ? { absolute: home.seo.title } : undefined,
     description: home.seo?.description || g.seo?.description,
     alternates: { canonical: '/' },
-    openGraph: img ? { images: [{ url: mediaSrc(img, 1600), alt: img.alt }] } : undefined
+    openGraph: { ...OG_BASE, images: shareImages(img, '') }
   };
 }
 
@@ -34,7 +35,7 @@ export default async function HomePage() {
       <section className={s.hero}>
         {hero && (
           <div className={s.heroImage}>
-            <img src={hero.src} srcSet={hero.srcSet} sizes="100vw" alt={hero.alt} fetchPriority="high" />
+            <img {...pic(hero)} sizes="100vw" alt={hero.alt} fetchPriority="high" />
           </div>
         )}
         <div className={`${s.wrap} ${s.heroInner}`}>
@@ -73,7 +74,7 @@ export default async function HomePage() {
                 <Link href={cat.href} className={s.catTile}>
                   <div className={s.catImg}>
                     {cat.image
-                      ? <img src={cat.image.src} srcSet={cat.image.srcSet} sizes="(min-width: 900px) 25vw, 50vw" alt={cat.image.alt} loading="lazy" decoding="async" />
+                      ? <img {...pic(cat.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={cat.image.alt} loading="lazy" decoding="async" />
                       : <div className={s.catImgEmpty} />}
                   </div>
                   <div className={s.catBody}>

@@ -31,7 +31,7 @@ export const pageSchemas: Record<string, ContentSchema> = {
       ] },
       { key: 'footer', title: 'Footer', fields: [
         { type: 'textarea', key: 'blurb', label: 'Short description', max: 300 },
-        { type: 'list', key: 'links', label: 'Popular searches', help: 'Links to filtered category pages, e.g. /products/nano-spinel/nano?colour=green', itemLabel: 'Link', max: 20, fields: [
+        { type: 'list', key: 'links', label: 'Popular searches', help: 'Links to filtered category pages, e.g. /products/nano-spinel/nano?colour=green. Leave empty to show the 12 best-photographed filtered pages automatically.', itemLabel: 'Link', max: 20, fields: [
           { type: 'text', key: 'label', label: 'Text', max: 60 },
           { type: 'link', key: 'url', label: 'Address' }
         ] },

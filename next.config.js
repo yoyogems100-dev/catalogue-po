@@ -9,6 +9,10 @@ const nextConfig = {
     '/api/**': ['./node_modules/pdfkit/js/standard-fonts/**', './node_modules/pdfkit/js/data/**', './public/brand/yoyo-gems-pdf-wordmark.png', './assets/fonts/*.ttf']
   },
   images: {
+    // Website pictures are resized through /_next/image (lib/site/optimize.ts).
+    // Uploaded files get new names, so a long cache is safe and keeps the
+    // number of re-optimisations low.
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' }
