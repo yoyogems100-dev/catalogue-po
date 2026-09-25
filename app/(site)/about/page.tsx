@@ -10,6 +10,7 @@ import s from '@/components/site/site.module.css';
 import c from '@/components/site/category.module.css';
 import p from '@/components/site/pages.module.css';
 import { pic } from '@/lib/site/optimize';
+import CountUp from '@/components/site/CountUp';
 
 export const revalidate = 3600;
 
@@ -67,7 +68,7 @@ export default async function AboutPage() {
           <div className={`${s.wrap} ${s.numbersGrid}`}>
             {numbers.map((n: any, i: number) => (
               <div key={i} className={s.number}>
-                <span className={`${s.numberValue} ${s.gradientText}`}>{n.value}</span>
+                <CountUp className={`${s.numberValue} ${s.gradientText}`} value={String(n.value || '')} />
                 <span className={s.numberLabel}>{n.label}</span>
               </div>
             ))}

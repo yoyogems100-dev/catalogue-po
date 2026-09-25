@@ -6,6 +6,7 @@ import { Arrow, Phone, Pin, Receipt, WhatsApp } from '@/components/site/icons';
 import HideOnError from '@/components/site/HideOnError';
 import s from '@/components/site/site.module.css';
 import { pic } from '@/lib/site/optimize';
+import CountUp from '@/components/site/CountUp';
 
 export const revalidate = 3600;
 
@@ -53,7 +54,7 @@ export default async function HomePage() {
           <div className={`${s.wrap} ${s.numbersGrid}`}>
             {numbers.map((n: any, i: number) => (
               <div key={i} className={s.number}>
-                <span className={`${s.numberValue} ${s.gradientText}`}>{n.value}</span>
+                <CountUp className={`${s.numberValue} ${s.gradientText}`} value={String(n.value || '')} />
                 <span className={s.numberLabel}>{n.label}</span>
               </div>
             ))}

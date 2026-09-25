@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { WordMark } from '@/components/Logo';
+import { thumb } from '@/lib/site/optimize';
 import type { ContentValue } from '@/lib/site/schema';
 import type { NavCategory } from '@/lib/site/public';
 import { telHref, whatsappHref } from '@/lib/site/public';
@@ -18,7 +18,7 @@ export default function SiteFooter({ global, categories, autoPopular = [] }: { g
       <div className={s.wrap}>
         <div className={s.footerGrid}>
           <div>
-            <WordMark height={24} color="#ffffff" />
+            <img {...thumb('/brand/yoyo-logo-white.png', 176)} alt="YOYO GEMS®" width={176} height={48} className={s.logoImg} loading="lazy" />
             <p className={s.footerBlurb}>{global.footer?.blurb}</p>
             <p className={s.footerBlurb} style={{ fontStyle: 'italic' }}>{global.brand?.tagline}</p>
           </div>

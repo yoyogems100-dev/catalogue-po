@@ -39,6 +39,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   };
   return (
     <div className={s.root}>
+      {/* Runs before first paint: lets CSS hold animated figures until they can count. */}
+      <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
       <a href="#main" className={s.skip}>Skip to content</a>
       <SiteHeader categories={categories} ctaLabel={g.header?.cta_label || 'Request Catalogue'} showTradeLogin={g.header?.show_trade_login !== false} whatsappHref={wa} />
       <main id="main" className={s.main}>{children}</main>

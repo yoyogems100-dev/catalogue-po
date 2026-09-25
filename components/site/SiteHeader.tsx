@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { WordMark } from '@/components/Logo';
+import { thumb } from '@/lib/site/optimize';
 import type { NavCategory } from '@/lib/site/public';
 import { Chevron, Close, Menu } from './icons';
 import s from './site.module.css';
@@ -43,7 +43,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
     <header className={s.header} ref={headerRef}>
       <div className={`${s.wrap} ${s.headerInner}`}>
         <Link href="/" className={s.logo} aria-label="YOYO GEMS home">
-          <WordMark height={26} color="#ffffff" />
+          <img {...thumb('/brand/yoyo-logo-white.png', 128)} alt="" width={128} height={35} className={s.logoImg} fetchPriority="high" />
         </Link>
 
         <nav className={s.nav} aria-label="Main">
@@ -91,7 +91,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
         <div className={s.sheet} role="dialog" aria-modal="true" aria-label="Menu">
           <div className={s.sheetHead}>
             <Link href="/" className={s.logo} aria-label="YOYO GEMS home" onClick={() => setSheetOpen(false)}>
-              <WordMark height={24} color="#ffffff" />
+              <img {...thumb('/brand/yoyo-logo-white.png', 118)} alt="" width={118} height={32} className={s.logoImg} />
             </Link>
             <button type="button" className={s.menuToggle} style={{ marginLeft: 0 }} aria-label="Close menu" onClick={() => setSheetOpen(false)}><Close /></button>
           </div>
