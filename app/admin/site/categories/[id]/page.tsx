@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { categorySchema } from '@/lib/site/schemas';
+import { categoryDefaults } from '@/lib/site/category-defaults';
 import { collectImageIds, withDefaults } from '@/lib/site/schema';
 import type { MediaRow } from '@/lib/site/media-url';
 import ContentEditor from '@/components/admin/site/ContentEditor';
@@ -43,10 +44,12 @@ export default async function EditSiteCategory({ params, searchParams }: { param
     ]);
     body = <DetailsForm category={cat} parents={tops || []} hasChildren={!!childCount} tileMedia={(heroMedia.data as MediaRow) || null} parentSlug={parent?.slug || null} />;
   } else if (tab === 'text') {
-    const draft = withDefaults(categorySchema, cat.draft);
+    // Never edited: open with the starting copy the live page shows.
+    const initialDraft = cat.draft && Object.keys(cat.draft).length ? cat.draft : categoryDefaults(parent?.slug ?? null, cat.slug);
+    const draft = withDefaults(categorySchema, initialDraft);
     const ids = collectImageIds(categorySchema, draft);
     const { data: media } = ids.length ? await supabaseAdmin.from('site_media').select(MEDIA_COLS).in('id', ids) : { data: [] };
-    body = <ContentEditor entity="category" entityKey={String(id)} initialDraft={cat.draft} initialPublished={cat.published}
+    body = <ContentEditor entity="category" entityKey={String(id)} initialDraft={initialDraft} initialPublished={cat.published}
       publishedAt={cat.published_at} viewHref={viewHref} media={(media || []) as MediaRow[]} />;
   } else if (tab === 'catalogue') {
     const [{ data: catalogue }, { data: grades }, { data: sources }, { data: catGrades }, { data: colors }] = await Promise.all([

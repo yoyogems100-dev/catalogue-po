@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { isAdminAuthed } from '@/lib/auth';
 
 // Small shared helpers for the /api/admin/site/* routes.
@@ -39,5 +39,6 @@ export function slugify(text: string): string {
 
 /** The public site is statically cached; refresh all of it after a change. */
 export function refreshPublicSite() {
+  revalidateTag('site', { expire: 0 });
   revalidatePath('/', 'layout');
 }

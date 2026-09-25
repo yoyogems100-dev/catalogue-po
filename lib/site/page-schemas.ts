@@ -37,6 +37,10 @@ export const pageSchemas: Record<string, ContentSchema> = {
         ] },
         { type: 'text', key: 'legal', label: 'Bottom line', max: 160 }
       ] },
+      { key: 'filters', title: 'Filtered category pages', help: 'Heading and intro for pages like /products/nano-spinel/nano?colour=green. {filters} becomes the chosen filters (e.g. “Green Oval”), {category} the category name, {count} the number of photos.', fields: [
+        { type: 'text', key: 'heading', label: 'Heading pattern', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro pattern (two lines)', max: 300 }
+      ] },
       { key: 'seo', title: 'Search defaults', fields: [
         { type: 'text', key: 'title_template', label: 'Title pattern', max: 70, help: 'Use %s where the page name goes, e.g. “%s · YOYO GEMS®”.' },
         ...seoFields.filter((f) => f.key !== 'title')
