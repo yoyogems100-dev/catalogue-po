@@ -5,6 +5,7 @@ import s from '@/components/admin/site/site-admin.module.css';
 export const dynamic = 'force-dynamic';
 
 const SECTIONS = [
+  { href: '/admin/site/pages', title: 'Pages & settings', detail: 'Home, About, Quality, How to order, Contact, and site-wide contact details, footer and search settings.' },
   { href: '/admin/site/categories', title: 'Categories', detail: 'The 11 website categories and their sub-categories: order, visibility, page text, gallery, filters.' },
   { href: '/admin/site/media', title: 'Images', detail: 'Upload, describe and tag website images. Assign them to categories, colours, shapes and sizes.' },
   { href: '/admin/site/grades', title: 'Grades', detail: 'A, 3A, 5A, 7A, High Density Swiss — names, order and explanations.' }
