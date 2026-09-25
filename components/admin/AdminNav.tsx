@@ -48,6 +48,7 @@ const NAV_LINKS = [
   { href: '/admin/shapes', label: 'Shapes' },
   { href: '/admin/colors', label: 'Colors' },
   { href: '/admin/pricing', label: 'Pricing' },
+  { href: '/admin/catalogue-map', label: 'Catalogue map' },
   { href: '/admin/bulk-link', label: 'Bulk Link' },
   { href: '/admin/tags', label: 'Tags' },
   { href: '/admin/watermarks', label: 'Watermarks' },

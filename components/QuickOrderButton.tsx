@@ -12,6 +12,9 @@ import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } 
 import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
 import { useColorButtons, useOrderPreferences } from './useOrderPreferences';
+import { useCatalogueMap } from './useCatalogueMap';
+import StoneFinder from './StoneFinder';
+import { sizeKey } from '@/lib/size-options';
 
 /** Home-page colour chips open Quick Order already started on a colour. */
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
@@ -71,6 +74,10 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   const [pickFamily, setPickFamily] = useState<number | null>(null);
   const [pickGrade, setPickGrade] = useState('');
   const [pendingCategoryId, setPendingCategoryId] = useState<number | null>(null);
+  // Colour first, then shape/size across every stone: the finder lists the
+  // stones that match, and choosing one carries the shape and size over.
+  const catalogueMap = useCatalogueMap(open);
+  const [pendingPick, setPendingPick] = useState<{ shapeId: number | null; size: string | null } | null>(null);
 
   function chooseFamily(familyId: number | null) {
     setPickFamily(familyId);
@@ -190,6 +197,23 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
 
   const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map((row) => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
 
+  // Carry the finder's shape and size into the stone the buyer chose, once
+  // its options have loaded: first the shape, then (from that shape's size
+  // list) the size.
+  useEffect(() => {
+    if (!pendingPick || !currentOptions) return;
+    if (pendingPick.shapeId && pickShapeIds.length === 0 && currentOptions.shapes.some((s) => s.id === pendingPick.shapeId)) {
+      setPickShapeIds([pendingPick.shapeId]);
+      if (!pendingPick.size) setPendingPick(null);
+      return;
+    }
+    if (pendingPick.size && pickShapeIds.length > 0) {
+      const idx = sizesForShapes.findIndex((g) => sizeKey(g.sizeMm) === pendingPick.size);
+      if (idx >= 0) setPickSizeIdxs([idx]);
+    }
+    setPendingPick(null);
+  }, [pendingPick, currentOptions, pickShapeIds, sizesForShapes]);
+
   const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId) : [];
 
   // With a colour chosen, only that family's colours are offered -- unless the
@@ -306,7 +330,26 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             })}
           </div>}
           {pickFamily && !pickCategoryId && !pendingCategoryId && (
-            <p className="quick-order-hint">Now choose the stone.</p>
+            catalogueMap ? (
+              <div className="qo-finder">
+                <p className="quick-order-hint" style={{ margin: 0 }}>Which stone? Narrow by shape and size, or choose a category below.</p>
+                <StoneFinder
+                  map={catalogueMap}
+                  familyId={pickFamily}
+                  onChoose={(categoryId, picked) => {
+                    void handleCategoryChange(String(categoryId), { keepFamily: true });
+                    setPendingPick(picked.shapeId ? picked : null);
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="quick-order-hint">Now choose the stone.</p>
+            )
+          )}
+          {pickFamily && !!pickCategoryId && (
+            <button type="button" className="qo-other-stones" onClick={() => { void handleCategoryChange('', { keepFamily: true }); }}>
+              Other stones in {COLOR_FAMILIES.find((f) => f.id === pickFamily)?.name.toLowerCase()} →
+            </button>
           )}
 
           <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
