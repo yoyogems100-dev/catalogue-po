@@ -6,6 +6,7 @@ import { whatsappHref } from '@/lib/site/public';
 import RichText from './RichText';
 import FilterBar from './FilterBar';
 import HideOnError from './HideOnError';
+import { pic, responsive } from '@/lib/site/optimize';
 import { Arrow, WhatsApp } from './icons';
 import s from './site.module.css';
 import c from './category.module.css';
@@ -51,13 +52,13 @@ export default function CategoryView({ page, selection, options, heading, intro,
         {gallery ? (
           <div className={c.photoGrid}>
             {gallery.map((img, i) => (
-              <figure key={i} className={c.photo}><img src={img.src} srcSet={img.srcSet} sizes="(min-width: 900px) 25vw, 50vw" alt={img.alt} loading="lazy" decoding="async" /></figure>
+              <figure key={i} className={c.photo}><img {...pic(img)} sizes="(min-width: 900px) 25vw, 50vw" alt={img.alt} loading="lazy" decoding="async" /></figure>
             ))}
           </div>
         ) : shownPhotos.length ? (
           <div className={c.photoGrid}>
             {shownPhotos.map((p) => (
-              <HideOnError key={p.id} className={c.photo} img={{ src: p.src, alt: p.alt, loading: 'lazy', decoding: 'async' }} />
+              <HideOnError key={p.id} className={c.photo} img={{ src: p.src, alt: p.alt, sizes: '(min-width: 900px) 25vw, 50vw', loading: 'lazy', decoding: 'async' }} />
             ))}
           </div>
         ) : (
@@ -100,7 +101,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
           </div>
           {page.heroImage && (
             <div className={c.heroImg}>
-              <img src={page.heroImage.src} srcSet={page.heroImage.srcSet} sizes="(min-width: 900px) 45vw, 100vw" alt={page.heroImage.alt} fetchPriority="high" />
+              <img {...pic(page.heroImage)} sizes="(min-width: 900px) 45vw, 100vw" alt={page.heroImage.alt} fetchPriority="high" />
             </div>
           )}
         </div>
@@ -116,7 +117,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
               {page.children.map((k) => (
                 <li key={k.slug}>
                   <Link href={k.href} className={s.catTile}>
-                    <div className={s.catImg}>{k.image ? <img src={k.image.src} srcSet={k.image.srcSet} sizes="(min-width: 900px) 25vw, 50vw" alt={k.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
+                    <div className={s.catImg}>{k.image ? <img {...pic(k.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={k.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
                     <div className={s.catBody}><span className={s.catName}>{k.name}</span>{k.descriptor && <span className={s.catDesc}>{k.descriptor}</span>}</div>
                   </Link>
                 </li>
@@ -209,7 +210,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
                 </ul>
                 {!filtered && page.colourCharts.map((chart) => (
                   <figure key={chart.src} className={c.chartImage}>
-                    <img src={chart.src} alt={`${chart.name} colour chart`} loading="lazy" />
+                    <img {...responsive(chart.src, [640, 828, 1080, 1200])} sizes="(min-width: 1200px) 1100px, 100vw" alt={`${chart.name} colour chart`} loading="lazy" />
                     <figcaption>{chart.name} colour chart</figcaption>
                   </figure>
                 ))}

@@ -5,8 +5,7 @@ import { notFound } from 'next/navigation';
 import { getGlobal, getMedia, getPage, whatsappHref } from '@/lib/site/public';
 import { getChartGrades, getChartShapes, getColourChart } from '@/lib/site/chart-data';
 import { chartPages } from '@/lib/site/chart-pages';
-import { breadcrumbLd, SITE_URL } from '@/lib/site/page-meta';
-import { mediaSrc } from '@/lib/site/media-url';
+import { breadcrumbLd, OG_BASE, shareImages, SITE_URL } from '@/lib/site/page-meta';
 import { richTextToPlain } from '@/lib/site/rich-text';
 import { Crumbs, CtaBand, JsonLd, PageHead } from '@/components/site/PageParts';
 import ShapeChart from '@/components/site/ShapeChart';
@@ -42,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: r.chart.title,
     description,
     alternates: { canonical: path },
-    openGraph: { title: r.chart.title, description, url: path, images: img ? [{ url: mediaSrc(img, 1600), alt: img.alt }] : undefined }
+    openGraph: { ...OG_BASE, title: r.chart.title, description, url: path, images: shareImages(img, r.chart.title) }
   };
 }
 

@@ -1,23 +1,25 @@
 import Link from 'next/link';
-import { WordMark } from '@/components/Logo';
+import { thumb } from '@/lib/site/optimize';
 import type { ContentValue } from '@/lib/site/schema';
 import type { NavCategory } from '@/lib/site/public';
 import { telHref, whatsappHref } from '@/lib/site/public';
 import s from './site.module.css';
 
-export default function SiteFooter({ global, categories }: { global: ContentValue; categories: NavCategory[] }) {
+export default function SiteFooter({ global, categories, autoPopular = [] }: { global: ContentValue; categories: NavCategory[]; autoPopular?: { label: string; url: string }[] }) {
   const c = global.contact || {};
   const wa = whatsappHref(c.whatsapp, c.whatsapp_message);
-  const popular = (global.footer?.links || []).filter((l: any) => l.label && l.url);
+  // The owner's own list if they made one, else the best-photographed
+  // filtered pages (see lib/site/seo.ts).
+  const chosen = (global.footer?.links || []).filter((l: any) => l.label && l.url);
+  const popular = chosen.length ? chosen : autoPopular;
   const social = (global.social?.links || []).filter((l: any) => l.label && l.url);
   return (
     <footer className={s.footer}>
       <div className={s.wrap}>
         <div className={s.footerGrid}>
           <div>
-            <WordMark height={24} color="#ffffff" />
+            <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 256)} alt="YOYO GEMS® — Synthetic Gemstones. Infinite Choices. One Trusted Name." width={256} height={70} className={s.logoImg} loading="lazy" />
             <p className={s.footerBlurb}>{global.footer?.blurb}</p>
-            <p className={s.footerBlurb} style={{ fontStyle: 'italic' }}>{global.brand?.tagline}</p>
           </div>
           <div>
             <h2>Products</h2>

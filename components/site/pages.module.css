@@ -193,7 +193,7 @@
   background: var(--bg-2); color: #fff; border: 1px solid var(--line-strong);
   font: inherit; font-size: 16px; /* 16px stops iOS zooming into the field */
 }
-.formField input::placeholder { color: #6f6a7b; }
+.formField input::placeholder { color: #8f89a0; }
 .formField input:focus { outline: none; border-color: var(--accent-text); box-shadow: 0 0 0 3px rgba(231,166,242,0.18); }
 .formField input[aria-invalid='true'] { border-color: #ff8a8a; }
 .formField legend { margin-bottom: 8px; }

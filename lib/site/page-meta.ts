@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { getMedia, getPage } from './public';
-import { mediaSrc } from './media-url';
+import { OG_BASE, shareImages } from './share';
+
+export { OG_BASE, shareCard, shareImages } from './share';
 
 export const SITE_URL = 'https://www.yoyogems.co.in';
 
@@ -15,7 +17,7 @@ export async function pageMetadata(key: string, path: string, fallback: { title:
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title, description, url: path, images: img ? [{ url: mediaSrc(img, 1600), alt: img.alt }] : undefined }
+    openGraph: { ...OG_BASE, title, description, url: path, images: shareImages(img, title) }
   };
 }
 

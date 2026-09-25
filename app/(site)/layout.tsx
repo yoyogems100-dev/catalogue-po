@@ -1,14 +1,12 @@
 import type { Metadata } from 'next';
-import { Jost, Playfair_Display } from 'next/font/google';
 import SiteHeader from '@/components/site/SiteHeader';
 import SiteFooter from '@/components/site/SiteFooter';
 import { WhatsApp } from '@/components/site/icons';
 import { getGlobal, getMedia, getNavTree, whatsappHref } from '@/lib/site/public';
+import { getPopularSearches } from '@/lib/site/seo-data';
 import { mediaSrc } from '@/lib/site/media-url';
+import { OG_BASE, shareCard } from '@/lib/site/page-meta';
 import s from '@/components/site/site.module.css';
-
-const serif = Playfair_Display({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-serif', display: 'swap' });
-const sans = Jost({ subsets: ['latin'], weight: ['300', '400', '500', '600'], variable: '--font-sans', display: 'swap' });
 
 const SITE_URL = 'https://www.yoyogems.co.in';
 
@@ -20,13 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_URL),
     title: { default: `YOYO GEMS® — ${g.brand?.tagline || 'Synthetic Gemstones'}`, template },
     description: g.seo?.description,
-    openGraph: { siteName: 'YOYO GEMS®', type: 'website', locale: 'en_IN', images: og ? [{ url: mediaSrc(og, 1600), alt: og.alt }] : undefined },
+    openGraph: { ...OG_BASE, images: og ? [{ url: mediaSrc(og, 1600), alt: og.alt }] : [shareCard()] },
     twitter: { card: 'summary_large_image' }
   };
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [g, categories] = await Promise.all([getGlobal(), getNavTree()]);
+  const [g, categories, autoPopular] = await Promise.all([getGlobal(), getNavTree(), getPopularSearches().catch(() => [])]);
   const wa = whatsappHref(g.contact?.whatsapp, g.contact?.whatsapp_message);
   const org = {
     '@context': 'https://schema.org',
@@ -40,11 +38,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     sameAs: (g.social?.links || []).map((l: any) => l.url).filter(Boolean)
   };
   return (
-    <div className={`${s.root} ${serif.variable} ${sans.variable}`}>
+    <div className={s.root}>
+      {/* Runs before first paint: lets CSS hold animated figures until they can count. */}
+      <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
       <a href="#main" className={s.skip}>Skip to content</a>
       <SiteHeader categories={categories} ctaLabel={g.header?.cta_label || 'Request Catalogue'} showTradeLogin={g.header?.show_trade_login !== false} whatsappHref={wa} />
       <main id="main" className={s.main}>{children}</main>
-      <SiteFooter global={g} categories={categories} />
+      <SiteFooter global={g} categories={categories} autoPopular={autoPopular} />
       {wa && (
         <a href={wa} className={s.waFloat} target="_blank" rel="noopener noreferrer" aria-label="Chat with YOYO GEMS on WhatsApp">
           <WhatsApp size={28} />
