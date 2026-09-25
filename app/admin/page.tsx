@@ -11,6 +11,7 @@ export default async function AdminDashboard() {
   // listing 1.
   const countable = () => supabaseAdmin.from('orders').select('id', {count:'exact',head:true}).is('deleted_at', null);
   const queues = [
+    { title: 'New catalogue requests', href: '/admin/site/leads', query: supabaseAdmin.from('site_leads').select('id', {count:'exact',head:true}).eq('status','new') },
     { title: 'Orders placed today', href: `/admin/orders?from=${today}&to=${today}`, query: countable().gte('created_at', `${today}T00:00:00+05:30`).lte('created_at', `${today}T23:59:59.999+05:30`) },
     { title: 'Awaiting confirmation', href: '/admin/orders?status=placed', query: countable().eq('status','placed') },
     { title: 'Sourcing', href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },

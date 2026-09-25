@@ -231,6 +231,24 @@ export const pageDefaults: Record<string, ContentValue> = {
     },
     seo: { title: '', description: 'Answers to common questions from jewellery manufacturers buying loose gemstones from YOYO GEMS.', image: null }
   },
+  'request-catalogue': {
+    hero: {
+      heading: 'Request the digital catalogue',
+      intro: 'Our full range — every shape, size and colour — lives in our digital catalogue. Tell us what you work with and we’ll send it across.',
+      promise: 'Catalogue shared within 24 working hours.'
+    },
+    form: {
+      requirement_hint: 'e.g. 5,000 pcs of 2–4mm white CZ, or a rough monthly spend',
+      button: 'Request Catalogue',
+      privacy: 'We use your number only to send the catalogue and reply to you on WhatsApp.'
+    },
+    thanks: {
+      heading: 'Thank you. Your request is in.',
+      text: 'We’ll send the catalogue to your WhatsApp within 24 working hours. If you need something sooner, message us now.',
+      whatsapp_label: 'Message us on WhatsApp'
+    },
+    seo: { title: 'Request the Catalogue', description: 'Request the YOYO GEMS digital catalogue: every shape, size, colour and grade we stock, shared on WhatsApp.', image: null }
+  },
   contact: {
     hero: {
       heading: 'Contact',

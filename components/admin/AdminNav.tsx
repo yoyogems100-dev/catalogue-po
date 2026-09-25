@@ -40,6 +40,7 @@ const ExternalIcon = () => (
 const NAV_LINKS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/site', label: 'Website' },
+  { href: '/admin/site/leads', label: 'Catalogue requests' },
   { href: '/admin/content', label: 'Catalogue content' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/customers', label: 'Customers' },
@@ -58,6 +59,12 @@ const NAV_LINKS = [
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  // The most specific link wins, so /admin/site/leads highlights
+  // "Catalogue requests" rather than "Website" as well.
+  const current = NAV_LINKS.map((l) => l.href)
+    .filter((h) => pathname === h || (h !== '/admin' && pathname?.startsWith(`${h}/`)))
+    .sort((a, b) => b.length - a.length)[0];
 
   function close() {
     setOpen(false);
@@ -94,7 +101,7 @@ export default function AdminNav() {
             key={l.href}
             href={l.href}
             onClick={close}
-            aria-current={pathname === l.href || (l.href !== '/admin' && pathname.startsWith(`${l.href}/`)) ? 'page' : undefined}
+            aria-current={l.href === current ? 'page' : undefined}
           >
             {l.label}
           </Link>
