@@ -203,6 +203,13 @@ export default function IconSelect(props: Props) {
     [orderedOptions, search]
   );
 
+  // A closed multi-select colour picker shows the stones it holds (up to
+  // three), the same gem thumbnails as in its list -- it used to show the
+  // name alone, so "Ruby Red" read as plain text once chosen.
+  const chosenSwatches: Option[] = isMulti && leading === 'swatch'
+    ? multi.values.slice(0, 3).map((id) => options.find((o) => o.id === id)).filter((o): o is Option => !!o)
+    : [];
+
   let triggerLabel: string;
   let selected: Option | null = null;
   if (isMulti) {
@@ -272,7 +279,11 @@ export default function IconSelect(props: Props) {
         aria-label={ariaLabel}
         onKeyDown={(e) => { if (e.key === 'Escape' && open) closeAndRefocus(); }}
       >
-        <Leading o={selected} />
+        {selected ? <Leading o={selected} /> : chosenSwatches.length > 0 && (
+          <span className="icon-select-swatch-stack" aria-hidden="true">
+            {chosenSwatches.map((o) => <Leading key={o.id} o={o} />)}
+          </span>
+        )}
         <span className="icon-select-label">{props.locked ? options[0]?.name || triggerLabel : triggerLabel}{(selected ? hot(selected) : isMulti && multi.values.length === 1 && options.some(o => o.id === multi.values[0] && hot(o))) && <span role="img" aria-label="Hot selling"> 🔥</span>}</span>
         {!props.locked && <span className="icon-select-caret">{open ? '▲' : '▼'}</span>}
       </button>

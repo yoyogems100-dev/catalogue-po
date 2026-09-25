@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
 import { MOST_ORDERED_SETTING_KEY, parseMostOrdered } from '@/lib/most-ordered';
+import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons } from '@/lib/color-family';
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
@@ -110,7 +111,7 @@ export default async function HomePage() {
             text -- a true H1 keeps the page's heading structure sound for
             screen readers without changing what's shown on screen. */}
         <h1 className="visually-hidden">YOYO GEMS — Collection Catalogue</h1>
-        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} mostOrderedIds={parseMostOrdered(settings[MOST_ORDERED_SETTING_KEY])} />
+        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} mostOrderedIds={parseMostOrdered(settings[MOST_ORDERED_SETTING_KEY])} colorButtonIds={parseColorButtons(settings[COLOR_BUTTONS_SETTING_KEY])} />
       </div>
       <Footer settings={settings} />
     </>

@@ -993,8 +993,11 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   .home-filter-row .icon-select-trigger { padding: 8px 10px; }
   .hero { padding: 32px 16px 26px; }
   .hero.hero-compact { padding: 10px 14px; }
-  .hero img { height: 60px !important; }
-  .hero.hero-compact img { height: 30px !important; }
+  /* The logo only (a direct child). A bare ".hero img" also reached every
+     photo in the Quick Order pop-up, which lives inside the hero, and
+     squashed them to 30px tall. */
+  .hero > img { height: 60px !important; }
+  .hero.hero-compact > img { height: 30px !important; }
   .topbar { padding: 10px 14px; }
   .container { padding: 0 14px; }
   .login-box { margin: 40px auto; max-width: 90vw; padding: 24px; }
@@ -2263,6 +2266,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .most-ordered-list .btn-ghost { min-width: 40px; min-height: 40px; padding: 0; }
 .most-ordered-rank { width: 24px; text-align: center; color: var(--gold); font-weight: 600; }
 .most-ordered-name { flex: 1; min-width: 0; }
+.most-ordered-list input[type="checkbox"] { width: 20px; height: 20px; margin: 0 4px; accent-color: var(--navy, #1B3A6B); }
 
 /* Composer: price of the current pick, before it is added. */
 .po-price-preview { margin: 10px 0 12px; font-size: 14px; color: var(--ink); }
@@ -2291,9 +2295,9 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .qo-family-chips { display: flex; gap: 6px; margin: 4px -4px 12px; padding: 0 4px 2px; overflow-x: auto; scrollbar-width: none; }
 .qo-family-chips::-webkit-scrollbar { display: none; }
 .qo-family-chip {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 7px; min-height: 40px; flex: 0 0 auto;
   border: 1px solid var(--line); background: #fff; border-radius: 18px;
-  padding: 6px 12px; font-size: 12.5px; color: var(--charcoal); cursor: pointer; font-family: inherit; white-space: nowrap;
+  padding: 5px 13px 5px 7px; font-size: 12.5px; color: var(--charcoal); cursor: pointer; font-family: inherit; white-space: nowrap;
 }
 .qo-family-chip:hover { border-color: var(--gold); }
 .qo-family-chip.active { border-color: #1B3A6B; background: #eef1f7; color: var(--ink); font-weight: 500; }
@@ -2304,3 +2308,62 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .home-color-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 2px; }
 .home-color-chips::-webkit-scrollbar { display: none; }
 @media (min-width: 900px) { .home-color-chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; } }
+
+/* Chosen colours in a closed multi-select: a small overlapping row of stones. */
+.icon-select-swatch-stack { display: inline-flex; flex-shrink: 0; }
+.icon-select-swatch-stack > * + * { margin-left: -5px; }
+
+/* Stone finder (Quick Order) and the admin Catalogue map. */
+.stone-finder { display: flex; flex-direction: column; gap: 10px; }
+.stone-finder-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stone-finder-count { margin: 2px 0 0; font-size: 13px; color: var(--text-dim); }
+.stone-finder-group { display: flex; flex-direction: column; gap: 6px; }
+.stone-finder-material { font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.stone-finder-stones { display: flex; flex-wrap: wrap; gap: 8px; }
+.stone-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px 6px 8px;
+  border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink);
+  font: inherit; font-size: 13.5px; cursor: pointer; text-align: left;
+}
+.stone-chip img { width: 22px; height: 22px; object-fit: contain; border-radius: 50%; flex: none; }
+.stone-chip:hover:not(:disabled) { border-color: var(--navy); }
+.stone-chip:disabled { cursor: default; }
+.stone-chip:not(.toggle):disabled { opacity: 1; }
+.stone-chip.toggle:disabled { opacity: 0.55; }
+.stone-chip-tick { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); display: inline-grid; place-items: center; font-size: 12px; color: var(--text-dim); flex: none; }
+.stone-chip.toggle.on { background: #eef2f9; border-color: var(--navy); }
+.stone-chip.toggle.on .stone-chip-tick { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+.catmap { max-width: 900px; }
+.catmap-hint { font-size: 13px; color: var(--text-dim); margin: 0 0 14px; max-width: 720px; }
+.catmap-status { font-size: 13px; padding: 8px 12px; margin: 0 0 14px; border: 1px solid; }
+.catmap-status.ok { color: #1a6b3a; border-color: #b9dcc6; background: #f1f9f4; }
+.catmap-status.error { color: #a3341f; border-color: #eac0b6; background: #fcf3f1; }
+.catmap-families { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+.catmap-families .qo-family-chip { flex: none; }
+.catmap-picker { max-width: 420px; margin-bottom: 16px; }
+.catmap-subject { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); margin: 16px 0; }
+.catmap-subject strong { display: block; color: var(--ink); font-size: 15px; }
+.catmap-subject span { font-size: 12.5px; color: var(--text-dim); }
+.catmap-groups { display: flex; flex-direction: column; gap: 18px; }
+.catmap-group header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.catmap-count { font-size: 12px; color: var(--text-dim); }
+.catmap-new { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.catmap-new input { flex: 1 1 220px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); font: inherit; }
+.catmap-materials { display: flex; flex-direction: column; gap: 10px; }
+.catmap-material { background: #fff; border: 1px solid var(--line); padding: 10px 12px; }
+.catmap-material.open { border-color: var(--navy); }
+.catmap-material header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.catmap-material-title { flex: 1 1 220px; background: none; border: 0; padding: 6px 0; text-align: left; cursor: pointer; font: inherit; min-height: 44px; }
+.catmap-material-title strong { display: block; color: var(--ink); font-size: 15px; }
+.catmap-material-title span { font-size: 12.5px; color: var(--text-dim); }
+.catmap-material-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.catmap-material-actions .btn-ghost { min-height: 40px; min-width: 40px; padding: 0 10px; }
+.catmap-material-actions .danger { color: #a3341f; }
+.catmap-material-preview { font-size: 12.5px; color: var(--charcoal); margin-top: 2px; }
+.catmap-material .stone-finder-stones { margin-top: 10px; }
+@media (max-width: 560px) {
+  .stone-finder-fields { grid-template-columns: 1fr; }
+}
+.qo-finder { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin: 4px 0 14px; background: var(--ivory); border: 1px solid var(--line); }
+.qo-other-stones { background: none; border: 0; padding: 4px 0; margin: 0 0 10px; color: var(--navy); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 32px; }
