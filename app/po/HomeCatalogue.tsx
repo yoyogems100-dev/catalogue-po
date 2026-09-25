@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
-import { COLOR_FAMILIES, colorFamilyId, colorSearchText } from '@/lib/color-family';
+import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId, colorSearchText } from '@/lib/color-family';
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
@@ -84,12 +84,14 @@ export default function HomeCatalogue({
   categories,
   allShapes,
   allColors,
-  mostOrderedIds
+  mostOrderedIds,
+  colorButtonIds
 }: {
   categories: Category[];
   allShapes: Ref[];
   allColors: Ref[];
   mostOrderedIds: number[];
+  colorButtonIds: number[];
 }) {
   const [query, setQuery] = useState('');
   const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
@@ -107,6 +109,12 @@ export default function HomeCatalogue({
     categories.forEach((c) => c.colorIds.forEach((id) => { const f = familyByColorId.get(id); if (f) present.add(f); }));
     return COLOR_FAMILIES.filter((f) => present.has(f.id));
   }, [categories, familyByColorId]);
+
+  // "Order by colour" buttons: the ones the shop chose, in its order.
+  const colorButtons = useMemo(() => {
+    const present = new Set(familyOptions.map((f) => f.id));
+    return colorButtonFamilies(colorButtonIds).filter((f) => present.has(f.id));
+  }, [colorButtonIds, familyOptions]);
 
   // Everything a buyer might type about a category, lower-cased once.
   const searchIndex = useMemo(() => {
@@ -180,11 +188,11 @@ export default function HomeCatalogue({
         </div>
       </div>
 
-      {!hasActiveFilter && familyOptions.length > 0 && (
+      {!hasActiveFilter && colorButtons.length > 0 && (
         <div className="home-color-start">
           <span className="home-color-start-label">Order by colour</span>
           <div className="home-color-chips">
-            {familyOptions.map((f) => (
+            {colorButtons.map((f) => (
               <button
                 key={f.id}
                 type="button"

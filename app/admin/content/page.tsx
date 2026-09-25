@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 const sections = [
   {title: 'Most ordered categories', href:'/admin/content/most-ordered', detail:'Choose and order the categories shown first on the catalogue home page.'},
-  {title: 'Default colour picks', href:'/admin/content/default-picks', detail:'What a colour means when a buyer orders by colour alone, e.g. Red = Ruby Corundum 5A.'},
+  {title: 'Quick Order setup', href:'/admin/content/default-picks', detail:'Which colour buttons buyers see, in what order, and what each opens, e.g. Red = Ruby Corundum 5A.'},
   {title: 'Categories & product photos', href:'/admin/categories', detail:'Add or rename categories, arrange their order, choose covers and manage product photos.'},
   {title: 'Header logo', href:'/admin/brand-upload', detail:'Upload the logo used in the website header. Other designed wordmarks are managed separately.'},
   {title: 'Shapes & sizes', href:'/admin/shapes', detail:'Manage the shapes and sizes available for your catalogue.'},

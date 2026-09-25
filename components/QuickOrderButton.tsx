@@ -9,9 +9,9 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
-import { COLOR_FAMILIES, colorFamilyId } from '@/lib/color-family';
+import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
-import { useOrderPreferences } from './useOrderPreferences';
+import { useColorButtons, useOrderPreferences } from './useOrderPreferences';
 
 /** Home-page colour chips open Quick Order already started on a colour. */
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
@@ -67,6 +67,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
 
   // Colour-first ordering: "Red" + the buyer's usual picks -> Ruby Corundum 5A.
   const preferences = useOrderPreferences();
+  const colorButtons = colorButtonFamilies(useColorButtons());
   const [pickFamily, setPickFamily] = useState<number | null>(null);
   const [pickGrade, setPickGrade] = useState('');
   const [pendingCategoryId, setPendingCategoryId] = useState<number | null>(null);
@@ -284,8 +285,8 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
           </div>
           <p className="quick-order-hint">Start with a colour or a category, then shape, size and quantity.</p>
 
-          <div className="qo-family-chips" role="group" aria-label="Start with a colour">
-            {COLOR_FAMILIES.map((f) => {
+          {colorButtons.length > 0 && <div className="qo-family-chips" role="group" aria-label="Start with a colour">
+            {colorButtons.map((f) => {
               const usual = preferenceForFamily(preferences, f.id);
               const usualName = usual ? allCategories?.find((c) => c.id === usual.categoryId)?.name : null;
               return (
@@ -303,7 +304,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 </button>
               );
             })}
-          </div>
+          </div>}
           {pickFamily && !pickCategoryId && !pendingCategoryId && (
             <p className="quick-order-hint">Now choose the stone.</p>
           )}
@@ -337,7 +338,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                   start: pick a colour family here, same as the buttons above. */}
               {!currentOptions ? (
                 <IconSelect
-                  options={COLOR_FAMILIES}
+                  options={colorButtons.length > 0 ? colorButtons : COLOR_FAMILIES}
                   value={pickFamily ?? 'all'}
                   onChange={(v) => chooseFamily(v === 'all' ? null : v)}
                   allLabel="Choose colour"

@@ -56,3 +56,11 @@ test('shop defaults: Red = Ruby 5A and White = 5A CZ until the owner edits them;
   const merged = mergePreferences([{ familyId: 4, categoryId: 2, grade: '7A' }], DEFAULT_COLOR_PREFERENCES);
   assert.deepEqual(merged, [{ familyId: 4, categoryId: 2, grade: '7A' }, { familyId: 1, categoryId: 37 }]);
 });
+
+test('colour buttons: all twelve in the default order until the owner saves; then only the chosen ones, in their order', async () => {
+  const { parseColorButtons, colorButtonFamilies, COLOR_FAMILIES } = await import('../lib/color-family');
+  assert.deepEqual(parseColorButtons(undefined), COLOR_FAMILIES.map((f) => f.id));
+  assert.deepEqual(parseColorButtons('4, 1, 4, 99, x, 10'), [4, 1, 10]);
+  assert.deepEqual(parseColorButtons(''), []); // owner hid every button
+  assert.deepEqual(colorButtonFamilies([4, 1]).map((f) => f.name), ['Red', 'White']);
+});

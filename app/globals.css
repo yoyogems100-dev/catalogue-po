@@ -2266,6 +2266,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .most-ordered-list .btn-ghost { min-width: 40px; min-height: 40px; padding: 0; }
 .most-ordered-rank { width: 24px; text-align: center; color: var(--gold); font-weight: 600; }
 .most-ordered-name { flex: 1; min-width: 0; }
+.most-ordered-list input[type="checkbox"] { width: 20px; height: 20px; margin: 0 4px; accent-color: var(--navy, #1B3A6B); }
 
 /* Composer: price of the current pick, before it is added. */
 .po-price-preview { margin: 10px 0 12px; font-size: 14px; color: var(--ink); }

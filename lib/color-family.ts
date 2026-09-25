@@ -86,3 +86,20 @@ export function colorSearchText(name: string, hex?: string | null): string {
   const family = COLOR_FAMILIES.find((f) => f.id === colorFamilyId(name, hex));
   return `${family ? family.name.toLowerCase() : ''} ${name.toLowerCase()}`;
 }
+
+// Which colour buttons buyers see ("Order by colour" on the home page and the
+// row in Quick Order), and in what order. Edited in Admin > Website content >
+// Quick Order setup and stored in settings as comma-separated family IDs.
+// Until the owner saves a list, every family shows in COLOR_FAMILIES order.
+export const COLOR_BUTTONS_SETTING_KEY = 'quick_order_color_buttons';
+
+export function parseColorButtons(value: string | null | undefined): number[] {
+  if (value == null) return COLOR_FAMILIES.map((f) => f.id);
+  const known = new Set(COLOR_FAMILIES.map((f) => f.id));
+  const ids = value.split(',').map((s) => Number(s.trim())).filter((n) => known.has(n));
+  return [...new Set(ids)];
+}
+
+export function colorButtonFamilies(ids: number[]): ColorFamily[] {
+  return ids.map((id) => COLOR_FAMILIES.find((f) => f.id === id)).filter((f): f is ColorFamily => !!f);
+}

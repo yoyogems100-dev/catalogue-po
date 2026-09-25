@@ -34,7 +34,7 @@ export default function CustomerProfileEditor({ customer, categories }: { custom
       <label className="admin-profile-wide">Go-to requirements<textarea rows={3} value={form.goToRequirements} onChange={(event) => setForm({ ...form, goToRequirements: event.target.value })} placeholder="Frequent stones, cuts, sizes, colors, quantities or delivery preferences" /></label>
     </div>
     <h3 style={{ fontSize: 15, margin: '18px 0 4px' }}>Usual picks</h3>
-    <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 10px' }}>What this buyer means by a colour. When they order by colour alone (Quick Order or the home page colour chips), the stone and grade fill in from here. Colours left out use the shop defaults (Website content → Default colour picks).</p>
+    <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 10px' }}>What this buyer means by a colour. When they order by colour alone (Quick Order or the home page colour chips), the stone and grade fill in from here. Colours left out use the shop defaults (Website content → Quick Order setup).</p>
     <PreferencesEditor categories={categories} value={preferences} onChange={setPreferences} />
     <div className="admin-form-actions"><button className="btn" type="button" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save customer'}</button>{message && <span role="status">{message}</span>}</div>
   </section>;
