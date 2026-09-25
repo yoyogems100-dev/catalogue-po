@@ -18,9 +18,8 @@ export default function SiteFooter({ global, categories, autoPopular = [] }: { g
       <div className={s.wrap}>
         <div className={s.footerGrid}>
           <div>
-            <img {...thumb('/brand/yoyo-logo-white.png', 213)} alt="YOYO GEMS® Synthetic Gemstones" width={213} height={56} className={s.logoImg} loading="lazy" />
+            <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 256)} alt="YOYO GEMS® — Synthetic Gemstones. Infinite Choices. One Trusted Name." width={256} height={70} className={s.logoImg} loading="lazy" />
             <p className={s.footerBlurb}>{global.footer?.blurb}</p>
-            <p className={s.footerBlurb} style={{ fontStyle: 'italic' }}>{global.brand?.tagline}</p>
           </div>
           <div>
             <h2>Products</h2>

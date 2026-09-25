@@ -11,7 +11,8 @@ const nextConfig = {
   images: {
     // Website pictures are resized through /_next/image (lib/site/optimize.ts).
     // Uploaded files get new names, so a long cache is safe and keeps the
-    // number of re-optimisations low.
+    // number of re-optimisations low. When replacing a file in /public, give
+    // it a new name, or the old picture can be served for up to 31 days.
     minimumCacheTTL: 2678400,
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
