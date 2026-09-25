@@ -36,5 +36,17 @@ try {
   await assert.rejects(db.query('SELECT * FROM site_leads'), /permission denied/);
   assert.equal(await count(`SELECT count(*) n FROM site_categories WHERE slug='jewellery-findings'`), 0); // hidden
   await db.exec('RESET ROLE');
+
+  // Grade and FAQ starting text: fills blanks only, never overwrites, repeatable.
+  const text = readFileSync('supabase/migrations/20260926090000_site_grade_faq_text.sql', 'utf8');
+  await db.exec(`UPDATE site_grades SET summary='Owner wrote this' WHERE code='5a'`);
+  await db.exec(text);
+  await db.exec(text);
+  assert.equal(await count(`SELECT count(*) n FROM site_faqs`), 10);
+  assert.equal(await count(`SELECT count(*) n FROM site_grades WHERE summary='' OR description=''`), 0);
+  assert.equal((await db.query(`SELECT summary FROM site_grades WHERE code='5a'`)).rows[0].summary, 'Owner wrote this');
+  await db.exec(`DELETE FROM site_faqs WHERE sort_order > 10`);
+  await db.exec(text);
+  assert.equal(await count(`SELECT count(*) n FROM site_faqs`), 1); // owner's edits to the FAQ list are kept
   console.log('PASS: site CMS migration is repeatable, seeds 11+39 categories, enforces two levels and hides drafts/leads from anon.');
 } finally { await db.close(); }

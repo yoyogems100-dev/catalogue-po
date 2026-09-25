@@ -34,6 +34,11 @@
 /* The catalogue's global stylesheet paints html/body ivory; on site pages the
    overscroll area should be black too. */
 :global(html):has(.root), :global(body):has(.root) { background: #0a0a0c; }
+/* The catalogue's `html, body { overflow-x: hidden }` turns body into a
+   scroll container, which silently breaks every position: sticky element
+   (header, filter bar, shape panel). `clip` stops sideways scroll without
+   creating one. */
+:global(html):has(.root), :global(body):has(.root) { overflow-x: clip; }
 
 .root h1, .root h2, .root h3 { font-family: var(--serif); color: #fff; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
 .root a { color: inherit; }
@@ -186,6 +191,7 @@ a.contactItem:hover { border-color: rgba(231,166,242,0.45); }
 .contactIcon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: rgba(139,61,255,0.16); color: var(--accent-text); flex-shrink: 0; }
 .contactItem strong { display: block; color: #fff; font-weight: 500; }
 .contactItem span { display: block; font-size: 14px; color: var(--muted); }
+.contactItem .contactIcon { display: inline-flex; font-size: 18px; color: var(--accent-text); }
 
 /* Footer */
 .footer { border-top: 1px solid var(--line); background: #070709; padding: 48px 0 calc(96px + env(safe-area-inset-bottom)); font-size: 14.5px; color: var(--muted); }

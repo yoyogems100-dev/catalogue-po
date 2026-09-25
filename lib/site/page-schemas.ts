@@ -97,5 +97,161 @@ export const pageSchemas: Record<string, ContentSchema> = {
       ] },
       { key: 'seo', title: 'Search & sharing', fields: seoFields }
     ]
+  },
+  about: {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'text', key: 'tagline', label: 'Tagline', max: 120 },
+        { type: 'image', key: 'image', label: 'Top image', help: 'Wide photo. Stones or the office, on a dark background.' }
+      ] },
+      { key: 'story', title: '2 · Story blocks', help: 'Shown one after another, text and image alternating sides. Drag to reorder.', fields: [
+        { type: 'list', key: 'blocks', label: 'Blocks', itemLabel: 'Block', max: 8, fields: [
+          { type: 'text', key: 'heading', label: 'Heading', max: 100 },
+          { type: 'rich', key: 'body', label: 'Text' },
+          { type: 'image', key: 'image', label: 'Image (optional)' }
+        ] }
+      ] },
+      { key: 'photos', title: '3 · Photo strip', help: 'Our setup in China and the QC table. Pages without photos skip this strip.', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'list', key: 'items', label: 'Photos', itemLabel: 'Photo', max: 12, fields: [
+          { type: 'image', key: 'image', label: 'Photo' },
+          { type: 'text', key: 'caption', label: 'Caption', max: 100 }
+        ] }
+      ] },
+      { key: 'numbers', title: '4 · Numbers band', fields: [
+        { type: 'list', key: 'items', label: 'Numbers', itemLabel: 'Number', max: 6, fields: [
+          { type: 'text', key: 'value', label: 'Number', max: 12 },
+          { type: 'text', key: 'label', label: 'Label', max: 40 }
+        ] }
+      ] },
+      { key: 'cta', title: '5 · Closing', fields: [
+        { type: 'text', key: 'heading', label: 'Closing line', max: 90 },
+        { type: 'text', key: 'primary_label', label: 'Main button', max: 40 },
+        { type: 'text', key: 'secondary_label', label: 'WhatsApp button', max: 40 }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  quality: {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 240 },
+        { type: 'image', key: 'image', label: 'Main photo', help: 'The checking table works best.' }
+      ] },
+      { key: 'body', title: '2 · How we check', fields: [
+        { type: 'rich', key: 'text', label: 'Text', help: 'Three short paragraphs.' }
+      ] },
+      { key: 'checks', title: '3 · Checkpoints', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'list', key: 'items', label: 'Checkpoints', itemLabel: 'Checkpoint', max: 6, fields: [
+          { type: 'text', key: 'title', label: 'Checkpoint', max: 40 },
+          { type: 'textarea', key: 'text', label: 'Explanation', max: 300 }
+        ] }
+      ] },
+      { key: 'photos', title: '4 · Photos', fields: [
+        { type: 'list', key: 'items', label: 'Photos', itemLabel: 'Photo', max: 9, fields: [
+          { type: 'image', key: 'image', label: 'Photo' },
+          { type: 'text', key: 'caption', label: 'Caption', max: 100 }
+        ] }
+      ] },
+      { key: 'cta', title: '5 · Catalogue band', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 90 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 240 },
+        { type: 'text', key: 'button', label: 'Button', max: 30 }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  'how-to-order': {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 240 }
+      ] },
+      { key: 'steps', title: '2 · Steps', help: 'Numbered automatically. Drag to reorder.', fields: [
+        { type: 'list', key: 'items', label: 'Steps', itemLabel: 'Step', max: 7, fields: [
+          { type: 'text', key: 'title', label: 'Step', max: 50 },
+          { type: 'textarea', key: 'text', label: 'Explanation', max: 300 }
+        ] }
+      ] },
+      { key: 'note', title: '3 · Note under the steps', fields: [
+        { type: 'rich', key: 'text', label: 'Text' }
+      ] },
+      { key: 'cta', title: '4 · Catalogue band', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 90 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 240 },
+        { type: 'text', key: 'button', label: 'Button', max: 30 }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  charts: {
+    sections: [
+      { key: 'hub', title: '1 · Charts page', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 300 }
+      ] },
+      { key: 'shapes', title: '2 · Shape chart', help: 'Shapes and their sizes come from the catalogue.', fields: [
+        { type: 'text', key: 'title', label: 'Title', max: 60 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 400 }
+      ] },
+      { key: 'sizes', title: '3 · Size & MM → carat chart', help: 'Carat weights come from the weights entered under Shapes, and from the Moissanite chart.', fields: [
+        { type: 'text', key: 'title', label: 'Title', max: 60 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
+        { type: 'textarea', key: 'note', label: 'Note under the table', max: 400 }
+      ] },
+      { key: 'colours', title: '4 · Colour charts', help: 'One page per chart. Swatches are the real stone photos of every colour in the ticked categories.', fields: [
+        { type: 'list', key: 'charts', label: 'Colour charts', itemLabel: 'Chart', max: 12, fields: [
+          { type: 'text', key: 'title', label: 'Title', max: 60, placeholder: 'CZ Colours' },
+          { type: 'text', key: 'slug', label: 'Web address', max: 60, help: 'Lower-case words with dashes, e.g. cz-colours → /charts/cz-colours' },
+          { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
+          { type: 'categories', key: 'categories', label: 'Colours from these categories', help: 'Ticking a main category includes all of its sub-categories.' }
+        ] }
+      ] },
+      { key: 'grades', title: '5 · Quality grades page', help: 'Each grade’s own explanation is edited under Website → Grades.', fields: [
+        { type: 'text', key: 'title', label: 'Title', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
+        { type: 'text', key: 'body_heading', label: 'Section heading', max: 80 },
+        { type: 'rich', key: 'body', label: 'What the letters mean' },
+        { type: 'text', key: 'choosing_heading', label: 'Second section heading', max: 80 },
+        { type: 'rich', key: 'choosing', label: 'Choosing a grade' }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  faq: {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', help: 'The questions themselves are managed under Website → FAQ.', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 240 }
+      ] },
+      { key: 'cta', title: '2 · Below the questions', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 90 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 240 }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  contact: {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', help: 'Phone, WhatsApp, email and address come from Site settings.', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 300 }
+      ] },
+      { key: 'visit', title: '2 · Visiting us', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 400 },
+        { type: 'link', key: 'map_url', label: 'Map link', help: 'Leave blank to search the address on Google Maps.' },
+        { type: 'image', key: 'image', label: 'Photo (optional)' }
+      ] },
+      { key: 'cta', title: '3 · Catalogue band', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 90 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 240 },
+        { type: 'text', key: 'button', label: 'Button', max: 30 }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
   }
 };
