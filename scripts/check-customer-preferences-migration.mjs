@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const db = new PGlite();
 try {
   await db.exec("CREATE TABLE customers(id bigint primary key, name text); INSERT INTO customers VALUES (1, 'Existing buyer');");
-  const sql = readFileSync('supabase/migrations/20260925100000_customer_order_preferences.sql', 'utf8');
+  const sql = readFileSync('supabase/migrations/20260925120000_customer_order_preferences.sql', 'utf8');
   await db.exec(sql);
   await db.exec(sql); // repeat-safe
   assert.deepEqual((await db.query('SELECT order_preferences FROM customers WHERE id=1')).rows[0].order_preferences, []);
