@@ -40,7 +40,7 @@ export const pageDefaults: Record<string, ContentValue> = {
   },
   home: {
     hero: {
-      heading: 'Synthetic Gemstones. Infinite Choices. One Trusted Name.',
+      heading: 'Premium Synthetic Gemstones. Infinite Choices. One Trusted Name.',
       subline: '40+ categories. 30+ shapes. 50+ colours. Factory-direct from China, stocked in India.',
       primary_label: 'Request Catalogue',
       secondary_label: 'Browse Categories',
