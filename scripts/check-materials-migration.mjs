@@ -6,7 +6,7 @@ try {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
     CREATE TABLE public.categories(id integer primary key, name text);
     INSERT INTO public.categories VALUES (2, 'Ruby Corundum'), (26, 'Ruby Opaque (Chatam)'), (23, 'Ruby Glass Filled');`);
-  const sql = readFileSync('supabase/migrations/20260926090000_materials.sql', 'utf8');
+  const sql = readFileSync('supabase/migrations/20260927120000_materials.sql', 'utf8');
   await db.exec(sql);
   await db.exec(sql); // repeat-safe
   await db.exec(`INSERT INTO public.materials(name, sort_order) VALUES ('Ruby', 1), ('Glass', 2);`);
