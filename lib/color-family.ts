@@ -11,21 +11,24 @@ export type ColorFamily = {
   id: number;
   name: string;
   hex: string;
+  /** A real stone in this colour (the round-brilliant CZ chart set), shown on
+   *  the colour buttons and in the dropdowns the same way a colour is. */
+  refPhotoUrl: string;
 };
 
 export const COLOR_FAMILIES: ColorFamily[] = [
-  { id: 1, name: 'White', hex: '#F2F1ED' },
-  { id: 2, name: 'Black', hex: '#1A1A1A' },
-  { id: 3, name: 'Grey & Silver', hex: '#8B8B8B' },
-  { id: 4, name: 'Red', hex: '#9B111E' },
-  { id: 5, name: 'Pink', hex: '#E4A0BE' },
-  { id: 6, name: 'Orange & Peach', hex: '#E2793D' },
-  { id: 7, name: 'Yellow & Gold', hex: '#E8B923' },
-  { id: 8, name: 'Champagne & Brown', hex: '#8C6239' },
-  { id: 9, name: 'Green', hex: '#3FAE6A' },
-  { id: 10, name: 'Blue', hex: '#1B3A8B' },
-  { id: 11, name: 'Purple', hex: '#7E4A9B' },
-  { id: 12, name: 'Colour change', hex: '#8B7FB0' }
+  { id: 1, name: 'White', hex: '#F2F1ED', refPhotoUrl: '/reference/colors/white.webp' },
+  { id: 2, name: 'Black', hex: '#1A1A1A', refPhotoUrl: '/reference/colors/black.webp' },
+  { id: 3, name: 'Grey & Silver', hex: '#8B8B8B', refPhotoUrl: '/reference/colors/silver.webp' },
+  { id: 4, name: 'Red', hex: '#9B111E', refPhotoUrl: '/reference/colors/ruby-red.webp' },
+  { id: 5, name: 'Pink', hex: '#E4A0BE', refPhotoUrl: '/reference/colors/pink.webp' },
+  { id: 6, name: 'Orange & Peach', hex: '#E2793D', refPhotoUrl: '/reference/colors/orange.webp' },
+  { id: 7, name: 'Yellow & Gold', hex: '#E8B923', refPhotoUrl: '/reference/colors/canary-yellow.webp' },
+  { id: 8, name: 'Champagne & Brown', hex: '#8C6239', refPhotoUrl: '/reference/colors/champagne.webp' },
+  { id: 9, name: 'Green', hex: '#3FAE6A', refPhotoUrl: '/reference/colors/emerald-green.webp' },
+  { id: 10, name: 'Blue', hex: '#1B3A8B', refPhotoUrl: '/reference/colors/royal-blue.webp' },
+  { id: 11, name: 'Purple', hex: '#7E4A9B', refPhotoUrl: '/reference/colors/amethyst.webp' },
+  { id: 12, name: 'Colour change', hex: '#8B7FB0', refPhotoUrl: '/reference/colors/corundum/45-alexandrite.webp' }
 ];
 
 // Priority order matters: "Morganite Orange" is orange, not pink; "Purple

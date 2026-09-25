@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
+import ColorSwatch from '@/components/ColorSwatch';
 import { COLOR_FAMILIES, colorFamilyId, colorSearchText } from '@/lib/color-family';
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 
@@ -190,7 +191,7 @@ export default function HomeCatalogue({
                 className="qo-family-chip"
                 onClick={() => window.dispatchEvent(new CustomEvent(QUICK_ORDER_COLOR_EVENT, { detail: { familyId: f.id } }))}
               >
-                <span className="qo-family-dot" style={{ background: f.hex }} aria-hidden="true" />
+                <ColorSwatch hex={f.hex} refPhotoUrl={f.refPhotoUrl} size={22} />
                 {f.name}
               </button>
             ))}

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
+import ColorSwatch from './ColorSwatch';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
@@ -294,16 +295,17 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                   className={`qo-family-chip${pickFamily === f.id ? ' active' : ''}`}
                   aria-pressed={pickFamily === f.id}
                   title={usualName ? `${usualName}${usual?.grade ? ` ${usual.grade}` : ''}` : undefined}
+                  ref={pickFamily === f.id ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
                   onClick={() => chooseFamily(pickFamily === f.id ? null : f.id)}
                 >
-                  <span className="qo-family-dot" style={{ background: f.hex }} aria-hidden="true" />
+                  <ColorSwatch hex={f.hex} refPhotoUrl={f.refPhotoUrl} size={22} />
                   {f.name}
                 </button>
               );
             })}
           </div>
           {pickFamily && !pickCategoryId && !pendingCategoryId && (
-            <p className="quick-order-hint">Now choose the stone.{preferences.length === 0 ? ' Tip: save your usual picks in My Info and this fills in for you.' : ''}</p>
+            <p className="quick-order-hint">Now choose the stone.</p>
           )}
 
           <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
@@ -331,16 +333,28 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             <div>
               <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
               {familyMissing && <p className="quick-order-hint" style={{ margin: '0 0 6px' }}>No {COLOR_FAMILIES.find((f) => f.id === pickFamily)?.name.toLowerCase()} in this stone — showing all colours.</p>}
-              <IconSelect
-                categoryId={Number(pickCategoryId) || undefined}
-                multiple
-                options={colorOptions}
-                locked={pickCategoryId === 34}
-                values={pickColorIds}
-                onChange={setPickColorIds}
-                placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
-                leading="swatch"
-              />
+              {/* Before a stone is chosen the colour is where an order can
+                  start: pick a colour family here, same as the buttons above. */}
+              {!currentOptions ? (
+                <IconSelect
+                  options={COLOR_FAMILIES}
+                  value={pickFamily ?? 'all'}
+                  onChange={(v) => chooseFamily(v === 'all' ? null : v)}
+                  allLabel="Choose colour"
+                  leading="swatch"
+                />
+              ) : (
+                <IconSelect
+                  categoryId={Number(pickCategoryId) || undefined}
+                  multiple
+                  options={colorOptions}
+                  locked={pickCategoryId === 34}
+                  values={pickColorIds}
+                  onChange={setPickColorIds}
+                  placeholder="Choose color(s)"
+                  leading="swatch"
+                />
+              )}
             </div>
             <div>
               <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>

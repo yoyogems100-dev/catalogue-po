@@ -10,6 +10,28 @@ export type OrderPreference = { familyId: number; categoryId: number; grade?: st
 
 export const MAX_PREFERENCES = COLOR_FAMILIES.length;
 
+// Shop-wide defaults for every buyer, edited in Admin > Website content >
+// Default colour picks and stored as JSON in settings. A buyer's own usual
+// picks override these colour by colour. Until the owner saves a list:
+// Red -> Ruby Corundum (id 2) 5A, White -> 5A Quality CZ (id 37), the owner's
+// house rule ("white round" / "red" means 5A).
+export const DEFAULT_PICKS_SETTING_KEY = 'default_color_preferences';
+export const DEFAULT_COLOR_PREFERENCES: OrderPreference[] = [
+  { familyId: 4, categoryId: 2, grade: '5A' },
+  { familyId: 1, categoryId: 37 }
+];
+
+export function parseDefaultPreferences(value: string | null | undefined): OrderPreference[] {
+  if (value == null) return DEFAULT_COLOR_PREFERENCES;
+  try { return sanitizePreferences(JSON.parse(value)); } catch { return DEFAULT_COLOR_PREFERENCES; }
+}
+
+/** The buyer's own pick for a colour wins; the shop default fills the rest. */
+export function mergePreferences(mine: OrderPreference[], defaults: OrderPreference[]): OrderPreference[] {
+  const own = new Set(mine.map((p) => p.familyId));
+  return [...mine, ...defaults.filter((p) => !own.has(p.familyId))];
+}
+
 /** Drops anything malformed, keeps one entry per colour family (first wins). */
 export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>): OrderPreference[] {
   if (!Array.isArray(raw)) return [];

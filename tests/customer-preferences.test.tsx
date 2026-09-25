@@ -47,3 +47,12 @@ test('server accepts a grade only on a category that offers it', async () => {
   await assert.rejects(validateOrderSpecs([{ ...ruby, orderSpecs: { kind: 'grade', grade: '9A' } }], database));
   await assert.rejects(validateOrderSpecs([{ ...ruby, categoryId: 1 }], database));
 });
+
+test('shop defaults: Red = Ruby 5A and White = 5A CZ until the owner edits them; a buyer overrides per colour', async () => {
+  const { parseDefaultPreferences, mergePreferences, DEFAULT_COLOR_PREFERENCES } = await import('../lib/customer-preferences');
+  assert.deepEqual(parseDefaultPreferences(undefined), [{ familyId: 4, categoryId: 2, grade: '5A' }, { familyId: 1, categoryId: 37 }]);
+  assert.deepEqual(parseDefaultPreferences('not json'), DEFAULT_COLOR_PREFERENCES);
+  assert.deepEqual(parseDefaultPreferences('[]'), []); // owner cleared them on purpose
+  const merged = mergePreferences([{ familyId: 4, categoryId: 2, grade: '7A' }], DEFAULT_COLOR_PREFERENCES);
+  assert.deepEqual(merged, [{ familyId: 4, categoryId: 2, grade: '7A' }, { familyId: 1, categoryId: 37 }]);
+});
