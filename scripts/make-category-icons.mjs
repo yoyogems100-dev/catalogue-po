@@ -132,7 +132,9 @@ const CATEGORY_ICONS = {
   'heighted-cz-stones':    { src: 'heightened cz.jpeg', near: 30, global: 115, key: true },
   // SWIZZ in that shared filename is Swiss High Density CZ.
   'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
-  'nano':                  { src: 'blue nano.png', circle: 'fit', skipFill: true },
+  // The owner's own photo (the earlier one carried another seller's
+  // watermark). A deep-blue oval on grey, so an oval outline, not a fill.
+  'nano':                  { src: 'blue nano yg.png', oval: [0.052, 0.058, 0.948, 0.905], skipFill: true, fringe: 6 },
   'moissanite':            { src: 'moissanite.jpg' },
   // A dark backdrop with lighter blobs at the corners; one of them clung to
   // the top right of the heart as a hairline. It is a separate blob, so solo
