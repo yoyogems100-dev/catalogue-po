@@ -9,6 +9,7 @@
 .regions li::before { content: ''; flex: none; width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); }
 /* An odd last region takes the whole row rather than leaving half of it empty. */
 .regions li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.regions li.more { color: var(--muted); border-style: dashed; background: transparent; }
 .note { margin-top: 14px; font-size: 13px; color: var(--dim); }
 
 .map {
@@ -25,6 +26,9 @@
 .glow { transform-box: fill-box; transform-origin: center; }
 
 .route { fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.route.minor { stroke-width: 1.1; opacity: 0.7; }
+.minor .spark { opacity: 0; }
+.live .minor .spark { animation-name: sparkInSoft; }
 .routes { filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), 0.45)); }
 .stop { fill: var(--route-end); stroke: var(--bg); stroke-width: 1.4; transform-box: fill-box; transform-origin: center; }
 .ripple { fill: none; stroke: var(--route-end); stroke-width: 1.2; opacity: 0; transform-box: fill-box; transform-origin: center; }
@@ -52,6 +56,7 @@
 @keyframes land { to { transform: scale(1); } }
 @keyframes ripple { 0% { opacity: .8; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(4.2); } }
 @keyframes sparkIn { to { opacity: .95; } }
+@keyframes sparkInSoft { to { opacity: .6; } }
 @keyframes pulse { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(5); } }
 @keyframes breathe { 0%, 100% { opacity: .75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) {

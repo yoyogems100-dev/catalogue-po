@@ -17,7 +17,9 @@ function arc(x2: number, y2: number) {
   return `M${x1} ${y1}Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x2} ${y2}`;
 }
 
-const STAGGER = 0.16; // seconds between routes
+// Named regions draw first, then the finer unnamed drops fan out after them.
+const MAJOR = REACH_POINTS.filter((p) => p.region).length;
+const startAt = (i: number) => (i < MAJOR ? 0.3 + i * 0.13 : 0.9 + (i - MAJOR) * 0.08);
 
 // Routes draw out from Jaipur once the map scrolls into view, each landing
 // with a ripple; small lights then keep travelling along them. Without
@@ -63,21 +65,22 @@ export default function IndiaReach({ label }: { label: string }) {
 
         <g className={m.routes}>
           {REACH_POINTS.map((p, i) => (
-            <path key={i} d={arc(p.x, p.y)} pathLength={1} stroke={`url(#reach-g${i})`} className={m.route}
-              style={{ animationDelay: `${0.3 + i * STAGGER}s` }} />
+            <path key={i} d={arc(p.x, p.y)} pathLength={1} stroke={`url(#reach-g${i})`}
+              className={`${m.route} ${p.region ? '' : m.minor}`} style={{ animationDelay: `${startAt(i)}s` }} />
           ))}
         </g>
 
         {REACH_POINTS.map((p, i) => {
-          const landed = 0.3 + i * STAGGER + 1.1;
+          const landed = startAt(i) + 1.1;
+          const major = !!p.region;
           return (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="4" className={m.ripple} style={{ animationDelay: `${landed}s` }} />
-              <circle cx={p.x} cy={p.y} r="3.6" className={m.stop} style={{ animationDelay: `${landed}s` }} />
-              <circle r="2.2" className={m.spark} style={{ animationDelay: `${landed + 0.4}s` }}>
+            <g key={i} className={major ? '' : m.minor}>
+              {major && <circle cx={p.x} cy={p.y} r="4" className={m.ripple} style={{ animationDelay: `${landed}s` }} />}
+              <circle cx={p.x} cy={p.y} r={major ? 3.6 : 2.6} className={m.stop} style={{ animationDelay: `${landed}s` }} />
+              {(major || i % 2 === 0) && <circle r={major ? 2.2 : 1.6} className={m.spark} style={{ animationDelay: `${landed + 0.4}s` }}>
                 <animateMotion dur={`${2.6 + (i % 3) * 0.35}s`} begin={`${(i * 0.37) % 2.4}s`} repeatCount="indefinite"
                   path={arc(p.x, p.y)} keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.25 1" />
-              </circle>
+              </circle>}
             </g>
           );
         })}

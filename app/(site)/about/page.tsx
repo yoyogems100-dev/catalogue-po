@@ -64,9 +64,12 @@ export default async function AboutPage() {
               <h2 id="reach-heading" className={s.h2}>{page.reach.heading}</h2>
               {page.reach.intro && <p className={r.intro}>{page.reach.intro}</p>}
             </div>
-            <IndiaReach label={`Map of India with routes from Jaipur to ${REACH_REGIONS.join(', ')}`} />
+            <IndiaReach label={`Map of India with routes from Jaipur to ${REACH_REGIONS.join(', ')} and more places across India`} />
             <div className={r.list}>
-              <ul className={r.regions}>{REACH_REGIONS.map((name) => <li key={name}>{name}</li>)}</ul>
+              <ul className={r.regions}>
+                {REACH_REGIONS.map((name) => <li key={name}>{name}</li>)}
+                <li className={r.more}>And more across India</li>
+              </ul>
               {page.reach.note && <p className={r.note}>{page.reach.note}</p>}
             </div>
           </div>

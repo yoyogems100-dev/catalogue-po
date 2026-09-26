@@ -134,7 +134,7 @@ export const pageDefaults: Record<string, ContentValue> = {
     reach: {
       heading: 'From Jaipur to buyers across India',
       intro: 'We pack and dispatch from Jaipur to 27+ sites across India, from Punjab to Tamil Nadu and from Gujarat to the North East.',
-      note: 'And more cities in between.'
+      note: ''
     },
     photos: { heading: 'Our setup and QC table', items: [] },
     numbers: { items: [

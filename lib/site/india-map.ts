@@ -3,7 +3,7 @@
 // which follow the Government of India's official map. Projected
 // equirectangular with x scaled by cos 23°, 20 px per degree, and simplified.
 // Destinations are rough regional positions, not exact cities, by the owner's
-// request; add a region by adding a point (lon/lat → x/y with the same projection:
+// request (27 drops, to match "27+ sites"); add a region by adding a point (lon/lat → x/y with the same projection:
 // x = (lon - 67.5) × 0.9205 × 20, y = (37.6 - lat) × 20).
 
 export const INDIA_VIEWBOX = { width: 557.8, height: 628 };
@@ -12,7 +12,9 @@ export const INDIA_PATH = "M210.2 84.3L213.5 86.2L220.1 87.0L217.9 92.1L223.1 97
 
 export const REACH_ORIGIN = { label: 'Jaipur', x: 152.6, y: 213.8 };
 
-export type ReachPoint = { region: string; x: number; y: number };
+/** region: named in the list beside the map. Points without one are extra,
+ *  unnamed drops, drawn with a finer line. */
+export type ReachPoint = { region?: string; x: number; y: number };
 
 export const REACH_POINTS: ReachPoint[] = [
   { region: 'Delhi NCR', x: 178.8, y: 179.8 },
@@ -24,7 +26,25 @@ export const REACH_POINTS: ReachPoint[] = [
   { region: 'West Bengal', x: 384, y: 300.6 },
   { region: 'North East', x: 446.3, y: 229.2 },
   { region: 'Tamil Nadu', x: 235.1, y: 490.4 },
+  { x: 246.7, y: 215 },
+  { x: 285.4, y: 246 },
+  { x: 324, y: 240 },
+  { x: 182.3, y: 287 },
+  { x: 153.7, y: 298 },
+  { x: 213.6, y: 329 },
+  { x: 116.9, y: 382 },
+  { x: 119.7, y: 444 },
+  { x: 185.9, y: 493 },
+  { x: 202.5, y: 404 },
+  { x: 162, y: 553 },
+  { x: 289, y: 398 },
+  { x: 336.9, y: 346 },
+  { x: 259.6, y: 327 },
+  { x: 327.7, y: 285 },
+  { x: 193.3, y: 146 },
+  { x: 135.3, y: 98 },
+  { x: 114.1, y: 260 },
 ];
 
 /** Distinct region names, in map order, for the list beside the map. */
-export const REACH_REGIONS = [...new Set(REACH_POINTS.map((p) => p.region))];
+export const REACH_REGIONS = [...new Set(REACH_POINTS.flatMap((p) => (p.region ? [p.region] : [])))];
