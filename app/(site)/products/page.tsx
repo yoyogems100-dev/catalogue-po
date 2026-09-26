@@ -4,6 +4,7 @@ import { getNavTree } from '@/lib/site/public';
 import s from '@/components/site/site.module.css';
 import c from '@/components/site/category.module.css';
 import { pic } from '@/lib/site/optimize';
+import CatThumb from '@/components/site/CatThumb';
 
 export const revalidate = 3600;
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default async function ProductsHub() {
           {categories.map((cat) => (
             <li key={cat.id}>
               <Link href={cat.href} className={s.catTile}>
-                <div className={s.catImg}>{cat.image ? <img {...pic(cat.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={cat.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
+                <div className={`${s.catImg} ${cat.image?.cutout ? s.catImgCut : ''}`}>{cat.image ? <img {...pic(cat.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={cat.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
                 <div className={s.catBody}><span className={s.catName}>{cat.name}</span>{cat.descriptor && <span className={s.catDesc}>{cat.descriptor}</span>}</div>
               </Link>
             </li>
@@ -37,7 +38,7 @@ export default async function ProductsHub() {
           <section key={cat.id} className={c.hubGroup}>
             <h2><Link href={cat.href}>{cat.name}</Link></h2>
             {cat.descriptor && <p>{cat.descriptor}</p>}
-            <ul className={c.hubChildren}>{cat.children.map((k) => <li key={k.id}><Link href={k.href}>{k.name}</Link></li>)}</ul>
+            <ul className={c.hubChildren}>{cat.children.map((k) => <li key={k.id}><Link href={k.href}><CatThumb image={k.image} size={28} />{k.name}</Link></li>)}</ul>
           </section>
         ))}
       </div>

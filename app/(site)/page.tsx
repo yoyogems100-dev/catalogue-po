@@ -73,7 +73,7 @@ export default async function HomePage() {
             {categories.map((cat) => (
               <li key={cat.id} className={s.reveal}>
                 <Link href={cat.href} className={s.catTile}>
-                  <div className={s.catImg}>
+                  <div className={`${s.catImg} ${cat.image?.cutout ? s.catImgCut : ''}`}>
                     {cat.image
                       ? <img {...pic(cat.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={cat.image.alt} loading="lazy" decoding="async" />
                       : <div className={s.catImgEmpty} />}

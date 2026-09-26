@@ -20,7 +20,8 @@ export default async function AboutPage() {
   const [page, g] = await Promise.all([getPage('about'), getGlobal()]);
   const media = await getMedia(collectImageIds(pageSchemas.about, page));
   const img = (id: number | null | undefined, alt = '') => (id ? toImage(media.get(id), alt) : null);
-  const hero = img(page.hero?.image);
+  // Until a top image is chosen in admin: the photo from the owner's About artwork.
+  const hero = img(page.hero?.image) ?? { src: '/site/about/hills-above-clouds.webp', alt: 'Hills rising above morning clouds' };
   const blocks = (page.story?.blocks || []).filter((b: any) => b.heading || b.body);
   const photos = (page.photos?.items || []).map((x: any) => ({ image: img(x.image, x.caption), caption: x.caption })).filter((x: any) => x.image);
   const numbers = (page.numbers?.items || []).filter((n: any) => n.value || n.label);

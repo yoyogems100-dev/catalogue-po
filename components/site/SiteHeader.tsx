@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { thumb } from '@/lib/site/optimize';
 import type { NavCategory } from '@/lib/site/public';
 import { Chevron, Close, Menu } from './icons';
+import CatThumb from './CatThumb';
 import s from './site.module.css';
 
 type Props = { categories: NavCategory[]; ctaLabel: string; showTradeLogin: boolean; whatsappHref: string | null };
@@ -57,9 +58,9 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
                 <div className={s.megaGrid}>
                   {categories.map((c) => (
                     <div key={c.id} className={s.megaCol}>
-                      <h3><Link href={c.href}>{c.name}</Link></h3>
+                      <h3><Link href={c.href} className={s.megaHead}><CatThumb image={c.image} size={32} />{c.name}</Link></h3>
                       {c.children.length > 0 && (
-                        <ul>{c.children.map((sub) => <li key={sub.id}><Link href={sub.href}>{sub.name}</Link></li>)}</ul>
+                        <ul>{c.children.map((sub) => <li key={sub.id}><Link href={sub.href} className={s.megaItem}><CatThumb image={sub.image} size={22} />{sub.name}</Link></li>)}</ul>
                       )}
                     </div>
                   ))}
@@ -99,7 +100,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
             {categories.map((c) => (
               <div key={c.id} className={s.acc}>
                 <div className={s.accHead}>
-                  <Link href={c.href} onClick={() => setSheetOpen(false)}>{c.name}</Link>
+                  <Link href={c.href} onClick={() => setSheetOpen(false)}><CatThumb image={c.image} size={34} />{c.name}</Link>
                   {c.children.length > 0 && (
                     <button type="button" className={s.accToggle} aria-expanded={expanded === c.id} aria-controls={`acc-${c.id}`}
                       aria-label={`${expanded === c.id ? 'Hide' : 'Show'} ${c.name} types`} onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
@@ -109,7 +110,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
                 </div>
                 {expanded === c.id && (
                   <ul id={`acc-${c.id}`} className={s.accList}>
-                    {c.children.map((sub) => <li key={sub.id}><Link href={sub.href} onClick={() => setSheetOpen(false)}>{sub.name}</Link></li>)}
+                    {c.children.map((sub) => <li key={sub.id}><Link href={sub.href} onClick={() => setSheetOpen(false)}><CatThumb image={sub.image} size={26} />{sub.name}</Link></li>)}
                   </ul>
                 )}
               </div>

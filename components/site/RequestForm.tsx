@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChoiceGroup } from '@/lib/site/lead-choices';
 import { Arrow, WhatsApp } from './icons';
+import CatThumb from './CatThumb';
 import s from './site.module.css';
 import p from './pages.module.css';
 
@@ -109,7 +110,7 @@ export default function RequestForm({ groups, copy, whatsapp }: { groups: Choice
           {groups.map((g) => (
             <label key={g.id} className={p.pick}>
               <input type="checkbox" checked={picked.includes(g.id)} onChange={() => toggle(g.id, g)} />
-              <span>{g.name}</span>
+              <span><CatThumb image={g.image} size={28} />{g.name}</span>
             </label>
           ))}
         </div>
@@ -120,7 +121,7 @@ export default function RequestForm({ groups, copy, whatsapp }: { groups: Choice
               {g.children.map((c) => (
                 <label key={c.id} className={`${p.pick} ${p.pickSmall}`}>
                   <input type="checkbox" checked={picked.includes(c.id)} onChange={() => toggle(c.id)} />
-                  <span>{c.name}</span>
+                  <span><CatThumb image={c.image} size={24} />{c.name}</span>
                 </label>
               ))}
             </div>
