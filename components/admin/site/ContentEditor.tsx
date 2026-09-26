@@ -141,7 +141,7 @@ export default function ContentEditor({ entity, entityKey, initialDraft, initial
         <div className={s.publishStatus}>
           <span className={`${s.dot} ${state === 'error' ? s.dotError : hasUnpublished ? s.dotDraft : s.dotLive}`} aria-hidden="true" />
           <div>
-            <strong>{hasUnpublished ? 'Draft has changes not yet live' : publishedAt ? 'Live page is up to date' : 'Not published yet'}</strong>
+            <strong>{!publishedAt ? 'Live site shows the starting text — publish to use this version' : hasUnpublished ? 'Draft has changes not yet live' : 'Live page is up to date'}</strong>
             <span>{status}{publishedAt ? ` · Last published ${time(publishedAt)}` : ''}</span>
           </div>
         </div>
