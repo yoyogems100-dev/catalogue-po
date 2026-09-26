@@ -48,18 +48,23 @@ test('server accepts a grade only on a category that offers it', async () => {
   await assert.rejects(validateOrderSpecs([{ ...ruby, categoryId: 1 }], database));
 });
 
-test('shop defaults: Red = Ruby 5A and White = 5A CZ until the owner edits them; a buyer overrides per colour', async () => {
+test('shop defaults: White 5A CZ, Red Ruby 5A, Yellow Fancy Solitaire, Green and Blue Nano until the owner edits them; a buyer overrides per colour', async () => {
   const { parseDefaultPreferences, mergePreferences, DEFAULT_COLOR_PREFERENCES } = await import('../lib/customer-preferences');
-  assert.deepEqual(parseDefaultPreferences(undefined), [{ familyId: 4, categoryId: 2, grade: '5A' }, { familyId: 1, categoryId: 37 }]);
+  assert.deepEqual(parseDefaultPreferences(undefined), [
+    { familyId: 1, categoryId: 37 }, { familyId: 4, categoryId: 2, grade: '5A' }, { familyId: 7, categoryId: 28 }, { familyId: 9, categoryId: 3 }, { familyId: 10, categoryId: 3 }
+  ]);
   assert.deepEqual(parseDefaultPreferences('not json'), DEFAULT_COLOR_PREFERENCES);
   assert.deepEqual(parseDefaultPreferences('[]'), []); // owner cleared them on purpose
   const merged = mergePreferences([{ familyId: 4, categoryId: 2, grade: '7A' }], DEFAULT_COLOR_PREFERENCES);
-  assert.deepEqual(merged, [{ familyId: 4, categoryId: 2, grade: '7A' }, { familyId: 1, categoryId: 37 }]);
+  assert.deepEqual(merged.slice(0, 2), [{ familyId: 4, categoryId: 2, grade: '7A' }, { familyId: 1, categoryId: 37 }]);
+  assert.equal(merged.filter((p) => p.familyId === 4).length, 1);
 });
 
-test('colour buttons: all twelve in the default order until the owner saves; then only the chosen ones, in their order', async () => {
-  const { parseColorButtons, colorButtonFamilies, COLOR_FAMILIES } = await import('../lib/color-family');
-  assert.deepEqual(parseColorButtons(undefined), COLOR_FAMILIES.map((f) => f.id));
+test('colour buttons: White, Red, Yellow, Green, Blue until the owner saves; then only the chosen ones, in their order', async () => {
+  const { parseColorButtons, colorButtonFamilies, sanitizeColorButtons } = await import('../lib/color-family');
+  assert.deepEqual(parseColorButtons(undefined), [1, 4, 7, 9, 10]);
+  assert.equal(sanitizeColorButtons(null), null); // a buyer with no list of their own follows the shop
+  assert.deepEqual(sanitizeColorButtons([10, '9', 10, 42]), [10, 9]);
   assert.deepEqual(parseColorButtons('4, 1, 4, 99, x, 10'), [4, 1, 10]);
   assert.deepEqual(parseColorButtons(''), []); // owner hid every button
   assert.deepEqual(colorButtonFamilies([4, 1]).map((f) => f.name), ['Red', 'White']);

@@ -6,6 +6,7 @@ import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
 import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId, colorSearchText } from '@/lib/color-family';
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
+import { useColorButtons } from '@/components/useOrderPreferences';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
 // lh3.googleusercontent.com, which starts returning 429 when a page asks for
@@ -110,11 +111,13 @@ export default function HomeCatalogue({
     return COLOR_FAMILIES.filter((f) => present.has(f.id));
   }, [categories, familyByColorId]);
 
-  // "Order by colour" buttons: the ones the shop chose, in its order.
+  // "Order by colour" buttons: the shop's list as rendered, swapped for this
+  // buyer's own list once it has loaded.
+  const buyerButtonIds = useColorButtons();
   const colorButtons = useMemo(() => {
     const present = new Set(familyOptions.map((f) => f.id));
-    return colorButtonFamilies(colorButtonIds).filter((f) => present.has(f.id));
-  }, [colorButtonIds, familyOptions]);
+    return colorButtonFamilies(buyerButtonIds ?? colorButtonIds).filter((f) => present.has(f.id));
+  }, [buyerButtonIds, colorButtonIds, familyOptions]);
 
   // Everything a buyer might type about a category, lower-cased once.
   const searchIndex = useMemo(() => {

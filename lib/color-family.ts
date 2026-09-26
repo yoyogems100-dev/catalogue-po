@@ -88,16 +88,23 @@ export function colorSearchText(name: string, hex?: string | null): string {
 }
 
 // Which colour buttons buyers see ("Order by colour" on the home page and the
-// row in Quick Order), and in what order. Edited in Admin > Website content >
-// Quick Order setup and stored in settings as comma-separated family IDs.
-// Until the owner saves a list, every family shows in COLOR_FAMILIES order.
+// row in Quick Order), and in what order. Edited in Admin > Catalogue map >
+// Colour buttons and stored in settings as comma-separated family IDs; a buyer
+// can have their own list (customers.color_buttons). Until the owner saves a
+// list: White, Red, Yellow, Green, Blue (owner's choice, 2026-09-26).
 export const COLOR_BUTTONS_SETTING_KEY = 'quick_order_color_buttons';
+export const DEFAULT_COLOR_BUTTONS = [1, 4, 7, 9, 10];
 
 export function parseColorButtons(value: string | null | undefined): number[] {
-  if (value == null) return COLOR_FAMILIES.map((f) => f.id);
+  if (value == null) return DEFAULT_COLOR_BUTTONS;
+  return sanitizeColorButtons(value.split(',').map((s) => s.trim())) || [];
+}
+
+/** Known family IDs, once each, in the given order; null when not a list. */
+export function sanitizeColorButtons(raw: unknown): number[] | null {
+  if (!Array.isArray(raw)) return null;
   const known = new Set(COLOR_FAMILIES.map((f) => f.id));
-  const ids = value.split(',').map((s) => Number(s.trim())).filter((n) => known.has(n));
-  return [...new Set(ids)];
+  return [...new Set(raw.map(Number).filter((n) => known.has(n)))];
 }
 
 export function colorButtonFamilies(ids: number[]): ColorFamily[] {

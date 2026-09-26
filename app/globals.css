@@ -2367,3 +2367,26 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 }
 .qo-finder { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin: 4px 0 14px; background: var(--ivory); border: 1px solid var(--line); }
 .qo-other-stones { background: none; border: 0; padding: 4px 0; margin: 0 0 10px; color: var(--navy); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 32px; }
+
+/* Colour buttons editor (Catalogue map and a buyer's page). */
+.colour-setup { max-width: 640px; }
+.colour-setup-source { margin-bottom: 12px; }
+.colour-setup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.colour-setup-list li { background: #fff; border: 1px solid var(--line); padding: 8px 12px 12px; }
+.colour-setup-list li.off { background: #fbfaf7; }
+.colour-setup-list li.off .colour-setup-show span { color: var(--text-dim); }
+.colour-setup-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.colour-setup-show { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-weight: 500; color: var(--ink); }
+.colour-setup-show input { width: 20px; height: 20px; accent-color: var(--navy); margin: 0; }
+.colour-setup-show em { font-style: normal; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.colour-setup-move { display: flex; gap: 4px; }
+.colour-setup-move .btn-ghost { min-width: 40px; min-height: 40px; padding: 0; }
+.colour-setup-opens { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.colour-setup-opens .po-label { margin: 0; }
+.colour-setup-list li.off .colour-setup-opens { opacity: 0.6; }
+.colour-setup-save { margin-top: 14px; }
+@media (max-width: 560px) {
+  .colour-setup-opens { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+.catmap .cat-tabs { overflow-x: auto; scrollbar-width: none; }
+.catmap .cat-tab { white-space: nowrap; flex: none; margin-right: 10px; }
