@@ -54,7 +54,7 @@ export default function CategoriesClient({ rows: initial }: { rows: TreeRow[] })
   }
 
   async function remove(r: TreeRow) {
-    if (!confirm(`Delete the website page "${r.name}"? Its text and gallery links are removed. Catalogue categories and photos are not affected.`)) return;
+    if (!confirm(`Delete the website page "${r.name}"? Its text is removed and its photos are taken off it (they stay in the website library). The /po catalogue is not affected.`)) return;
     try { await send(`/api/admin/site/categories/${r.id}`, 'DELETE'); setRows(rows.filter((x) => x.id !== r.id)); flash(`${r.name} deleted.`); }
     catch (e: any) { flash(e.message); }
   }
@@ -84,7 +84,7 @@ export default function CategoriesClient({ rows: initial }: { rows: TreeRow[] })
       <div className={s.pageHead}>
         <div>
           <h1>Website categories</h1>
-          <p className={s.note}>Drag the grip (or use the arrows) to change the order shown in the menu and on the home page. Open a category to edit its page, gallery and filters.</p>
+          <p className={s.note}>Drag the grip (or use the arrows) to change the order shown in the menu and on the home page. Open a category to edit its page, photos and filters.</p>
         </div>
       </div>
       <Sortable

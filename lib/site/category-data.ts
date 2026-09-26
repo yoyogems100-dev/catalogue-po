@@ -1,7 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { supabasePublic } from '@/lib/supabase-public';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
-import { photoUrl } from '@/lib/photos';
 import { withDefaults, type ContentValue } from './schema';
 import { categorySchema } from './schemas';
 import { categoryDefaults } from './category-defaults';
@@ -11,11 +10,12 @@ import { getCategoryImages } from './category-images-data';
 
 // Everything a category page needs, read with the anon key and cached for an
 // hour (and dropped immediately when the admin changes website content).
-// Shapes, sizes, colours and photos come from the catalogue categories the
-// page is linked to; nothing is duplicated.
+// Shapes, sizes and colours come from the catalogue categories the page is
+// linked to. Photographs are the website's own (site_media linked to the
+// category), managed in Admin → Website, independent of the /po photos.
 
 export type Option = { slug: string; name: string; img?: string | null; ids: number[] };
-export type PagePhoto = { id: number; src: string; alt: string; shapes: string[]; colours: string[]; sizes: string[]; grade: string | null };
+export type PagePhoto = { id: number; src: string; srcSet?: string; alt: string; shapes: string[]; colours: string[]; sizes: string[]; grade: string | null };
 export type Img = { src: string; srcSet?: string; alt: string; width?: number; height?: number; cutout?: boolean };
 
 export type CategoryPage = {
@@ -37,7 +37,6 @@ export type CategoryPage = {
   sizeChart: { shape: string; slug: string; sizes: string[] }[];
   colourCharts: { src: string; name: string }[];
   photos: PagePhoto[];
-  gallery: Img[];
   sourceCount: number;
 };
 
@@ -68,11 +67,11 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
 
   // 2. Catalogue sources (a top-level page also draws on its sub-categories).
   const pageIds = [node.id, ...kids.map((k) => k.id)];
-  const [{ data: sourceRows }, { data: gradeRows }, { data: allGrades }, { data: galleryLinks }] = await Promise.all([
+  const [{ data: sourceRows }, { data: gradeRows }, { data: allGrades }, { data: photoLinks }] = await Promise.all([
     supabasePublic.from('site_category_sources').select('site_category_id, category_id, grade_id, color_ids, sort_order').in('site_category_id', pageIds).order('sort_order'),
     supabasePublic.from('site_category_grades').select('grade_id').in('site_category_id', pageIds),
     supabasePublic.from('site_grades').select('id, code, name, summary, sort_order').order('sort_order'),
-    supabasePublic.from('site_media_links').select('media_id, sort_order').eq('target_type', 'site_category').eq('target_id', node.id).order('sort_order')
+    supabasePublic.from('site_media_links').select('media_id, target_id, sort_order').eq('target_type', 'site_category').in('target_id', pageIds).order('sort_order')
   ]);
   const sources = (sourceRows || []) as { site_category_id: number; category_id: number; grade_id: number | null; color_ids: number[] | null }[];
   const catIds = [...new Set(sources.map((s) => s.category_id))];
@@ -92,14 +91,10 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
   const colorIds = [...new Set((catColors.data || []).filter((r: any) => allowedColor(r.category_id, r.color_id)).map((r: any) => r.color_id))];
   const sizeIds = [...new Set((catSizes.data || []).map((r: any) => r.shape_size_id))];
 
-  const [{ data: shapes }, { data: colors }, sizeRows, photoRows] = await Promise.all([
+  const [{ data: shapes }, { data: colors }, sizeRows] = await Promise.all([
     shapeIds.length ? supabasePublic.from('shapes').select('id, name, ref_photo_url, sort_order').in('id', shapeIds).order('sort_order') : Promise.resolve(none),
     colorIds.length ? supabasePublic.from('colors').select('id, name, ref_photo_url, sort_order').in('id', colorIds).order('sort_order') : Promise.resolve(none),
-    sizeIds.length ? fetchAllRows<any>((f, t) => supabasePublic.from('shape_sizes').select('id, shape_id, size_mm', { count: 'exact' }).in('id', sizeIds).range(f, t)) : Promise.resolve(none),
-    catIds.length ? supabasePublic.from('photos')
-      .select('id, category_id, storage_path, photo_crop, cover_crop, watermarked_path, shape_id, color_id, shape_size_id, sort_order')
-      .in('category_id', catIds).is('parent_photo_id', null).not('storage_path', 'is', null).or('is_cover_only.is.null,is_cover_only.eq.false')
-      .order('sort_order').limit(400) : Promise.resolve(none)
+    sizeIds.length ? fetchAllRows<any>((f, t) => supabasePublic.from('shape_sizes').select('id, shape_id, size_mm', { count: 'exact' }).in('id', sizeIds).range(f, t)) : Promise.resolve(none)
   ]);
 
   // Options, de-duplicated by name (the same colour exists per material).
@@ -109,10 +104,7 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
   (shapes || []).forEach((s: any) => addOption(shapeMap, s.name, s.id, categoryShapePhoto.get(s.id) || s.ref_photo_url));
   const colourMap = new Map<string, Option>();
   (colors || []).forEach((c: any) => addOption(colourMap, c.name, c.id, c.ref_photo_url));
-  const shapeName = new Map((shapes || []).map((s: any) => [s.id, s.name as string]));
-  const colourName = new Map((colors || []).map((c: any) => [c.id, c.name as string]));
   const sizes = (sizeRows.data || []) as { id: number; shape_id: number; size_mm: string }[];
-  const sizeById = new Map(sizes.map((z) => [z.id, z]));
   const bucketIds = new Map<string, number[]>();
   sizes.forEach((z) => { const b = sizeBucketOf(z.size_mm); if (b) bucketIds.set(b, [...(bucketIds.get(b) || []), z.id]); });
   const sizeOptions = SIZE_BUCKETS.filter((b) => bucketIds.has(b.slug)).map((b) => ({ slug: b.slug, name: b.label, ids: bucketIds.get(b.slug)! }));
@@ -129,52 +121,55 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     return { shape: opt.name, slug: opt.slug, sizes: list };
   }).filter((r) => r.sizes.length);
 
-  // Photos with their tags (direct columns + junction tables).
-  const photos = (photoRows.data || []) as any[];
-  const photoIds = photos.map((p) => p.id);
-  const [pShapes, pColors, pSizes] = photoIds.length ? await Promise.all([
-    supabasePublic.from('photo_shapes').select('photo_id, shape_id').in('photo_id', photoIds),
-    supabasePublic.from('photo_colors').select('photo_id, color_id').in('photo_id', photoIds),
-    supabasePublic.from('photo_sizes').select('photo_id, shape_size_id').in('photo_id', photoIds)
-  ]) : [none, none, none];
-  const tagsOf = (rows: any[] | null, key: string) => {
-    const m = new Map<number, number[]>();
-    (rows || []).forEach((r: any) => m.set(r.photo_id, [...(m.get(r.photo_id) || []), r[key]]));
-    return m;
-  };
-  const ps = tagsOf(pShapes.data, 'shape_id'), pc = tagsOf(pColors.data, 'color_id'), pz = tagsOf(pSizes.data, 'shape_size_id');
-  const gradeOfCategory = new Map<number, string | null>();
-  sources.forEach((s) => { if (!gradeOfCategory.has(s.category_id) || s.grade_id) gradeOfCategory.set(s.category_id, s.grade_id ? gradeById.get(s.grade_id)?.code ?? null : null); });
-  const catName = new Map((catRows.data || []).map((c: any) => [c.id, c.name as string]));
+  // The website's own photos: this page's first, then each sub-category's,
+  // each in the order set in admin. Tags are links to catalogue shapes,
+  // colours and sizes, and to website grades.
+  const order = new Map(pageIds.map((id, i) => [id, i]));
+  const links = ((photoLinks || []) as { media_id: number; target_id: number; sort_order: number }[])
+    .sort((x, y) => order.get(x.target_id)! - order.get(y.target_id)! || x.sort_order - y.sort_order);
+  const photoIds = [...new Set(links.map((l) => l.media_id))].slice(0, 400);
+  const content = withDefaults(categorySchema, node.published ?? categoryDefaults(parent?.slug ?? null, node.slug) ?? {});
+  const mediaIds = [...new Set([content.hero?.image, node.hero_media_id, ...photoIds].filter(Boolean))];
+  const [{ data: mediaRows }, tagRows] = await Promise.all([
+    mediaIds.length ? supabasePublic.from('site_media').select('id, storage_path, variants, width, height, alt').in('id', mediaIds) : Promise.resolve(none),
+    photoIds.length ? fetchAllRows<any>((f, t) => supabasePublic.from('site_media_links').select('media_id, target_type, target_id', { count: 'exact' })
+      .in('media_id', photoIds).in('target_type', ['shape', 'color', 'size', 'grade']).range(f, t)) : Promise.resolve(none)
+  ]);
+  const media = new Map((mediaRows || []).map((m: any) => [m.id, m as MediaRow]));
+  const tags = (tagRows.data || []) as { media_id: number; target_type: string; target_id: number }[];
+  const tagIds = (type: string) => [...new Set(tags.filter((t) => t.target_type === type).map((t) => t.target_id))];
+  // Tag names the page's own options may not include (a photo can be tagged with anything).
+  const missing = (ids: number[], known: Map<number, unknown>) => ids.filter((id) => !known.has(id));
+  const shapeName = new Map((shapes || []).map((s: any) => [s.id, s.name as string]));
+  const colourName = new Map((colors || []).map((c: any) => [c.id, c.name as string]));
+  const sizeById = new Map(sizes.map((z) => [z.id, z]));
+  const [extraShapes, extraSizes] = await Promise.all([
+    missing(tagIds('shape'), shapeName).length ? supabasePublic.from('shapes').select('id, name').in('id', missing(tagIds('shape'), shapeName)) : Promise.resolve(none),
+    missing(tagIds('size'), sizeById).length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', missing(tagIds('size'), sizeById)) : Promise.resolve(none)
+  ]);
+  (extraShapes.data || []).forEach((r: any) => shapeName.set(r.id, r.name));
+  (extraSizes.data || []).forEach((r: any) => sizeById.set(r.id, r));
+  const tagsOf = (id: number, type: string) => tags.filter((t) => t.media_id === id && t.target_type === type).map((t) => t.target_id);
   const pagePhotos: PagePhoto[] = [];
-  for (const p of photos) {
-    const src = photoUrl(p, 800, 'photo');
-    if (!src) continue;
-    const sIds = [...new Set([p.shape_id, ...(ps.get(p.id) || [])].filter(Boolean))];
-    const cIds = [...new Set([p.color_id, ...(pc.get(p.id) || [])].filter(Boolean))].filter((id) => colourName.has(id));
-    const zIds = [...new Set([p.shape_size_id, ...(pz.get(p.id) || [])].filter(Boolean))];
-    const shapeNames = sIds.map((id) => shapeName.get(id)).filter(Boolean) as string[];
-    const colourNames = cIds.map((id) => colourName.get(id)).filter(Boolean) as string[];
-    // A photo narrowed out by a colour restriction on its source is skipped.
-    const narrowed = sources.find((s) => s.category_id === p.category_id)?.color_ids;
-    if (narrowed && p.color_id && !narrowed.includes(p.color_id)) continue;
-    const sizeLabels = zIds.map((id) => sizeById.get(id)?.size_mm).filter(Boolean) as string[];
+  for (const id of photoIds) {
+    const m = media.get(id);
+    if (!m) continue;
+    // Colours outside this page's range are not filter values here.
+    const colourNames = tagsOf(id, 'color').map((c) => colourName.get(c)).filter(Boolean) as string[];
+    const shapeNames = tagsOf(id, 'shape').map((x) => shapeName.get(x)).filter(Boolean) as string[];
+    const sizeLabels = tagsOf(id, 'size').map((z) => sizeById.get(z)?.size_mm).filter(Boolean) as string[];
+    const grade = tagsOf(id, 'grade').map((g) => gradeById.get(g)?.code).find(Boolean) ?? null;
     pagePhotos.push({
-      id: p.id,
-      src,
-      alt: [colourNames[0], shapeNames[0], catName.get(p.category_id)].filter(Boolean).join(' ') + (sizeLabels[0] ? `, ${sizeLabels[0]}mm` : ''),
+      id,
+      src: mediaSrc(m, 960),
+      srcSet: mediaSrcSet(m),
+      alt: m.alt || `${node.name} stones`,
       shapes: shapeNames.map(slugOf),
       colours: colourNames.map(slugOf),
       sizes: [...new Set(sizeLabels.map(sizeBucketOf).filter(Boolean) as string[])],
-      grade: gradeOfCategory.get(p.category_id) ?? null
+      grade
     });
   }
-
-  // Website media: hero and gallery.
-  const content = withDefaults(categorySchema, node.published ?? categoryDefaults(parent?.slug ?? null, node.slug) ?? {});
-  const mediaIds = [content.hero?.image, node.hero_media_id, ...(galleryLinks || []).map((l: any) => l.media_id)].filter(Boolean);
-  const { data: mediaRows } = mediaIds.length ? await supabasePublic.from('site_media').select('id, storage_path, variants, width, height, alt').in('id', mediaIds) : none;
-  const media = new Map((mediaRows || []).map((m: any) => [m.id, m as MediaRow]));
 
   // Child tiles: the same picture as in the menus.
   const images = await getCategoryImages();
@@ -203,7 +198,6 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     sizeChart,
     colourCharts: (catRows.data || []).filter((c: any) => c.color_chart_url).map((c: any) => ({ src: c.color_chart_url, name: c.name })),
     photos: pagePhotos,
-    gallery: (galleryLinks || []).map((l: any) => toImg(media.get(l.media_id), node.name)).filter(Boolean) as Img[],
     sourceCount: catIds.length
   };
 }

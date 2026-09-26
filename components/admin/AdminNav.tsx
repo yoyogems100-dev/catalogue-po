@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WordMark } from '@/components/Logo';
 import NotificationBell from '@/components/admin/NotificationBell';
+import { BIN, OVERVIEW, WORKSPACES, currentHref, workspaceOf, type NavLink } from '@/components/admin/nav-config';
 
 const MenuIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -34,54 +35,44 @@ const ExternalIcon = () => (
 
 // The full link list is always tucked in a slide-out drawer (opened via the
 // hamburger), on desktop as well as mobile -- a permanently-visible sidebar
-// crowded the page on desktop too. Home, View public site, and notifications
-// stay on a persistent compact top bar since those are worth reaching
-// without opening the drawer first.
-const NAV_LINKS = [
-  { href: '/admin', label: 'Overview' },
-  { href: '/admin/site', label: 'Website' },
-  { href: '/admin/site/leads', label: 'Catalogue requests' },
-  { href: '/admin/content', label: 'Catalogue content' },
-  { href: '/admin/orders', label: 'Orders' },
-  { href: '/admin/customers', label: 'Customers' },
-  { href: '/admin/suppliers', label: 'Suppliers' },
-  { href: '/admin/categories', label: 'Categories' },
-  { href: '/admin/photos', label: 'Upload photos' },
-  { href: '/admin/shapes', label: 'Shapes' },
-  { href: '/admin/colors', label: 'Colors' },
-  { href: '/admin/pricing', label: 'Pricing' },
-  { href: '/admin/catalogue-map', label: 'Catalogue map' },
-  { href: '/admin/bulk-link', label: 'Bulk Link' },
-  { href: '/admin/tags', label: 'Tags' },
-  { href: '/admin/watermarks', label: 'Watermarks' },
-  { href: '/admin/bin', label: 'Bin' }
-];
-
+// crowded the page on desktop too. The drawer switches between the two
+// independent workspaces, Website and PO portal (see nav-config.ts). Home,
+// the current workspace's public view, and notifications stay on the
+// persistent top bar.
 export default function AdminNav() {
-  const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [ws, setWs] = useState(workspaceOf(pathname));
+  useEffect(() => { setWs(workspaceOf(pathname)); }, [pathname]);
 
-  // The most specific link wins, so /admin/site/leads highlights
-  // "Catalogue requests" rather than "Website" as well.
-  const current = NAV_LINKS.map((l) => l.href)
-    .filter((h) => pathname === h || (h !== '/admin' && pathname?.startsWith(`${h}/`)))
-    .sort((a, b) => b.length - a.length)[0];
+  const current = currentHref(pathname);
+  const here = WORKSPACES.find((w) => w.key === workspaceOf(pathname))!;
+  const shown = WORKSPACES.find((w) => w.key === ws)!;
 
   function close() {
     setOpen(false);
   }
 
+  const link = (l: NavLink) => (
+    <Link key={l.href} href={l.href} onClick={close} aria-current={l.href === current ? 'page' : undefined}>
+      {l.label}
+    </Link>
+  );
+
   return (
     <>
       <div className="admin-mobile-topbar">
-        <button type="button" className="admin-hamburger" onClick={() => setOpen(true)} aria-label="Open menu">
-          <MenuIcon />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+          <button type="button" className="admin-hamburger" onClick={() => setOpen(true)} aria-label="Open menu">
+            <MenuIcon />
+          </button>
+          <span className="admin-topbar-ws">{here.label}</span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Link href="/admin" className="admin-mobile-home" aria-label="Admin overview">
             <HomeIcon />
           </Link>
-          <a href="/po" target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label="View public site">
+          <a href={here.viewHref} target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label={here.viewLabel} title={here.viewLabel}>
             <ExternalIcon />
           </a>
           <NotificationBell />
@@ -90,25 +81,30 @@ export default function AdminNav() {
 
       {open && <div className="admin-nav-backdrop" onClick={close} />}
 
-      <nav className={`admin-nav ${open ? 'admin-nav-open' : ''}`}>
-        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} className="admin-nav-logo">
+      <nav className={`admin-nav ${open ? 'admin-nav-open' : ''}`} aria-label="Admin">
+        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} className="admin-nav-logo">
           <WordMark height={20} color="#FAF8F3" />
           <button type="button" className="admin-nav-close" onClick={close} aria-label="Close menu">
             <CloseIcon />
           </button>
         </div>
-        {NAV_LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            onClick={close}
-            aria-current={l.href === current ? 'page' : undefined}
-          >
-            {l.label}
-          </Link>
+        {link(OVERVIEW)}
+        <div className="admin-nav-switch" role="tablist" aria-label="Workspace">
+          {WORKSPACES.map((w) => (
+            <button key={w.key} type="button" role="tab" aria-selected={w.key === ws} onClick={() => setWs(w.key)}>{w.label}</button>
+          ))}
+        </div>
+        {shown.groups.map((g) => (
+          <div key={g.title} className="admin-nav-group" role="group" aria-label={g.title}>
+            <p className="admin-nav-heading">{g.title}</p>
+            {g.links.map(link)}
+          </div>
         ))}
-        <Link href="/po" target="_blank" onClick={close}>View public site &rarr;</Link>
-        <form action="/api/admin-logout" method="post" style={{ marginTop: 20 }}>
+        <a href={shown.viewHref} target="_blank" rel="noopener noreferrer" onClick={close}>{shown.viewLabel} &rarr;</a>
+        <div className="admin-nav-group">
+          {link(BIN)}
+        </div>
+        <form action="/api/admin-logout" method="post" style={{ marginTop: 12 }}>
           <button type="submit" style={{ background: 'none', border: 'none', color: '#cbd3e0', padding: '10px 24px', fontSize: 13.5, cursor: 'pointer' }}>
             Log out
           </button>

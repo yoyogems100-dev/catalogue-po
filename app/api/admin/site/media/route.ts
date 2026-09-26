@@ -6,7 +6,7 @@ import { storeSiteImage } from '@/lib/site/media';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TARGETS = new Set(['site_category', 'color', 'shape', 'size']);
+const TARGETS = new Set(['site_category', 'color', 'shape', 'size', 'grade']);
 
 /** List library images, newest first, optionally filtered by text or ids. */
 export async function GET(req: NextRequest) {

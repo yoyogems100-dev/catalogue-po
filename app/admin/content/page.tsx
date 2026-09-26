@@ -1,22 +1,22 @@
 import Link from 'next/link';
+import { WORKSPACES } from '@/components/admin/nav-config';
 
-const sections = [
-  {title: 'Most ordered categories', href:'/admin/content/most-ordered', detail:'Choose and order the categories shown first on the catalogue home page.'},
-  {title: 'Colour buttons', href:'/admin/catalogue-map?tab=buttons', detail:'Which colour buttons buyers see, in what order, and the stone each opens, e.g. Red = Ruby Corundum 5A. Now in Catalogue map.'},
-  {title: 'Categories & product photos', href:'/admin/categories', detail:'Add or rename categories, arrange their order, choose covers and manage product photos.'},
-  {title: 'Header logo', href:'/admin/brand-upload', detail:'Upload the logo used in the website header. Other designed wordmarks are managed separately.'},
-  {title: 'Shapes & sizes', href:'/admin/shapes', detail:'Manage the shapes and sizes available for your catalogue.'},
-  {title: 'Colors', href:'/admin/colors', detail:'Manage color names, swatches and reference photos.'},
-  {title: 'Specifications & tags', href:'/admin/tags', detail:'Manage the labels used to describe and filter products.'},
-  {title: 'Pricing', href:'/admin/pricing', detail:'Manage catalogue prices and pricing settings.'}
-];
-export default function WebsiteContentPage() {
+// Home of the PO portal workspace: everything behind /po, grouped as in the side pane.
+const po = WORKSPACES.find((w) => w.key === 'po')!;
+
+export default function PoPortalHub() {
   return <>
-    <h1>Website content</h1>
-    <p>Choose what you want to update on your website.</p>
-    <div className="admin-work-queues">{sections.map(section => <Link key={section.href} href={section.href} className="card">
-      <h2 style={{fontSize:18}}>{section.title}</h2><p>{section.detail}</p><span>Manage →</span>
-    </Link>)}</div>
-    <p>These controls manage catalogue content and the header logo. Creating new pages or changing page layouts is not available here yet.</p>
+    <h1>PO portal</h1>
+    <p>The ordering portal at <a href="/po" target="_blank" rel="noopener noreferrer">/po</a> for existing buyers. Its categories and photos are separate from the public website — manage those under <Link href="/admin/site">Website</Link>.</p>
+    {po.groups.map((g) => (
+      <section key={g.title} style={{ marginTop: 22 }}>
+        <h2 style={{ fontSize: 15, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#756e5c', marginBottom: 10 }}>{g.title}</h2>
+        <div className="admin-work-queues">{g.links.filter((l) => l.detail).map((l) => (
+          <Link key={l.href} href={l.href} className="card">
+            <h2 style={{ fontSize: 18 }}>{l.label}</h2><p>{l.detail}</p><span>Manage →</span>
+          </Link>
+        ))}</div>
+      </section>
+    ))}
   </>;
 }

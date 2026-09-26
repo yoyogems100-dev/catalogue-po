@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { mediaUrl, VARIANT_WIDTHS } from './media-url';
 
@@ -14,15 +15,19 @@ export type ProcessedMedia = { storage_path: string; variants: Record<string, st
 
 export async function storeSiteImage(file: File): Promise<ProcessedMedia | { error: string }> {
   if (!file.size || file.size > MAX_BYTES) return { error: `${file.name}: choose an image under 15 MB.` };
-  const source = Buffer.from(await file.arrayBuffer());
+  return storeImageBytes(supabaseAdmin, Buffer.from(await file.arrayBuffer()), file.name);
+}
+
+/** Convert and upload image bytes with any service-role client (the app's, or a script's). */
+export async function storeImageBytes(db: SupabaseClient, source: Buffer, name: string): Promise<ProcessedMedia | { error: string }> {
   let meta: Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
   try {
     meta = await sharp(source, { limitInputPixels: 60_000_000 }).metadata();
   } catch {
-    return { error: `${file.name}: this file is not an image we can read.` };
+    return { error: `${name}: this file is not an image we can read.` };
   }
   if (!['jpeg', 'png', 'webp', 'avif', 'tiff', 'heif'].includes(meta.format || '') || (meta.pages || 1) > 1) {
-    return { error: `${file.name}: use a JPG, PNG, WebP, AVIF, HEIC or TIFF photo.` };
+    return { error: `${name}: use a JPG, PNG, WebP, AVIF, HEIC or TIFF photo.` };
   }
   const base = `site/${new Date().toISOString().slice(0, 7)}/${randomUUID()}`;
   const pipeline = () => sharp(source, { limitInputPixels: 60_000_000 }).rotate();
@@ -40,19 +45,19 @@ export async function storeSiteImage(file: File): Promise<ProcessedMedia | { err
   }
   const done: string[] = [];
   for (const [path, bytes] of uploads) {
-    const { error } = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(path, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
+    const { error } = await db.storage.from(PHOTOS_BUCKET).upload(path, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
     if (error) {
-      if (done.length) await supabaseAdmin.storage.from(PHOTOS_BUCKET).remove(done);
-      return { error: `${file.name}: upload failed (${error.message}).` };
+      if (done.length) await db.storage.from(PHOTOS_BUCKET).remove(done);
+      return { error: `${name}: upload failed (${error.message}).` };
     }
     done.push(path);
   }
   return { storage_path: `${base}.webp`, variants, width: original.info.width, height: original.info.height };
 }
 
-export async function removeStoredFiles(media: { storage_path: string; variants: Record<string, string> | null }) {
+export async function removeStoredFiles(media: { storage_path: string; variants: Record<string, string> | null }, db: SupabaseClient = supabaseAdmin) {
   const paths = [media.storage_path, ...Object.values(media.variants || {})].filter((p) => p.startsWith('site/'));
-  if (paths.length) await supabaseAdmin.storage.from(PHOTOS_BUCKET).remove(paths);
+  if (paths.length) await db.storage.from(PHOTOS_BUCKET).remove(paths);
 }
 
 export { mediaUrl };
