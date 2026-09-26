@@ -6,7 +6,7 @@ import { removeStoredFiles, storeSiteImage } from '@/lib/site/media';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 type Context = { params: Promise<{ id: string }> };
-const TARGETS = new Set(['site_category', 'color', 'shape', 'size']);
+const TARGETS = new Set(['site_category', 'color', 'shape', 'size', 'grade']);
 
 function cleanTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];

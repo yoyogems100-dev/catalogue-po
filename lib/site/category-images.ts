@@ -6,8 +6,8 @@ type Img = { src: string; srcSet?: string; alt: string; width?: number; height?:
 // One picture per website category, for tiles, menus and chips. In order:
 // the image chosen for the category in Admin → Website → the clean gemstone
 // cut-out /po shows beside that catalogue category in its dropdowns (a
-// larger copy, see scripts/make-category-icons.mjs) → the catalogue
-// category's own photo → for a main category, its first sub-category's.
+// larger copy, see scripts/make-category-icons.mjs) → the category's first
+// website photo → for a main category, its first sub-category's.
 
 export type CategoryImage = Img & { cutout?: boolean };
 
@@ -20,25 +20,23 @@ export function cutoutFor(catalogueSlug: string | null | undefined): string | nu
 export type Row = { id: number; parent_id: number | null; slug: string; name: string; hero_media_id: number | null; published: any };
 export type Source = { site_category_id: number; category_id: number };
 
-/** Pure: pick each category's picture from already-loaded rows. */
+/** Pure: pick each category's picture from already-loaded rows. `firstPhoto` is keyed by website category id. */
 export function pickCategoryImages(
-  rows: Row[], sources: Source[], catalogueSlug: Map<number, string>, catalogueThumb: Map<number, string>, media: Map<number, MediaRow>
+  rows: Row[], sources: Source[], catalogueSlug: Map<number, string>, firstPhoto: Map<number, MediaRow>, media: Map<number, MediaRow>
 ): Record<number, CategoryImage> {
   const out: Record<number, CategoryImage> = {};
   const own = (r: Row): CategoryImage | null => {
     const alt = `${r.name} stones`;
+    const img = (m: MediaRow, fallbackAlt: string): CategoryImage =>
+      ({ src: mediaSrc(m, 960), srcSet: mediaSrcSet(m), alt: m.alt || fallbackAlt, width: m.width ?? undefined, height: m.height ?? undefined });
     const m = media.get(r.hero_media_id as number) ?? media.get(r.published?.hero?.image);
-    if (m) return { src: mediaSrc(m, 960), srcSet: mediaSrcSet(m), alt: m.alt || alt, width: m.width ?? undefined, height: m.height ?? undefined };
-    const mine = sources.filter((x) => x.site_category_id === r.id);
-    for (const s of mine) {
+    if (m) return img(m, alt);
+    for (const s of sources.filter((x) => x.site_category_id === r.id)) {
       const src = cutoutFor(catalogueSlug.get(s.category_id));
       if (src) return { src, alt, cutout: true };
     }
-    for (const s of mine) {
-      const src = catalogueThumb.get(s.category_id);
-      if (src) return { src, alt };
-    }
-    return null;
+    const photo = firstPhoto.get(r.id);
+    return photo ? { ...img(photo, alt), alt } : null;
   };
   for (const r of rows) { const img = own(r); if (img) out[r.id] = img; }
   for (const r of rows.filter((x) => x.parent_id === null && !out[x.id])) {
