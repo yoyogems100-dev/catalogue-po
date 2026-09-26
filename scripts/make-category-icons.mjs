@@ -135,7 +135,9 @@ const CATEGORY_ICONS = {
   // The owner's own photo (the earlier one carried another seller's
   // watermark). A deep-blue oval on grey, so an oval outline, not a fill.
   'nano':                  { src: 'blue nano yg.png', oval: [0.052, 0.058, 0.948, 0.905], skipFill: true, fringe: 6 },
-  'moissanite':            { src: 'moissanite.jpg' },
+  // Round, filling the frame, pale facets at the rim and a shadow to the
+  // lower right: the circle is fitted to the upper-left outline only.
+  'moissanite':            { src: 'moissanite.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.02, fitUpperLeft: true },
   // A dark backdrop with lighter blobs at the corners; one of them clung to
   // the top right of the heart as a hairline. It is a separate blob, so solo
   // removes it.
@@ -180,10 +182,11 @@ function fitCircle(data, W, H, C, opts) {
   for (let p0 = 0; p0 < W * H; p0++) {
     if (seen[p0] || !on[p0]) continue;
     const stack = [p0]; seen[p0] = 1;
-    const b = { n: 0, minX: W, maxX: -1, minY: H };
+    const b = { n: 0, minX: W, maxX: -1, minY: H, maxY: -1, cells: [] };
     while (stack.length) {
       const p = stack.pop(), x = p % W, y = (p / W) | 0;
-      b.n++; if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x; if (y < b.minY) b.minY = y;
+      b.n++; b.cells.push(p);
+      if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x; if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
@@ -195,9 +198,41 @@ function fitCircle(data, W, H, C, opts) {
     if (!best || b.n > best.n) best = b;
   }
   const r0 = (best.maxX - best.minX + 1) / 2;
-  const r = r0 * (1 - (opts.fitShrink ?? 0.015));
-  if (process.env.ICON_DEBUG) console.log(`  fit cx=${((best.minX + r0) / W).toFixed(3)} cy=${((best.minY + r0) / H).toFixed(3)} r=${(r / Math.min(W, H)).toFixed(3)}`);
-  return { cx: best.minX + r0 - 0.5, cy: best.minY + r0 - 0.5, r };
+  let cx = best.minX + r0 - 0.5, cy = best.minY + r0 - 0.5, R = r0;
+  // A shadow cast down and to the right also widens the blob to the right.
+  // fitUpperLeft fits the circle to the blob's outline on its upper-left half
+  // only (least squares), which the shadow never touches.
+  if (opts.fitUpperLeft) {
+    const mx = (best.minX + best.maxX) / 2, my = (best.minY + best.maxY) / 2;
+    let Sx = 0, Sy = 0, Sxx = 0, Syy = 0, Sxy = 0, Sxz = 0, Syz = 0, Sz = 0, N = 0;
+    // The outer outline only -- the first stone pixel along each row from
+    // the left and each column from the top. Pale facets inside the stone
+    // fall under the threshold too, and their edges would drag the fit.
+    const left = new Int32Array(H).fill(W), top = new Int32Array(W).fill(H);
+    for (const p of best.cells) {
+      const x = p % W, y = (p / W) | 0;
+      if (x < left[y]) left[y] = x;
+      if (y < top[x]) top[x] = y;
+    }
+    const pts = [];
+    for (let y = 0; y < H; y++) if (left[y] < W) pts.push([left[y], y]);
+    for (let x = 0; x < W; x++) if (top[x] < H) pts.push([x, top[x]]);
+    for (const [x, y] of pts) {
+      if ((x - mx) + (y - my) >= 0) continue;
+      const z = x * x + y * y;
+      Sx += x; Sy += y; Sxx += x * x; Syy += y * y; Sxy += x * y; Sxz += x * z; Syz += y * z; Sz += z; N++;
+    }
+    // Kasa fit: x^2 + y^2 + Dx + Ey + F = 0, solved by Cramer's rule.
+    const M = [[Sxx, Sxy, Sx], [Sxy, Syy, Sy], [Sx, Sy, N]], v = [-Sxz, -Syz, -Sz];
+    const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const d = det(M);
+    const col = (k) => M.map((row, i) => row.map((val, j) => (j === k ? v[i] : val)));
+    const D = det(col(0)) / d, E = det(col(1)) / d, F = det(col(2)) / d;
+    cx = -D / 2; cy = -E / 2; R = Math.sqrt(cx * cx + cy * cy - F);
+  }
+  const r = R * (1 - (opts.fitShrink ?? 0.015));
+  if (process.env.ICON_DEBUG) console.log(`  fit cx=${(cx / W).toFixed(3)} cy=${(cy / H).toFixed(3)} r=${(r / Math.min(W, H)).toFixed(3)}`);
+  return { cx, cy, r };
 }
 
 // Not every category photo is one stone on a backdrop. Glass Beads is a
