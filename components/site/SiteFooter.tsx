@@ -3,6 +3,7 @@ import { thumb } from '@/lib/site/optimize';
 import type { ContentValue } from '@/lib/site/schema';
 import type { NavCategory } from '@/lib/site/public';
 import { telHref, whatsappHref } from '@/lib/site/public';
+import CatThumb from './CatThumb';
 import s from './site.module.css';
 
 export default function SiteFooter({ global, categories, autoPopular = [] }: { global: ContentValue; categories: NavCategory[]; autoPopular?: { label: string; url: string }[] }) {
@@ -17,13 +18,15 @@ export default function SiteFooter({ global, categories, autoPopular = [] }: { g
     <footer className={s.footer}>
       <div className={s.wrap}>
         <div className={s.footerGrid}>
-          <div>
+          <div className={s.footerBrand}>
             <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 256)} alt="YOYO GEMS® — Synthetic Gemstones. Infinite Choices. One Trusted Name." width={256} height={70} className={s.logoImg} loading="lazy" />
             <p className={s.footerBlurb}>{global.footer?.blurb}</p>
           </div>
-          <div>
+          <div className={s.footerProducts}>
             <h2>Products</h2>
-            <ul>{categories.map((cat) => <li key={cat.id}><Link href={cat.href}>{cat.name}</Link></li>)}</ul>
+            {/* Two columns of stone + name even on a phone: a single column of
+                short names left most of the footer's width empty. */}
+            <ul className={s.footerCats}>{categories.map((cat) => <li key={cat.id}><Link href={cat.href}><CatThumb image={cat.image} size={34} />{cat.name}</Link></li>)}</ul>
           </div>
           <div>
             <h2>Company</h2>
