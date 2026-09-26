@@ -1,0 +1,72 @@
+/* About page: routes from Jaipur across India. Uses the site theme tokens
+   (site.module.css), so it follows the light/dark switch. */
+
+.section { position: relative; overflow: hidden; }
+.grid { display: grid; gap: 22px; align-items: center; }
+.intro { color: var(--muted); font-size: 16.5px; max-width: 520px; }
+.regions { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.regions li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--heading); font-size: 14.5px; }
+.regions li::before { content: ''; flex: none; width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); }
+/* An odd last region takes the whole row rather than leaving half of it empty. */
+.regions li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.regions li.more { color: var(--muted); border-style: dashed; background: transparent; }
+.note { margin-top: 14px; font-size: 13px; color: var(--dim); }
+
+.map {
+  --route-end: #6f98dc;
+  --land: rgba(var(--accent-rgb), 0.07);
+  --dots: rgba(var(--accent-rgb), 0.3);
+  position: relative; width: 100%; max-width: 560px; margin: 0 auto;
+}
+:global(html[data-site-theme='light']) .map { --route-end: #2a5298; --land: rgba(27, 58, 107, 0.05); --dots: rgba(27, 58, 107, 0.22); }
+.map svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.land { fill: var(--land); stroke: rgba(var(--accent-rgb), 0.45); stroke-width: 0.8; stroke-linejoin: round; }
+.dot { fill: var(--dots); }
+.glow { transform-box: fill-box; transform-origin: center; }
+
+.route { fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.route.minor { stroke-width: 1.1; opacity: 0.7; }
+.minor .spark { opacity: 0; }
+.live .minor .spark { animation-name: sparkInSoft; }
+.routes { filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), 0.45)); }
+.stop { fill: var(--route-end); stroke: var(--bg); stroke-width: 1.4; transform-box: fill-box; transform-origin: center; }
+.ripple { fill: none; stroke: var(--route-end); stroke-width: 1.2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.spark { fill: #fff; opacity: 0; filter: drop-shadow(0 0 4px var(--gold)); }
+:global(html[data-site-theme='light']) .spark { fill: var(--gold); filter: none; }
+
+.core { fill: var(--gold); stroke: var(--bg); stroke-width: 2; }
+.pulse { fill: none; stroke: var(--gold); stroke-width: 1.4; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.tag { fill: var(--surface); stroke: rgba(var(--accent-rgb), 0.35); stroke-width: 0.8; }
+.tagText { font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; fill: var(--heading); }
+
+/* Before the map scrolls into view (JavaScript on), routes are undrawn and
+   stops hidden; .live plays the sequence. */
+@media (prefers-reduced-motion: no-preference) {
+  :global(html.js) .map .route { stroke-dashoffset: 1; }
+  :global(html.js) .map .stop { transform: scale(0); }
+  .live .route { animation: draw 1.1s cubic-bezier(.55, .1, .25, 1) forwards; }
+  .live .stop { animation: land .45s cubic-bezier(.3, 1.6, .5, 1) forwards; }
+  .live .ripple { animation: ripple 2.6s ease-out infinite; }
+  .live .spark { animation: sparkIn .6s ease forwards; }
+  .live .pulse { animation: pulse 2.4s ease-out infinite; }
+  .live .glow { animation: breathe 4s ease-in-out infinite; }
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes land { to { transform: scale(1); } }
+@keyframes ripple { 0% { opacity: .8; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(4.2); } }
+@keyframes sparkIn { to { opacity: .95; } }
+@keyframes sparkInSoft { to { opacity: .6; } }
+@keyframes pulse { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(5); } }
+@keyframes breathe { 0%, 100% { opacity: .75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .spark { display: none; }
+}
+
+@media (min-width: 900px) {
+  /* Text and regions on the left, the map beside both. */
+  .grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); grid-template-areas: 'text map' 'list map'; column-gap: 48px; row-gap: 24px; align-items: start; }
+  .text { grid-area: text; align-self: end; }
+  .list { grid-area: list; max-width: 460px; }
+  .map { grid-area: map; align-self: center; }
+}

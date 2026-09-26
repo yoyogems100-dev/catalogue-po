@@ -34,23 +34,23 @@ export const pageDefaults: Record<string, ContentValue> = {
     },
     seo: {
       title_template: '%s · YOYO GEMS®',
-      description: 'Wholesale synthetic gemstones for jewellery manufacturers. 40+ categories, 30+ shapes, 50+ colours. Factory-direct from China, stocked in Jaipur.',
+      description: 'Wholesale synthetic gemstones for jewellery manufacturers. 40+ categories, 35+ shapes and colours. Factory-direct from China, stocked in Jaipur.',
       image: null
     }
   },
   home: {
     hero: {
       heading: 'Premium Synthetic Gemstones. Infinite Choices. One Trusted Name.',
-      subline: '40+ categories. 30+ shapes. 50+ colours. Factory-direct from China, stocked in India.',
+      subline: '40+ categories. 35+ shapes & colours. Factory-direct from China, stocked in India.',
       primary_label: 'Request Catalogue',
       secondary_label: 'Browse Categories',
       image: null
     },
     numbers: { items: [
       { value: '40+', label: 'categories' },
-      { value: '30+', label: 'shapes & sizes' },
-      { value: '50+', label: 'colours' },
-      { value: '9,000+', label: 'combinations' }
+      { value: '35+', label: 'shapes & colours' },
+      { value: '27+', label: 'sites across India' },
+      { value: '2,795+', label: 'satisfied customers' }
     ] },
     categories: {
       heading: 'Every stone your production calls for',
@@ -78,7 +78,7 @@ export const pageDefaults: Record<string, ContentValue> = {
           { text: 'High brilliance, precise cuts, perfect calibration' }
         ] },
         { title: 'Extensive Variety', points: [
-          { text: '9,000+ combinations of shape, size and colour' },
+          { text: '40+ categories and 35+ shapes and colours' },
           { text: 'CZ, Nano, Ruby Corundum, Glass, Beads, Pearls' },
           { text: 'Bulk availability and custom orders' }
         ] },
@@ -117,7 +117,7 @@ export const pageDefaults: Record<string, ContentValue> = {
       },
       {
         heading: 'What we do',
-        body: '<p>We supply loose cubic zirconia, moissanite, nano gemstones, synthetic opal, corundum, spinel, lab-created and simulated glass stones, and natural gemstones — hand-cut and machine-cut, in grades from A through to top 5A.</p><p>Across <strong>40+ categories, 30+ shapes and sizes, and 50+ colour options</strong>, that comes to over nine thousand combinations. Whatever the design calls for, it’s already in our range.</p>',
+        body: '<p>We supply loose cubic zirconia, moissanite, nano gemstones, synthetic opal, corundum, spinel, lab-created and simulated glass stones, and natural gemstones — hand-cut and machine-cut, in grades from A through to top 5A.</p><p>Across <strong>40+ categories and 35+ shapes and colours</strong>, in a full run of sizes, we supply buyers at 27+ sites across India. Whatever the design calls for, it’s already in our range.</p>',
         image: null
       },
       {
@@ -131,12 +131,17 @@ export const pageDefaults: Record<string, ContentValue> = {
         image: null
       }
     ] },
+    reach: {
+      heading: 'From Jaipur to buyers across India',
+      intro: 'We pack and dispatch from Jaipur to 27+ sites across India, from Punjab to Tamil Nadu and from Gujarat to the North East.',
+      note: ''
+    },
     photos: { heading: 'Our setup and QC table', items: [] },
     numbers: { items: [
       { value: '40+', label: 'categories' },
-      { value: '30+', label: 'shapes & sizes' },
-      { value: '50+', label: 'colours' },
-      { value: '9,000+', label: 'combinations' }
+      { value: '35+', label: 'shapes & colours' },
+      { value: '27+', label: 'sites across India' },
+      { value: '2,795+', label: 'satisfied customers' }
     ] },
     cta: {
       heading: 'That’s the whole idea. One trusted name.',
