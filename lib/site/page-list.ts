@@ -6,8 +6,8 @@ export const PAGE_LIST: { key: string; title: string; href: string; detail: stri
   { key: 'about', title: 'About us', href: '/about', detail: 'Story, photos and numbers.' },
   { key: 'quality', title: 'Quality & QC', href: '/quality', detail: 'What is checked before dispatch.' },
   { key: 'how-to-order', title: 'How to order', href: '/how-to-order', detail: 'The five ordering steps.' },
-  { key: 'charts', title: 'Charts', href: '/charts', detail: 'Chart page introductions.' },
+  { key: 'charts', title: 'Charts', href: '/charts', detail: 'Chart titles and intros, colour charts and which categories feed them, the grades page text.' },
   { key: 'request-catalogue', title: 'Request catalogue', href: '/request-catalogue', detail: 'Form intro and thank-you message.' },
-  { key: 'faq', title: 'FAQ page', href: '/faq', detail: 'Page intro. Questions are managed under FAQ.' },
-  { key: 'contact', title: 'Contact', href: '/contact', detail: 'Contact page text.' }
+  { key: 'faq', title: 'FAQ page', href: '/faq', detail: 'Page intro. The questions are managed under Website → FAQ.' },
+  { key: 'contact', title: 'Contact', href: '/contact', detail: 'Intro, visiting details and map link.' }
 ];

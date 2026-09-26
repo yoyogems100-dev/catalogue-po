@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ContentSchema, ContentValue, Field } from '@/lib/site/schema';
 import { withDefaults } from '@/lib/site/schema';
 import { categorySchema } from '@/lib/site/schemas';
@@ -19,7 +19,12 @@ type Props = {
   publishedAt: string | null;
   viewHref?: string;
   media: MediaRow[];
+  /** Website categories, for fields that pick categories (e.g. which feed a colour chart). */
+  categoryOptions?: CategoryOption[];
 };
+
+export type CategoryOption = { id: number; name: string; parent: string | null };
+const CategoryOptions = createContext<CategoryOption[]>([]);
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
 
@@ -30,7 +35,7 @@ function schemaFor(entity: Props['entity'], key: string): ContentSchema {
 const stable = (v: unknown) => JSON.stringify(v);
 const time = (iso: string) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
-export default function ContentEditor({ entity, entityKey, initialDraft, initialPublished, publishedAt: initialPublishedAt, viewHref, media: initialMedia }: Props) {
+export default function ContentEditor({ entity, entityKey, initialDraft, initialPublished, publishedAt: initialPublishedAt, viewHref, media: initialMedia, categoryOptions = [] }: Props) {
   const schema = schemaFor(entity, entityKey);
   const [value, setValue] = useState<ContentValue>(() => withDefaults(schema, initialDraft));
   const [published, setPublished] = useState<string>(() => stable(withDefaults(schema, initialPublished || {})));
@@ -136,6 +141,7 @@ export default function ContentEditor({ entity, entityKey, initialDraft, initial
     : savedAt ? `Draft saved ${time(savedAt)}` : 'All changes saved';
 
   return (
+    <CategoryOptions.Provider value={categoryOptions}>
     <div className={s.editor}>
       <div className={s.publishBar}>
         <div className={s.publishStatus}>
@@ -190,6 +196,7 @@ export default function ContentEditor({ entity, entityKey, initialDraft, initial
         </section>
       ))}
     </div>
+    </CategoryOptions.Provider>
   );
 }
 
@@ -242,6 +249,8 @@ function FieldInput({ field, value, onChange, id, media, onMedia }: {
         <MediaPicker open={picking} onClose={() => setPicking(false)} onPick={(rows) => { onMedia(rows); onChange(rows[0]?.id ?? null); }} />
       </div>;
     }
+    case 'categories':
+      return <CategoryChecklist field={field} value={Array.isArray(value) ? value : []} onChange={onChange} />;
     case 'group':
       return <fieldset className={s.group}><legend>{field.label}</legend>{help}
         <Fields fields={field.fields} value={value || {}} onChange={onChange} path={id} media={media} onMedia={onMedia} /></fieldset>;
@@ -273,4 +282,20 @@ function FieldInput({ field, value, onChange, id, media, onMedia }: {
       </fieldset>;
     }
   }
+}
+
+function CategoryChecklist({ field, value, onChange }: { field: Field; value: number[]; onChange: (v: number[]) => void }) {
+  const options = useContext(CategoryOptions);
+  const toggle = (id: number, on: boolean) => onChange(on ? [...value, id] : value.filter((x) => x !== id));
+  return <fieldset className={s.group}><legend>{field.label}</legend>
+    {field.help && <p className={s.help}>{field.help}</p>}
+    <div className={s.checkGrid}>
+      {options.map((o) => (
+        <label key={o.id} className={s.toggle}>
+          <input type="checkbox" checked={value.includes(o.id)} onChange={(e) => toggle(o.id, e.target.checked)} />
+          {o.parent ? <span>{o.name} <small className={s.muted}>in {o.parent}</small></span> : <strong>{o.name}</strong>}
+        </label>
+      ))}
+    </div>
+  </fieldset>;
 }

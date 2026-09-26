@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Sortable from '@/components/admin/site/Sortable';
 import RichTextEditor from '@/components/admin/site/RichTextEditor';
+import EarlierVersions from '@/components/admin/site/EarlierVersions';
 import s from '@/components/admin/site/site-admin.module.css';
 
 type Grade = { id: number; code: string; name: string; summary: string; description: string; sort_order: number; is_visible: boolean };
@@ -90,6 +91,9 @@ function GradeEditor({ grade, onDone }: { grade: Grade; onDone: (saved: Grade | 
         <input id={`gs-${grade.id}`} type="text" value={summary} maxLength={160} onChange={(e) => setSummary(e.target.value)} /></div>
       <div className={s.field}><label htmlFor={`gd-${grade.id}`}>Full explanation</label>
         <RichTextEditor id={`gd-${grade.id}`} label="Full explanation" value={description} onChange={setDescription} /></div>
+      <EarlierVersions<{ summary: string; description: string }> url={`/api/admin/site/grades/${grade.id}`}
+        describe={(c) => c.summary || c.description}
+        onPick={(c) => { setSummary(c.summary || ''); setDescription(c.description || ''); }} />
       <div className={s.field}><label className={s.toggle}><input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} /> Show on the website</label></div>
       {error && <p className={s.note} role="alert">{error}</p>}
       <div className={s.toolbar}><button type="button" className="btn" onClick={save}>Save</button><button type="button" className="btn-ghost" onClick={() => onDone(null)}>Cancel</button></div>

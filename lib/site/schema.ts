@@ -16,6 +16,7 @@ export type Field =
   | { type: 'image'; key: string; label: string; help?: string }
   | { type: 'link'; key: string; label: string; help?: string }
   | { type: 'toggle'; key: string; label: string; help?: string }
+  | { type: 'categories'; key: string; label: string; help?: string }
   | { type: 'group'; key: string; label: string; help?: string; fields: Field[] }
   | { type: 'list'; key: string; label: string; help?: string; itemLabel: string; fields: Field[]; min?: number; max?: number };
 
@@ -53,6 +54,10 @@ function cleanField(field: Field, raw: unknown): any {
       return cleanLink(raw);
     case 'toggle':
       return raw === true;
+    case 'categories': {
+      const ids = Array.isArray(raw) ? raw.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0) : [];
+      return [...new Set(ids)].slice(0, 60);
+    }
     case 'group':
       return cleanFields(field.fields, raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as ContentValue : {});
     case 'list': {
@@ -82,6 +87,7 @@ function emptyField(field: Field): any {
   switch (field.type) {
     case 'image': return null;
     case 'toggle': return false;
+    case 'categories': return [];
     case 'group': return emptyFields(field.fields);
     case 'list': return Array.from({ length: field.min ?? 0 }, () => emptyFields(field.fields));
     default: return '';

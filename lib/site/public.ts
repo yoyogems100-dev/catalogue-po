@@ -121,3 +121,8 @@ export function telHref(phone: string) {
   const digits = (phone || '').replace(/[^\d+]/g, '');
   return digits ? `tel:${digits}` : null;
 }
+
+export const getFaqs = cache(async (): Promise<{ id: number; question: string; answer: string }[]> => {
+  const { data } = await supabasePublic.from('site_faqs').select('id, question, answer, sort_order').order('sort_order').order('id');
+  return (data || []).map((f: any) => ({ id: f.id, question: f.question, answer: f.answer }));
+});
