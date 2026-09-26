@@ -14,7 +14,7 @@ export type CategoryImage = Img & { cutout?: boolean };
 /** The high-resolution transparent cut-out for a catalogue category slug. */
 export function cutoutFor(catalogueSlug: string | null | undefined): string | null {
   const small = categoryIconUrl(catalogueSlug);
-  return small ? small.replace('/reference/categories/', '/reference/categories/hd/').replace(/\.png$/, '.webp') : null;
+  return small ? small.replace('/reference/categories/', '/reference/categories/hd2/').replace(/\.png$/, '.webp') : null;
 }
 
 export type Row = { id: number; parent_id: number | null; slug: string; name: string; hero_media_id: number | null; published: any };

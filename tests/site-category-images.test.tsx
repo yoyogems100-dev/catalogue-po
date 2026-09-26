@@ -11,7 +11,7 @@ test('a category uses the clean /po cut-out of its first catalogue source that h
   const rows = [row(1, 'cz'), row(2, 'white-cz', 1)];
   const slugs = new Map([[99, 'no-icon-here'], [36, '4a-quality-cz'], [35, '3a-quality-cz']]);
   const out = pickCategoryImages(rows, [{ site_category_id: 2, category_id: 99 }, { site_category_id: 2, category_id: 36 }, { site_category_id: 2, category_id: 35 }], slugs, new Map([[99, 'https://x/99.jpg']]), new Map());
-  assert.equal(out[2].src, '/reference/categories/hd/4a-quality-cz.webp');
+  assert.equal(out[2].src, '/reference/categories/hd2/4a-quality-cz.webp');
   assert.equal(out[2].cutout, true);
   assert.equal(out[2].alt, 'WHITE-CZ stones');
 });
@@ -24,7 +24,7 @@ test('with no cut-out, the catalogue photo is used', () => {
 
 test('every /po dropdown icon has a high-resolution copy for the website', () => {
   for (const f of readdirSync('public/reference/categories').filter((n) => n.endsWith('.png'))) {
-    assert.ok(existsSync(`public/reference/categories/hd/${f.replace('.png', '.webp')}`), f);
+    assert.ok(existsSync(`public/reference/categories/hd2/${f.replace('.png', '.webp')}`), f);
   }
 });
 

@@ -58,12 +58,16 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DIR = process.env.ICON_SRC || path.join(ROOT, 'all each cat');
-// ICON_SCALE=3 writes the same cut-outs at 480x384 WebP into .../categories/hd
+// ICON_SCALE=3 writes the same cut-outs at 480x384 WebP into .../categories/hd2
 // for the public website, where they are shown larger than in a dropdown.
 // The dropdown PNGs and lib/category-icons.ts are left alone on that run.
+// The site serves these through /_next/image, which caches for 31 days by
+// URL, so a re-cut that should show up sooner goes into a new folder (hd2
+// replaced hd when the white rims were cleaned) and lib/site/category-images.ts
+// follows it.
 const SCALE = Number(process.env.ICON_SCALE || 1);
 const HD = SCALE > 1;
-const OUT_DIR = path.join(ROOT, 'public/reference/categories', HD ? 'hd' : '');
+const OUT_DIR = path.join(ROOT, 'public/reference/categories', HD ? 'hd2' : '');
 // Every icon is written onto the same 5:4 landscape tile. It is landscape
 // rather than square because these stones are not all round: a rose-cut
 // polki, a strand of rainbow corundum and a pair of foiled crystals are all
@@ -87,48 +91,48 @@ const TARGET_INK = 0.45;
 // different qualities. Heighted CZ had its own photo supplied later and no
 // longer uses the shared one.
 const CATEGORY_ICONS = {
-  'crushed-ice-cut':       { src: 'ICE CRUSH (4).JPEG' },
+  'crushed-ice-cut':       { src: 'ICE CRUSH (4).JPEG', fringe: 24 },
   // One strand on a ridged white sweep. The ridges cast shadow lines the fill
   // can't reach, and one of them survived as a stray streak under the strand;
   // solo drops it, because there is only ever one object in this shot.
   'rainbow-corundum':      { src: 'rainbow-corundum-300.jpg', near: 22, global: 92, chroma: 24, holes: true, open: 3, solo: true },
-  'ruby-synthetic':        { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
-  'ruby-glass-filled':     { src: 'ruby: ruby glass filled.png', near: 40, global: 170, key: true },
-  'ruby-green-cabs':       { src: 'green cabs.jpg' },
-  'coloured-cz-stones':    { src: 'color cz.jpg' },
-  'lab-grown-stones':      { src: 'labEm.webp' },
-  'synthetic-opals':       { src: 'syn opal.jpg' },
-  'fusion-stones':         { src: 'fusionstone.webp' },
-  'turkey-ring-stones':    { src: 'turkey-ring-stones-29.webp', near: 34, global: 125, key: true },
+  'ruby-synthetic':        { src: 'ruby: ruby glass filled.png', oval: [0.138, 0.128, 0.817, 0.845, 3.5], skipFill: true, fringe: 6 },
+  'ruby-glass-filled':     { src: 'ruby: ruby glass filled.png', oval: [0.138, 0.128, 0.817, 0.845, 3.5], skipFill: true, fringe: 6 },
+  'ruby-green-cabs':       { src: 'green cabs.jpg', fringe: 24 },
+  'coloured-cz-stones':    { src: 'color cz.jpg', circle: 'fit', skipFill: true },
+  'lab-grown-stones':      { src: 'labEm.webp', oval: [0.206, 0.272, 0.781, 0.745, 3], skipFill: true, fringe: 6 },
+  'synthetic-opals':       { src: 'syn opal.jpg', fringe: 24 },
+  'fusion-stones':         { src: 'fusionstone.webp', fringe: 24, fringeLo: 0.28, fringeHi: 0.5 },
+  'turkey-ring-stones':    { src: 'turkey-ring-stones-29.webp', near: 34, global: 125, key: true, fringe: 24 },
   // Strands edge to edge: framed, not cut out. The crop is a wide band across
   // the middle of a portrait photo, which is where every colour appears.
   'cz-glass-beads':        { src: 'glass beads.png', frame: { w: 150, h: 104, crop: [0, 0.2, 1, 0.59] } },
   'mop-mother-of-pearl':   { src: 'mop.png', near: 34, global: 130 },
-  'mop-onyx':              { src: 'onyx.png' },
-  'evil-eye-malachite':    { src: 'evileye.png' },
+  'mop-onyx':              { src: 'onyx.png', fringe: 24 },
+  'evil-eye-malachite':    { src: 'evileye.png', oval: [0.085, 0.005, 0.955, 0.93], skipFill: true },
   'flat-polki-foil-polki': { src: 'polki.png' },
   'glass-pearls':          { src: 'glass pearl.jpg', near: 26, global: 110 },
-  'crystal':               { src: 'Amethyst-1-scaled crystal.jpg' },
+  'crystal':               { src: 'Amethyst-1-scaled crystal.jpg', fringe: 24 },
   'queen-conch':           { src: 'QUEEN CONCH.png', near: 32, global: 125 },
-  'foiled-glass-crystal':  { src: 'foiled stone.jpeg' },
+  'foiled-glass-crystal':  { src: 'foiled stone.jpeg', fringe: 24 },
   // A soft white glow sits between this stone and its backdrop; the fill
   // stops at it, so key it out by colour as well.
-  'natural-emeralds':      { src: 'natEmerald.webp', near: 20, global: 150, key: true },
-  'glass-stones':          { src: 'glass-green gemstone.webp' },
+  'natural-emeralds':      { src: 'natEmerald.webp', near: 20, global: 150, key: true, fringe: 24 },
+  'glass-stones':          { src: 'glass-green gemstone.webp', fringe: 24 },
   'star-light':            { src: 'starlighht.webp', circle: [0.487, 0.47, 0.275], skipFill: true },
   // A turquoise bead on a grey sweep -- the two are close in brightness and
   // the border fill left the whole backdrop, but nothing else in the frame is
   // coloured at all, so key on saturation and close the pale facets after.
   'ceramic':               { src: 'ceramic.jpg', chroma: 34, holes: true, solo: true },
-  'malachite':             { src: 'malachite.jpeg' },
-  '7a-quality':            { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
-  '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
-  '4a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
-  '3a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
+  'malachite':             { src: 'malachite.jpeg', fringe: 24 },
+  '7a-quality':            { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  '4a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  '3a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
   'heighted-cz-stones':    { src: 'heightened cz.jpeg', near: 30, global: 115, key: true },
   // SWIZZ in that shared filename is Swiss High Density CZ.
-  'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg' },
-  'nano':                  { src: 'blue nano.png' },
+  'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  'nano':                  { src: 'blue nano.png', circle: 'fit', skipFill: true },
   'moissanite':            { src: 'moissanite.jpg' },
   // A dark backdrop with lighter blobs at the corners; one of them clung to
   // the top right of the heart as a hairline. It is a separate blob, so solo
@@ -139,17 +143,60 @@ const CATEGORY_ICONS = {
   // brightness instead -- the backdrop is genuinely black -- then holes closes
   // the dark facets the threshold punched out, and solo drops the lens flare.
   'fancy-special-shapes':  { src: 'fancy special shp.png', skipFill: true, luma: 40, holes: true, solo: true },
-  'green-onyx-chatam':     { src: 'green onyx.webp' },
-  'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg' },
+  'green-onyx-chatam':     { src: 'green onyx.webp', oval: [0.068, 0.07, 0.929, 0.875], skipFill: true, fringe: 6 },
+  'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg', oval: [0.024, 0.12, 0.966, 0.885], skipFill: true },
   'preform-balls':         { src: 'preformballs.tiff' },
-  'synthetic-corundum':    { src: 'synthtic corundum.png' },
+  'synthetic-corundum':    { src: 'synthtic corundum.png', fringe: 24 },
   'natural-pearls':        { src: 'pearl.webp' },
-  'semi-precious-stones':  { src: 'semiPrecious.png' }
+  'semi-precious-stones':  { src: 'semiPrecious.png', fringe: 24 }
   // Every category is illustrated. If a new one is added, give it an entry
   // here and re-run this script.
 };
 
 const dist = (a, b, c, r, g, bl) => Math.abs(a - r) + Math.abs(b - g) + Math.abs(c - bl);
+
+// circle: 'fit' -- finds a round stone's own circle, for round stones on a
+// pale sweep where any colour threshold either leaves a grey rim of shadow and
+// backdrop or eats the stone's pale outer facets. Pixels far from the border's
+// mean colour are the stone plus its drop shadow; the shadow only ever falls
+// below it, so the width of that blob gives the diameter and its top edge the
+// centre's height. fitShrink trims a hair off the radius so the anti-aliased
+// girdle -- half backdrop -- doesn't survive as a light ring.
+function fitCircle(data, W, H, C, opts) {
+  let sr = 0, sg = 0, sb = 0, n = 0;
+  const edge = (p) => { sr += data[p * C]; sg += data[p * C + 1]; sb += data[p * C + 2]; n++; };
+  for (let x = 0; x < W; x++) { edge(x); edge((H - 1) * W + x); }
+  for (let y = 0; y < H; y++) { edge(y * W); edge(y * W + W - 1); }
+  sr /= n; sg /= n; sb /= n;
+  const T = opts.fitT ?? 60;
+  const on = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) on[p] = dist(sr, sg, sb, data[p * C], data[p * C + 1], data[p * C + 2]) > T ? 1 : 0;
+  // Largest blob only, so a speck of dust or a watermark letter off the stone
+  // can't stretch the fit.
+  const seen = new Uint8Array(W * H);
+  let best = null;
+  for (let p0 = 0; p0 < W * H; p0++) {
+    if (seen[p0] || !on[p0]) continue;
+    const stack = [p0]; seen[p0] = 1;
+    const b = { n: 0, minX: W, maxX: -1, minY: H };
+    while (stack.length) {
+      const p = stack.pop(), x = p % W, y = (p / W) | 0;
+      b.n++; if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x; if (y < b.minY) b.minY = y;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const q = ny * W + nx;
+        if (seen[q] || !on[q]) continue;
+        seen[q] = 1; stack.push(q);
+      }
+    }
+    if (!best || b.n > best.n) best = b;
+  }
+  const r0 = (best.maxX - best.minX + 1) / 2;
+  const r = r0 * (1 - (opts.fitShrink ?? 0.015));
+  if (process.env.ICON_DEBUG) console.log(`  fit cx=${((best.minX + r0) / W).toFixed(3)} cy=${((best.minY + r0) / H).toFixed(3)} r=${(r / Math.min(W, H)).toFixed(3)}`);
+  return { cx: best.minX + r0 - 0.5, cy: best.minY + r0 - 0.5, r };
+}
 
 // Not every category photo is one stone on a backdrop. Glass Beads is a
 // full-bleed shot of strands -- there is no background to remove, only beads
@@ -197,6 +244,15 @@ async function cutout(SRC, OUT, opts) {
   const work = base.resize({ width: Math.min(meta.width, 900), height: Math.min(meta.height, 900), fit: 'inside', withoutEnlargement: true });
   const { data, info } = await work.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width: W, height: H, channels: C } = info;
+  // The backdrop's colour, read before anything is cut, for the fringe pass.
+  const backdrop = [0, 0, 0];
+  {
+    let n = 0;
+    const add = (p) => { for (let c = 0; c < 3; c++) backdrop[c] += data[p * C + c]; n++; };
+    for (let x = 0; x < W; x++) { add(x); add((H - 1) * W + x); }
+    for (let y = 0; y < H; y++) { add(y * W); add(y * W + W - 1); }
+    for (let c = 0; c < 3; c++) backdrop[c] /= n;
+  }
 
   // If the source already ships a real cutout, trust it and skip the fill.
   let alreadyTransparent = 0;
@@ -206,11 +262,29 @@ async function cutout(SRC, OUT, opts) {
   // A circle crop masks everything outside the gem before the fill runs, for
   // sources that aren't a stone on a backdrop at all.
   if (opts.circle) {
-    const [cxf, cyf, rf] = opts.circle;
-    const cx = cxf * W, cy = cyf * H, r = rf * Math.min(W, H), r2 = r * r;
+    let cx, cy, r;
+    if (opts.circle === 'fit') ({ cx, cy, r } = fitCircle(data, W, H, C, opts));
+    else { const [cxf, cyf, rf] = opts.circle; cx = cxf * W; cy = cyf * H; r = rf * Math.min(W, H); }
+    // One pixel of soft edge, so the circle isn't a stair-step once scaled.
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const d2 = (x - cx) ** 2 + (y - cy) ** 2;
-      if (d2 > r2) data[(y * W + x) * C + 3] = 0;
+      const a = Math.max(0, Math.min(1, r - Math.hypot(x - cx, y - cy) + 0.5));
+      const i = (y * W + x) * C + 3;
+      data[i] = Math.round(data[i] * a);
+    }
+  }
+
+  // The same idea for an oval or cushion stone, whose outline is a
+  // superellipse inside the given box: n = 2 is an ellipse, n around 4 a
+  // cushion's rounded rectangle. The box is measured from the photo by eye.
+  if (opts.oval) {
+    const [x0, y0, x1, y1, n = 2] = opts.oval;
+    const cx = ((x0 + x1) / 2) * W, cy = ((y0 + y1) / 2) * H;
+    const a = ((x1 - x0) / 2) * W, b = ((y1 - y0) / 2) * H;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const v = (Math.abs((x - cx) / a) ** n + Math.abs((y - cy) / b) ** n) ** (1 / n);
+      const k = Math.max(0, Math.min(1, (1 - v) * Math.min(a, b) + 0.5));
+      const i = (y * W + x) * C + 3;
+      data[i] = Math.round(data[i] * k);
     }
   }
 
@@ -366,6 +440,47 @@ async function cutout(SRC, OUT, opts) {
     // both far too big for the 2% rule to catch.
     const floor = opts.solo ? biggest : totalKept * 0.02;
     for (const cells of blobs) if (cells.length < floor) for (const p of cells) data[p * C + 3] = 0;
+  }
+
+  // fringe: every threshold above leaves a band of pale pixels round the stone
+  // -- its drop shadow and the anti-aliased girdle, both part backdrop. On a
+  // white page that is invisible; on the website's navy it reads as a white
+  // rim. Within this many pixels of the outline, each pixel's opacity becomes
+  // how far it is from the backdrop colour -- a colour-to-alpha against the
+  // backdrop -- ramped so anything closer than fringeLo (a pale shadow, the
+  // girdle's half-backdrop pixels) goes and anything past fringeHi (real
+  // stone) stays solid. Its colour is un-mixed from the backdrop to match.
+  // Only for pale backdrops, and never for pale stones (pearls, white CZ),
+  // whose own edge is as close to white as the shadow is.
+  if (opts.fringe) {
+    const BAND = opts.fringe, LO = opts.fringeLo ?? 0.18, HI = opts.fringeHi ?? 0.4;
+    const d = new Int16Array(W * H).fill(-1);
+    const queue = [];
+    for (let p = 0; p < W * H; p++) if (data[p * C + 3] <= 24) { d[p] = 0; queue.push(p); }
+    for (let qi = 0; qi < queue.length; qi++) {
+      const p = queue[qi], x = p % W, y = (p / W) | 0;
+      if (d[p] >= BAND) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const q = ny * W + nx;
+        if (d[q] >= 0) continue;
+        d[q] = d[p] + 1; queue.push(q);
+      }
+    }
+    for (let p = 0; p < W * H; p++) {
+      if (d[p] <= 0) continue;
+      const i = p * C;
+      // Only a pixel darker than the backdrop can be backdrop plus something;
+      // a brighter one is a highlight on the stone, so those channels count 0.
+      let a = 0;
+      for (let c = 0; c < 3; c++) a = Math.max(a, Math.max(0, backdrop[c] - data[i + c]) / backdrop[c]);
+      const k = Math.max(0, Math.min(1, (a - LO) / (HI - LO)));
+      if (k >= 1) continue;
+      if (k <= 0) { data[i + 3] = 0; continue; }
+      for (let c = 0; c < 3; c++) data[i + c] = Math.max(0, Math.min(255, Math.round((data[i + c] - (1 - a) * backdrop[c]) / a)));
+      data[i + 3] = Math.round(data[i + 3] * k);
+    }
   }
 
   // Bounding box of what survived, then a small transparent margin so the gem
