@@ -10,6 +10,7 @@ import { pic, responsive } from '@/lib/site/optimize';
 import { Arrow, WhatsApp } from './icons';
 import s from './site.module.css';
 import c from './category.module.css';
+import CatThumb from './CatThumb';
 
 const PHOTO_LIMIT = 36;
 
@@ -117,7 +118,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
               {page.children.map((k) => (
                 <li key={k.slug}>
                   <Link href={k.href} className={s.catTile}>
-                    <div className={s.catImg}>{k.image ? <img {...pic(k.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={k.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
+                    <div className={`${s.catImg} ${k.image?.cutout ? s.catImgCut : ''}`}>{k.image ? <img {...pic(k.image)} sizes="(min-width: 900px) 25vw, 50vw" alt={k.image.alt} loading="lazy" /> : <div className={s.catImgEmpty} />}</div>
                     <div className={s.catBody}><span className={s.catName}>{k.name}</span>{k.descriptor && <span className={s.catDesc}>{k.descriptor}</span>}</div>
                   </Link>
                 </li>
@@ -267,7 +268,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
       {page.siblings.length > 1 && (
         <nav className={`${s.wrap} ${c.siblings}`} aria-label={`More in ${page.parent?.name}`}>
           <h2>More in {page.parent?.name}</h2>
-          <ul>{page.siblings.map((sib) => <li key={sib.slug}>{sib.slug === page.slug ? <span aria-current="page">{sib.name}</span> : <Link href={sib.href}>{sib.name}</Link>}</li>)}</ul>
+          <ul>{page.siblings.map((sib) => <li key={sib.slug}>{sib.slug === page.slug ? <span aria-current="page"><CatThumb image={sib.image} size={26} />{sib.name}</span> : <Link href={sib.href}><CatThumb image={sib.image} size={26} />{sib.name}</Link>}</li>)}</ul>
         </nav>
       )}
     </>

@@ -200,11 +200,11 @@
 .pickList { display: flex; flex-wrap: wrap; gap: 8px; }
 .pick { position: relative; display: inline-flex; cursor: pointer; }
 .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.pick span { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--text); font-size: 14px; transition: background-color .15s, border-color .15s; }
+.pick > span { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--text); font-size: 14px; transition: background-color .15s, border-color .15s; }
 .pick input:checked + span { background: rgba(139,61,255,0.22); border-color: var(--accent-text); color: #fff; }
-.pick input:checked + span::before { content: '✓'; margin-right: 6px; font-size: 12px; color: var(--accent-text); }
+.pick input:checked + span::after { content: '✓'; margin-left: -2px; font-size: 12px; color: var(--accent-text); }
 .pick input:focus-visible + span { outline: 2px solid var(--accent-text); outline-offset: 2px; }
-.pickSmall span { min-height: 36px; font-size: 13.5px; padding: 0 12px; }
+.pickSmall > span { min-height: 36px; font-size: 13.5px; padding: 0 12px 0 6px; }
 .pickSub { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--bg-2); display: grid; gap: 8px; }
 .pickSubHead { font-size: 13.5px; color: var(--muted); }
 .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

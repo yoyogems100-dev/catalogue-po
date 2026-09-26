@@ -112,9 +112,9 @@
 .siblings { padding-bottom: 48px; }
 .siblings h2 { font-family: var(--sans) !important; font-size: 13px !important; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted) !important; margin-bottom: 10px; font-weight: 600 !important; }
 .siblings ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.siblings a, .siblings span { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: var(--muted); font-size: 14px; }
+.siblings li > a, .siblings li > span { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: var(--muted); font-size: 14px; }
 .siblings a:hover { color: #fff; border-color: var(--line-strong); }
-.siblings span { color: #fff; border-color: var(--accent-text); }
+.siblings li > span { color: #fff; border-color: var(--accent-text); }
 
 /* Products hub */
 .hubGroup { padding: 28px 0; border-top: 1px solid var(--line); }
@@ -122,7 +122,7 @@
 .hubGroup h2 a { text-decoration: none; }
 .hubGroup p { color: var(--muted); margin-bottom: 12px; }
 .hubChildren { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.hubChildren a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: #e4def0; font-size: 14px; }
+.hubChildren a { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: #e4def0; font-size: 14px; }
 .hubChildren a:hover { border-color: var(--accent-text); }
 
 @media (min-width: 640px) {

@@ -7,6 +7,7 @@ import { categorySchema } from './schemas';
 import { categoryDefaults } from './category-defaults';
 import { mediaSrc, mediaSrcSet, type MediaRow } from './media-url';
 import { slugOf, sizeBucketOf, SIZE_BUCKETS, type OptionsByDim } from './filters';
+import { getCategoryImages } from './category-images-data';
 
 // Everything a category page needs, read with the anon key and cached for an
 // hour (and dropped immediately when the admin changes website content).
@@ -15,7 +16,7 @@ import { slugOf, sizeBucketOf, SIZE_BUCKETS, type OptionsByDim } from './filters
 
 export type Option = { slug: string; name: string; img?: string | null; ids: number[] };
 export type PagePhoto = { id: number; src: string; alt: string; shapes: string[]; colours: string[]; sizes: string[]; grade: string | null };
-export type Img = { src: string; srcSet?: string; alt: string; width?: number; height?: number };
+export type Img = { src: string; srcSet?: string; alt: string; width?: number; height?: number; cutout?: boolean };
 
 export type CategoryPage = {
   id: number;
@@ -28,7 +29,7 @@ export type CategoryPage = {
   content: ContentValue;
   heroImage: Img | null;
   children: { slug: string; name: string; descriptor: string; href: string; image: Img | null }[];
-  siblings: { slug: string; name: string; href: string }[];
+  siblings: { slug: string; name: string; href: string; image: { src: string; srcSet?: string; cutout?: boolean } | null }[];
   shapes: Option[];
   sizes: Option[];            // mm ranges
   colours: Option[];
@@ -169,24 +170,19 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     });
   }
 
-  // Website media: hero, gallery, children tiles.
+  // Website media: hero and gallery.
   const content = withDefaults(categorySchema, node.published ?? categoryDefaults(parent?.slug ?? null, node.slug) ?? {});
-  const mediaIds = [content.hero?.image, node.hero_media_id, ...(galleryLinks || []).map((l: any) => l.media_id), ...kids.map((k) => k.hero_media_id ?? k.published?.hero?.image)].filter(Boolean);
+  const mediaIds = [content.hero?.image, node.hero_media_id, ...(galleryLinks || []).map((l: any) => l.media_id)].filter(Boolean);
   const { data: mediaRows } = mediaIds.length ? await supabasePublic.from('site_media').select('id, storage_path, variants, width, height, alt').in('id', mediaIds) : none;
   const media = new Map((mediaRows || []).map((m: any) => [m.id, m as MediaRow]));
 
-  // Child tiles fall back to a stored catalogue cover.
-  const coverFor = async (siteCatId: number): Promise<Img | null> => {
-    const catId = sources.find((s) => s.site_category_id === siteCatId)?.category_id;
-    const cat = (catRows.data || []).find((c: any) => c.id === catId);
-    const photo = cat?.thumbnail_photo_id ? photos.find((p) => p.id === cat.thumbnail_photo_id) : null;
-    const src = photo ? photoUrl(photo, 600, 'cover') : pagePhotos.find((p) => sources.some((s) => s.site_category_id === siteCatId))?.src;
-    return src ? { src, alt: `${cat?.name ?? ''} stones` } : null;
-  };
-  const children = await Promise.all(kids.map(async (k) => ({
+  // Child tiles: the same picture as in the menus.
+  const images = await getCategoryImages();
+  const children = kids.map((k) => ({
     slug: k.slug, name: k.name, descriptor: k.descriptor, href: `/products/${node.slug}/${k.slug}`,
-    image: toImg(media.get(k.hero_media_id) ?? media.get(k.published?.hero?.image), k.name) ?? await coverFor(k.id)
-  })));
+    image: images[k.id] ?? null
+  }));
+  const siblingImage = (id: number) => images[id] ? { src: images[id].src, srcSet: images[id].srcSet, cutout: images[id].cutout } : null;
 
   return {
     id: node.id,
@@ -199,7 +195,7 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     content,
     heroImage: toImg(media.get(content.hero?.image) ?? media.get(node.hero_media_id), `${node.name} stones`),
     children,
-    siblings: siblings.map((c) => ({ slug: c.slug, name: c.name, href: `${base}/${c.slug}` })),
+    siblings: siblings.map((c) => ({ slug: c.slug, name: c.name, href: `${base}/${c.slug}`, image: siblingImage(c.id) })),
     shapes: [...shapeMap.values()],
     sizes: sizeOptions,
     colours: [...colourMap.values()],

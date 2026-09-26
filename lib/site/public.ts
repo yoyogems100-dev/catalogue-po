@@ -1,16 +1,17 @@
 import { cache } from 'react';
 import { supabasePublic } from '@/lib/supabase-public';
-import { photoUrl } from '@/lib/photos';
 import { withDefaults, type ContentValue } from './schema';
 import { pageSchemas } from './page-schemas';
 import { pageDefaults } from './defaults';
 import { mediaSrc, mediaSrcSet, type MediaRow } from './media-url';
+import { getCategoryImages } from './category-images-data';
 
 // Read-side of the public website. Uses the anon key, so it can only ever see
 // published content (column grants hide drafts), and every function falls
 // back to sensible defaults so a missing row never breaks a page.
 
-export type PublicImage = { src: string; srcSet?: string; alt: string; width?: number; height?: number };
+/** cutout: a transparent single-stone picture, shown whole rather than cropped. */
+export type PublicImage = { src: string; srcSet?: string; alt: string; width?: number; height?: number; cutout?: boolean };
 
 export type NavCategory = {
   id: number;
@@ -19,7 +20,7 @@ export type NavCategory = {
   descriptor: string;
   href: string;
   image: PublicImage | null;
-  children: { id: number; slug: string; name: string; href: string }[];
+  children: { id: number; slug: string; name: string; href: string; image: PublicImage | null }[];
 };
 
 export const getPage = cache(async (key: string): Promise<ContentValue> => {
@@ -43,52 +44,23 @@ export const getMedia = cache(async (ids: number[]): Promise<Map<number, MediaRo
   return new Map((data || []).map((m: any) => [m.id, m as MediaRow]));
 });
 
-/** Visible website categories as a two-level tree, with a tile image each. */
+/** Visible website categories as a two-level tree, with a picture each. */
 export const getNavTree = cache(async (): Promise<NavCategory[]> => {
-  const [{ data: rows }, { data: sources }] = await Promise.all([
-    supabasePublic.from('site_categories').select('id, parent_id, slug, name, descriptor, sort_order, hero_media_id, published').order('sort_order'),
-    supabasePublic.from('site_category_sources').select('site_category_id, category_id, sort_order').order('sort_order')
+  const [{ data: rows }, images] = await Promise.all([
+    supabasePublic.from('site_categories').select('id, parent_id, slug, name, descriptor, sort_order').order('sort_order'),
+    getCategoryImages()
   ]);
   const all = (rows || []) as any[];
-  const top = all.filter((r) => r.parent_id === null);
-  const visibleIds = new Set(all.map((r) => r.id));
-  const childrenOf = (id: number) => all.filter((r) => r.parent_id === id && visibleIds.has(id));
-
-  // Tile image: chosen tile image → published hero image → the first
-  // catalogue cover photo (stored in Supabase, not a Drive link, which can
-  // expire) among the category's and its sub-categories' sources.
-  const mediaIds = top.flatMap((r) => [r.hero_media_id, r.published?.hero?.image]).filter(Boolean);
-  const media = await getMedia(mediaIds);
-  const sourcesOf = (id: number) => (sources || []).filter((s: any) => s.site_category_id === id).map((s: any) => s.category_id as number);
-  const candidateIds = (id: number) => [...sourcesOf(id), ...childrenOf(id).flatMap((c) => sourcesOf(c.id))];
-  const allCandidates = [...new Set(top.flatMap((r) => candidateIds(r.id)))];
-  const covers = new Map<number, PublicImage>();
-  if (allCandidates.length) {
-    const { data: cats } = await supabasePublic.from('categories').select('id, name, thumbnail_photo_id').in('id', allCandidates);
-    const photoIds = (cats || []).map((c: any) => c.thumbnail_photo_id).filter(Boolean);
-    const { data: photos } = photoIds.length
-      ? await supabasePublic.from('photos').select('id, storage_path, cover_crop, photo_crop').in('id', photoIds).not('storage_path', 'is', null)
-      : { data: [] };
-    for (const c of cats || []) {
-      const p = (photos || []).find((x: any) => x.id === (c as any).thumbnail_photo_id);
-      const src = p ? photoUrl(p as any, 600, 'cover') : null;
-      if (src) covers.set((c as any).id, { src, alt: `${(c as any).name} stones` });
-    }
-  }
-
-  return top.map((r) => {
-    const tileMedia = media.get(r.hero_media_id) ?? media.get(r.published?.hero?.image);
-    const coverId = candidateIds(r.id).find((id) => covers.has(id));
-    return {
-      id: r.id,
-      slug: r.slug,
-      name: r.name,
-      descriptor: r.descriptor,
-      href: `/products/${r.slug}`,
-      image: toImage(tileMedia, `${r.name} stones`) ?? (coverId ? covers.get(coverId) ?? null : null),
-      children: childrenOf(r.id).map((c) => ({ id: c.id, slug: c.slug, name: c.name, href: `/products/${r.slug}/${c.slug}` }))
-    };
-  });
+  return all.filter((r) => r.parent_id === null).map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    descriptor: r.descriptor,
+    href: `/products/${r.slug}`,
+    image: images[r.id] ?? null,
+    children: all.filter((c) => c.parent_id === r.id)
+      .map((c) => ({ id: c.id, slug: c.slug, name: c.name, href: `/products/${r.slug}/${c.slug}`, image: images[c.id] ?? null }))
+  }));
 });
 
 /** A row of real shape and colour photos for the charts teaser. */

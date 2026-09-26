@@ -57,15 +57,20 @@ import { fileURLToPath } from 'node:url';
 //                is a tray edge, a ridge shadow or a neighbouring stone.
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC_DIR = path.join(ROOT, 'all each cat');
-const OUT_DIR = path.join(ROOT, 'public/reference/categories');
+const SRC_DIR = process.env.ICON_SRC || path.join(ROOT, 'all each cat');
+// ICON_SCALE=3 writes the same cut-outs at 480x384 WebP into .../categories/hd
+// for the public website, where they are shown larger than in a dropdown.
+// The dropdown PNGs and lib/category-icons.ts are left alone on that run.
+const SCALE = Number(process.env.ICON_SCALE || 1);
+const HD = SCALE > 1;
+const OUT_DIR = path.join(ROOT, 'public/reference/categories', HD ? 'hd' : '');
 // Every icon is written onto the same 5:4 landscape tile. It is landscape
 // rather than square because these stones are not all round: a rose-cut
 // polki, a strand of rainbow corundum and a pair of foiled crystals are all
 // much wider than they are tall, and inside a square tile they shrank to a
 // sliver while a round CZ filled the whole thing. 160x128 renders at 40x32
 // in a dropdown row, so it covers retina with room to spare.
-const TILE_W = 160, TILE_H = 128;
+const TILE_W = 160 * SCALE, TILE_H = 128 * SCALE;
 
 // How much of the tile a stone's own pixels should cover, so every category
 // carries roughly the same visual weight in the list. Measured against the
@@ -177,7 +182,7 @@ async function framedSnapshot(SRC, OUT, opts) {
 
   await sharp({ create: { width: TILE_W, height: TILE_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: tile, left: Math.round((TILE_W - w) / 2), top: Math.round((TILE_H - h) / 2) }])
-    .png({ compressionLevel: 9 })
+    [HD ? 'webp' : 'png'](HD ? { quality: 90, alphaQuality: 100 } : { compressionLevel: 9 })
     .toFile(OUT);
 
   return { ink: (w * h) / (TILE_W * TILE_H), outW: w, outH: h };
@@ -391,7 +396,7 @@ async function cutout(SRC, OUT, opts) {
       left: Math.round((TILE_W - outW) / 2), right: TILE_W - outW - Math.round((TILE_W - outW) / 2),
       background: { r: 0, g: 0, b: 0, alpha: 0 }
     })
-    .png({ compressionLevel: 9, palette: true })
+    [HD ? 'webp' : 'png'](HD ? { quality: 90, alphaQuality: 100 } : { compressionLevel: 9, palette: true })
     .toFile(OUT);
 
   return { ink: (kept * scale * scale) / (TILE_W * TILE_H), outW, outH };
@@ -407,7 +412,7 @@ for (const [slug, opts] of Object.entries(CATEGORY_ICONS)) {
   if (only.size && !only.has(slug)) continue;
   const src = path.join(SRC_DIR, opts.src);
   if (!fs.existsSync(src)) { console.log(`${slug}\tSKIPPED (missing ${opts.src})`); continue; }
-  const out = path.join(OUT_DIR, `${slug}.png`);
+  const out = path.join(OUT_DIR, `${slug}.${HD ? 'webp' : 'png'}`);
   const r = await cutout(src, out, opts);
   written.push(slug);
   console.log(`${slug.padEnd(24)}${r.outW}x${r.outH}\tink ${(r.ink * 100).toFixed(0)}%\t${(fs.statSync(out).size / 1024).toFixed(1)} KB`);
@@ -432,7 +437,9 @@ export function categoryIconUrl(slug: string | null | undefined): string | null 
   return \`/reference/categories/\${slug}.png\`;
 }
 `;
-if (only.size) {
+if (HD) {
+  console.log('\nHD run -- lib/category-icons.ts left alone.');
+} else if (only.size) {
   console.log('\nPartial run -- lib/category-icons.ts left alone.');
 } else {
   fs.writeFileSync(path.join(ROOT, 'lib/category-icons.ts'), lib);
