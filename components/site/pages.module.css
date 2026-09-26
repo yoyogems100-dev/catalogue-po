@@ -66,6 +66,22 @@
 .previewSwatch img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-strong); background: #000; }
 .previewDot { display: inline-block; border-radius: 50%; border: 1.5px solid var(--accent-text); }
 .previewGrade { font-family: var(--serif); font-size: 15px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); color: #fff; }
+/* Two across on a phone too, with a more compact card: one card per row
+   left most of each card empty beside a short title. */
+@media (max-width: 639px) {
+  .chartCards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .chartCards > li:has(> .chartCardWide) { grid-column: 1 / -1; }
+  /* A card left alone on its row before the wide one takes the row too. */
+  .chartCards > li:nth-child(odd):has(+ li > .chartCardWide) { grid-column: 1 / -1; }
+  .chartCard { padding: 14px; }
+  .chartCard h2 { font-size: 18px; margin: 10px 0 4px; line-height: 1.2; }
+  .chartCard p { font-size: 13.5px; line-height: 1.45; margin-bottom: 8px; }
+  .chartPreview { gap: 5px; min-height: 40px; }
+  .previewShape img { width: 32px; height: 32px; padding: 2px; border-radius: 8px; }
+  .previewSwatch img { width: 26px; height: 26px; }
+  .previewDot { transform: scale(0.75); margin: -2px; }
+  .previewGrade { font-size: 13px; padding: 3px 8px; }
+}
 
 /* Chart pages */
 .chartTabs { margin-bottom: 8px; }
@@ -145,7 +161,9 @@
   .photoStrip { grid-auto-columns: 42%; }
   .photoGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chartCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .chartCardWide { grid-column: 1 / -1; }
+  .chartCards > li:has(> .chartCardWide) { grid-column: 1 / -1; }
+  /* A card left alone on its row before the wide one takes the row too. */
+  .chartCards > li:nth-child(odd):has(+ li > .chartCardWide) { grid-column: 1 / -1; }
 }
 @media (min-width: 900px) {
   .headGrid { grid-template-columns: 1.05fr 1fr; gap: 48px; }
@@ -158,7 +176,9 @@
   .steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .step { flex-direction: column; gap: 12px; }
   .chartCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .chartCardWide { grid-column: auto; }
+  .chartCards > li:nth-child(odd):has(+ li > .chartCardWide) { grid-column: auto; }
+  /* Three across, grades takes two columns so the last row has no gap. */
+  .chartCards > li:has(> .chartCardWide) { grid-column: span 2; }
   .shapeLayout { grid-template-columns: minmax(0, 1fr) 340px; }
   .shapePanel { display: block; position: sticky; top: 84px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; max-height: calc(100dvh - 110px); overflow-y: auto; outline: none; }
   .shapePanelOpen { position: sticky; left: auto; right: auto; bottom: auto; z-index: auto; box-shadow: none; animation: none; border-color: rgba(231,166,242,0.35); }

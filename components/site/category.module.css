@@ -121,8 +121,11 @@
 .hubGroup h2 { font-size: 26px; margin-bottom: 4px; }
 .hubGroup h2 a { text-decoration: none; }
 .hubGroup p { color: var(--muted); margin-bottom: 12px; }
-.hubChildren { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.hubChildren a { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: #e4def0; font-size: 14px; }
+/* An even grid (two across on a phone) rather than wrapping pills: long
+   names like "CVD Lab Diamonds" took a row each and left the right half of
+   the screen empty. */
+.hubChildren { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.hubChildren a { display: flex; align-items: center; gap: 8px; height: 100%; min-height: 44px; padding: 4px 10px 4px 6px; border-radius: 12px; border: 1px solid var(--line); text-decoration: none; color: #e4def0; font-size: 14px; line-height: 1.25; }
 .hubChildren a:hover { border-color: var(--accent-text); }
 
 @media (min-width: 640px) {
