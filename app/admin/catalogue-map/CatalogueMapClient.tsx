@@ -4,12 +4,15 @@ import { useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
 import StoneFinder from '@/components/StoneFinder';
+import ColourSetupEditor from '@/components/admin/ColourSetupEditor';
+import { COLOR_BUTTONS_SETTING_KEY } from '@/lib/color-family';
+import { DEFAULT_PICKS_SETTING_KEY, type OrderPreference } from '@/lib/customer-preferences';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { COLOR_FAMILIES } from '@/lib/color-family';
 import { sizeKey } from '@/lib/size-options';
 import { compareSizeKeys, groupByMaterial, type CatalogueMap, type MapCategory } from '@/lib/catalogue-map';
 
-type Tab = 'colour' | 'size' | 'materials' | 'preview';
+export type Tab = 'buttons' | 'colour' | 'size' | 'materials' | 'preview';
 
 async function send(url: string, method: 'POST' | 'DELETE' | 'PATCH', body: unknown) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -25,9 +28,15 @@ async function send(url: string, method: 'POST' | 'DELETE' | 'PATCH', body: unkn
  * that carry it, pick a size and tick the stones cut in it, or arrange stones
  * under materials. Every tick saves straight away.
  */
-export default function CatalogueMapClient({ initialMap, materialsReady }: { initialMap: CatalogueMap; materialsReady: boolean }) {
+export default function CatalogueMapClient({ initialMap, materialsReady, initialTab = 'buttons', shopButtons, shopPicks }: {
+  initialMap: CatalogueMap;
+  materialsReady: boolean;
+  initialTab?: Tab;
+  shopButtons: number[];
+  shopPicks: OrderPreference[];
+}) {
   const [map, setMap] = useState(initialMap);
-  const [tab, setTab] = useState<Tab>('colour');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
@@ -48,7 +57,7 @@ export default function CatalogueMapClient({ initialMap, materialsReady }: { ini
     }
   }
 
-  const tabs: [Tab, string][] = [['colour', 'By colour'], ['size', 'By size'], ['materials', 'Materials'], ['preview', 'Buyer preview']];
+  const tabs: [Tab, string][] = [['buttons', 'Colour buttons'], ['colour', 'By colour'], ['size', 'By size'], ['materials', 'Materials'], ['preview', 'Buyer preview']];
 
   return (
     <div className="catmap">
@@ -60,6 +69,7 @@ export default function CatalogueMapClient({ initialMap, materialsReady }: { ini
         ))}
       </div>
       {status && <p role="status" className={`catmap-status ${status.tone}`}>{status.text}</p>}
+      {tab === 'buttons' && <ButtonsTab map={map} initialButtons={shopButtons} initialPicks={shopPicks} />}
       {tab === 'colour' && <ColourTab map={map} busy={busy} run={run} updateCategory={updateCategory} />}
       {tab === 'size' && <SizeTab map={map} busy={busy} run={run} updateCategory={updateCategory} />}
       {tab === 'materials' && <MaterialsTab map={map} setMap={setMap} busy={busy} run={run} ready={materialsReady} />}
@@ -416,6 +426,48 @@ function PreviewTab({ map }: { map: CatalogueMap }) {
         />
       </div>
       <StoneFinder map={map} familyId={familyId} colorId={colorId} />
+    </>
+  );
+}
+
+function ButtonsTab({ map, initialButtons, initialPicks }: { map: CatalogueMap; initialButtons: number[]; initialPicks: OrderPreference[] }) {
+  const [value, setValue] = useState<{ buttons: number[] | null; picks: OrderPreference[] }>({ buttons: initialButtons, picks: initialPicks });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [dirty, setDirty] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    setStatus(null);
+    try {
+      await send('/api/settings', 'PATCH', { key: COLOR_BUTTONS_SETTING_KEY, value: (value.buttons || []).join(',') });
+      await send('/api/settings', 'PATCH', { key: DEFAULT_PICKS_SETTING_KEY, value: JSON.stringify(value.picks) });
+      setDirty(false);
+      setStatus({ tone: 'ok', text: 'Saved. Buyers see the new colour buttons the next time they open the site.' });
+    } catch (e) {
+      setStatus({ tone: 'error', text: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <p className="catmap-hint">
+        The colour buttons every buyer sees (home page &ldquo;Order by colour&rdquo; and the top of Quick Order): tick to show, arrows to order,
+        and choose the stone each one opens. To change them for one buyer, open that buyer under Customers.
+      </p>
+      {status && <p role="status" className={`catmap-status ${status.tone}`}>{status.text}</p>}
+      <ColourSetupEditor
+        mode="shop"
+        categories={map.categories}
+        buttons={value.buttons}
+        picks={value.picks}
+        onChange={(next) => { setValue(next); setDirty(true); setStatus(null); }}
+      />
+      <div className="colour-setup-save">
+        <button type="button" className="btn" disabled={saving || !dirty} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save colour buttons' : 'Saved'}</button>
+      </div>
     </>
   );
 }

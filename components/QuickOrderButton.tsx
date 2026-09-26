@@ -9,7 +9,7 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
-import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
+import { COLOR_FAMILIES, DEFAULT_COLOR_BUTTONS, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
 import { useColorButtons, useOrderPreferences } from './useOrderPreferences';
 import { useCatalogueMap } from './useCatalogueMap';
@@ -70,7 +70,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
 
   // Colour-first ordering: "Red" + the buyer's usual picks -> Ruby Corundum 5A.
   const preferences = useOrderPreferences();
-  const colorButtons = colorButtonFamilies(useColorButtons());
+  const colorButtons = colorButtonFamilies(useColorButtons() ?? DEFAULT_COLOR_BUTTONS);
   const [pickFamily, setPickFamily] = useState<number | null>(null);
   const [pickGrade, setPickGrade] = useState('');
   const [pendingCategoryId, setPendingCategoryId] = useState<number | null>(null);

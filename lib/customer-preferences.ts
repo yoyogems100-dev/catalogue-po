@@ -10,15 +10,18 @@ export type OrderPreference = { familyId: number; categoryId: number; grade?: st
 
 export const MAX_PREFERENCES = COLOR_FAMILIES.length;
 
-// Shop-wide defaults for every buyer, edited in Admin > Website content >
-// Default colour picks and stored as JSON in settings. A buyer's own usual
-// picks override these colour by colour. Until the owner saves a list:
-// Red -> Ruby Corundum (id 2) 5A, White -> 5A Quality CZ (id 37), the owner's
-// house rule ("white round" / "red" means 5A).
+// Shop-wide defaults for every buyer, edited in Admin > Catalogue map >
+// Colour buttons and stored as JSON in settings. A buyer's own usual picks
+// override these colour by colour. Until the owner saves a list (owner's
+// choice, 2026-09-26): White -> 5A Quality CZ (37), Red -> Ruby Corundum (2)
+// 5A, Yellow -> Fancy Solitaire (28), Green and Blue -> Nano (3).
 export const DEFAULT_PICKS_SETTING_KEY = 'default_color_preferences';
 export const DEFAULT_COLOR_PREFERENCES: OrderPreference[] = [
+  { familyId: 1, categoryId: 37 },
   { familyId: 4, categoryId: 2, grade: '5A' },
-  { familyId: 1, categoryId: 37 }
+  { familyId: 7, categoryId: 28 },
+  { familyId: 9, categoryId: 3 },
+  { familyId: 10, categoryId: 3 }
 ];
 
 export function parseDefaultPreferences(value: string | null | undefined): OrderPreference[] {

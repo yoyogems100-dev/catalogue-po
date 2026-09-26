@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import CustomerProfileEditor from './CustomerProfileEditor';
+import CustomerColourSetup from './CustomerColourSetup';
+import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons, sanitizeColorButtons } from '@/lib/color-family';
+import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences, sanitizePreferences } from '@/lib/customer-preferences';
 import CategoryChips from '@/components/admin/CategoryChips';
 import StatusTag from '@/components/admin/StatusTag';
 
@@ -8,7 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const customerId = Number((await params).id);
-  const tab = (await searchParams).tab === 'orders' ? 'orders' : 'details';
+  const requested = (await searchParams).tab;
+  const tab = requested === 'orders' || requested === 'colours' ? requested : 'details';
   const [{ data: customer }, { data: orders }] = await Promise.all([
     supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle(),
     supabaseAdmin.from('orders').select('id,status,payment_status,request_type,created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
@@ -16,10 +20,12 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   if (!customer) return <p>Customer not found. <Link href="/admin/customers">Back to customers</Link></p>;
 
   const orderIds = (orders || []).map((order: any) => order.id);
-  const [{ data: items }, { data: categories }] = await Promise.all([
+  const [{ data: items }, { data: categories }, { data: settings }] = await Promise.all([
     orderIds.length ? supabaseAdmin.from('order_items').select('order_id,quantity,category_id').in('order_id', orderIds) : Promise.resolve({ data: [] as any[] }),
-    supabaseAdmin.from('categories').select('id,name').order('num')
+    supabaseAdmin.from('categories').select('id,name,slug').order('num'),
+    supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY])
   ]);
+  const setting = (key: string) => (settings || []).find((s: { key: string }) => s.key === key)?.value as string | undefined;
   const categoryNameById: Record<number, string> = Object.fromEntries((categories || []).map((c: any) => [c.id, c.name]));
   const counts = new Map<number, { lines: number; pieces: number; categoryNames: string[] }>();
   for (const item of items || []) {
@@ -35,10 +41,20 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     <div className="admin-page-head"><div><h1>{customer.name || 'Unnamed customer'}</h1><p>{customer.company || 'No company added'} · {customer.phone || customer.email || 'No contact added'}{customer.place ? ` · ${customer.place}` : ''}</p></div><Link className="btn" href={`/admin/orders/new?customer=${customer.id}`}>+ New order</Link></div>
     <nav className="admin-coverage-filters" aria-label="Customer sections">
       <Link href={`/admin/customers/${customerId}`} className={`tag-chip ${tab === 'details' ? 'active' : ''}`} aria-current={tab === 'details' ? 'page' : undefined}>Details</Link>
+      <Link href={`/admin/customers/${customerId}?tab=colours`} className={`tag-chip ${tab === 'colours' ? 'active' : ''}`} aria-current={tab === 'colours' ? 'page' : undefined}>Colour buttons &amp; picks</Link>
       <Link href={`/admin/customers/${customerId}?tab=orders`} className={`tag-chip ${tab === 'orders' ? 'active' : ''}`} aria-current={tab === 'orders' ? 'page' : undefined}>Order history ({orders?.length || 0})</Link>
     </nav>
     {tab === 'details' ? (
-      <CustomerProfileEditor customer={customer} categories={categories || []} />
+      <CustomerProfileEditor customer={customer} />
+    ) : tab === 'colours' ? (
+      <CustomerColourSetup
+        customerId={customer.id}
+        categories={categories || []}
+        initialButtons={sanitizeColorButtons(customer.color_buttons)}
+        initialPicks={sanitizePreferences(customer.order_preferences)}
+        shopButtons={parseColorButtons(setting(COLOR_BUTTONS_SETTING_KEY))}
+        shopPicks={parseDefaultPreferences(setting(DEFAULT_PICKS_SETTING_KEY))}
+      />
     ) : (
       <section className="admin-linked-records">
         <div className="admin-section-head"><div><h2>Order history</h2><p>Every order and quotation linked to this customer.</p></div></div>
