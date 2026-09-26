@@ -9,7 +9,8 @@
     "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.tsx",
     "test:local-db": "node scripts/check-local-db.mjs",
     "test:pearl-migration": "node scripts/check-pearl-migration.mjs",
-    "test:hot-selling-migration": "node scripts/check-hot-selling-migration.mjs"
+    "test:hot-selling-migration": "node scripts/check-hot-selling-migration.mjs",
+    "test:site-cms-migration": "node scripts/check-site-cms-migration.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "4.9.0",
