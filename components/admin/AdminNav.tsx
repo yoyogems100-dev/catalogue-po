@@ -39,7 +39,8 @@ const ExternalIcon = () => (
 // without opening the drawer first.
 const NAV_LINKS = [
   { href: '/admin', label: 'Overview' },
-  { href: '/admin/content', label: 'Website content' },
+  { href: '/admin/site', label: 'Website' },
+  { href: '/admin/content', label: 'Catalogue content' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/customers', label: 'Customers' },
   { href: '/admin/suppliers', label: 'Suppliers' },
@@ -93,7 +94,7 @@ export default function AdminNav() {
             key={l.href}
             href={l.href}
             onClick={close}
-            aria-current={pathname === l.href ? 'page' : undefined}
+            aria-current={pathname === l.href || (l.href !== '/admin' && pathname.startsWith(`${l.href}/`)) ? 'page' : undefined}
           >
             {l.label}
           </Link>
