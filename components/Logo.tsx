@@ -31,7 +31,7 @@ function GemDot({ size = 22, color = '#1B3A6B' }: { size?: number; color?: strin
 // Horizontal lockup -- icon + "YOYO GEMS" -- for topbars, nav, footer.
 export function WordMark({ height = 26, color = '#1B3A6B' }: { height?: number; color?: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: height * 0.22, fontFamily: 'Playfair Display, serif', fontWeight: 600, color, fontSize: height * 0.72, lineHeight: 1, letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: height * 0.22, fontFamily: "var(--font-serif), 'Playfair Display', serif", fontWeight: 600, color, fontSize: height * 0.72, lineHeight: 1, letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
       <LogoMark size={height} color={color} />
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
         Y<GemDot size={height * 0.52} color={color} />YO GEMS
@@ -47,12 +47,12 @@ export function FullLogo({ size = 'lg', color = '#1B3A6B', taglineColor }: { siz
   return (
     <div style={{ textAlign: 'center' }}>
       <LogoMark size={h} color={color} />
-      <div style={{ marginTop: h * 0.12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontFamily: 'Playfair Display, serif', fontWeight: 600, color, fontSize: h * 0.62, letterSpacing: 0.4 }}>
+      <div style={{ marginTop: h * 0.12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontFamily: "var(--font-serif), 'Playfair Display', serif", fontWeight: 600, color, fontSize: h * 0.62, letterSpacing: 0.4 }}>
         Y<GemDot size={h * 0.44} color={color} />YO GEMS
         <sup style={{ fontSize: h * 0.24, marginLeft: 1 }}>&reg;</sup>
       </div>
       {size === 'lg' && (
-        <div style={{ marginTop: 8, fontFamily: 'Playfair Display, serif', fontStyle: 'italic', fontWeight: 600, fontSize: 14, color: taglineColor || color, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontFamily: "var(--font-serif-italic), 'Playfair Display', serif", fontStyle: 'italic', fontWeight: 600, fontSize: 14, color: taglineColor || color, lineHeight: 1.5 }}>
           Synthetic Gemstones. Infinite Choices.<br />One Trusted Name.
         </div>
       )}

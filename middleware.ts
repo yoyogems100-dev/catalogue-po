@@ -61,8 +61,9 @@ async function isCustomer(req: NextRequest) {
 // gated, so a route added later is private by default rather than public by
 // omission.
 const PUBLIC_PATHS = new Set([
-  '/', // the placeholder landing page; the catalogue itself lives under /po
+  '/', // the public website's home page; the catalogue itself lives under /po
   '/login', // admin sign-in
+  '/sitemap.xml', // search engines (robots.txt and share images are excluded by the matcher / /api/site/)
   '/po/account/login', // customer sign-in, and the catalogue's front door
   '/api/admin-login',
   '/api/admin-logout',
@@ -76,6 +77,12 @@ const PUBLIC_PATHS = new Set([
   '/sitemap.xml',
   '/manifest.json'
 ]);
+
+// The public marketing website. Everything under these is open to anyone --
+// it shows no prices and no catalogue beyond what the owner publishes there.
+// Listed explicitly (not "everything outside /po") so a route added later is
+// still private unless someone decides otherwise.
+const PUBLIC_SITE_PREFIXES = ['/products', '/charts', '/about', '/quality', '/how-to-order', '/request-catalogue', '/faq', '/contact', '/api/site/'];
 
 // The catalogue used to live at the site root. Bookmarks, WhatsApp links and
 // order PDFs sent before the move still point at those addresses, so they are
@@ -93,6 +100,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  if (PUBLIC_SITE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith('/') ? p : `${p}/`))) return NextResponse.next();
 
   if (pathname.startsWith('/admin')) {
     if (await isAdmin(req)) return NextResponse.next();

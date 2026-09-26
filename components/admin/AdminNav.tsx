@@ -39,7 +39,9 @@ const ExternalIcon = () => (
 // without opening the drawer first.
 const NAV_LINKS = [
   { href: '/admin', label: 'Overview' },
-  { href: '/admin/content', label: 'Website content' },
+  { href: '/admin/site', label: 'Website' },
+  { href: '/admin/site/leads', label: 'Catalogue requests' },
+  { href: '/admin/content', label: 'Catalogue content' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/customers', label: 'Customers' },
   { href: '/admin/suppliers', label: 'Suppliers' },
@@ -58,6 +60,12 @@ const NAV_LINKS = [
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  // The most specific link wins, so /admin/site/leads highlights
+  // "Catalogue requests" rather than "Website" as well.
+  const current = NAV_LINKS.map((l) => l.href)
+    .filter((h) => pathname === h || (h !== '/admin' && pathname?.startsWith(`${h}/`)))
+    .sort((a, b) => b.length - a.length)[0];
 
   function close() {
     setOpen(false);
@@ -94,7 +102,7 @@ export default function AdminNav() {
             key={l.href}
             href={l.href}
             onClick={close}
-            aria-current={pathname === l.href ? 'page' : undefined}
+            aria-current={l.href === current ? 'page' : undefined}
           >
             {l.label}
           </Link>
