@@ -10,15 +10,16 @@ import ContentEditor from '@/components/admin/site/ContentEditor';
 import s from '@/components/admin/site/site-admin.module.css';
 import DetailsForm from './DetailsForm';
 import SourcesForm from './SourcesForm';
-import GalleryEditor from './GalleryEditor';
+import PhotosEditor from './PhotosEditor';
+import { loadMediaOptions } from '@/lib/site/media-options';
 
 export const dynamic = 'force-dynamic';
 
 const TABS = [
   { key: 'details', label: 'Details' },
   { key: 'text', label: 'Page text' },
-  { key: 'catalogue', label: 'Catalogue & filters' },
-  { key: 'gallery', label: 'Gallery' }
+  { key: 'photos', label: 'Photos' },
+  { key: 'catalogue', label: 'Filters & sizes' }
 ];
 
 const MEDIA_COLS = 'id, storage_path, variants, width, height, alt, tags';
@@ -26,7 +27,9 @@ const MEDIA_COLS = 'id, storage_path, variants, width, height, alt, tags';
 export default async function EditSiteCategory({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const id = Number((await params).id);
   const requested = (await searchParams).tab;
-  const tab = TABS.some((t) => t.key === requested) ? requested! : 'details';
+  // Old links to the Gallery tab land on Photos.
+  const wanted = requested === 'gallery' ? 'photos' : requested;
+  const tab = TABS.some((t) => t.key === wanted) ? wanted! : 'details';
   if (!Number.isSafeInteger(id)) notFound();
   const { data: cat } = await supabaseAdmin.from('site_categories').select('*').eq('id', id).maybeSingle();
   if (!cat) notFound();
@@ -68,12 +71,23 @@ export default async function EditSiteCategory({ params, searchParams }: { param
       initialSources={sources || []} initialGrades={(catGrades || []).map((g) => g.grade_id)}
       colors={colors || []} shapes={shapes || []} categoryColors={categoryColors.data || []} categoryShapes={categoryShapes.data || []} />;
   } else {
-    const { data: links } = await supabaseAdmin.from('site_media_links').select('media_id, sort_order')
-      .eq('target_type', 'site_category').eq('target_id', id).order('sort_order');
-    const ids = (links || []).map((l) => l.media_id);
-    const { data: media } = ids.length ? await supabaseAdmin.from('site_media').select(MEDIA_COLS).in('id', ids) : { data: [] };
+    const [{ data: own }, { data: kids }, { count: sourceCount }, options] = await Promise.all([
+      supabaseAdmin.from('site_media_links').select('media_id, sort_order').eq('target_type', 'site_category').eq('target_id', id).order('sort_order'),
+      supabaseAdmin.from('site_categories').select('id').eq('parent_id', id),
+      supabaseAdmin.from('site_category_sources').select('category_id', { count: 'exact', head: true }).eq('site_category_id', id),
+      loadMediaOptions()
+    ]);
+    const ids = (own || []).map((l) => l.media_id);
+    const kidIds = (kids || []).map((k) => k.id);
+    const [{ data: media }, { data: links }, { data: kidLinks }] = await Promise.all([
+      ids.length ? supabaseAdmin.from('site_media').select(MEDIA_COLS).in('id', ids) : Promise.resolve({ data: [] as any[] }),
+      ids.length ? supabaseAdmin.from('site_media_links').select('media_id, target_type, target_id').in('media_id', ids) : Promise.resolve({ data: [] as any[] }),
+      kidIds.length ? supabaseAdmin.from('site_media_links').select('media_id').eq('target_type', 'site_category').in('target_id', kidIds) : Promise.resolve({ data: [] as any[] })
+    ]);
     const byId = new Map((media || []).map((m: any) => [m.id, m]));
-    body = <GalleryEditor siteCategoryId={id} initial={ids.map((mid) => byId.get(mid)).filter(Boolean) as MediaRow[]} />;
+    const childPhotoCount = new Set((kidLinks || []).map((l: any) => l.media_id).filter((m: number) => !ids.includes(m))).size;
+    body = <PhotosEditor siteCategoryId={id} initial={ids.map((mid) => byId.get(mid)).filter(Boolean) as MediaRow[]}
+      links={(links || []) as any} options={options} childPhotoCount={childPhotoCount} hasSources={!!sourceCount} />;
   }
 
   return (

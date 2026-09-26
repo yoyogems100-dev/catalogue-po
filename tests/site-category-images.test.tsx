@@ -4,22 +4,26 @@ import { existsSync, readdirSync } from 'node:fs';
 import { pickCategoryImages, type Row } from '../lib/site/category-images';
 import { categoryDefaults } from '../lib/site/category-defaults';
 
+const photo = (id: number) => ({ id, storage_path: `site/p${id}.webp`, variants: { '480': `site/p${id}-480.webp` }, width: 1200, height: 900, alt: '' }) as any;
 const row = (id: number, slug: string, parent_id: number | null = null, extra: Partial<Row> = {}): Row =>
   ({ id, parent_id, slug, name: slug.toUpperCase(), hero_media_id: null, published: null, ...extra });
 
 test('a category uses the clean /po cut-out of its first catalogue source that has one', () => {
   const rows = [row(1, 'cz'), row(2, 'white-cz', 1)];
   const slugs = new Map([[99, 'no-icon-here'], [36, '4a-quality-cz'], [35, '3a-quality-cz']]);
-  const out = pickCategoryImages(rows, [{ site_category_id: 2, category_id: 99 }, { site_category_id: 2, category_id: 36 }, { site_category_id: 2, category_id: 35 }], slugs, new Map([[99, 'https://x/99.jpg']]), new Map());
+  const out = pickCategoryImages(rows, [{ site_category_id: 2, category_id: 99 }, { site_category_id: 2, category_id: 36 }, { site_category_id: 2, category_id: 35 }], slugs, new Map([[2, photo(9)]]), new Map());
   assert.equal(out[2].src, '/reference/categories/hd/4a-quality-cz.webp');
   assert.equal(out[2].cutout, true);
   assert.equal(out[2].alt, 'WHITE-CZ stones');
 });
 
-test('with no cut-out, the catalogue photo is used', () => {
-  const out = pickCategoryImages([row(5, 'x')], [{ site_category_id: 5, category_id: 99 }], new Map([[99, 'no-icon-here']]), new Map([[99, 'https://x/99.jpg']]), new Map());
-  assert.equal(out[5].src, 'https://x/99.jpg');
+test('with no cut-out, the category’s first website photo is used (never a /po photo)', () => {
+  const out = pickCategoryImages([row(5, 'x')], [{ site_category_id: 5, category_id: 99 }], new Map([[99, 'no-icon-here']]), new Map([[5, photo(3)]]), new Map());
+  assert.ok(out[5].src.endsWith('/site/p3.webp'));
+  assert.equal(out[5].alt, 'X stones');
   assert.ok(!out[5].cutout);
+  // No website photo: no picture, even though the catalogue category has photos.
+  assert.equal(pickCategoryImages([row(5, 'x')], [{ site_category_id: 5, category_id: 99 }], new Map([[99, 'no-icon-here']]), new Map(), new Map())[5], undefined);
 });
 
 test('every /po dropdown icon has a high-resolution copy for the website', () => {
@@ -30,8 +34,8 @@ test('every /po dropdown icon has a high-resolution copy for the website', () =>
 
 test('a main category with no picture of its own borrows its first sub-category’s', () => {
   const rows = [row(1, 'cz'), row(2, 'white-cz', 1), row(3, 'coloured-cz', 1)];
-  const out = pickCategoryImages(rows, [{ site_category_id: 3, category_id: 12 }], new Map(), new Map([[12, 'https://x/12.jpg']]), new Map());
-  assert.equal(out[1].src, 'https://x/12.jpg');
+  const out = pickCategoryImages(rows, [{ site_category_id: 3, category_id: 12 }], new Map(), new Map([[3, photo(12)]]), new Map());
+  assert.ok(out[1].src.endsWith('/site/p12.webp'));
   assert.equal(out[1].alt, 'CZ stones');
   assert.equal(out[2], undefined);
 });
@@ -39,7 +43,7 @@ test('a main category with no picture of its own borrows its first sub-category�
 test('an image chosen in admin wins over the catalogue photo', () => {
   const rows = [row(1, 'moissanite', null, { hero_media_id: 7 })];
   const media = new Map([[7, { id: 7, storage_path: 'site/m.webp', variants: null, width: 960, height: 640, alt: 'Moissanite' } as any]]);
-  const out = pickCategoryImages(rows, [{ site_category_id: 1, category_id: 34 }], new Map([[34, 'moissanite']]), new Map([[34, 'https://x/34.jpg']]), media);
+  const out = pickCategoryImages(rows, [{ site_category_id: 1, category_id: 34 }], new Map([[34, 'moissanite']]), new Map([[1, photo(34)]]), media);
   assert.ok(!out[1].src.includes('/reference/'));
   assert.equal(out[1].alt, 'Moissanite');
 });

@@ -53,7 +53,7 @@ export default function SourcesForm({ siteCategoryId, filters: initialFilters, c
       <div>
         <div className={s.card}>
           <h2>Catalogue categories on this page</h2>
-          <p className={s.help}>Their shapes, sizes, colours and photos appear on this page. A grade here powers the grade filter (e.g. 5A Quality CZ → 5A).</p>
+          <p className={s.help}>Their shapes, sizes and colours become this page’s filters and size chart. Photos are managed separately in the Photos tab. A grade here powers the grade filter (e.g. 5A Quality CZ → 5A).</p>
           {sources.map((src, i) => {
             const cat = catalogue.find((c) => c.id === src.category_id);
             const all = colorsOf(src.category_id);
@@ -87,7 +87,7 @@ export default function SourcesForm({ siteCategoryId, filters: initialFilters, c
               </div>
             );
           })}
-          {!sources.length && <p className={s.note}>Not linked to the catalogue yet. The page will show its text and a Request Catalogue button, without photos or filters.</p>}
+          {!sources.length && <p className={s.note}>Not linked to the catalogue yet. The page shows its text, its own photos and a Request Catalogue button, without filters or a size chart.</p>}
           <div className={s.addRow}>
             <select value={adding} onChange={(e) => setAdding(e.target.value)} aria-label="Catalogue category to add">
               <option value="">Add a catalogue category…</option>

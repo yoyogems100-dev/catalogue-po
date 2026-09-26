@@ -21,9 +21,6 @@ export default function CategoryView({ page, selection, options, heading, intro,
   const filtered = !!intro;
   const results = page.photos.filter((p) => matches(p, selection));
   const shownPhotos = results.slice(0, PHOTO_LIMIT);
-  // With no filter, owner-chosen gallery images lead; filters always show
-  // the catalogue photos that match.
-  const gallery = !filtered && page.gallery.length ? page.gallery : null;
   const wa = whatsappHref(global.contact?.whatsapp, `Hi YOYO GEMS, I'm interested in ${heading}.`);
   const requestHref = `/request-catalogue?category=${encodeURIComponent(page.parent ? `${page.parent.slug}/${page.slug}` : page.slug)}`;
   const points = (b.why?.points || []).filter((p: any) => p.text);
@@ -50,16 +47,10 @@ export default function CategoryView({ page, selection, options, heading, intro,
       </div>
       {showFilters && <FilterBar basePath={page.href} options={filterOptions} selection={selection} resultCount={results.length} />}
       <div className={s.wrap}>
-        {gallery ? (
-          <div className={c.photoGrid}>
-            {gallery.map((img, i) => (
-              <figure key={i} className={c.photo}><img {...pic(img)} sizes="(min-width: 900px) 25vw, 50vw" alt={img.alt} loading="lazy" decoding="async" /></figure>
-            ))}
-          </div>
-        ) : shownPhotos.length ? (
+        {shownPhotos.length ? (
           <div className={c.photoGrid}>
             {shownPhotos.map((p) => (
-              <HideOnError key={p.id} className={c.photo} img={{ src: p.src, alt: p.alt, sizes: '(min-width: 900px) 25vw, 50vw', loading: 'lazy', decoding: 'async' }} />
+              <HideOnError key={p.id} className={c.photo} img={{ src: p.src, srcSet: p.srcSet, alt: p.alt, sizes: '(min-width: 900px) 25vw, 50vw', loading: 'lazy', decoding: 'async' }} />
             ))}
           </div>
         ) : (
@@ -72,7 +63,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
             </div>
           </div>
         )}
-        {results.length > shownPhotos.length && !gallery && (
+        {results.length > shownPhotos.length && (
           <p className={c.more}>Showing {shownPhotos.length} of {results.length}. <Link href={requestHref}>Get the full catalogue</Link> for every photograph.</p>
         )}
       </div>
