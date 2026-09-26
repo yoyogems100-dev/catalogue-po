@@ -33,4 +33,7 @@ async function load(): Promise<Record<number, CategoryImage>> {
   return pickCategoryImages(siteRows, links, slugs, firstPhoto, media);
 }
 
-export const getCategoryImages = unstable_cache(load, ['site-category-images'], { revalidate: 3600, tags: ['site'] });
+// The key carries the cut-out folder: the cached result holds picture URLs,
+// and this cache outlives a deployment, so a folder change (hd -> hd2) needs a
+// new key or pages would point at the deleted folder until it expired.
+export const getCategoryImages = unstable_cache(load, ['site-category-images', 'hd2'], { revalidate: 3600, tags: ['site'] });
