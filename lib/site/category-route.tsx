@@ -1,24 +1,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCategoryPage, type CategoryPage } from './category-data';
+import { getCategoryPage, optionsOf } from './category-data';
 import { getGlobal, getMedia } from './public';
-import { mediaSrc } from './media-url';
-import { activeCount, fillTemplate, filterHref, isIndexable, parseSelection, selectionWords, type OptionsByDim, type Selection } from './filters';
+import { OG_BASE, shareImages } from './page-meta';
+import { activeCount, fillTemplate, filterHref, isIndexable, parseSelection, selectionWords, type Selection } from './filters';
 import { richTextToPlain } from './rich-text';
 import CategoryView from '@/components/site/CategoryView';
 
 // Shared by /products/[slug] and /products/[slug]/[sub].
 
 type Params = Record<string, string | string[] | undefined>;
-
-function optionsOf(page: CategoryPage): OptionsByDim {
-  return {
-    shape: page.filters.shape ? page.shapes : [],
-    size: page.filters.size ? page.sizes : [],
-    colour: page.filters.colour ? page.colours : [],
-    grade: page.filters.grade ? page.grades : []
-  };
-}
 
 async function resolve(parentSlug: string | null, slug: string, search: Params) {
   const page = await getCategoryPage(parentSlug, slug);
@@ -52,7 +43,7 @@ export async function categoryMetadata(parentSlug: string | null, slug: string, 
     description: description?.slice(0, 170),
     alternates: { canonical },
     robots: indexable ? undefined : { index: false, follow: true },
-    openGraph: { title: count ? heading : seo.title || heading, description: description?.slice(0, 200), url: canonical, images: og ? [{ url: mediaSrc(og, 1600), alt: og.alt }] : page.photos[0] ? [{ url: page.photos[0].src }] : undefined }
+    openGraph: { ...OG_BASE, title: count ? heading : seo.title || heading, description: description?.slice(0, 200), url: canonical, images: shareImages(og, heading, page.photos[0]?.src) }
   };
 }
 

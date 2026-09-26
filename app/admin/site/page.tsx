@@ -5,6 +5,7 @@ import s from '@/components/admin/site/site-admin.module.css';
 export const dynamic = 'force-dynamic';
 
 const SECTIONS = [
+  { href: '/admin/site/leads', title: 'Catalogue requests', detail: 'People who asked for the catalogue: reply on WhatsApp, mark New / Sent / Closed, notes, CSV download.' },
   { href: '/admin/site/pages', title: 'Pages & settings', detail: 'Home, About, Quality, How to order, Contact, and site-wide contact details, footer and search settings.' },
   { href: '/admin/site/categories', title: 'Categories', detail: 'The 11 website categories and their sub-categories: order, visibility, page text, gallery, filters.' },
   { href: '/admin/site/media', title: 'Images', detail: 'Upload, describe and tag website images. Assign them to categories, colours, shapes and sizes.' },
@@ -13,10 +14,11 @@ const SECTIONS = [
 ];
 
 export default async function WebsiteHub() {
-  const [{ count: categories }, { count: media }, { count: drafts }] = await Promise.all([
+  const [{ count: categories }, { count: media }, { count: drafts }, { count: newLeads }] = await Promise.all([
     supabaseAdmin.from('site_categories').select('id', { count: 'exact', head: true }),
     supabaseAdmin.from('site_media').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('site_categories').select('id', { count: 'exact', head: true }).is('published', null)
+    supabaseAdmin.from('site_categories').select('id', { count: 'exact', head: true }).is('published', null),
+    supabaseAdmin.from('site_leads').select('id', { count: 'exact', head: true }).eq('status', 'new')
   ]);
   return (
     <>
@@ -28,7 +30,7 @@ export default async function WebsiteHub() {
       <div className={s.hubGrid}>
         {SECTIONS.map((x) => (
           <Link key={x.href} href={x.href} className={s.hubCard}>
-            <h2>{x.title}</h2>
+            <h2>{x.title}{x.href.endsWith('/leads') && newLeads ? <span className={`${s.pill} ${s.pillDraft}`}>{newLeads} new</span> : null}</h2>
             <p>{x.detail}</p>
             <span>Manage →</span>
           </Link>

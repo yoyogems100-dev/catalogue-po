@@ -9,6 +9,8 @@ import { Arrow, WhatsApp } from '@/components/site/icons';
 import s from '@/components/site/site.module.css';
 import c from '@/components/site/category.module.css';
 import p from '@/components/site/pages.module.css';
+import { pic } from '@/lib/site/optimize';
+import CountUp from '@/components/site/CountUp';
 
 export const revalidate = 3600;
 
@@ -28,7 +30,7 @@ export default async function AboutPage() {
     <>
       <Crumbs trail={[{ name: 'Home', href: '/' }, { name: 'About us' }]} />
       <header className={p.aboutHero}>
-        {hero && <div className={p.aboutHeroImg}><img src={hero.src} srcSet={hero.srcSet} sizes="100vw" alt={hero.alt} fetchPriority="high" /></div>}
+        {hero && <div className={p.aboutHeroImg}><img {...pic(hero)} sizes="100vw" alt={hero.alt} fetchPriority="high" /></div>}
         <div className={`${s.wrap} ${p.aboutHeroInner}`}>
           <h1 className={c.title}>{page.hero?.heading || 'About YOYO GEMS'}</h1>
           {page.hero?.tagline && <p className={c.promise}>{page.hero.tagline}</p>}
@@ -66,7 +68,7 @@ export default async function AboutPage() {
           <div className={`${s.wrap} ${s.numbersGrid}`}>
             {numbers.map((n: any, i: number) => (
               <div key={i} className={s.number}>
-                <span className={`${s.numberValue} ${s.gradientText}`}>{n.value}</span>
+                <CountUp className={`${s.numberValue} ${s.gradientText}`} value={String(n.value || '')} />
                 <span className={s.numberLabel}>{n.label}</span>
               </div>
             ))}

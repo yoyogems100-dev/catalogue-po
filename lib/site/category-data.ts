@@ -6,7 +6,7 @@ import { withDefaults, type ContentValue } from './schema';
 import { categorySchema } from './schemas';
 import { categoryDefaults } from './category-defaults';
 import { mediaSrc, mediaSrcSet, type MediaRow } from './media-url';
-import { slugOf, sizeBucketOf, SIZE_BUCKETS } from './filters';
+import { slugOf, sizeBucketOf, SIZE_BUCKETS, type OptionsByDim } from './filters';
 
 // Everything a category page needs, read with the anon key and cached for an
 // hour (and dropped immediately when the admin changes website content).
@@ -209,6 +209,16 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     photos: pagePhotos,
     gallery: (galleryLinks || []).map((l: any) => toImg(media.get(l.media_id), node.name)).filter(Boolean) as Img[],
     sourceCount: catIds.length
+  };
+}
+
+/** The filter values a page offers, per dimension (a switched-off filter offers none). */
+export function optionsOf(page: CategoryPage): OptionsByDim {
+  return {
+    shape: page.filters.shape ? page.shapes : [],
+    size: page.filters.size ? page.sizes : [],
+    colour: page.filters.colour ? page.colours : [],
+    grade: page.filters.grade ? page.grades : []
   };
 }
 

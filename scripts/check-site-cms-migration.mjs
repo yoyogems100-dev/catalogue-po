@@ -48,5 +48,16 @@ try {
   await db.exec(`DELETE FROM site_faqs WHERE sort_order > 10`);
   await db.exec(text);
   assert.equal(await count(`SELECT count(*) n FROM site_faqs`), 1); // owner's edits to the FAQ list are kept
-  console.log('PASS: site CMS migration is repeatable, seeds 11+39 categories, enforces two levels and hides drafts/leads from anon.');
+
+  // Private settings: seeded once, never overwritten, invisible to anon.
+  const priv = readFileSync('supabase/migrations/20260927090000_site_private_settings.sql', 'utf8');
+  await db.exec(priv);
+  await db.exec(`UPDATE site_private_settings SET value = value || '{"catalogue_link":"https://example.test/cat"}' WHERE key='lead_reply'`);
+  await db.exec(priv);
+  assert.equal((await db.query(`SELECT value->>'catalogue_link' l FROM site_private_settings WHERE key='lead_reply'`)).rows[0].l, 'https://example.test/cat');
+  assert.match((await db.query(`SELECT value->>'message' m FROM site_private_settings`)).rows[0].m, /\{link\}/);
+  await db.exec('SET ROLE anon');
+  await assert.rejects(db.query('SELECT * FROM site_private_settings'), /permission denied/);
+  await db.exec('RESET ROLE');
+  console.log('PASS: site CMS migration is repeatable, seeds 11+39 categories, enforces two levels and hides drafts/leads/private settings from anon.');
 } finally { await db.close(); }

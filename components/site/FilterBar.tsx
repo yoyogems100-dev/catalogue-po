@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DIMENSIONS, activeCount, filterHref, valueName, type Dimension, type OptionsByDim, type Selection } from '@/lib/site/filters';
 import { Chevron, Close } from './icons';
 import s from './category.module.css';
+import { thumb } from '@/lib/site/optimize';
 
 type Opt = { slug: string; name: string; img?: string | null };
 const LABEL: Record<Dimension, string> = { shape: 'Shape', size: 'Size', colour: 'Colour', grade: 'Grade' };
@@ -53,7 +54,7 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
     return (
       <Link key={o.slug} href={filterHref(basePath, selection, dim, o.slug)} scroll={false} replace prefetch={false} onClick={keepSheet}
         className={`${s.opt} ${dim === 'colour' || dim === 'shape' ? s.optImg : ''}`} aria-pressed={on} rel="nofollow">
-        {o.img && <img src={o.img} alt="" width={28} height={28} loading="lazy" />}
+        {o.img && <img {...thumb(o.img, 28)} alt="" width={28} height={28} loading="lazy" />}
         <span>{o.name}</span>
         {on && <span className={s.tick} aria-hidden="true">✓</span>}
       </Link>

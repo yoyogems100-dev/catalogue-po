@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChartShape } from '@/lib/site/chart-data';
 import { Close } from './icons';
 import p from './pages.module.css';
+import { thumb } from '@/lib/site/optimize';
 
 // Click a shape → its sizes and the materials that carry it. The selected
 // shape is kept in the URL hash (#oval) so a chosen shape can be shared.
@@ -48,7 +49,7 @@ export default function ShapeChart({ shapes }: { shapes: ChartShape[] }) {
             <li key={x.slug}>
               <button type="button" className={p.shapeBtn} aria-pressed={x.slug === active} onClick={() => choose(x.slug === active ? null : x.slug)}>
                 <span className={p.shapeBtnImg}>
-                  <img src={x.img!} alt="" width={72} height={72} loading="lazy" decoding="async" onError={() => setBroken((b) => new Set(b).add(x.slug))} />
+                  <img {...thumb(x.img!, 72)} alt="" width={72} height={72} loading="lazy" decoding="async" onError={() => setBroken((b) => new Set(b).add(x.slug))} />
                 </span>
                 <span className={p.shapeBtnName}>{x.name}</span>
                 <span className={p.shapeBtnMeta}>{meta(x)}</span>
@@ -76,7 +77,7 @@ export default function ShapeChart({ shapes }: { shapes: ChartShape[] }) {
         {shape ? (
           <>
             <div className={p.shapePanelHead}>
-              {shape.img && <img src={shape.img} alt={`${shape.name} cut`} width={64} height={64} />}
+              {shape.img && <img {...thumb(shape.img, 64)} alt={`${shape.name} cut`} width={64} height={64} />}
               <h2>{shape.name}</h2>
               <button type="button" className={p.panelClose} onClick={() => choose(null)} aria-label="Close"><Close size={20} /></button>
             </div>

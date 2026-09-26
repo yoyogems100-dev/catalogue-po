@@ -31,7 +31,7 @@ export const pageSchemas: Record<string, ContentSchema> = {
       ] },
       { key: 'footer', title: 'Footer', fields: [
         { type: 'textarea', key: 'blurb', label: 'Short description', max: 300 },
-        { type: 'list', key: 'links', label: 'Popular searches', help: 'Links to filtered category pages, e.g. /products/nano-spinel/nano?colour=green', itemLabel: 'Link', max: 20, fields: [
+        { type: 'list', key: 'links', label: 'Popular searches', help: 'Links to filtered category pages, e.g. /products/nano-spinel/nano?colour=green. Leave empty to show the 12 best-photographed filtered pages automatically.', itemLabel: 'Link', max: 20, fields: [
           { type: 'text', key: 'label', label: 'Text', max: 60 },
           { type: 'link', key: 'url', label: 'Address' }
         ] },
@@ -217,6 +217,26 @@ export const pageSchemas: Record<string, ContentSchema> = {
         { type: 'rich', key: 'body', label: 'What the letters mean' },
         { type: 'text', key: 'choosing_heading', label: 'Second section heading', max: 80 },
         { type: 'rich', key: 'choosing', label: 'Choosing a grade' }
+      ] },
+      { key: 'seo', title: 'Search & sharing', fields: seoFields }
+    ]
+  },
+  'request-catalogue': {
+    sections: [
+      { key: 'hero', title: '1 · Top of page', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro line above the form', max: 300 },
+        { type: 'text', key: 'promise', label: 'Line below the form', help: 'Only promise a reply time you can keep.', max: 120 }
+      ] },
+      { key: 'form', title: '2 · Form', help: 'The five fields are fixed. Categories are listed from Website → Categories.', fields: [
+        { type: 'text', key: 'requirement_hint', label: 'Example under "Approx. monthly requirement"', max: 120 },
+        { type: 'text', key: 'button', label: 'Button', max: 40 },
+        { type: 'text', key: 'privacy', label: 'Small print under the button', max: 200 }
+      ] },
+      { key: 'thanks', title: '3 · After sending', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'text', label: 'Text', max: 300 },
+        { type: 'text', key: 'whatsapp_label', label: 'WhatsApp button', max: 40 }
       ] },
       { key: 'seo', title: 'Search & sharing', fields: seoFields }
     ]

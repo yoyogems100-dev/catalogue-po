@@ -63,6 +63,7 @@ async function isCustomer(req: NextRequest) {
 const PUBLIC_PATHS = new Set([
   '/', // the public website's home page; the catalogue itself lives under /po
   '/login', // admin sign-in
+  '/sitemap.xml', // search engines (robots.txt and share images are excluded by the matcher / /api/site/)
   '/po/account/login', // customer sign-in, and the catalogue's front door
   '/api/admin-login',
   '/api/admin-logout',
