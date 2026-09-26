@@ -18,7 +18,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // suppressHydrationWarning: the website layout adds class="js" to <html>
+    // suppressHydrationWarning: the website layout adds class="js" and data-site-theme to <html>
     // before React loads (see components/site/CountUp.tsx); only this element.
     <html lang="en-IN" className={`${serif.variable} ${serifItalic.variable} ${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body><HotSellingProvider>{children}</HotSellingProvider></body>

@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { thumb } from '@/lib/site/optimize';
 import type { ContentValue } from '@/lib/site/schema';
 import type { NavCategory } from '@/lib/site/public';
 import { telHref, whatsappHref } from '@/lib/site/public';
 import CatThumb from './CatThumb';
+import SiteLogo from './SiteLogo';
 import s from './site.module.css';
 
 export default function SiteFooter({ global, categories, autoPopular = [] }: { global: ContentValue; categories: NavCategory[]; autoPopular?: { label: string; url: string }[] }) {
@@ -19,7 +19,7 @@ export default function SiteFooter({ global, categories, autoPopular = [] }: { g
       <div className={s.wrap}>
         <div className={s.footerGrid}>
           <div className={s.footerBrand}>
-            <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 256)} alt="YOYO GEMS® — Synthetic Gemstones. Infinite Choices. One Trusted Name." width={256} height={70} className={s.logoImg} loading="lazy" />
+            <SiteLogo width={256} height={70} alt="YOYO GEMS® — Synthetic Gemstones. Infinite Choices. One Trusted Name." lazy />
             <p className={s.footerBlurb}>{global.footer?.blurb}</p>
           </div>
           <div className={s.footerProducts}>

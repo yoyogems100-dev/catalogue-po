@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { thumb } from '@/lib/site/optimize';
 import type { NavCategory } from '@/lib/site/public';
 import { Chevron, Close, Menu } from './icons';
 import CatThumb from './CatThumb';
+import SiteLogo from './SiteLogo';
+import ThemeToggle from './ThemeToggle';
 import s from './site.module.css';
 
 type Props = { categories: NavCategory[]; ctaLabel: string; showTradeLogin: boolean; whatsappHref: string | null };
@@ -44,7 +45,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
     <header className={s.header} ref={headerRef}>
       <div className={`${s.wrap} ${s.headerInner}`}>
         <Link href="/" className={s.logo} aria-label="YOYO GEMS home">
-          <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 198)} alt="" width={198} height={54} className={s.logoImg} fetchPriority="high" />
+          <SiteLogo width={198} height={54} priority />
         </Link>
 
         <nav className={s.nav} aria-label="Main">
@@ -79,6 +80,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
           {showTradeLogin && <a href="/po" className={s.tradeLink}>Trade login</a>}
         </nav>
         <Link href="/request-catalogue" className={`${s.btn} ${s.btnSm} ${s.headerCta}`}>{ctaLabel}</Link>
+        <ThemeToggle />
 
         <button type="button" className={s.menuToggle} aria-label="Open menu" aria-expanded={sheetOpen} onClick={() => setSheetOpen(true)}>
           <Menu />
@@ -92,7 +94,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
         <div className={s.sheet} role="dialog" aria-modal="true" aria-label="Menu">
           <div className={s.sheetHead}>
             <Link href="/" className={s.logo} aria-label="YOYO GEMS home" onClick={() => setSheetOpen(false)}>
-              <img {...thumb('/brand/yoyo-logo-horizontal-white.png', 176)} alt="" width={176} height={48} className={s.logoImg} />
+              <SiteLogo width={176} height={48} />
             </Link>
             <button type="button" className={s.menuToggle} style={{ marginLeft: 0 }} aria-label="Close menu" onClick={() => setSheetOpen(false)}><Close /></button>
           </div>
