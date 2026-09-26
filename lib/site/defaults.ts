@@ -48,9 +48,9 @@ export const pageDefaults: Record<string, ContentValue> = {
     },
     numbers: { items: [
       { value: '40+', label: 'categories' },
-      { value: '30+', label: 'shapes & sizes' },
-      { value: '50+', label: 'colours' },
-      { value: '9,000+', label: 'combinations' }
+      { value: '35+', label: 'shapes & colours' },
+      { value: '27+', label: 'sites across India' },
+      { value: '2,795+', label: 'satisfied customers' }
     ] },
     categories: {
       heading: 'Every stone your production calls for',
@@ -131,12 +131,17 @@ export const pageDefaults: Record<string, ContentValue> = {
         image: null
       }
     ] },
+    reach: {
+      heading: 'From Jaipur to buyers across India',
+      intro: 'We pack and dispatch from Jaipur to 27+ sites across India, from Punjab to Tamil Nadu and from Gujarat to the North East.',
+      note: 'And more cities in between.'
+    },
     photos: { heading: 'Our setup and QC table', items: [] },
     numbers: { items: [
       { value: '40+', label: 'categories' },
-      { value: '30+', label: 'shapes & sizes' },
-      { value: '50+', label: 'colours' },
-      { value: '9,000+', label: 'combinations' }
+      { value: '35+', label: 'shapes & colours' },
+      { value: '27+', label: 'sites across India' },
+      { value: '2,795+', label: 'satisfied customers' }
     ] },
     cta: {
       heading: 'That’s the whole idea. One trusted name.',

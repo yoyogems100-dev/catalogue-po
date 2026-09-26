@@ -58,8 +58,8 @@ export const pageSchemas: Record<string, ContentSchema> = {
       ] },
       { key: 'numbers', title: '2 · Numbers strip', fields: [
         { type: 'list', key: 'items', label: 'Numbers', itemLabel: 'Number', max: 6, fields: [
-          { type: 'text', key: 'value', label: 'Number', max: 12, placeholder: '9,000+' },
-          { type: 'text', key: 'label', label: 'Label', max: 40, placeholder: 'combinations' }
+          { type: 'text', key: 'value', label: 'Number', max: 12, placeholder: '2,795+' },
+          { type: 'text', key: 'label', label: 'Label', max: 40, placeholder: 'satisfied customers' }
         ] }
       ] },
       { key: 'categories', title: '3 · Category grid', help: 'Tiles are filled automatically from Website → Categories.', fields: [
@@ -112,20 +112,25 @@ export const pageSchemas: Record<string, ContentSchema> = {
           { type: 'image', key: 'image', label: 'Image (optional)' }
         ] }
       ] },
-      { key: 'photos', title: '3 · Photo strip', help: 'Our setup in China and the QC table. Pages without photos skip this strip.', fields: [
+      { key: 'reach', title: '3 · Across India map', help: 'Animated routes from Jaipur to the regions we supply. Leave the heading empty to hide the map.', fields: [
+        { type: 'text', key: 'heading', label: 'Heading', max: 80 },
+        { type: 'textarea', key: 'intro', label: 'Intro', max: 240 },
+        { type: 'text', key: 'note', label: 'Small print under the list', max: 120 }
+      ] },
+      { key: 'photos', title: '4 · Photo strip', help: 'Our setup in China and the QC table. Pages without photos skip this strip.', fields: [
         { type: 'text', key: 'heading', label: 'Heading', max: 80 },
         { type: 'list', key: 'items', label: 'Photos', itemLabel: 'Photo', max: 12, fields: [
           { type: 'image', key: 'image', label: 'Photo' },
           { type: 'text', key: 'caption', label: 'Caption', max: 100 }
         ] }
       ] },
-      { key: 'numbers', title: '4 · Numbers band', fields: [
+      { key: 'numbers', title: '5 · Numbers band', fields: [
         { type: 'list', key: 'items', label: 'Numbers', itemLabel: 'Number', max: 6, fields: [
           { type: 'text', key: 'value', label: 'Number', max: 12 },
           { type: 'text', key: 'label', label: 'Label', max: 40 }
         ] }
       ] },
-      { key: 'cta', title: '5 · Closing', fields: [
+      { key: 'cta', title: '6 · Closing', fields: [
         { type: 'text', key: 'heading', label: 'Closing line', max: 90 },
         { type: 'text', key: 'primary_label', label: 'Main button', max: 40 },
         { type: 'text', key: 'secondary_label', label: 'WhatsApp button', max: 40 }

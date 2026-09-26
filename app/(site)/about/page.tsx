@@ -11,6 +11,9 @@ import c from '@/components/site/category.module.css';
 import p from '@/components/site/pages.module.css';
 import { pic } from '@/lib/site/optimize';
 import CountUp from '@/components/site/CountUp';
+import IndiaReach from '@/components/site/IndiaReach';
+import r from '@/components/site/reach.module.css';
+import { REACH_REGIONS } from '@/lib/site/india-map';
 
 export const revalidate = 3600;
 
@@ -52,6 +55,23 @@ export default async function AboutPage() {
           </section>
         );
       })}
+
+      {page.reach?.heading && (
+        <section className={`${s.section} ${r.section}`} aria-labelledby="reach-heading">
+          <div className={`${s.wrap} ${r.grid}`}>
+            <div className={r.text}>
+              <span className={s.eyebrow}>Across India</span>
+              <h2 id="reach-heading" className={s.h2}>{page.reach.heading}</h2>
+              {page.reach.intro && <p className={r.intro}>{page.reach.intro}</p>}
+            </div>
+            <IndiaReach label={`Map of India with routes from Jaipur to ${REACH_REGIONS.join(', ')}`} />
+            <div className={r.list}>
+              <ul className={r.regions}>{REACH_REGIONS.map((name) => <li key={name}>{name}</li>)}</ul>
+              {page.reach.note && <p className={r.note}>{page.reach.note}</p>}
+            </div>
+          </div>
+        </section>
+      )}
 
       {photos.length > 0 && (
         <section className={s.sectionTight} aria-labelledby="photos-heading">
