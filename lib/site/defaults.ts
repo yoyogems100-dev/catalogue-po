@@ -28,6 +28,10 @@ export const pageDefaults: Record<string, ContentValue> = {
       links: [],
       legal: 'YOYO GEMS® is a registered trademark.'
     },
+    filters: {
+      heading: '{filters} {category}',
+      intro: '{filters} {category} from our ready range, photographed as supplied. Send us the sizes and quantities you need and we’ll confirm stock and price.'
+    },
     seo: {
       title_template: '%s · YOYO GEMS®',
       description: 'Wholesale synthetic gemstones for jewellery manufacturers. 40+ categories, 30+ shapes, 50+ colours. Factory-direct from China, stocked in Jaipur.',
