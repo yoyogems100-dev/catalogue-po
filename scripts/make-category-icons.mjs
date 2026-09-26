@@ -101,8 +101,8 @@ const CATEGORY_ICONS = {
   'ruby-green-cabs':       { src: 'green cabs.jpg', fringe: 24 },
   'coloured-cz-stones':    { src: 'color cz.jpg', circle: 'fit', skipFill: true },
   'lab-grown-stones':      { src: 'labEm.webp', oval: [0.206, 0.272, 0.781, 0.745, 3], skipFill: true, fringe: 6 },
-  'synthetic-opals':       { src: 'syn opal.jpg', fringe: 24 },
-  'fusion-stones':         { src: 'fusionstone.webp', fringe: 24, fringeLo: 0.28, fringeHi: 0.5 },
+  'synthetic-opals':       { src: 'syn opal.jpg', oval: [0.316, 0.283, 0.69, 0.702], skipFill: true, fringe: 6 },
+  'fusion-stones':         { src: 'fusionstone.webp', oval: [0.263, 0.362, 0.74, 0.726], chamfer: 0.3, skipFill: true, fringe: 6 },
   'turkey-ring-stones':    { src: 'turkey-ring-stones-29.webp', near: 34, global: 125, key: true, fringe: 24 },
   // Strands edge to edge: framed, not cut out. The crop is a wide band across
   // the middle of a portrait photo, which is where every colour appears.
@@ -110,14 +110,14 @@ const CATEGORY_ICONS = {
   'mop-mother-of-pearl':   { src: 'mop.png', near: 34, global: 130 },
   'mop-onyx':              { src: 'onyx.png', fringe: 24 },
   'evil-eye-malachite':    { src: 'evileye.png', oval: [0.085, 0.005, 0.955, 0.93], skipFill: true },
-  'flat-polki-foil-polki': { src: 'polki.png' },
+  'flat-polki-foil-polki': { src: 'polki.png', erode: 2 },
   'glass-pearls':          { src: 'glass pearl.jpg', near: 26, global: 110 },
-  'crystal':               { src: 'Amethyst-1-scaled crystal.jpg', fringe: 24 },
+  'crystal':               { src: 'Amethyst-1-scaled crystal.jpg', fringe: 24, clipBottom: 0.843 },
   'queen-conch':           { src: 'QUEEN CONCH.png', near: 32, global: 125 },
   'foiled-glass-crystal':  { src: 'foiled stone.jpeg', fringe: 24 },
-  // A soft white glow sits between this stone and its backdrop; the fill
-  // stops at it, so key it out by colour as well.
-  'natural-emeralds':      { src: 'natEmerald.webp', near: 20, global: 150, key: true, fringe: 24 },
+  // An emerald cut with a pale glow above and below it: masked to its own
+  // cut-corner outline rather than keyed.
+  'natural-emeralds':      { src: 'natEmerald.webp', oval: [0.219, 0.104, 0.775, 0.888], chamfer: 0.26, skipFill: true, fringe: 6 },
   'glass-stones':          { src: 'glass-green gemstone.webp', fringe: 24 },
   'star-light':            { src: 'starlighht.webp', circle: [0.487, 0.47, 0.275], skipFill: true },
   // A turquoise bead on a grey sweep -- the two are close in brightness and
@@ -125,13 +125,13 @@ const CATEGORY_ICONS = {
   // coloured at all, so key on saturation and close the pale facets after.
   'ceramic':               { src: 'ceramic.jpg', chroma: 34, holes: true, solo: true },
   'malachite':             { src: 'malachite.jpeg', fringe: 24 },
-  '7a-quality':            { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
-  '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
-  '4a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
-  '3a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  '7a-quality':            { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.045 },
+  '5a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.045 },
+  '4a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.045 },
+  '3a-quality-cz':         { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.045 },
   'heighted-cz-stones':    { src: 'heightened cz.jpeg', near: 30, global: 115, key: true },
   // SWIZZ in that shared filename is Swiss High Density CZ.
-  'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.03 },
+  'high-density-cz':       { src: '7A:5A:3A:4A:SWIZZ:HEIGHTED.jpg', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.045 },
   // The owner's own photo (the earlier one carried another seller's
   // watermark). A deep-blue oval on grey, so an oval outline, not a fill.
   'nano':                  { src: 'blue nano yg.png', oval: [0.052, 0.058, 0.948, 0.905], skipFill: true, fringe: 6 },
@@ -149,8 +149,8 @@ const CATEGORY_ICONS = {
   'fancy-special-shapes':  { src: 'fancy special shp.png', skipFill: true, luma: 40, holes: true, solo: true },
   'green-onyx-chatam':     { src: 'green onyx.webp', oval: [0.068, 0.07, 0.929, 0.875], skipFill: true, fringe: 6 },
   'ruby-opaque-chatam':    { src: 'red-opeque-synthetic-stone.jpg', oval: [0.024, 0.12, 0.966, 0.885], skipFill: true },
-  'preform-balls':         { src: 'preformballs.tiff' },
-  'synthetic-corundum':    { src: 'synthtic corundum.png', fringe: 24 },
+  'preform-balls':         { src: 'preformballs.tiff', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.02, fitUpperLeft: true },
+  'synthetic-corundum':    { src: 'synthtic corundum.png', fringe: 24, fringeLo: 0.3, fringeHi: 0.5 },
   'natural-pearls':        { src: 'pearl.webp' },
   'semi-precious-stones':  { src: 'semiPrecious.png', fringe: 24 }
   // Every category is illustrated. If a new one is added, give it an entry
@@ -317,8 +317,12 @@ async function cutout(SRC, OUT, opts) {
     const [x0, y0, x1, y1, n = 2] = opts.oval;
     const cx = ((x0 + x1) / 2) * W, cy = ((y0 + y1) / 2) * H;
     const a = ((x1 - x0) / 2) * W, b = ((y1 - y0) / 2) * H;
+    // chamfer: an emerald or octagon cut instead -- the box with its corners
+    // cut off, this fraction of each side's half-length along each edge.
+    const ch = opts.chamfer;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const v = (Math.abs((x - cx) / a) ** n + Math.abs((y - cy) / b) ** n) ** (1 / n);
+      const u = Math.abs((x - cx) / a), w = Math.abs((y - cy) / b);
+      const v = ch ? Math.max(u, w, (u + w) / (2 - ch)) : (u ** n + w ** n) ** (1 / n);
       const k = Math.max(0, Math.min(1, (1 - v) * Math.min(a, b) + 0.5));
       const i = (y * W + x) * C + 3;
       data[i] = Math.round(data[i] * k);
@@ -477,6 +481,34 @@ async function cutout(SRC, OUT, opts) {
     // both far too big for the 2% rule to catch.
     const floor = opts.solo ? biggest : totalKept * 0.02;
     for (const cells of blobs) if (cells.length < floor) for (const p of cells) data[p * C + 3] = 0;
+  }
+
+  // clipBottom: drop everything below this fraction of the height -- for a
+  // specimen sitting on a pale shadow plate that no colour test can separate
+  // from its own pale base.
+  if (opts.clipBottom) {
+    const yc = opts.clipBottom * H;
+    for (let y = Math.floor(yc); y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * C + 3;
+      data[i] = Math.round(data[i] * Math.max(0, Math.min(1, yc - y + 0.5)));
+    }
+  }
+
+  // erode: shave this many pixels off the whole outline -- for a pale stone
+  // whose rim is too close to the backdrop for fringe to tell apart.
+  if (opts.erode) {
+    for (let i = 0; i < opts.erode; i++) {
+      const cut = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const p = y * W + x;
+        if (data[p * C + 3] <= 24) continue;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H || data[(ny * W + nx) * C + 3] <= 24) { cut.push(p); break; }
+        }
+      }
+      for (const p of cut) data[p * C + 3] = 0;
+    }
   }
 
   // fringe: every threshold above leaves a band of pale pixels round the stone
