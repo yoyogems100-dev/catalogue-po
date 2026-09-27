@@ -8,19 +8,27 @@
 //   ... --apply [--limit N] [--manifest <file>]
 //       watermarks them. Originals are kept in the private `originals` bucket;
 //       the files each row stopped pointing at are listed in the manifest
+//   ... --redraw [--apply ...]
+//       redraws EVERY photo, website image and chart from its clean original,
+//       for when the watermark design changes (without it, only photos never
+//       watermarked are done)
 //   ... --cleanup <manifest> [--apply]
 //       later (after cached pages have refreshed, about an hour): removes the
 //       replaced public files in the manifest that no row points at any more
 //
 // Covers: /po photos (photo, both crops, Drive imports), website images
 // (site_media, every width) and category colour charts.
-// Repeat-safe: anything already watermarked is skipped.
+// Repeat-safe: anything already watermarked is skipped (unless --redraw).
+// Every picture is always drawn from its clean original, never from a
+// watermarked copy, so nothing is ever marked twice.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const apply = args.includes('--apply');
+const redraw = args.includes('--redraw');
 const envFile = opt('--env');
 if (!envFile) throw new Error('Pass --env <path to an env file>.');
 for (const line of readFileSync(envFile, 'utf8').split('\n')) {
@@ -54,18 +62,22 @@ async function main() {
 
   if (cleanupFile) return cleanup(cleanupFile);
 
-  const todoPhotos = photos.filter((p) => !files.isWatermarked(p) && (p.storage_path || p.drive_id)).slice(0, limit);
-  const todoMedia = mediaRows.filter((m) => !m.original_path).slice(0, limit);
-  // A chart is watermarked once its clean copy is in the originals bucket.
-  const todoCharts: { id: number; path: string }[] = [];
+  const todoPhotos = photos.filter((p) => (redraw || !files.isWatermarked(p)) && (p.storage_path || p.drive_id)).slice(0, limit);
+  const todoMedia = mediaRows.filter((m) => redraw || !m.original_path).slice(0, limit);
+  // A chart's clean copy sits in the originals bucket under the chart's name
+  // without any -wm suffix; what the page shows is the clean name (uploaded
+  // since watermarking) or a -wm name (watermarked by this script).
+  const todoCharts: { id: number; path: string; clean: string; kept: boolean }[] = [];
   for (const c of charts || []) {
     if (!c.color_chart_url.startsWith(publicPrefix)) continue;
     const p = c.color_chart_url.slice(publicPrefix.length).split('?')[0];
-    const { data } = await db.storage.from(files.ORIGINALS_BUCKET).list(path.dirname(p), { search: path.basename(p) });
-    if (!data?.some((o) => o.name === path.basename(p))) todoCharts.push({ id: c.id, path: p });
+    const clean = p.replace(/(-wm(-[0-9a-f]{8})?)+\.webp$/, '.webp');
+    const { data } = await db.storage.from(files.ORIGINALS_BUCKET).list(path.dirname(clean), { search: path.basename(clean) });
+    const kept = !!data?.some((o) => o.name === path.basename(clean));
+    if (redraw || !kept) todoCharts.push({ id: c.id, path: p, clean, kept });
   }
 
-  console.log(apply ? 'APPLYING' : 'DRY RUN (nothing is written)');
+  console.log(`${apply ? 'APPLYING' : 'DRY RUN (nothing is written)'}${redraw ? ' -- redrawing everything from the originals' : ''}`);
   console.log(`/po photos:     ${todoPhotos.length} to watermark of ${photos.length} (${todoPhotos.filter((p) => p.drive_id).length} from Google Drive, ${todoPhotos.filter((p) => p.photo_crop || p.cover_crop).length} with saved crops)`);
   console.log(`website images: ${todoMedia.length} to watermark of ${mediaRows.length}`);
   console.log(`colour charts:  ${todoCharts.length} to watermark of ${(charts || []).length}`);
@@ -81,7 +93,9 @@ async function main() {
       } catch (e: any) { console.log(`  ! preview photo ${p.id}: ${e.message}`); }
     }
     for (const m of todoMedia.slice(0, 3)) {
-      const { data } = await db.storage.from(PHOTOS).download(m.storage_path);
+      const { data } = m.original_path
+        ? await db.storage.from(files.ORIGINALS_BUCKET).download(m.original_path)
+        : await db.storage.from(PHOTOS).download(m.storage_path);
       if (!data) continue;
       const upright = await sharp(Buffer.from(await data.arrayBuffer())).rotate().png().toBuffer();
       writeFileSync(path.join(previewDir, `site-${m.id}.webp`), await (await withWatermark(upright)).webp({ quality: 88 }).toBuffer());
@@ -98,8 +112,8 @@ async function main() {
     try {
       const { update, replaced, created } = await files.rebuildWatermarkedFiles(db, p);
       // Only if nothing changed the row meanwhile (an admin re-crop, say).
-      const { data, error } = await db.from('photos').update(update).eq('id', p.id)
-        .is('original_path', p.original_path).select('id');
+      const unchanged = db.from('photos').update(update).eq('id', p.id);
+      const { data, error } = await (p.storage_path ? unchanged.eq('storage_path', p.storage_path) : unchanged.is('storage_path', null)).select('id');
       if (error || !data?.length) {
         await db.storage.from(PHOTOS).remove(created);
         throw new Error(error?.message || 'changed while converting; run again');
@@ -112,7 +126,7 @@ async function main() {
   done = 0;
   for (const m of todoMedia) {
     try {
-      const { update, replaced, created } = await media.watermarkStoredMedia(db, m);
+      const { update, replaced, created } = m.original_path ? await media.redrawStoredMedia(db, m) : await media.watermarkStoredMedia(db, m);
       const { data, error } = await db.from('site_media').update(update).eq('id', m.id).eq('storage_path', m.storage_path).select('id');
       if (error || !data?.length) {
         await db.storage.from(PHOTOS).remove(created);
@@ -125,14 +139,20 @@ async function main() {
 
   for (const c of todoCharts) {
     try {
-      const { data: file, error: dlErr } = await db.storage.from(PHOTOS).download(c.path);
+      // Never marked twice: the source is the clean copy, or the shown file
+      // only while no clean copy exists (a chart from before watermarking).
+      const { data: file, error: dlErr } = c.kept
+        ? await db.storage.from(files.ORIGINALS_BUCKET).download(c.clean)
+        : await db.storage.from(PHOTOS).download(c.path);
       if (dlErr || !file) throw new Error(dlErr?.message || 'missing');
       const clean = Buffer.from(await file.arrayBuffer());
-      const kept = await db.storage.from(files.ORIGINALS_BUCKET).upload(c.path, clean, { contentType: 'image/webp', upsert: true });
-      if (kept.error) throw new Error(kept.error.message);
+      if (!c.kept) {
+        const kept = await db.storage.from(files.ORIGINALS_BUCKET).upload(c.clean, clean, { contentType: 'image/webp', upsert: true });
+        if (kept.error) throw new Error(kept.error.message);
+      }
       const marked = await (await withWatermark(await sharp(clean).rotate().png().toBuffer())).webp({ quality: 95 }).toBuffer();
-      const next = c.path.replace(/\.webp$/, '') + `-wm.webp`;
-      const up = await db.storage.from(PHOTOS).upload(next, marked, { contentType: 'image/webp', upsert: true });
+      const next = c.clean.replace(/\.webp$/, '') + `-wm-${randomUUID().slice(0, 8)}.webp`;
+      const up = await db.storage.from(PHOTOS).upload(next, marked, { contentType: 'image/webp', upsert: false });
       if (up.error) throw new Error(up.error.message);
       const { error } = await db.from('categories').update({ color_chart_url: publicPrefix + next }).eq('id', c.id);
       if (error) throw new Error(error.message);
