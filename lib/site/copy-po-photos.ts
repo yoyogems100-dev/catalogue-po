@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { photoUrl } from '@/lib/photos';
+import sharp from 'sharp';
+import { pixelCrop } from '@/lib/photo-crop';
+import { loadOriginalBytes, uprightOriginal } from '@/lib/photo-files';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { storeImageBytes } from './media';
 
@@ -11,11 +13,11 @@ import { storeImageBytes } from './media';
 
 export type PoPhoto = {
   id: number; category_id: number; storage_path: string | null; drive_id: string | null;
-  photo_crop: any; cover_crop: any; watermarked_path: string | null;
+  photo_crop: any; cover_crop: any; original_path: string | null;
   shape_id: number | null; color_id: number | null; shape_size_id: number | null; sort_order: number | null;
 };
 
-const PHOTO_COLS = 'id, category_id, storage_path, drive_id, photo_crop, cover_crop, watermarked_path, shape_id, color_id, shape_size_id, sort_order';
+const PHOTO_COLS = 'id, category_id, storage_path, drive_id, photo_crop, cover_crop, original_path, shape_id, color_id, shape_size_id, sort_order';
 
 /** /po photos a website category can draw on: the ones its linked catalogue categories show. */
 export async function poPhotosFor(db: SupabaseClient, siteCategoryId: number) {
@@ -93,13 +95,15 @@ export async function copyPoPhotos(db: SupabaseClient, siteCategoryId: number, p
       const size = name(sizes.data, tags.size[0], 'size_mm');
       const alt = ([name(colors, tags.color[0]), name(shapes, tags.shape[0]), name(cats, p.category_id)].filter(Boolean).join(' ') + (size ? `, ${size}mm` : '')).slice(0, 200);
       if (opts.dryRun) { out.copied++; out.linked++; copyOf.set(p.id, -p.id); continue; }
-      const src = photoUrl(p, 2400, 'photo');
-      if (!src) { out.errors.push(`Photo ${p.id}: no file.`); continue; }
+      // The clean /po original (cropped as /po shows it), never the
+      // watermarked copy: the website store adds its own mark, and a
+      // watermarked source would come out with two.
       let bytes: Buffer;
       try {
-        const res = await fetch(src);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        bytes = Buffer.from(await res.arrayBuffer());
+        const upright = await uprightOriginal(await loadOriginalBytes(db, p));
+        bytes = p.photo_crop
+          ? await sharp(upright.data).extract(pixelCrop(upright.info.width, upright.info.height, p.photo_crop)).png().toBuffer()
+          : upright.data;
       } catch (e: any) {
         out.errors.push(`Photo ${p.id}: could not download (${e.message}).`);
         continue;

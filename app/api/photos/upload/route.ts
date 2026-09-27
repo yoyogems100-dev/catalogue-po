@@ -1,6 +1,11 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
+import { ORIGINALS_BUCKET, uploadWatermarked, uprightOriginal, watermarkedVariant } from '@/lib/photo-files';
+
+export const runtime = 'nodejs';
+const MAX_BYTES = 20 * 1024 * 1024;
 
 /** Junction tables a photo's tags fan out into, keyed by the form field that
  *  carries them. Set at upload time so a batch can be tagged once as it lands,
@@ -62,26 +67,50 @@ export async function POST(req: NextRequest) {
     parentPhotoId = (parent as any).parent_photo_id ?? parent.id;
   }
 
-  const ext = file.name.split('.').pop() || 'jpg';
+  if (!file.size || file.size > MAX_BYTES) return NextResponse.json({ error: 'Choose a photo smaller than 20 MB.' }, { status: 400 });
+  const bytes = Buffer.from(await file.arrayBuffer());
+  try {
+    const meta = await sharp(bytes, { limitInputPixels: 40_000_000 }).metadata();
+    if (!['jpeg', 'png', 'webp', 'avif', 'tiff', 'heif'].includes(meta.format || '') || (meta.pages || 1) > 1) throw new Error();
+  } catch {
+    return NextResponse.json({ error: `${file.name}: use a JPG, PNG, WebP, AVIF, HEIC or TIFF photo.` }, { status: 400 });
+  }
+
+  const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5) || 'jpg';
   // Uncategorised photos live under their own prefix rather than a made-up
   // category folder, so the inbox is obvious in Storage too.
   const folder = categoryId === null ? 'unassigned' : String(categoryId);
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const originalPath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(PHOTOS_BUCKET)
-    .upload(path, arrayBuffer, { contentType: file.type, upsert: false });
-
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
+  // Every photo is shown watermarked. The upload itself is kept untouched in
+  // the private originals bucket; the site shows the watermarked copy, and
+  // crops are later rebuilt from the original (lib/photo-files.ts).
+  const stored: [bucket: string, path: string][] = [];
+  const cleanUp = () => Promise.all(stored.map(([bucket, path]) => supabaseAdmin.storage.from(bucket).remove([path])));
+  let storagePath: string;
+  try {
+    const { error: originalError } = await supabaseAdmin.storage
+      .from(ORIGINALS_BUCKET)
+      .upload(originalPath, bytes, { contentType: file.type || undefined, upsert: false });
+    if (originalError) throw new Error(originalError.message);
+    stored.push([ORIGINALS_BUCKET, originalPath]);
+    storagePath = await uploadWatermarked(supabaseAdmin, { category_id: categoryId }, await watermarkedVariant(await uprightOriginal(bytes)), 'photo');
+    stored.push([PHOTOS_BUCKET, storagePath]);
+  } catch (e) {
+    await cleanUp();
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Upload failed. Please retry.' }, { status: 400 });
+  }
 
   const { data: photo, error: dbError } = await supabaseAdmin
     .from('photos')
-    .insert({ category_id: categoryId, storage_path: path, is_cover_only: isCoverOnly, parent_photo_id: parentPhotoId })
+    .insert({ category_id: categoryId, storage_path: storagePath, original_path: originalPath, is_cover_only: isCoverOnly, parent_photo_id: parentPhotoId })
     .select()
     .single();
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 400 });
+  if (dbError) {
+    await cleanUp();
+    return NextResponse.json({ error: dbError.message }, { status: 400 });
+  }
 
   // Tags are best-effort: the file is already stored and the row already
   // exists, so a bad id in the batch defaults shouldn't fail the upload and
