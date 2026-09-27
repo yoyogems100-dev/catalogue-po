@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
 import { priceUnitLabel } from '../price-unit';
+import { PageWatermark } from './PageWatermark';
 
 export type PriceListGroup = { id: number; name: string; colors?: string[] };
 export type PriceListRow = { sizeMm: string; prices: Record<number, number | null> }; // groupId -> INR price
@@ -106,6 +107,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
+        <PageWatermark landscape />
         <View style={styles.headerRow}>
           <View style={styles.brandBlock}>
             {data.logoUrl ? <Image src={data.logoUrl} style={styles.logo} /> : <Text style={styles.docType}>YOYO GEMS</Text>}

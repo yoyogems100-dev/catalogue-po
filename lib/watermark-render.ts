@@ -1,39 +1,59 @@
 import path from 'node:path';
 import { openSync } from 'fontkit';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 
 /**
- * Turns watermark text into an SVG of glyph OUTLINES -- no font-family, no
- * text element, nothing for the renderer to look up.
+ * The YOYO GEMS watermark every photo on the site and /po carries.
  *
- * sharp draws SVG through librsvg, which resolves font-family through
- * fontconfig. That works on this Mac, which has fonts installed, and is a
- * coin toss inside a serverless Linux function, which may have none: the text
- * would come out in a fallback face or not at all, and only in production.
- * Converting to paths here makes the watermark byte-identical everywhere.
+ * It is applied once, when a photo is stored -- never on the fly -- to a
+ * separate copy: the original upload is kept untouched (photos.original_path,
+ * site_media.original_path), and every crop or resize is rebuilt from that
+ * original, so a photo can never end up watermarked twice.
  *
- * The face is Playfair Display, the same one the site sets its headings in
- * (assets/fonts, SIL OFL, licence alongside it).
+ * The mark sits small in the bottom-right corner, away from the stone, which
+ * product photos almost always centre. White lettering over a soft dark halo
+ * keeps it readable on the white backdrops most stone photos use and on dark
+ * ones alike, without a box or band over the picture.
  */
 
+export const WATERMARK_TEXT = 'YOYO GEMS';
+
+/** Share of the photo's width the lettering covers. */
+const WIDTH_RATIO = 0.24;
+/** Gap from the bottom and right edges, as a share of the shorter side. */
+const MARGIN_RATIO = 0.035;
+/**
+ * Two looks, chosen per photo from how bright the corner is: brand navy over a
+ * faint white halo on light backdrops, white over a dark halo on dark ones.
+ * A single colour disappears on one or the other.
+ */
+const LOOKS = {
+  light: { text: '#1B3A6B', textOpacity: 0.62, halo: '#ffffff', haloOpacity: 0.7 },
+  dark: { text: '#ffffff', textOpacity: 0.82, halo: '#000000', haloOpacity: 0.5 }
+} as const;
+export type WatermarkLook = keyof typeof LOOKS;
+/** Mean corner luminance (0-255) above which a backdrop counts as light. */
+const LIGHT_CORNER = 150;
+
+/*
+ * Text becomes an SVG of glyph OUTLINES -- no font-family, no text element,
+ * nothing for the renderer to look up. sharp draws SVG through librsvg, which
+ * resolves font-family through fontconfig: fine on a Mac with fonts, a coin
+ * toss inside a serverless Linux function with none. Outlines make the mark
+ * byte-identical everywhere. The face is Playfair Display, the site's heading
+ * font (assets/fonts, SIL OFL, licence alongside it; traced in next.config.js).
+ */
 const FONT_PATH = path.join(process.cwd(), 'assets/fonts/PlayfairDisplay-Variable.ttf');
 
-let cached: any = null;
+let cachedFont: any = null;
 function font() {
-  // Parsing the file is the slow part and it never changes, so a watermark
-  // applied across a selection of forty photos parses it once.
-  if (!cached) {
+  // Parsing the file is the slow part and it never changes, so a backfill
+  // across hundreds of photos parses it once.
+  if (!cachedFont) {
     const file: any = openSync(FONT_PATH);
-    cached = typeof file.getVariation === 'function' ? file.getVariation({ wght: 700 }) : file;
+    cachedFont = typeof file.getVariation === 'function' ? file.getVariation({ wght: 700 }) : file;
   }
-  return cached;
-}
-
-export type TextWatermark = { text: string; color: string };
-
-/** A hex colour, or '#ffffff' -- never interpolate unchecked text into SVG. */
-export function safeColor(value: string | null | undefined): string {
-  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#ffffff';
+  return cachedFont;
 }
 
 /**
@@ -61,46 +81,69 @@ export function textWatermarkSvg(text: string, width: number, color: string): st
   // them; SVG is y-down from the top left. This flips and shifts the whole
   // run so its ink exactly fills the box.
   const transform = `translate(${-minX * scale} ${maxY * scale}) scale(${scale} ${-scale})`;
+  const fill = /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#ffffff';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(width)}" height="${height}" viewBox="0 0 ${Math.round(width)} ${height}"><path transform="${transform}" d="${d}" fill="${safeColor(color)}"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(width)}" height="${height}" viewBox="0 0 ${Math.round(width)} ${height}"><path transform="${transform}" d="${d}" fill="${fill}"/></svg>`;
 }
 
-/** The share of the photo's width a watermark covers. */
-export const WATERMARK_WIDTH_RATIO = 0.4;
-
-export type WatermarkRow = {
-  text?: string | null;
-  color?: string | null;
-  storage_path?: string | null;
-  opacity: number | string;
-};
-
-/**
- * The finished overlay for one photo: sized to the photo, already faded.
- * Both the live preview and the real apply go through here, so the sample the
- * owner adjusts is the same picture they get.
- */
-export async function watermarkOverlay(
-  watermark: WatermarkRow,
-  imageBuffer: Buffer | null,
-  photoWidth: number
-): Promise<Buffer> {
-  const targetWidth = Math.max(40, Math.round(photoWidth * WATERMARK_WIDTH_RATIO));
-
-  let layer: Buffer;
-  if (watermark.text && watermark.text.trim()) {
-    const svg = textWatermarkSvg(watermark.text, targetWidth, safeColor(watermark.color));
-    if (!svg) throw new Error('That watermark text has nothing to draw.');
-    layer = await sharp(Buffer.from(svg)).png().toBuffer();
-  } else {
-    if (!imageBuffer) throw new Error('Watermark image could not be loaded.');
-    layer = await sharp(imageBuffer).resize({ width: targetWidth, withoutEnlargement: false }).png().toBuffer();
-  }
-
-  // sharp's composite() has no opacity option, and ensureAlpha() only fills in
-  // a MISSING alpha channel rather than scaling one that is already there.
-  const opacity = Math.min(1, Math.max(0.05, Number(watermark.opacity) || 0.5));
-  const { data, info } = await sharp(layer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+/** Scales every pixel's alpha. sharp's composite() has no opacity option. */
+async function fade(png: Buffer, opacity: number): Promise<Buffer> {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   for (let i = 3; i < data.length; i += 4) data[i] = Math.round(data[i] * opacity);
   return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
+}
+
+/** The finished mark for a photo `photoWidth` wide: lettering over its halo, with room for the blur. */
+export async function watermarkOverlay(photoWidth: number, look: WatermarkLook = 'dark'): Promise<{ input: Buffer; width: number; height: number; pad: number }> {
+  const style = LOOKS[look];
+  const textWidth = Math.max(60, Math.round(photoWidth * WIDTH_RATIO));
+  const white = textWatermarkSvg(WATERMARK_TEXT, textWidth, style.text)!;
+  const dark = textWatermarkSvg(WATERMARK_TEXT, textWidth, style.halo)!;
+  const pad = Math.max(3, Math.round(textWidth * 0.06));
+  const sigma = Math.max(0.8, textWidth * 0.014);
+  const extend = { top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } };
+
+  const halo = await fade(await sharp(Buffer.from(dark)).extend(extend).blur(sigma).png().toBuffer(), style.haloOpacity);
+  const text = await fade(await sharp(Buffer.from(white)).extend(extend).png().toBuffer(), style.textOpacity);
+  const { width = textWidth, height = 1 } = await sharp(text).metadata();
+  const input = await sharp(halo).composite([{ input: text }]).png().toBuffer();
+  return { input, width, height, pad };
+}
+
+/** Average brightness of one region of an image, 0 (black) to 255 (white). */
+async function cornerLuminance(image: Buffer, region: { left: number; top: number; width: number; height: number }): Promise<number> {
+  const { channels } = await sharp(image, { limitInputPixels: 60_000_000 }).extract(region).removeAlpha().stats();
+  const [r, g, b] = channels.map((c) => c.mean);
+  return g === undefined ? r : 0.2126 * r + 0.7152 * g + 0.0722 * (b ?? g);
+}
+
+/**
+ * The photo with the mark in its bottom-right corner, as a sharp pipeline so
+ * the caller chooses the size and output format. `image` must already be
+ * upright (rotated) and cropped -- the mark goes on exactly what will be shown.
+ *
+ * The composite is flattened to raw pixels before it is handed back: sharp
+ * always resizes BEFORE it composites, whatever order the calls are chained
+ * in, so a caller's .resize() on an unflattened pipeline would shrink the
+ * photo and then place the mark at full-size coordinates, off the picture.
+ */
+export async function withWatermark(image: Buffer): Promise<Sharp> {
+  const meta = await sharp(image, { limitInputPixels: 60_000_000 }).metadata();
+  const width = meta.width || 800, height = meta.height || 800;
+  // Measured at the dark look's size -- both looks are the same size -- then
+  // the look is chosen from the patch of photo the mark will cover.
+  let mark = await watermarkOverlay(width);
+  // A sliver of an image too small to hold the mark is left as it is.
+  if (mark.width > width || mark.height > height) return sharp(image, { limitInputPixels: 60_000_000 });
+  const margin = Math.round(Math.min(width, height) * MARGIN_RATIO);
+  // The padding around the lettering is transparent, so it may run into the
+  // margin; the lettering itself sits `margin` in from the edges.
+  const left = Math.min(width - mark.width, Math.max(0, width - margin - mark.width + mark.pad));
+  const top = Math.min(height - mark.height, Math.max(0, height - margin - mark.height + mark.pad));
+  if ((await cornerLuminance(image, { left, top, width: mark.width, height: mark.height })) > LIGHT_CORNER) {
+    mark = await watermarkOverlay(width, 'light');
+  }
+  const { data, info } = await sharp(image, { limitInputPixels: 60_000_000 })
+    .composite([{ input: mark.input, left, top }]).raw().toBuffer({ resolveWithObject: true });
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } });
 }

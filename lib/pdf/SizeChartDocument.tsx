@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
 import { priceUnitLabel } from '../price-unit';
+import { PageWatermark } from './PageWatermark';
 
 export type SizeChartSection = {
   name: string;
@@ -104,6 +105,7 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
   return (
     <Document title={`YOYO GEMS - ${categoryName} ${includePrices ? 'price list' : 'shapes and sizes'}`} author="YOYO GEMS">
       {showColorPage && <Page size="A4" style={css.page}>
+        <PageWatermark />
         <View style={css.masthead}>
           <View style={css.brandBlock}>
             {logoUrl ? <Image src={logoUrl} style={css.brandLogo} /> : <Text style={css.brand}>YOYO GEMS</Text>}
@@ -130,6 +132,7 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
       </Page>}
       {pages.map((group, pageIndex) => (
         <Page key={pageIndex} size="A4" style={css.page}>
+          <PageWatermark />
           <View style={css.masthead}>
             <View style={css.brandBlock}>
               {logoUrl ? <Image src={logoUrl} style={css.brandLogo} /> : <Text style={css.brand}>YOYO GEMS</Text>}

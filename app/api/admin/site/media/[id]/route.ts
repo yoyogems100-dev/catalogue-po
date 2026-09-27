@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
-  const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants').eq('id', id).maybeSingle();
+  const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants, original_path').eq('id', id).maybeSingle();
   if (!current) return fail('That image no longer exists.', 404);
   const file = (await req.formData()).get('file');
   if (!(file instanceof File)) return fail('Choose an image.');
@@ -73,7 +73,7 @@ export async function DELETE(_req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
-  const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants').eq('id', id).maybeSingle();
+  const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants, original_path').eq('id', id).maybeSingle();
   if (!current) return NextResponse.json({ ok: true });
   // Page text can reference an image by id; those references simply stop
   // showing an image rather than breaking the page.

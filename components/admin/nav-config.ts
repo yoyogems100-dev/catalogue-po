@@ -64,8 +64,7 @@ export const WORKSPACES: Workspace[] = [
           { href: '/admin/colors', label: 'Colours', detail: 'Colour names, swatches and reference photos.' },
           { href: '/admin/tags', label: 'Tags & specifications', detail: 'Labels used to describe and filter products.' },
           { href: '/admin/pricing', label: 'Pricing', detail: 'Catalogue prices and pricing settings.' },
-          { href: '/admin/bulk-link', label: 'Bulk link', detail: 'Link many shapes, sizes or colours to categories at once.' },
-          { href: '/admin/watermarks', label: 'Watermarks', detail: 'Watermarks applied to /po photos.' }
+          { href: '/admin/bulk-link', label: 'Bulk link', detail: 'Link many shapes, sizes or colours to categories at once.' }
         ]
       },
       {

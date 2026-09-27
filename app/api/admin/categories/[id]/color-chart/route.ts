@@ -4,6 +4,8 @@ import sharp from 'sharp';
 import { revalidatePath } from 'next/cache';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
+import { ORIGINALS_BUCKET } from '@/lib/photo-files';
+import { withWatermark } from '@/lib/watermark-render';
 
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
@@ -23,8 +25,14 @@ export async function POST(request: NextRequest, context: Context) {
       const source = Buffer.from(await file.arrayBuffer());
       const metadata = await sharp(source, { limitInputPixels: 40000000 }).metadata();
       if (!['jpeg', 'png', 'webp'].includes(metadata.format || '') || (metadata.pages || 1) > 1) return NextResponse.json({ error: 'Use a still JPG, PNG or WebP image.' }, { status: 400 });
-      const bytes = await sharp(source, { limitInputPixels: 40000000 }).rotate().resize({ width: 4000, height: 4000, fit: 'inside', withoutEnlargement: true }).webp({ quality: 95 }).toBuffer();
+      const upright = await sharp(source, { limitInputPixels: 40000000 }).rotate().resize({ width: 4000, height: 4000, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
       uploaded = `${id}/color-charts/${randomUUID()}.webp`;
+      // The chart as uploaded is kept privately; the one shown carries the
+      // YOYO GEMS watermark like every other photo.
+      const clean = await sharp(upright).webp({ quality: 95 }).toBuffer();
+      const { error: originalError } = await supabaseAdmin.storage.from(ORIGINALS_BUCKET).upload(uploaded, clean, { contentType: 'image/webp', upsert: true });
+      if (originalError) throw originalError;
+      const bytes = await (await withWatermark(upright)).webp({ quality: 95 }).toBuffer();
       const { error: uploadError } = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(uploaded, bytes, { contentType: 'image/webp', upsert: false });
       if (uploadError) throw uploadError;
       url = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(uploaded).data.publicUrl;

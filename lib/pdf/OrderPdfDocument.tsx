@@ -1,6 +1,7 @@
 import {specText,type OrderSpecs} from '../order-specs';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
+import { PageWatermark } from './PageWatermark';
 
 export type PdfItem = {
   orderSpecs?: OrderSpecs;
@@ -123,6 +124,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <PageWatermark />
         <View style={styles.headerRow}>
           <View>
             {data.logoUrl ? <Image src={data.logoUrl} style={styles.brandLogo} /> : <Text style={styles.brand}>YOYO GEMS</Text>}

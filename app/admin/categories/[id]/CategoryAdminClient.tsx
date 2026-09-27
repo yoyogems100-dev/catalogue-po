@@ -30,7 +30,6 @@ type Photo = {
   notes: string | null;
   tag_ids: number[];
   isCoverOnly: boolean;
-  watermarkId: number | null;
   /** Set when this photo is another angle of a grouped stone. The lead photo
       is the group's cover and carries its shape/size/colour/spec tags. */
   parentPhotoId: number | null;
@@ -70,7 +69,6 @@ export default function CategoryAdminClient({
   linkedSizeIds,
   thumbnailPhotoId,
   photos,
-  watermarks,
   otherCategories,
   badgeTypes,
   shapeReference
@@ -95,9 +93,6 @@ export default function CategoryAdminClient({
   linkedSizeIds: number[];
   thumbnailPhotoId: number | null;
   photos: Photo[];
-  /** Watermark presets available to apply to a photo -- empty on every tab
-      but Photos. */
-  watermarks: { id: number; name: string }[];
   /** Every other category's id/name, for the Photos tab's "Add to category"
       bulk action -- empty on every other tab. */
   otherCategories: { id: number; name: string; slug: string | null }[];
@@ -135,7 +130,6 @@ export default function CategoryAdminClient({
   // wants to act on several photos at once.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
-  const [bulkWatermarkId, setBulkWatermarkId] = useState<number | ''>('');
   const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -335,10 +329,12 @@ export default function CategoryAdminClient({
       body: JSON.stringify({ category_id: categoryId, drive_ids: ids })
     });
     setImporting(false);
-    if (!res.ok) { setToast('Failed to import from Drive -- try again.'); return; }
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) { setToast(result.error || 'Failed to import from Drive -- try again.'); return; }
     setDriveText('');
     driveDialogRef.current?.close();
-    setToast(`${ids.length} photo${ids.length === 1 ? '' : 's'} imported.`);
+    const imported = Number(result.imported) || 0;
+    setToast(`${imported} photo${imported === 1 ? '' : 's'} imported.${result.failed ? ` ${result.failed} could not be loaded from Drive.` : ''}`);
     router.refresh();
   }
 
@@ -431,51 +427,6 @@ export default function CategoryAdminClient({
       body: JSON.stringify({ category_id: categoryId, photo_id: photoId, direction })
     });
     if (!res.ok) setToast('Failed to reorder -- try again.');
-    router.refresh();
-  }
-
-  async function applyWatermark(photoId: number, watermarkId: number) {
-    setToast('Adding watermark…');
-    const res = await fetch(`/api/photos/${photoId}/watermark`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ watermark_id: watermarkId })
-    });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to add watermark -- try again.'); return; }
-    setToast('Watermark added.');
-    router.refresh();
-  }
-
-  async function removeWatermark(photoId: number) {
-    const res = await fetch(`/api/photos/${photoId}/watermark`, { method: 'DELETE' });
-    if (!res.ok) { setToast('Failed to remove watermark -- try again.'); return; }
-    setToast('Watermark removed.');
-    router.refresh();
-  }
-
-  // Watermarking is a per-photo re-encode, so this walks the selection one at
-  // a time rather than firing forty requests at once, and says how far it has
-  // got. Each photo that succeeds is saved; a failure part-way through leaves
-  // the earlier ones watermarked and names how many did not make it.
-  async function watermarkSelectedPhotos() {
-    if (selectedPhotoIds.length === 0 || bulkBusy) return;
-    const ids = [...selectedPhotoIds];
-    setBulkBusy(true);
-    let done = 0, failed = 0;
-    for (const id of ids) {
-      setToast(`Adding watermark… ${done + failed + 1} of ${ids.length}`);
-      const res = bulkWatermarkId === ''
-        ? await fetch(`/api/photos/${id}/watermark`, { method: 'DELETE' })
-        : await fetch(`/api/photos/${id}/watermark`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ watermark_id: bulkWatermarkId })
-          });
-      if (res.ok) done++; else failed++;
-    }
-    setBulkBusy(false);
-    const verb = bulkWatermarkId === '' ? 'cleared' : 'watermarked';
-    setToast(failed ? `${done} ${verb}, ${failed} failed. Retry the ones still unchanged.` : `${done} ${verb}.`);
     router.refresh();
   }
 
@@ -810,22 +761,6 @@ export default function CategoryAdminClient({
                 <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Add to category'}
                 </button>
-                {watermarks.length > 0 && (
-                  <>
-                    <select
-                      value={bulkWatermarkId}
-                      onChange={(e) => setBulkWatermarkId(e.target.value === '' ? '' : Number(e.target.value))}
-                      aria-label="Watermark to apply"
-                      style={{ fontSize: 12.5 }}
-                    >
-                      <option value="">Remove watermark</option>
-                      {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
-                    <button className="btn" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={watermarkSelectedPhotos}>
-                      {bulkBusy ? 'Working…' : bulkWatermarkId === '' ? 'Clear watermark' : 'Add watermark'}
-                    </button>
-                  </>
-                )}
                 <button
                   className="btn"
                   disabled={selectedPhotoIds.length < 2 || bulkBusy}
@@ -880,9 +815,6 @@ export default function CategoryAdminClient({
                   onSetThumbnail={setThumbnail}
                   onMove={moveGroup}
                   onCreateTag={createPhotoTag}
-                  watermarks={watermarks}
-                  onApplyWatermark={applyWatermark}
-                  onRemoveWatermark={removeWatermark}
                   dragHandleProps={dragHandleProps(i)}
                   dropTargetProps={dropTargetProps(i)}
                   isDragging={dragIndex === i}
@@ -941,9 +873,6 @@ function PhotoRow({
   selectMode,
   selected,
   onToggleSelect,
-  watermarks,
-  onApplyWatermark,
-  onRemoveWatermark,
   angles = [],
   onUngroup,
   onDetachAngle,
@@ -981,11 +910,6 @@ function PhotoRow({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
-  /** Not offered on the dedicated Cover Photo section -- a watermark only
-      ever applies to the "photo" variant, never the separate cover crop. */
-  watermarks?: { id: number; name: string }[];
-  onApplyWatermark?: (id: number, watermarkId: number) => void;
-  onRemoveWatermark?: (id: number) => void;
   /** The other photos of this stone, shown inside this card instead of as
       cards of their own. */
   angles?: Photo[];
@@ -1314,23 +1238,6 @@ function PhotoRow({
           {!hideMoveControls && <button onClick={() => onMove(photo.id, 'right')} disabled={index === total - 1}>&rarr;</button>}
         </div>
         {cropControls}
-        {watermarks && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-            <select
-              value={photo.watermarkId || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (!value) onRemoveWatermark?.(photo.id);
-                else onApplyWatermark?.(photo.id, Number(value));
-              }}
-              style={{ fontSize: 11.5 }}
-              aria-label="Watermark"
-            >
-              <option value="">No watermark</option>
-              {watermarks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          </div>
-        )}
         {tagChips}
         {fieldPicker}
         <input
