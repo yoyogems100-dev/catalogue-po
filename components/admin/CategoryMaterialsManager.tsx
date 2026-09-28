@@ -106,7 +106,7 @@ export default function CategoryMaterialsManager({
       <section className="shape-reference-manager" aria-labelledby="materials-shapes-title">
         <div className="shape-reference-manager-head">
           <h3 id="materials-shapes-title">Shapes &amp; sizes</h3>
-          <p>Only this category uses these shapes. Tap a name to rename it. The photo shows beside the shape in the buyer&rsquo;s dropdown.</p>
+          <p>Only this category uses these shapes. Tap a name to rename it. Type a size (e.g. 6 or 8x8) and press Enter to add it; &times; removes it. The photo shows beside the shape in the buyer&rsquo;s dropdown.</p>
         </div>
         <div className="shape-reference-admin-grid">
           {shapes.map((shape) => (
@@ -121,6 +121,7 @@ export default function CategoryMaterialsManager({
                   ? <InlineName value={shape.name} what="shape" onSave={(name) => call({ action: 'rename_shape', id: shape.id, name }, 'Shape renamed.')} />
                   : <strong>{shape.name}</strong>}
                 <div className="materials-size-chips">
+                  <span className="materials-size-label">Sizes</span>
                   {sizes.filter((s) => s.shapeId === shape.id).map((s) => (
                     <span className="materials-size-chip" key={s.id}>
                       {s.sizeMm} mm
@@ -138,6 +139,12 @@ export default function CategoryMaterialsManager({
                     </form>
                   )}
                 </div>
+                <span>{(() => {
+                  const n = sizes.filter((s) => s.shapeId === shape.id).length;
+                  return n === 0 ? 'No size yet: buyers can\u2019t order this shape.'
+                    : n === 1 ? 'One size: buyers get it automatically, read-only.'
+                    : `${n} sizes: buyers choose from a dropdown.`;
+                })()}</span>
               </div>
               <div className="shape-reference-admin-actions">
                 <label className="shape-reference-upload">

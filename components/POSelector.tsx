@@ -547,15 +547,20 @@ export default function POSelector({
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
+              // A shape that comes in just one size shows that size, already
+              // chosen and read-only -- there is nothing to pick.
+              locked={sizeOptions.length === 1}
               placeholder={
                 pickShapeIds.length === 0
                   ? 'Pick a shape first'
                   : sizeOptions.length === 0
                   ? 'No common size for these shapes'
+                  : sizeOptions.length === 1
+                  ? 'Size'
                   : 'Choose size(s)'
               }
             />
-            {pickShapeIds.length > 0 && (
+            {pickShapeIds.length > 0 && sizeOptions.length > 1 && (
               <div className="po-range-row">
                 <input
                   type="text"
