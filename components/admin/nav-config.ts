@@ -4,7 +4,13 @@
 // The side pane switches between them; the hub pages list the same groups.
 
 export type NavLink = { href: string; label: string; detail?: string };
-export type NavGroup = { title: string; links: NavLink[] };
+/**
+ * One entry in the side pane. A group with a single link and no `list` shows
+ * as that plain link; anything bigger is a drill-down: tap it and the pane
+ * slides to its links. `list` adds every category to that drill-down, so the
+ * whole catalogue sits behind one entry instead of crowding the pane.
+ */
+export type NavGroup = { title: string; links: NavLink[]; list?: 'po-categories' | 'site-categories' };
 export type Workspace = { key: 'site' | 'po'; label: string; viewHref: string; viewLabel: string; groups: NavGroup[] };
 
 export const OVERVIEW: NavLink = { href: '/admin', label: 'Overview' };
@@ -24,17 +30,23 @@ export const WORKSPACES: Workspace[] = [
         ]
       },
       {
-        title: 'Content',
+        title: 'Categories',
+        list: 'site-categories',
         links: [
-          { href: '/admin/site', label: 'Website home' },
-          { href: '/admin/site/pages', label: 'Pages & settings', detail: 'Home, About, Quality, How to order, Contact, and site-wide contact details, footer and search settings.' },
-          { href: '/admin/site/categories', label: 'Categories', detail: 'The website categories and sub-categories: order, visibility, page text, photos and filters.' },
+          { href: '/admin/site/categories', label: 'All categories', detail: 'The website categories and sub-categories: order, visibility, page text, photos and filters.' }
+        ]
+      },
+      {
+        title: 'Photos',
+        links: [
           { href: '/admin/site/media', label: 'Photos & images', detail: 'Every website picture. The website’s own copies, separate from the /po photos.' }
         ]
       },
       {
-        title: 'Reference',
+        title: 'Pages & content',
         links: [
+          { href: '/admin/site', label: 'Website home' },
+          { href: '/admin/site/pages', label: 'Pages & settings', detail: 'Home, About, Quality, How to order, Contact, and site-wide contact details, footer and search settings.' },
           { href: '/admin/site/grades', label: 'Grades', detail: 'A, 3A, 5A, 7A, High Density Swiss: names, order and explanations.' },
           { href: '/admin/site/faqs', label: 'FAQ', detail: 'Questions and answers on the FAQ page: add, edit, reorder, hide or delete.' }
         ]
@@ -48,23 +60,33 @@ export const WORKSPACES: Workspace[] = [
     viewLabel: 'View /po',
     groups: [
       {
-        title: 'Orders & buyers',
+        title: 'Orders',
         links: [
-          { href: '/admin/orders', label: 'Orders', detail: 'Purchase orders and quotation requests: prices, status, payment, PDFs.' },
-          { href: '/admin/customers', label: 'Customers', detail: 'Buyer accounts, their orders, usual picks and colour buttons.' },
-          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' }
+          { href: '/admin/orders', label: 'Orders', detail: 'Purchase orders and quotation requests: prices, status, payment, PDFs.' }
         ]
       },
       {
-        title: 'Catalogue',
+        title: 'Categories',
+        list: 'po-categories',
         links: [
-          { href: '/admin/categories', label: 'Categories & photos', detail: 'Add or rename /po categories, arrange their order, choose covers and manage their photos.' },
-          { href: '/admin/photos', label: 'Upload photos', detail: 'Upload or import photos into /po categories.' },
+          { href: '/admin/categories', label: 'All categories', detail: 'Add or rename /po categories, arrange their order, choose covers and manage their photos.' },
+          { href: '/admin/photos', label: 'Upload photos', detail: 'Upload or import photos into /po categories.' }
+        ]
+      },
+      {
+        title: 'Catalogue data',
+        links: [
           { href: '/admin/shapes', label: 'Shapes & sizes', detail: 'Shapes and sizes available in the catalogue.' },
           { href: '/admin/colors', label: 'Colours', detail: 'Colour names, swatches and reference photos.' },
-          { href: '/admin/tags', label: 'Tags & specifications', detail: 'Labels used to describe and filter products.' },
           { href: '/admin/pricing', label: 'Pricing', detail: 'Catalogue prices and pricing settings.' },
           { href: '/admin/bulk-link', label: 'Bulk link', detail: 'Link many shapes, sizes or colours to categories at once.' }
+        ]
+      },
+      {
+        title: 'Buyers & suppliers',
+        links: [
+          { href: '/admin/customers', label: 'Customers', detail: 'Buyer accounts, their orders, usual picks and colour buttons.' },
+          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' }
         ]
       },
       {
@@ -79,6 +101,19 @@ export const WORKSPACES: Workspace[] = [
     ]
   }
 ];
+
+/** The pages inside one /po category, in the order of its tabs (Strip counts is Rainbow Corundum only). */
+export function poCategoryPages(id: number): NavLink[] {
+  const base = `/admin/categories/${id}`;
+  return [
+    { href: `${base}?tab=photos`, label: 'Photos' },
+    { href: `${base}?tab=shapes`, label: 'Shapes & sizes' },
+    { href: `${base}?tab=colors`, label: 'Colours' },
+    { href: `${base}?tab=pricing`, label: 'Pricing' },
+    { href: `${base}?tab=suppliers`, label: 'Suppliers' },
+    ...(id === 29 ? [{ href: `${base}?tab=strip-counts`, label: 'Strip counts' }] : [])
+  ];
+}
 
 const ALL: NavLink[] = [OVERVIEW, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
 

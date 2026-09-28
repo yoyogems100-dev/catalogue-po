@@ -10,7 +10,7 @@ import AutoSubmitField from '@/components/admin/AutoSubmitField';
 import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 // (searchParams usage likely already forces this dynamic, but making it
 // explicit removes any doubt.)
 export const dynamic = 'force-dynamic';

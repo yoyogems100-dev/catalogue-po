@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import BinRowActions from './BinRowActions';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 function fmt(iso: string | null) {

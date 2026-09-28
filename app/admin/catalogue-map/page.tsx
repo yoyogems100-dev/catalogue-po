@@ -4,7 +4,7 @@ import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons } from '@/lib/color-family
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences } from '@/lib/customer-preferences';
 import CatalogueMapClient, { type Tab } from './CatalogueMapClient';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 const TABS: Tab[] = ['buttons', 'colour', 'size', 'materials', 'preview'];
