@@ -12,7 +12,7 @@ test('category validation requires configured counts, canonical colors and expli
  process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://example.supabase.co';process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'synthetic-test-key';
  const {validateOrderSpecs}=await import('../lib/validate-order-specs');
  const rows:any={shape_sizes:[{id:10,shape_id:2}],category_shape_sizes:[{category_id:29,shape_size_id:10},{category_id:20,shape_size_id:10}],category_shapes:[{category_id:29,shape_id:2},{category_id:20,shape_id:2}],category_colors:[{category_id:29,color_id:4},{category_id:20,color_id:4}],colors:[{id:4,name:'Blue'}],rainbow_strip_options:[{category_id:29,shape_size_id:10,allowed_counts:[56,100]}]};
- const database={from(name:string){let data=rows[name];const q:any={select(){return q},eq(k:string,v:any){data=data.filter((r:any)=>r[k]===v);return q},in(k:string,v:any[]){data=data.filter((r:any)=>v.includes(r[k]));return q},maybeSingle(){return Promise.resolve({data:data[0]||null,error:null})},then(resolve:any){return Promise.resolve({data,error:null}).then(resolve)}};return q;}};
+ const database={from(name:string){let data=rows[name];const q:any={select(){return q},eq(k:string,v:any){data=data.filter((r:any)=>r[k]===v);return q},in(k:string,v:any[]){data=data.filter((r:any)=>v.includes(r[k]));return q},limit(n:number){data=data.slice(0,n);return q},maybeSingle(){return Promise.resolve({data:data[0]||null,error:null})},then(resolve:any){return Promise.resolve({data,error:null}).then(resolve)}};return q;}};
  const line:any={categoryId:29,shapeId:2,sizeId:10,colorId:null,qty:200,orderSpecs:{kind:'rainbow',colorMode:'custom',stonesPerStrip:100,colors:[{id:4,name:'Untrusted name'}]}};
  const [saved]=await validateOrderSpecs([line],database);assert.equal(saved.colorId,null);assert.equal(saved.orderSpecs.colors[0].name,'Blue');
  await assert.rejects(validateOrderSpecs([{...line,orderSpecs:undefined}],database));
@@ -32,7 +32,7 @@ test('an ordinary category (not Moissanite/Rainbow/Hole-Punched) still verifies 
   category_shapes:[{category_id:1,shape_id:2}],
   category_colors:[{category_id:1,color_id:4}]
  };
- const database={from(name:string){let data=rows[name]||[];const q:any={select(){return q},eq(k:string,v:any){data=data.filter((r:any)=>r[k]===v);return q},in(k:string,v:any[]){data=data.filter((r:any)=>v.includes(r[k]));return q},maybeSingle(){return Promise.resolve({data:data[0]||null,error:null})},then(resolve:any){return Promise.resolve({data,error:null}).then(resolve)}};return q;}};
+ const database={from(name:string){let data=rows[name]||[];const q:any={select(){return q},eq(k:string,v:any){data=data.filter((r:any)=>r[k]===v);return q},in(k:string,v:any[]){data=data.filter((r:any)=>v.includes(r[k]));return q},limit(n:number){data=data.slice(0,n);return q},maybeSingle(){return Promise.resolve({data:data[0]||null,error:null})},then(resolve:any){return Promise.resolve({data,error:null}).then(resolve)}};return q;}};
  const line:any={categoryId:1,shapeId:2,sizeId:10,colorId:4,qty:50};
  // A genuinely linked shape+size+color combo is accepted unchanged.
  assert.deepEqual((await validateOrderSpecs([line],database))[0],line);
@@ -43,6 +43,13 @@ test('an ordinary category (not Moissanite/Rainbow/Hole-Punched) still verifies 
  await assert.rejects(validateOrderSpecs([{...line,sizeId:11}],database));
  // A color never linked to this category is rejected.
  await assert.rejects(validateOrderSpecs([{...line,colorId:99}],database));
+ // A category that lists which materials each shape+size comes in (Semi
+ // Precious Beads) only accepts a listed pair; every other category, with no
+ // such list, is unaffected (checked above).
+ rows.category_colors.push({category_id:1,color_id:5});
+ rows.category_size_colors=[{category_id:1,shape_size_id:10,color_id:4}];
+ assert.deepEqual((await validateOrderSpecs([line],database))[0],line);
+ await assert.rejects(validateOrderSpecs([{...line,colorId:5}],database),/not offered in the chosen material/);
  // A null sizeId (free-text custom size range) skips the size check but still
  // requires the shape and color to be linked.
  const custom={...line,sizeId:null};

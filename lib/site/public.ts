@@ -66,8 +66,8 @@ export const getNavTree = cache(async (): Promise<NavCategory[]> => {
 /** A row of real shape and colour photos for the charts teaser. */
 export const getChartTeaser = cache(async () => {
   const [{ data: shapes }, { data: colors }] = await Promise.all([
-    supabasePublic.from('shapes').select('id, name, ref_photo_url').not('ref_photo_url', 'is', null).order('sort_order').limit(14),
-    supabasePublic.from('colors').select('id, name, ref_photo_url').not('ref_photo_url', 'is', null).order('sort_order').limit(60)
+    supabasePublic.from('shapes').select('id, name, ref_photo_url').is('owner_category_id', null).not('ref_photo_url', 'is', null).order('sort_order').limit(14),
+    supabasePublic.from('colors').select('id, name, ref_photo_url').is('owner_category_id', null).not('ref_photo_url', 'is', null).order('sort_order').limit(60)
   ]);
   // One swatch per colour name (the same colour exists per material).
   const seen = new Set<string>();

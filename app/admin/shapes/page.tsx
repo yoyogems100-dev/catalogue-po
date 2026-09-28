@@ -18,7 +18,7 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
   // active, so fetch just that one category's rows instead of paging
   // through the whole table on every visit to this page.
   const [{ data: shapes }, { data: sizes }, { data: categories }, { data: catShapes }, {data: catSizes }] = await Promise.all([
-    supabaseAdmin.from('shapes').select('id, name, sort_order, icon_key, ref_photo_url').order('sort_order').order('name'),
+    supabaseAdmin.from('shapes').select('id, name, sort_order, icon_key, ref_photo_url').is('owner_category_id', null).order('sort_order').order('name'),
     fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
       supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).order('id').range(from, to)
     ),

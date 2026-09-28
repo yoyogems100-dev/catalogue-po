@@ -1,5 +1,6 @@
 import { photoUrl } from '@/lib/photos';
 import { supabasePublic } from '@/lib/supabase-public';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { getSettings } from '@/lib/settings';
 import { getAccountState } from '@/lib/account-state';
 import { getCategoryPricing } from '@/lib/pricing';
@@ -15,17 +16,21 @@ export const revalidate = 30;
 async function getCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug, color_chart_url, price_unit')
+    .select('id, num, name, slug, color_chart_url, price_unit, option_label')
     .eq('slug', slug)
     .single();
 
   if (!category) return null;
 
-  const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedTagIds }, { data: linkedSizeIds }] = await Promise.all([
+  const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedTagIds }, { data: linkedSizeIds }, { data: sizeColorRows }] = await Promise.all([
     supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_tags').select('tag_id').eq('category_id', category.id),
-    supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id)
+    supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id),
+    // Which colours/materials each shape+size carries -- only set for
+    // categories like Semi Precious Beads; empty means any with any.
+    fetchAllRows<{ shape_size_id: number; color_id: number }>((from, to) =>
+      supabasePublic.from('category_size_colors').select('shape_size_id, color_id', { count: 'exact' }).eq('category_id', category.id).range(from, to))
   ]);
 
   const shapeIds = (linkedShapeIds || []).map((r: any) => r.shape_id);
@@ -104,7 +109,8 @@ async function getCategoryData(slug: string) {
     sizes: sizes || [],
     photos: photosWithUrl,
     colorPalettes,
-    pricing
+    pricing,
+    sizeColors: (sizeColorRows || []).map((r) => [r.shape_size_id, r.color_id] as [number, number])
   };
 }
 
@@ -148,6 +154,8 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           colorPalettes={data.colorPalettes}
           loggedIn={account.loggedIn}
           pricing={data.pricing}
+          optionLabel={(data.category as any).option_label ?? null}
+          sizeColors={data.sizeColors}
         />
       </div>
       <Footer settings={settings} />

@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function BulkLinkPage() {
   const [{ data: shapes }, { data: colors }, { data: categories }, { data: colorPalettesRaw }, { data: colorPaletteItems }] = await Promise.all([
-    supabaseAdmin.from('shapes').select('id, name').order('sort_order').order('name'),
-    supabaseAdmin.from('colors').select('id, name, hex_value').order('sort_order').order('name'),
+    supabaseAdmin.from('shapes').select('id, name').is('owner_category_id', null).order('sort_order').order('name'),
+    supabaseAdmin.from('colors').select('id, name, hex_value').is('owner_category_id', null).order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     supabaseAdmin.from('color_palettes').select('id, name').order('sort_order').order('name'),
     supabaseAdmin.from('color_palette_items').select('palette_id, color_id')

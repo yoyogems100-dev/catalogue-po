@@ -35,7 +35,9 @@ export default function CategoryTabs({
   colorPalettes,
   loggedIn,
   pricing,
-  priceUnit
+  priceUnit,
+  optionLabel,
+  sizeColors
 }: {
   categoryId: number;
   categoryName: string;
@@ -52,6 +54,10 @@ export default function CategoryTabs({
   /** What one unit of price buys in this category -- "piece" unless the
       category says otherwise (Rainbow Corundum is priced per strip). */
   priceUnit?: string | null;
+  /** What the "Color" field is called here ("Material" for Semi Precious Beads). */
+  optionLabel?: string | null;
+  /** [shape_size_id, color_id] pairs this category offers; empty = any with any. */
+  sizeColors?: [number, number][];
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
 
@@ -95,6 +101,8 @@ export default function CategoryTabs({
           colorChartUrl={colorChartUrl}
           loggedIn={loggedIn}
           active={tab === 'order'}
+          optionLabel={optionLabel}
+          sizeColors={sizeColors}
         />
         </div>
       {tab === 'photos' && (
@@ -109,6 +117,7 @@ export default function CategoryTabs({
           photos={photos}
           pricing={pricing}
           priceUnit={priceUnit}
+          optionLabel={optionLabel}
           onRaiseOrder={() => setTab('order')}
         />
         </div>

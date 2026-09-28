@@ -27,7 +27,9 @@ export default function ColorSwatch({
   // taller depending on the cut), so `contain` -- not `100% 100%` -- is
   // required: forcing a non-square photo to fill a square box stretches it,
   // visibly squashing the stone.
-  const isCleanCutout = refPhotoUrl?.includes('/pearl-colors/') || refPhotoUrl?.includes('/reference/colors/');
+  // Material photos (Semi Precious Beads) are a whole bead, shown like the
+  // shape pictures rather than zoomed into a colour circle.
+  const isCleanCutout = refPhotoUrl?.includes('/pearl-colors/') || refPhotoUrl?.includes('/reference/colors/') || refPhotoUrl?.includes('/material-refs/');
   const displaySize = isCleanCutout ? Math.max(size, 28) : size;
   return (
     <span

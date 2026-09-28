@@ -44,6 +44,17 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
     if(size.error)throw Error('Could not validate category options. Please retry.');
     if(!size.data||size.data.shape_id!==item.shapeId)throw Error('Choose a size that matches the selected shape.');
    }
+   // Categories that list which colours/materials each shape+size comes in
+   // (Semi Precious Beads) only accept those pairs.
+   if(item.sizeId!==null&&item.colorId!==null) {
+    const pair=await database.from('category_size_colors').select('color_id').eq('category_id',item.categoryId).eq('shape_size_id',item.sizeId).eq('color_id',item.colorId).maybeSingle();
+    if(pair.error)throw Error('Could not validate category options. Please retry.');
+    if(!pair.data) {
+     const listed=await database.from('category_size_colors').select('color_id').eq('category_id',item.categoryId).limit(1);
+     if(listed.error)throw Error('Could not validate category options. Please retry.');
+     if(listed.data?.length)throw Error('This shape and size is not offered in the chosen material. Please choose again.');
+    }
+   }
    result.push(canonical?{...item,orderSpecs:canonical}:item);continue;
   }
   const spec=item.orderSpecs;

@@ -57,7 +57,9 @@ export default function POSelector({
   loggedIn = false,
   active = true,
   pricing,
-  priceUnit
+  priceUnit,
+  optionLabel,
+  sizeColors
 }: {
   categoryId: number;
   categoryName: string;
@@ -72,6 +74,11 @@ export default function POSelector({
   colorPalettes?: ColorPalette[];
   pricing?: CategoryPricing;
   priceUnit?: string | null;
+  /** What the "Color" field is called here ("Material" for Semi Precious Beads). */
+  optionLabel?: string | null;
+  /** [shape_size_id, color_id] pairs this category offers. Empty means every
+      colour comes in every size, the rule for every other category. */
+  sizeColors?: [number, number][];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -185,6 +192,38 @@ export default function POSelector({
     [sizesForShapes]
   );
 
+  const label = optionLabel || 'Color';
+  const lowerLabel = label.toLowerCase();
+  // Categories like Semi Precious Beads list which materials each shape+size
+  // comes in; there the buyer picks shape and size first, and only sees the
+  // materials those carry.
+  const allowedBySize = useMemo(() => {
+    if (!sizeColors?.length) return null;
+    const map = new Map<number, Set<number>>();
+    sizeColors.forEach(([sizeId, colorId]) => {
+      if (!map.has(sizeId)) map.set(sizeId, new Set());
+      map.get(sizeId)!.add(colorId);
+    });
+    return map;
+  }, [sizeColors]);
+  const comboAllowed = (sizeId: number, colorId: number) => !allowedBySize || !!allowedBySize.get(sizeId)?.has(colorId);
+  const colorOptions = useMemo(() => {
+    if (!allowedBySize) return colors;
+    if (pickShapeIds.length === 0) return [];
+    const sizeIds = pickSizeIdxs.length
+      ? pickSizeIdxs.flatMap((i) => sizesForShapes[i]?.rows.map((r) => r.id) || [])
+      : sizes.filter((sz) => pickShapeIds.includes(sz.shape_id)).map((sz) => sz.id);
+    const offered = new Set(sizeIds.flatMap((id) => [...(allowedBySize.get(id) || [])]));
+    return colors.filter((c) => offered.has(c.id));
+  }, [allowedBySize, colors, pickShapeIds, pickSizeIdxs, sizesForShapes, sizes]);
+  // A material picked for one shape/size drops out when the buyer switches
+  // to one that doesn't come in it, rather than lingering unseen.
+  useEffect(() => {
+    if (!allowedBySize) return;
+    const offered = new Set(colorOptions.map((c) => c.id));
+    setPickColorIds((cur) => (cur.every((id) => offered.has(id)) ? cur : cur.filter((id) => offered.has(id))));
+  }, [allowedBySize, colorOptions]);
+
   function applyRange() {
     const min = parseFloat(rangeMin);
     const max = parseFloat(rangeMax);
@@ -224,7 +263,16 @@ export default function POSelector({
   // required to send one. A purchase still needs one.
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
     && (isQuotation || qtyNum > 0) && (grades.length === 0 || grades.includes(pickGrade));
-  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
+  const comboCount = useMemo(() => {
+    if (!allowedBySize) return pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
+    let n = 0;
+    for (const shapeId of pickShapeIds) for (const sizeIdx of pickSizeIdxs) {
+      const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+      if (match) n += pickColorIds.filter((colorId) => comboAllowed(match.id, colorId)).length;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedBySize, pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes]);
 
   const pricingByCategory = useMemo(
     () => ({ ...otherPricing, ...(pricing ? { [categoryId]: pricing } : {}) }),
@@ -242,6 +290,7 @@ export default function POSelector({
         const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
         if (!match) continue;
         for (const colorId of pickColorIds) {
+          if (!comboAllowed(match.id, colorId)) continue;
           if (cartLinePrice(pricingByCategory, { categoryId, shapeId, sizeId: match.id, colorId }) === null) return true;
         }
       }
@@ -260,6 +309,7 @@ export default function POSelector({
         const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
         if (!match) continue;
         for (const colorId of pickColorIds) {
+          if (!comboAllowed(match.id, colorId)) continue;
           const p = cartLinePrice(pricingByCategory, { categoryId, shapeId, sizeId: match.id, colorId });
           if (p === null) return null;
           prices.push(p);
@@ -353,7 +403,7 @@ export default function POSelector({
 
   function addLine() {
     if (!canAdd) {
-      setToast(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick at least one shape, color and size, and enter quantity first.');
+      setToast(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : `Pick at least one shape, ${lowerLabel} and size, and enter quantity first.`);
       return;
     }
 
@@ -370,6 +420,7 @@ export default function POSelector({
           const group = sizesForShapes[sizeIdx];
           const match = group?.rows.find((r) => r.shape_id === shapeId);
           if (!match) continue; // shouldn't happen -- sizesForShapes is already the cross-shape intersection
+          if (!comboAllowed(match.id, color.id)) continue; // this shape/size doesn't come in this material
 
           const item: CartItem = {
             id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -427,6 +478,22 @@ export default function POSelector({
 
 
 
+  const colorField = (
+    <div>
+      <label className="po-label">{label}{pickColorIds.length > 1 ? 's' : ''}</label>
+      <IconSelect
+        categoryId={categoryId}
+        multiple
+        options={colorOptions}
+        locked={categoryId === 34}
+        values={pickColorIds}
+        onChange={setPickColorIds}
+        placeholder={allowedBySize && pickShapeIds.length === 0 ? 'Pick a shape first' : `Choose ${lowerLabel}(s)`}
+        leading="swatch"
+      />
+    </div>
+  );
+
   return (
     <div className="po-wrap">
       <section className="po-card po-compose-card">
@@ -455,19 +522,7 @@ export default function POSelector({
               </div>
             </div>
           )}
-          <div>
-            <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
-            <IconSelect
-              categoryId={categoryId}
-              multiple
-              options={colors}
-              locked={categoryId === 34}
-              values={pickColorIds}
-              onChange={setPickColorIds}
-              placeholder="Choose color(s)"
-              leading="swatch"
-            />
-          </div>
+          {!allowedBySize && colorField}
           {categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
             <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
@@ -523,6 +578,7 @@ export default function POSelector({
               </div>
             )}
           </div>
+          {allowedBySize && colorField}
           <div>
             <label className="po-label" htmlFor="po-new-quantity">Qty per line (pcs)</label>
             <input

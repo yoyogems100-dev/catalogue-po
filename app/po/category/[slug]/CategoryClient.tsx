@@ -23,6 +23,7 @@ export default function CategoryClient({
   photos,
   pricing,
   priceUnit,
+  optionLabel,
   onRaiseOrder
 }: {
   categoryId: number;
@@ -34,6 +35,7 @@ export default function CategoryClient({
   photos: Photo[];
   pricing?: CategoryPricing;
   priceUnit?: string | null;
+  optionLabel?: string | null;
   onRaiseOrder?: () => void;
 }) {
   const { flags } = useHotSelling();
@@ -122,7 +124,7 @@ export default function CategoryClient({
             </select>
           )}
           {colors.length > 0 && (
-            <IconSelect categoryId={categoryId} options={colors} value={colorFilter} onChange={setColorFilter} allLabel="All colors" leading="swatch" />
+            <IconSelect categoryId={categoryId} options={colors} value={colorFilter} onChange={setColorFilter} allLabel={`All ${(optionLabel || 'Color').toLowerCase()}s`} leading="swatch" />
           )}
           {tags.length > 0 && (
             <select aria-label="Filter by specification" value={tagFilter} onChange={(e) => setTagFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
@@ -166,6 +168,7 @@ export default function CategoryClient({
           sizes={sizes}
           pricing={pricing}
           priceUnit={priceUnit}
+          optionLabel={optionLabel}
           position={{ index: openIndex, total: filtered.length }}
           onClose={closeSheet}
           onStep={stepSheet}

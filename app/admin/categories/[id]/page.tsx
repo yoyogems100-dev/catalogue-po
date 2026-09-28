@@ -8,6 +8,7 @@ import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManager';
 
 // See app/admin/tags/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -26,8 +27,15 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     specifications: 'shapes'
   };
   const raw = (await searchParams).tab || '';
-  const TABS = ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])];
-  const tab = TABS.includes(raw) ? raw : (LEGACY_TABS[raw] || 'photos');
+  // A category with its own field name (Semi Precious Beads: "Material")
+  // keeps its shapes, sizes and materials on one Materials tab instead of the
+  // shared Shapes & sizes and Colors tabs.
+  const { data: head } = await supabaseAdmin.from('categories').select('option_label').eq('id', categoryId).maybeSingle();
+  const optionLabel: string | null = head?.option_label ?? null;
+  const TABS = optionLabel
+    ? ['photos','materials','pricing','suppliers']
+    : ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])];
+  const tab = TABS.includes(raw) ? raw : (optionLabel && ['shapes','colors','color-chart','specifications'].includes(raw) ? 'materials' : (LEGACY_TABS[raw] || 'photos'));
 
   // Only the "Shapes & sizes" tab needs the full, catalogue-wide shape/size
   // lists (to offer shapes/sizes that aren't linked to this category yet) --
@@ -53,10 +61,11 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     { data: otherCategoriesRaw }
   ] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
-    supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
+    // Shared shapes, plus this category's own -- never another category's.
+    supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').or(`owner_category_id.is.null,owner_category_id.eq.${categoryId}`).order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
-    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, icon_key, ref_photo_url)').eq('category_id', categoryId),
-    supabaseAdmin.from('category_colors').select('color_id, colors(id, name, hex_value, ref_photo_url)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, icon_key, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_colors').select('color_id, colors(id, name, hex_value, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
     supabaseAdmin.from('category_tags').select('tag_id, tags(id, name, is_global)').eq('category_id', categoryId),
     supabaseAdmin.from('category_shape_sizes').select('shape_size_id, shape_sizes(id, shape_id, size_mm, weight_ct)').eq('category_id', categoryId),
     needsFullShapeSizeCatalogue
@@ -83,6 +92,26 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   const linkedColorIds = linkedColors.map((c: any) => c.id);
   const linkedTagIds = linkedTags.map((t: any) => t.id);
   const linkedSizeIds = linkedSizes.map((sz: any) => sz.id);
+
+  let materialsPanel: React.ReactNode = null;
+  if (tab === 'materials') {
+    const { data: availability } = await fetchAllRows<{ shape_size_id: number; color_id: number }>((from, to) =>
+      supabaseAdmin.from('category_size_colors').select('shape_size_id, color_id', { count: 'exact' }).eq('category_id', categoryId).range(from, to));
+    const bySort = (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name);
+    const shapeRows = (linkedShapesRaw || []).filter((r: any) => r.shapes).sort((a: any, b: any) => bySort(a.shapes, b.shapes));
+    const shapeOrder = new Map(shapeRows.map((r: any, i: number) => [r.shapes.id, i]));
+    materialsPanel = <CategoryMaterialsManager
+      key={categoryId}
+      categoryId={categoryId}
+      label={optionLabel || 'Color'}
+      shapes={shapeRows.map((r: any) => ({ id: r.shapes.id, name: r.shapes.name, iconKey: r.shapes.icon_key, refPhotoUrl: r.ref_photo_url || r.shapes.ref_photo_url || null, owned: r.shapes.owner_category_id === categoryId }))}
+      sizes={linkedSizes
+        .map((sz: any) => ({ id: sz.id, shapeId: sz.shape_id, sizeMm: sz.size_mm }))
+        .sort((a: any, b: any) => (shapeOrder.get(a.shapeId) ?? 0) - (shapeOrder.get(b.shapeId) ?? 0) || parseFloat(a.sizeMm) - parseFloat(b.sizeMm) || a.sizeMm.localeCompare(b.sizeMm))}
+      materials={linkedColors.slice().sort(bySort).map((c: any) => ({ id: c.id, name: c.name, refPhotoUrl: c.ref_photo_url }))}
+      availability={(availability || []).map((r) => [r.shape_size_id, r.color_id] as [number, number])}
+    />;
+  }
 
   let categorySuppliers: any[] = [];
   if (tab === 'suppliers') {
@@ -133,10 +162,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>
       </div>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
-        {TABS.map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
+        {TABS.map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'materials' ? `${optionLabel || 'Material'}s` : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/po/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
-      {tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
+      {tab === 'materials' ? materialsPanel : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
 
       <CategoryAdminClient
         key={categoryId}
