@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync } from 'node:fs';
-import { BIN, OVERVIEW, WORKSPACES, currentHref, workspaceOf } from '../components/admin/nav-config';
+import { BIN, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
 
 const links = [OVERVIEW, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
 
@@ -31,4 +31,13 @@ test('the most specific link is highlighted', () => {
   assert.equal(currentHref('/admin/content/most-ordered'), '/admin/content/most-ordered');
   assert.equal(currentHref('/admin/orders/9'), '/admin/orders');
   assert.equal(currentHref('/admin'), '/admin');
+});
+
+test('the side pane stays short: a few entries per workspace, the rest drill down', () => {
+  for (const w of WORKSPACES) {
+    assert.ok(w.groups.length <= 5, `${w.label} shows at most 5 entries`);
+    assert.equal(w.groups.filter((g) => g.list).length, 1, `${w.label} has one Categories drill-down`);
+  }
+  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes & sizes', 'Colours', 'Pricing', 'Suppliers']);
+  assert.ok(poCategoryPages(29).some((l) => l.href === '/admin/categories/29?tab=strip-counts'), 'Rainbow Corundum has Strip counts');
 });

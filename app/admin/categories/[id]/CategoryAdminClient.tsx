@@ -5,7 +5,6 @@ import type { HTMLAttributes } from 'react';
 import { useRouter } from 'next/navigation';
 import PhotoCropEditor from '@/components/admin/PhotoCropEditor';
 import type { SavedCrop } from '@/lib/photo-crop';
-import MultiSelect from '@/components/MultiSelect';
 import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
@@ -110,7 +109,6 @@ export default function CategoryAdminClient({
   const [uploadAsGroup, setUploadAsGroup] = useState(false);
   const [angleBusyId, setAngleBusyId] = useState<number | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
   const [driveText, setDriveText] = useState('');
   const [driveDialogOpen, setDriveDialogOpen] = useState(false);
   const driveDialogRef = useRef<HTMLDialogElement>(null);
@@ -208,22 +206,6 @@ export default function CategoryAdminClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_id: categoryId, shape_id: shapeId, shape_size_ids: sizeIds })
     });
-    router.refresh();
-  }
-
-  async function createTag(global: boolean) {
-    if (!newTagName.trim()) return;
-    // Always pass categoryId -- a tag created while looking at a category
-    // should be linked here regardless of whether it's also global (usable
-    // elsewhere) or category-specific (usable only here).
-    const res = await fetch('/api/tags', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newTagName, is_global: global, category_id: categoryId })
-    });
-    if (!res.ok) { setToast('Failed to add specification -- try again.'); return; }
-    setNewTagName('');
-    setToast('Specification added.');
     router.refresh();
   }
 
@@ -541,8 +523,7 @@ export default function CategoryAdminClient({
       label: 'Size',
       count: linkedSizes.length,
       text: linkedSizes.map((sz) => `${sz.size_mm}mm (${linkedShapes.find((s) => s.id === sz.shape_id)?.name || '—'})`).join(', ')
-    },
-    { key: 'tags', label: 'Specification', count: linkedTags.length, text: linkedTags.map((t) => t.name).join(', ') }
+    }
   ];
 
   return (
@@ -602,28 +583,6 @@ export default function CategoryAdminClient({
       {/* The linked shapes themselves, rendered on the server (it reads the
           per-category reference photos) and handed down as a slot. */}
       {section === 'shapes' && shapeReference}
-
-      {/* Specifications sits with Shapes & sizes rather than as a tab of its
-          own: it is one more product attribute, and a tab holding a single
-          picker was not worth the click. */}
-      {section === 'shapes' && (
-        <section id="category-options" style={{ marginBottom: 24 }}>
-          <h3 className="section-label">Specifications</h3>
-          <MultiSelect
-            categoryId={categoryId}
-            optionKind="tag"
-            options={allTags.map((t) => ({ id: t.id, name: t.name }))}
-            selectedIds={linkedTagIds}
-            onToggle={(id, active) => toggleLink('tag', id, active)}
-            placeholder="No specifications selected"
-          />
-          <div className="tag-create-row">
-            <input type="text" placeholder="New specification" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} style={{ fontSize: 12.5 }} />
-            <button className="btn-ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(false)}>Here only</button>
-            <button className="btn" style={{ fontSize: 11, whiteSpace: 'nowrap' }} onClick={() => createTag(true)}>Global</button>
-          </div>
-        </section>
-      )}
 
       {section === 'photos' && (
         <>

@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import ShapesClient from './ShapesClient';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function ShapesPage({ searchParams }: { searchParams: Promise<{category?: string}> }) {

@@ -2,6 +2,7 @@ import CategoryColorChart from '@/components/admin/CategoryColorChart';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
+import CategoryTagBar from '@/components/admin/CategoryTagBar';
 import CategoryAdminClient from './CategoryAdminClient';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
@@ -9,7 +10,7 @@ import PricingClient from '../../pricing/PricingClient';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function CategoryAdminPage({ params: paramsPromise, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
@@ -136,6 +137,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         {TABS.map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
         <Link href={`/po/category/${category.slug}`} target="_blank">View public category ↗</Link>
       </nav>
+      <CategoryTagBar categoryId={categoryId} tags={linkedTags.map((t: any) => ({ id: t.id, name: t.name }))} allTags={(allTags || []).map((t: any) => ({ id: t.id, name: t.name }))} />
       {tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
 
       <CategoryAdminClient

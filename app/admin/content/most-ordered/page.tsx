@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { MOST_ORDERED_SETTING_KEY, parseMostOrdered } from '@/lib/most-ordered';
 import MostOrderedEditor from './MostOrderedEditor';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function MostOrderedPage() {
