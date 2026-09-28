@@ -1582,6 +1582,40 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .shape-reference-upload { position: relative; color: var(--navy); font-size: 10.5px; text-decoration: underline; cursor: pointer; }
 .shape-reference-upload input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .admin-inline-status { margin: 12px 0 0; color: var(--navy); font-size: 12px; }
+
+/* Category-only materials (Semi Precious Beads) */
+.materials-manager { display: grid; gap: 14px; }
+.materials-manager .shape-reference-manager { margin: 0; }
+.materials-manager .shape-reference-admin-grid { max-height: 560px; overflow-y: auto; }
+.materials-shape-row { align-items: start; }
+.materials-name { appearance: none; border: 0; border-bottom: 1px dashed var(--line); padding: 0; background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; text-align: left; overflow-wrap: anywhere; cursor: text; }
+.materials-name:hover { border-bottom-color: var(--gold); }
+.materials-name-input { width: 100%; min-width: 0; padding: 4px 6px; font: inherit; font-size: 13px; }
+.materials-no-photo { display: flex !important; align-items: center; justify-content: center; color: var(--text-dim); font-size: 9px; text-align: center; }
+.materials-size-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.materials-size-chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 7px; border: 1px solid var(--line); background: var(--ivory); color: var(--ink); font-size: 11px; }
+.materials-size-chip button { width: 22px; height: 22px; border: 0; background: none; color: var(--text-dim); font-size: 14px; line-height: 1; cursor: pointer; }
+.materials-size-add input { width: 64px; padding: 3px 6px; font-size: 11px; }
+.materials-size-label { color: var(--text-dim); font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-right: 2px; }
+.materials-link, .materials-link-danger { appearance: none; border: 0; padding: 0; background: none; font: inherit; font-size: 10.5px; text-decoration: underline; cursor: pointer; }
+.materials-link { color: var(--navy); }
+.materials-link-danger { color: #9b2c2c; }
+.materials-add-row { display: flex; gap: 8px; margin-top: 10px; }
+.materials-add-row input { flex: 1; min-width: 0; max-width: 320px; padding: 8px 10px; font-size: 13px; }
+.materials-filter { width: 100%; max-width: 320px; margin-bottom: 8px; padding: 8px 10px; font-size: 13px; }
+.materials-size-pick { width: 100%; max-width: 360px; min-height: 40px; padding: 6px 8px; font-size: 13px; }
+.materials-count { margin: 8px 0; color: var(--text-dim); font-size: 12px; }
+.materials-ticks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.materials-tick { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 9px; border: 1px solid var(--line); background: #fff; color: var(--charcoal); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.materials-tick::before { content: ''; flex: 0 0 14px; height: 14px; border: 1.5px solid #b9b3a3; background: #fff; }
+.materials-tick.on { border-color: var(--navy); background: #eef2f8; color: var(--ink); }
+.materials-tick.on::before { border-color: var(--navy); background: var(--navy) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5l2.5 2.5L11 4.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat; }
+.materials-empty { color: var(--text-dim); font-size: 13px; }
+@media (max-width: 560px) {
+  .materials-ticks { grid-template-columns: 1fr 1fr; }
+  .materials-tick { font-size: 11.5px; padding: 6px 7px; gap: 6px; }
+  .materials-manager .shape-reference-admin-grid { max-height: none; }
+}
 @media (max-width: 560px) {
   .shape-reference-manager { padding: 12px; }
   .shape-reference-admin-grid { grid-template-columns: 1fr; }

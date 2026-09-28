@@ -46,8 +46,8 @@ async function getData() {
     fetchAllRows<{ category_id: number; shape_id: number }>((from, to) => supabasePublic.from('category_shapes').select('category_id, shape_id', { count: 'exact' }).range(from, to)),
     fetchAllRows<{ category_id: number; color_id: number }>((from, to) => supabasePublic.from('category_colors').select('category_id, color_id', { count: 'exact' }).range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabasePublic.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to)),
-    supabasePublic.from('shapes').select('id, name, icon_key').order('sort_order').order('name'),
-    supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name')
+    supabasePublic.from('shapes').select('id, name, icon_key').is('owner_category_id', null).order('sort_order').order('name'),
+    supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').is('owner_category_id', null).order('sort_order').order('name')
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {

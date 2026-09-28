@@ -5,8 +5,8 @@ import { fetchAllRows } from '@/lib/fetch-all-rows';
 export async function loadMediaOptions() {
   const [{ data: cats }, { data: colors }, { data: shapes }, sizes, { data: grades }] = await Promise.all([
     supabaseAdmin.from('site_categories').select('id, name, parent_id, sort_order').order('sort_order'),
-    supabaseAdmin.from('colors').select('id, name').order('sort_order'),
-    supabaseAdmin.from('shapes').select('id, name').order('sort_order'),
+    supabaseAdmin.from('colors').select('id, name').is('owner_category_id', null).order('sort_order'),
+    supabaseAdmin.from('shapes').select('id, name').is('owner_category_id', null).order('sort_order'),
     fetchAllRows<{ id: number; shape_id: number; size_mm: string }>((from, to) =>
       supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm', { count: 'exact' }).range(from, to)),
     supabaseAdmin.from('site_grades').select('id, name').order('sort_order')

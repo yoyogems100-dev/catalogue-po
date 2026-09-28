@@ -39,7 +39,7 @@ test('server accepts a grade only on a category that offers it', async () => {
     category_shapes: [{ category_id: 2, shape_id: 2 }, { category_id: 1, shape_id: 2 }],
     category_colors: [{ category_id: 2, color_id: 4 }, { category_id: 1, color_id: 4 }]
   };
-  const database = { from(name: string) { let data = rows[name] || []; const q: any = { select() { return q; }, eq(k: string, v: any) { data = data.filter((r: any) => r[k] === v); return q; }, maybeSingle() { return Promise.resolve({ data: data[0] || null, error: null }); } }; return q; } };
+  const database = { from(name: string) { let data = rows[name] || []; const q: any = { select() { return q; }, eq(k: string, v: any) { data = data.filter((r: any) => r[k] === v); return q; }, limit(n: number) { return Promise.resolve({ data: data.slice(0, n), error: null }); }, maybeSingle() { return Promise.resolve({ data: data[0] || null, error: null }); } }; return q; } };
   const ruby: any = { categoryId: 2, shapeId: 2, sizeId: 10, colorId: 4, qty: 100, orderSpecs: { kind: 'grade', grade: '7A', extra: 'dropped' } };
   assert.deepEqual((await validateOrderSpecs([ruby], database))[0].orderSpecs, { kind: 'grade', grade: '7A' });
   // Still optional, so screens that don't ask for it keep working.

@@ -46,6 +46,7 @@ export default function ProductSheet({
   sizes,
   pricing,
   priceUnit,
+  optionLabel,
   position,
   onClose,
   onStep,
@@ -61,6 +62,8 @@ export default function ProductSheet({
   pricing?: CategoryPricing;
   /** "piece" unless this category prices by something else (a strip, a pair). */
   priceUnit?: string | null;
+  /** What "Color" is called in this category ("Material" for Semi Precious Beads). */
+  optionLabel?: string | null;
   /** 1-based position in the filtered grid, for "3 of 18" and the arrows. */
   position?: { index: number; total: number };
   onClose: () => void;
@@ -323,7 +326,7 @@ export default function ProductSheet({
               </div>
 
               <div className="ps-field">
-                <label>Color</label>
+                <label>{optionLabel || 'Color'}</label>
                 {colorOffer.fixed ? (
                   <span className="ps-fixed">{colorOffer.fixed.name}</span>
                 ) : (
@@ -333,7 +336,7 @@ export default function ProductSheet({
                     options={colorOffer.options}
                     value={colorId}
                     onChange={setColorId}
-                    allLabel="Select color"
+                    allLabel={`Select ${(optionLabel || 'Color').toLowerCase()}`}
                     leading="swatch"
                     searchable
                   />
