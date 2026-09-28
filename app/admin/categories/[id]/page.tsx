@@ -4,6 +4,7 @@ import { photoUrl } from '@/lib/photos';
 import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
 import CategoryTagBar from '@/components/admin/CategoryTagBar';
 import CategoryAdminClient from './CategoryAdminClient';
+import CategoryArchiveToggle from '@/components/admin/CategoryArchiveToggle';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
@@ -61,7 +62,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     fullSizesResult,
     { data: otherCategoriesRaw }
   ] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url, archived_at').eq('id', categoryId).single(),
     // Shared shapes, plus this category's own -- never another category's.
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').or(`owner_category_id.is.null,owner_category_id.eq.${categoryId}`).order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
@@ -157,14 +158,16 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   return (
     <>
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
-      <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}</h1>
+      <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}{category.archived_at && <span className="admin-archived-pill">Archived</span>}</h1>
+      {category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={category.archived_at} />}
       <div className="category-downloads">
         <a className="btn-ghost size-chart-download" href={`/api/admin/pricing/pdf?category_id=${categoryId}`}>Download price list</a>
-        <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>
+        {!category.archived_at && <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>}
+        {!category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={null} />}
       </div>
       <nav className="admin-coverage-filters" aria-label="Category workspace">
         {TABS.map(key => <Link key={key} className={`tag-chip ${tab === key ? 'active' : ''}`} href={`/admin/categories/${categoryId}?tab=${key}`} aria-current={tab === key ? 'page' : undefined}>{key === 'strip-counts' ? 'Strip counts' : key === 'materials' ? `${optionLabel || 'Material'}s` : key === 'shapes' ? 'Shapes & sizes' : key[0].toUpperCase() + key.slice(1)}</Link>)}
-        <Link href={`/po/category/${category.slug}`} target="_blank">View public category ↗</Link>
+        {!category.archived_at && <Link href={`/po/category/${category.slug}`} target="_blank">View public category ↗</Link>}
       </nav>
       <CategoryTagBar categoryId={categoryId} tags={linkedTags.map((t: any) => ({ id: t.id, name: t.name }))} allTags={(allTags || []).map((t: any) => ({ id: t.id, name: t.name }))} />
       {tab === 'materials' ? materialsPanel : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>

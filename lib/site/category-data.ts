@@ -85,6 +85,11 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     fetchAllRows<any>((f, t) => supabasePublic.from('category_colors').select('category_id, color_id', { count: 'exact' }).in('category_id', catIds).range(f, t)),
     fetchAllRows<any>((f, t) => supabasePublic.from('category_shape_sizes').select('category_id, shape_size_id', { count: 'exact' }).in('category_id', catIds).range(f, t))
   ]) : [none, none, none, none];
+  // An archived catalogue category is absent from catRows (the public read
+  // policy hides it) but its join rows are still readable -- drop them so its
+  // shapes, sizes and colours leave the website page with it.
+  const liveCatIds = new Set((catRows.data || []).map((c: any) => c.id));
+  for (const rows of [catShapes, catColors, catSizes]) rows.data = (rows.data || []).filter((r: any) => liveCatIds.has(r.category_id));
 
   const shapeIds = [...new Set((catShapes.data || []).map((r: any) => r.shape_id))];
   const allowedColor = (catId: number, colorId: number) => sources.some((s) => s.category_id === catId && (!s.color_ids || s.color_ids.includes(colorId)));
@@ -198,7 +203,7 @@ async function load(parentSlug: string | null, slug: string): Promise<CategoryPa
     sizeChart,
     colourCharts: (catRows.data || []).filter((c: any) => c.color_chart_url).map((c: any) => ({ src: c.color_chart_url, name: c.name })),
     photos: pagePhotos,
-    sourceCount: catIds.length
+    sourceCount: liveCatIds.size
   };
 }
 

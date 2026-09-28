@@ -50,6 +50,18 @@ export async function POST(req: NextRequest) {
   // never trusted from the client -- a cart can span multiple categories, so
   // pricing is fetched once per distinct category present.
   const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))];
+
+  // A cart saved on the device can outlive a category the team has since
+  // archived; ask the buyer to remove those lines rather than accept them.
+  const { data: archivedInCart } = await supabaseAdmin
+    .from('categories').select('name').in('id', distinctCategoryIds).not('archived_at', 'is', null);
+  if (archivedInCart?.length) {
+    const names = archivedInCart.map((c: { name: string }) => c.name).join(', ');
+    return NextResponse.json(
+      { error: `${names} ${archivedInCart.length === 1 ? 'is' : 'are'} no longer in the catalogue. Please remove ${archivedInCart.length === 1 ? 'it' : 'them'} from your requirement and send again.` },
+      { status: 400 }
+    );
+  }
   const pricingByCategory = new Map(
     await Promise.all(distinctCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
   );

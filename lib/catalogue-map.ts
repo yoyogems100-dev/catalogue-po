@@ -137,7 +137,12 @@ export async function loadCatalogueMap(db: any): Promise<CatalogueMap> {
   (catColors || []).forEach((r) => push(colorsOf, r.category_id, r.color_id));
   (catShapes || []).forEach((r) => push(shapesOf, r.category_id, r.shape_id));
   (catSizes || []).forEach((r) => push(sizesOf, r.category_id, r.shape_size_id));
-  (materialLinksRes?.data || []).forEach((r: { material_id: number; category_id: number }) => push(categoriesOf, r.material_id, r.category_id));
+  // With the public client, archived categories are absent from `categories`
+  // (RLS) but their join rows are not, so only link materials to live ones.
+  const liveCategoryIds = new Set((categories || []).map((c: any) => c.id));
+  (materialLinksRes?.data || []).forEach((r: { material_id: number; category_id: number }) => {
+    if (liveCategoryIds.has(r.category_id)) push(categoriesOf, r.material_id, r.category_id);
+  });
 
   return {
     materials: (materialsRes?.error ? [] : materialsRes?.data || []).map((m: any) => ({

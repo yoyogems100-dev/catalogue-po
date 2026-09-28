@@ -31,7 +31,9 @@ export async function GET() {
     createdAt: c.created_at
   }));
 
-  const photosFormatted = (photos || []).map((p: any) => ({
+  // Photos of an archived category are hidden with it: it is absent from
+  // catMap because the public read policy skips archived categories.
+  const photosFormatted = (photos || []).filter((p: any) => catMap[p.category_id]).map((p: any) => ({
     id: p.id,
     url: photoUrl(p, 500),
     categoryName: catMap[p.category_id]?.name || null,

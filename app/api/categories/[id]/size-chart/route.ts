@@ -48,6 +48,8 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
   supabasePublic.from('category_shape_sizes').select('diamond_equivalent_ct,shape_sizes(id,shape_id,size_mm)').eq('category_id',id),
   supabasePublic.from('category_colors').select('color_id,colors(name,hex_value,ref_photo_url)').eq('category_id',id)
  ]);
+ // PGRST116: no row visible -- the category doesn't exist or is archived.
+ if(category.error?.code==='PGRST116')return NextResponse.json({error:'Category not found.'},{status:404});
  if(category.error||shapes.error||sizes.error||colorLinks.error)return NextResponse.json({error:'Could not load the size chart. Please retry.'},{status:503});
  // Every size row shares one price group, so a price-list export only makes
  // sense while exactly one color is linked (Moissanite's White/DEF today) --
