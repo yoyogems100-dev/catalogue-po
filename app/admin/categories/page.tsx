@@ -15,7 +15,7 @@ export default async function CategoriesListPage() {
   // must page past the project's 1000-row response cap or silently undercount
   // whichever categories' rows land past the first page.
   const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, archived_at').order('num'),
     fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*', { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id', { count: 'exact' }).range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id', { count: 'exact' }).range(from, to)),
@@ -58,6 +58,7 @@ export default async function CategoriesListPage() {
     id: c.id,
     num: c.num,
     name: c.name,
+    archivedAt: c.archived_at as string | null,
     coverUrl: coverUrl(c),
     photoCount: photoCounts[c.id] || 0,
     shapeCount: shapeCounts[c.id] || 0,

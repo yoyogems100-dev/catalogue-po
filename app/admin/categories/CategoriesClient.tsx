@@ -30,6 +30,7 @@ type Row = {
   id: number;
   num: number;
   name: string;
+  archivedAt: string | null;
   coverUrl: string | null;
   photoCount: number;
   shapeCount: number;
@@ -49,6 +50,15 @@ const GridIcon = () => (
     <rect x="3" y="13" width="8" height="8" rx="1" /><rect x="13" y="13" width="8" height="8" rx="1" />
   </svg>
 );
+
+const ArchiveIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+  </svg>
+);
+
+const archivedDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 function statsLine(c: Row) {
   return `${c.photoCount} photos · ${c.shapeCount} shapes · ${c.sizeCount} sizes · ${c.colorCount} colors`;
@@ -94,11 +104,20 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const [localRows, setLocalRows] = useState(rows);
-  useEffect(() => setLocalRows(rows), [rows]);
+  // Archived categories are hidden from the website and /po. They sit in
+  // their own collapsed section below the live ones, out of the coverage
+  // filters and drag order, until someone opens it.
+  const activeRows = rows.filter((r) => !r.archivedAt);
+  const archivedRows = rows.filter((r) => r.archivedAt);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
-  const visibleRows = localRows.filter((r) =>
-    r.name.toLowerCase().includes(search.trim().toLowerCase()) && matchesCoverage(r, coverage));
+  const [localRows, setLocalRows] = useState(activeRows);
+  useEffect(() => setLocalRows(rows.filter((r) => !r.archivedAt)), [rows]);
+
+  const matchesSearch = (r: Row) => r.name.toLowerCase().includes(search.trim().toLowerCase());
+  const visibleRows = localRows.filter((r) => matchesSearch(r) && matchesCoverage(r, coverage));
+  const visibleArchived = archivedRows.filter(matchesSearch);
   const filtered = !!search.trim() || coverage !== 'all';
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder(async (from, to) => {
@@ -108,7 +127,8 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     const res = await fetch('/api/categories/reorder-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderedIds: next.map((r) => r.id) })
+      // Archived ones follow the live ones so numbering stays gap-free.
+      body: JSON.stringify({ orderedIds: [...next, ...archivedRows].map((r) => r.id) })
     });
     if (!res.ok) {
       setLocalRows(prev);
@@ -139,6 +159,18 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   async function renameCategory(id: number, name: string) {
     await saveCategory('PATCH', { id, name });
     setToast('Renamed.'); router.refresh();
+  }
+
+  async function setArchived(id: number, name: string, archived: boolean) {
+    if (busyId) return;
+    if (archived && !confirm(`Archive "${name}"?\n\nIt will be hidden from the website and catalogue straight away. Its photos, shapes, colours, prices and past orders are all kept, and you can restore it any time from "Archived categories".`)) return;
+    setBusyId(id);
+    try {
+      await saveCategory('PATCH', { id, archived });
+      setToast(archived ? `"${name}" archived and hidden from the website.` : `"${name}" restored and visible on the website again.`);
+      router.refresh();
+    } catch (error) { setToast(error instanceof Error ? error.message : 'Could not update this category.'); }
+    finally { setBusyId(null); }
   }
 
   async function deleteCategory(id: number, name: string) {
@@ -179,7 +211,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
         </div>
       </div>
-      <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} categories. Missing links are review prompts; they do not change product availability.</p>
+      <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} active categories{archivedRows.length ? ` (${archivedRows.length} archived below)` : ''}. Missing links are review prompts; they do not change product availability.</p>
       {view === 'list' ? (
         <table>
           <thead>
@@ -212,6 +244,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
                       <Link href={`/admin/categories/${c.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage</Link>
+                      <button className="btn-ghost" disabled={busyId === c.id} onClick={() => setArchived(c.id, c.name, true)}>Archive</button>
                       <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
                     </span>
                   </td>
@@ -243,6 +276,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <CoverageNote row={c} />
                   <div className="admin-cat-card-actions">
                     <Link href={`/admin/categories/${c.id}`} className="btn-ghost">Manage</Link>
+                    <button className="btn-ghost" disabled={busyId === c.id} onClick={() => setArchived(c.id, c.name, true)}>{busyId === c.id ? 'Archiving...' : 'Archive'}</button>
                     <button className="btn-danger" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
                   </div>
                 </div>
@@ -253,6 +287,40 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
             <p style={{ fontSize: 13, color: '#756e5c' }}>No categories match these filters.</p>
           )}
         </div>
+      )}
+      {archivedRows.length > 0 && (
+        <section className={`admin-archived ${archivedOpen ? 'open' : ''}`} aria-labelledby="archived-categories-heading">
+          <button type="button" className="admin-archived-head" aria-expanded={archivedOpen} aria-controls="archived-categories-list"
+            onClick={() => setArchivedOpen((open) => !open)}>
+            <span className="admin-archived-icon"><ArchiveIcon /></span>
+            <span className="admin-archived-title">
+              <strong id="archived-categories-heading">Archived categories <b className="admin-archived-count">{archivedRows.length}</b></strong>
+              <small>Hidden from the website and catalogue. Photos, prices and past orders are kept.</small>
+            </span>
+            <span className="admin-archived-toggle">{archivedOpen ? 'Hide' : 'See archived categories'} <span aria-hidden="true">{archivedOpen ? '▴' : '▾'}</span></span>
+          </button>
+          {archivedOpen && (
+            <div id="archived-categories-list" className="admin-archived-grid">
+              {visibleArchived.map((c) => (
+                <div key={c.id} className="admin-archived-card">
+                  <div className="admin-cat-cover"><CoverThumb url={c.coverUrl} /></div>
+                  <div className="admin-archived-body">
+                    <strong title={c.name}>{c.name}</strong>
+                    <small>Archived {archivedDate(c.archivedAt!)} · {c.photoCount} photos</small>
+                    <button type="button" className="btn" disabled={busyId === c.id} onClick={() => setArchived(c.id, c.name, false)}>
+                      {busyId === c.id ? 'Restoring...' : 'Restore'}
+                    </button>
+                    <span className="admin-archived-links">
+                      <Link href={`/admin/categories/${c.id}`}>Manage</Link>
+                      <button type="button" onClick={() => deleteCategory(c.id, c.name)}>Delete</button>
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {visibleArchived.length === 0 && <p className="admin-archived-empty">No archived categories match “{search.trim()}”.</p>}
+            </div>
+          )}
+        </section>
       )}
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
