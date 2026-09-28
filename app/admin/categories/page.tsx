@@ -3,7 +3,10 @@ import { photoUrl } from '@/lib/photos';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoriesClient from './CategoriesClient';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// Admin pages never call a dynamic API (cookies()/headers()) themselves --
+// auth happens purely in middleware -- so without this, Next can statically
+// cache a page at build time and never pick up new data until the next
+// deploy. Every admin list page needs this for the same reason.
 export const dynamic = 'force-dynamic';
 
 export default async function CategoriesListPage() {

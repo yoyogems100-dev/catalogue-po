@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
 
-// See app/admin/tags/page.tsx for why this is needed on every admin page.
+// See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function NewAdminOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; from?: string }> }) {
