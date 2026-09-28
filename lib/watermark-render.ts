@@ -25,8 +25,8 @@ const FONT_SIZE = 0.043;
 const SPACING = 0.3125;
 /** Rising left to right. */
 const ANGLE = -45;
-const FILL_OPACITY = 0.2;
-const EDGE_OPACITY = 0.09;
+const FILL_OPACITY = 0.1;
+const EDGE_OPACITY = 0.045;
 /** Edge width, as a share of the letter size. */
 const EDGE = 0.045;
 
