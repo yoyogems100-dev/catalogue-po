@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
 import DashboardNotificationBar from '@/components/admin/DashboardNotificationBar';
+import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
@@ -19,7 +20,12 @@ export default async function AdminDashboard() {
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },
     { title: 'Partial payment', href: '/admin/orders?payment=partial', query: countable().eq('payment_status','partial') }
   ];
-  const counts = await Promise.all(queues.map(queue => queue.query));
+  const [counts, {data: qaCategories}, {data: qaTags}] = await Promise.all([
+    Promise.all(queues.map(queue => queue.query)),
+    // For the quick-action forms below.
+    supabaseAdmin.from('categories').select('id,name').order('num'),
+    supabaseAdmin.from('tags').select('id,name').order('name')
+  ]);
   // "Order details" used to stand in for every order whose contact_name was
   // null, which is most of them -- a row reading "#8 - Order details - Placed"
   // gives nothing worth scanning. A guest order genuinely has no name, but one
@@ -55,7 +61,8 @@ export default async function AdminDashboard() {
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>
-    <nav className="admin-coverage-filters" aria-label="Quick actions"><Link className="btn" href="/admin/orders/new">Create order</Link><Link className="btn-ghost" href="/admin/orders#request-quotations">Review quotations</Link><Link className="btn-ghost" href="/admin/customers">Customers</Link><Link className="btn-ghost" href="/admin/suppliers">Suppliers</Link><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link><Link className="btn-ghost" href="/admin/content">PO portal setup</Link></nav>
+    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn" href="/admin/orders/new">Create order</Link><Link className="btn-ghost" href="/admin/orders#request-quotations">Review quotations</Link><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
+    <DashboardQuickActions categories={qaCategories || []} tags={qaTags || []} />
     <h2>Recent orders</h2>
     {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}
     {!error && !recent?.length && <p>No orders yet.</p>}

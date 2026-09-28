@@ -2518,3 +2518,21 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .cat-tag-add .btn, .cat-tag-add .btn-ghost { padding: 7px 12px; font-size: 12.5px; }
 .cat-tag-empty { font-size: 12.5px; color: #8a8474; }
 .cat-tag-error { flex-basis: 100%; font-size: 12.5px; color: #a3341f; margin: 0; }
+
+/* Overview: catalogue quick actions (upload photos, add tag/category/shape/colour) */
+.quick-actions { margin: 28px 0 8px; }
+.quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; max-width: 1180px; }
+.quick-card { background: #fff; border: 1px solid var(--line); padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.quick-card h3 { margin: 0 0 4px; font-size: 15px; color: var(--ink); }
+.quick-card label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--gold); margin-top: 4px; }
+.quick-card select, .quick-card input[type="text"], .quick-card input[type="file"] { width: 100%; min-width: 0; font-size: 16px; }
+.quick-card input[type="file"] { font-size: 13px; }
+.quick-card .btn { margin-top: auto; align-self: stretch; }
+.quick-card > .btn { margin-top: 10px; }
+.quick-row { display: flex; gap: 8px; align-items: center; }
+.quick-row input[type="color"] { flex: none; width: 44px; height: 38px; padding: 2px; border: 1px solid var(--line); background: #fff; }
+.quick-kind { align-self: flex-start; }
+.quick-hint { font-size: 12px; color: var(--text-dim); margin: 2px 0 0; }
+.quick-note { font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
+.quick-note.ok { color: #2f6b3a; }
+.quick-note.err { color: #a3341f; }
