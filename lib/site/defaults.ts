@@ -200,22 +200,25 @@ export const pageDefaults: Record<string, ContentValue> = {
       intro: 'Shapes, sizes, colours and grades, taken from our live catalogue. Colour swatches are photographs of the stones, not flat colour blocks.'
     },
     shapes: {
+      hidden: false,
       title: 'Shape chart',
       intro: 'Every shape we stock. Tap a shape to see the sizes it comes in and which materials carry it.'
     },
     sizes: {
+      hidden: false,
       title: 'Size & MM → carat chart',
       intro: 'Sizes by shape, in millimetres. Where we have a carat weight on record, it is shown next to the size.',
       note: 'Carat weights are approximate and vary with the material and the cut. Moissanite figures are diamond-equivalent reference weights — the weight a diamond of that size would have — not the moissanite’s own weight.'
     },
     colours: { charts: [
-      { title: 'CZ Colours', slug: 'cz-colours', intro: 'Coloured CZ, crushed ice and speciality CZ shades, photographed on black.', categories: [7] },
-      { title: 'Moissanite Colours', slug: 'moissanite-colours', intro: 'Moissanite colours we stock, photographed on black.', categories: [1] },
-      { title: 'Corundum & Spinel Colours', slug: 'corundum-spinel-colours', intro: 'Synthetic ruby, corundum, rainbow corundum and opaque shades.', categories: [8, 18] },
-      { title: 'Nano Colours', slug: 'nano-colours', intro: 'The full nano crystal colour range, photographed on black.', categories: [17] },
-      { title: 'Glass & Opal Colours', slug: 'glass-opal-colours', intro: 'Glass stones, foiled glass, crystal and synthetic opal.', categories: [10, 38] }
+      { hidden: false, title: 'CZ Colours', slug: 'cz-colours', intro: 'Coloured CZ, crushed ice and speciality CZ shades, photographed on black.', categories: [7] },
+      { hidden: false, title: 'Moissanite Colours', slug: 'moissanite-colours', intro: 'Moissanite colours we stock, photographed on black.', categories: [1] },
+      { hidden: false, title: 'Corundum & Spinel Colours', slug: 'corundum-spinel-colours', intro: 'Synthetic ruby, corundum, rainbow corundum and opaque shades.', categories: [8, 18] },
+      { hidden: false, title: 'Nano Colours', slug: 'nano-colours', intro: 'The full nano crystal colour range, photographed on black.', categories: [17] },
+      { hidden: false, title: 'Glass & Opal Colours', slug: 'glass-opal-colours', intro: 'Glass stones, foiled glass, crystal and synthetic opal.', categories: [10, 38] }
     ] },
     grades: {
+      hidden: false,
       title: 'Quality grades explained',
       intro: 'A, 3A, 5A, 7A, High Density Swiss: what the letters mean, and how to pick the right grade for the piece you are making.',
       body_heading: 'What the letters mean',

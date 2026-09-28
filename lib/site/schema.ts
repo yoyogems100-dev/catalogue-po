@@ -18,7 +18,9 @@ export type Field =
   | { type: 'toggle'; key: string; label: string; help?: string }
   | { type: 'categories'; key: string; label: string; help?: string }
   | { type: 'group'; key: string; label: string; help?: string; fields: Field[] }
-  | { type: 'list'; key: string; label: string; help?: string; itemLabel: string; fields: Field[]; min?: number; max?: number };
+  | { type: 'list'; key: string; label: string; help?: string; itemLabel: string; fields: Field[]; min?: number; max?: number;
+      /** Wording for the per-item remove button, and a confirm prompt before it. */
+      removeLabel?: string; confirmRemove?: string };
 
 export type Section = { key: string; title: string; help?: string; fields: Field[] };
 export type ContentSchema = { sections: Section[] };

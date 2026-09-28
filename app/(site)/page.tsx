@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getChartTeaser, getGlobal, getMedia, getNavTree, getPage, telHref, toImage, whatsappHref } from '@/lib/site/public';
 import { OG_BASE, shareImages } from '@/lib/site/page-meta';
+import { chartPages } from '@/lib/site/chart-pages';
 import { Arrow, Phone, Pin, Receipt, WhatsApp } from '@/components/site/icons';
 import HideOnError from '@/components/site/HideOnError';
 import s from '@/components/site/site.module.css';
@@ -22,7 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [home, g, categories, teaser] = await Promise.all([getPage('home'), getGlobal(), getNavTree(), getChartTeaser()]);
+  const [home, g, categories, teaser, chartsContent] = await Promise.all([getPage('home'), getGlobal(), getNavTree(), getChartTeaser(), getPage('charts')]);
+  const showCharts = chartPages(chartsContent).length > 0;
   const heroMedia = home.hero?.image ? (await getMedia([home.hero.image])).get(home.hero.image) : null;
   const hero = toImage(heroMedia, '');
   const c = g.contact || {};
@@ -108,7 +110,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section className={s.section} aria-labelledby="charts-heading">
+      {showCharts && <section className={s.section} aria-labelledby="charts-heading">
         <div className={s.wrap}>
           <div className={s.sectionHead} style={{ marginBottom: 22 }}>
             <span className={s.eyebrow}>Charts</span>
@@ -135,7 +137,7 @@ export default async function HomePage() {
           )}
           <Link href="/charts" className={s.linkArrow}>{home.charts?.link_label || 'See all charts'} <Arrow /></Link>
         </div>
-      </section>
+      </section>}
 
       {blocks.length > 0 && (
         <section className={s.sectionTight} aria-labelledby="why-heading">

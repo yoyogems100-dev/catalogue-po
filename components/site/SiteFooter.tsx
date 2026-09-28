@@ -6,7 +6,7 @@ import CatThumb from './CatThumb';
 import SiteLogo from './SiteLogo';
 import s from './site.module.css';
 
-export default function SiteFooter({ global, categories, autoPopular = [] }: { global: ContentValue; categories: NavCategory[]; autoPopular?: { label: string; url: string }[] }) {
+export default function SiteFooter({ global, categories, autoPopular = [], showCharts = true }: { global: ContentValue; categories: NavCategory[]; autoPopular?: { label: string; url: string }[]; showCharts?: boolean }) {
   const c = global.contact || {};
   const wa = whatsappHref(c.whatsapp, c.whatsapp_message);
   // The owner's own list if they made one, else the best-photographed
@@ -32,7 +32,7 @@ export default function SiteFooter({ global, categories, autoPopular = [] }: { g
             <h2>Company</h2>
             <ul>
               <li><Link href="/about">About us</Link></li>
-              <li><Link href="/charts">Charts</Link></li>
+              {showCharts && <li><Link href="/charts">Charts</Link></li>}
               <li><Link href="/quality">Quality &amp; QC</Link></li>
               <li><Link href="/how-to-order">How to order</Link></li>
               <li><Link href="/faq">FAQ</Link></li>

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategoryPage, optionsOf } from './category-data';
-import { getGlobal, getMedia } from './public';
+import { getGlobal, getMedia, getPage } from './public';
+import { visibleChartSlugs } from './chart-pages';
 import { OG_BASE, shareImages } from './page-meta';
 import { activeCount, fillTemplate, filterHref, isIndexable, parseSelection, selectionWords, type Selection } from './filters';
 import { richTextToPlain } from './rich-text';
@@ -14,7 +15,8 @@ type Params = Record<string, string | string[] | undefined>;
 async function resolve(parentSlug: string | null, slug: string, search: Params) {
   const page = await getCategoryPage(parentSlug, slug);
   if (!page) return null;
-  const global = await getGlobal();
+  const [global, chartsContent] = await Promise.all([getGlobal(), getPage('charts')]);
+  const chartSlugs = visibleChartSlugs(chartsContent);
   const options = optionsOf(page);
   const selection = parseSelection(search, options);
   const count = activeCount(selection);
@@ -25,7 +27,7 @@ async function resolve(parentSlug: string | null, slug: string, search: Params) 
     heading = fillTemplate(global.filters?.heading || '{filters} {category}', words);
     intro = fillTemplate(global.filters?.intro || '{filters} {category} from our ready range.', words);
   }
-  return { page, global, options, selection, count, heading, intro };
+  return { page, global, options, selection, count, heading, intro, chartSlugs };
 }
 
 export async function categoryMetadata(parentSlug: string | null, slug: string, search: Params): Promise<Metadata> {
@@ -50,7 +52,7 @@ export async function categoryMetadata(parentSlug: string | null, slug: string, 
 export async function CategoryRoute({ parentSlug, slug, search }: { parentSlug: string | null; slug: string; search: Params }) {
   const r = await resolve(parentSlug, slug, search);
   if (!r) notFound();
-  const { page, global, options, selection, heading, intro } = r;
+  const { page, global, options, selection, heading, intro, chartSlugs } = r;
   const site = 'https://www.yoyogems.co.in';
   const crumbs = [{ name: 'Home', url: `${site}/` }, { name: 'Products', url: `${site}/products` },
     ...(page.parent ? [{ name: page.parent.name, url: `${site}${page.parent.href}` }] : []), { name: page.name, url: `${site}${page.href}` }];
@@ -63,7 +65,7 @@ export async function CategoryRoute({ parentSlug, slug, search }: { parentSlug: 
   ];
   return (
     <>
-      <CategoryView page={page} selection={selection} options={options} heading={heading} intro={intro} global={global} />
+      <CategoryView page={page} selection={selection} options={options} heading={heading} intro={intro} global={global} chartSlugs={chartSlugs} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, '\\u003c') }} />
     </>
   );

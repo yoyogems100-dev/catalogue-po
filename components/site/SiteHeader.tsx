@@ -10,12 +10,12 @@ import SiteLogo from './SiteLogo';
 import ThemeToggle from './ThemeToggle';
 import s from './site.module.css';
 
-type Props = { categories: NavCategory[]; ctaLabel: string; showTradeLogin: boolean; whatsappHref: string | null };
+type Props = { categories: NavCategory[]; ctaLabel: string; showTradeLogin: boolean; whatsappHref: string | null; showCharts?: boolean };
 
 // Desktop: one mega-menu panel with every category and its sub-categories
 // visible at once (no cascading fly-outs, which fail on touch). Mobile: a
 // full-screen accordion.
-export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whatsappHref }: Props) {
+export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whatsappHref, showCharts = true }: Props) {
   const pathname = usePathname();
   const [megaOpen, setMegaOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -75,7 +75,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
               </div>
             )}
           </div>
-          <Link href="/charts" className={s.navLink} aria-current={current('/charts')}>Charts</Link>
+          {showCharts && <Link href="/charts" className={s.navLink} aria-current={current('/charts')}>Charts</Link>}
           <Link href="/about" className={s.navLink} aria-current={current('/about')}>About</Link>
           {showTradeLogin && <a href="/po" className={s.tradeLink}>Trade login</a>}
         </nav>
@@ -118,7 +118,7 @@ export default function SiteHeader({ categories, ctaLabel, showTradeLogin, whats
               </div>
             ))}
             <div className={s.sheetLinks}>
-              <Link href="/charts" onClick={() => setSheetOpen(false)}>Charts</Link>
+              {showCharts && <Link href="/charts" onClick={() => setSheetOpen(false)}>Charts</Link>}
               <Link href="/about" onClick={() => setSheetOpen(false)}>About us</Link>
               <Link href="/quality" onClick={() => setSheetOpen(false)}>Quality &amp; QC</Link>
               <Link href="/how-to-order" onClick={() => setSheetOpen(false)}>How to order</Link>

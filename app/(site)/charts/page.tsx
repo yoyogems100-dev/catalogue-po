@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getGlobal, getPage, whatsappHref } from '@/lib/site/public';
 import { getChartGrades, getChartShapes, getColourChart } from '@/lib/site/chart-data';
 import { chartPages } from '@/lib/site/chart-pages';
@@ -16,6 +17,7 @@ export const generateMetadata = () => pageMetadata('charts', '/charts', { title:
 export default async function ChartsHub() {
   const [page, g, shapes, grades] = await Promise.all([getPage('charts'), getGlobal(), getChartShapes(), getChartGrades()]);
   const charts = chartPages(page);
+  if (!charts.length) notFound(); // every chart hidden in admin
   const swatches = Object.fromEntries(await Promise.all(charts.filter((c) => c.kind === 'colour').map(async (c) =>
     [c.slug, (await getColourChart(c.categories || [])).flatMap((gr) => gr.colours).slice(0, 8)] as const)));
   const shapePreview = shapes.filter((x) => x.img).slice(0, 6);

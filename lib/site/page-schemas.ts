@@ -199,16 +199,19 @@ export const pageSchemas: Record<string, ContentSchema> = {
         { type: 'textarea', key: 'intro', label: 'Intro', max: 300 }
       ] },
       { key: 'shapes', title: '2 · Shape chart', help: 'Shapes and their sizes come from the catalogue.', fields: [
+        { type: 'toggle', key: 'hidden', label: 'Hide this chart from the website', help: 'Hidden charts leave the Charts page, their own web address and every link to them. Untick to show it again.' },
         { type: 'text', key: 'title', label: 'Title', max: 60 },
         { type: 'textarea', key: 'intro', label: 'Intro', max: 400 }
       ] },
       { key: 'sizes', title: '3 · Size & MM → carat chart', help: 'Carat weights come from the weights entered under Shapes, and from the Moissanite chart.', fields: [
+        { type: 'toggle', key: 'hidden', label: 'Hide this chart from the website', help: 'Hidden charts leave the Charts page, their own web address and every link to them. Untick to show it again.' },
         { type: 'text', key: 'title', label: 'Title', max: 60 },
         { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
         { type: 'textarea', key: 'note', label: 'Note under the table', max: 400 }
       ] },
-      { key: 'colours', title: '4 · Colour charts', help: 'One page per chart. Swatches are the real stone photos of every colour in the ticked categories.', fields: [
-        { type: 'list', key: 'charts', label: 'Colour charts', itemLabel: 'Chart', max: 12, fields: [
+      { key: 'colours', title: '4 · Colour charts', help: 'One page per chart. Swatches are the real stone photos of every colour in the ticked categories. Tick “Hide” to take a chart off the website for now, or Delete to remove it for good.', fields: [
+        { type: 'list', key: 'charts', label: 'Colour charts', itemLabel: 'Chart', max: 12, removeLabel: 'Delete chart', confirmRemove: 'Delete this colour chart? Its page will disappear from the website once you save. To keep it for later, tick “Hide this chart from the website” instead.', fields: [
+          { type: 'toggle', key: 'hidden', label: 'Hide this chart from the website', help: 'Hidden charts leave the Charts page, their own web address and every link to them. Untick to show it again.' },
           { type: 'text', key: 'title', label: 'Title', max: 60, placeholder: 'CZ Colours' },
           { type: 'text', key: 'slug', label: 'Web address', max: 60, help: 'Lower-case words with dashes, e.g. cz-colours → /charts/cz-colours' },
           { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
@@ -216,6 +219,7 @@ export const pageSchemas: Record<string, ContentSchema> = {
         ] }
       ] },
       { key: 'grades', title: '5 · Quality grades page', help: 'Each grade’s own explanation is edited under Website → Grades.', fields: [
+        { type: 'toggle', key: 'hidden', label: 'Hide this chart from the website', help: 'Hidden charts leave the Charts page, their own web address and every link to them. Untick to show it again.' },
         { type: 'text', key: 'title', label: 'Title', max: 80 },
         { type: 'textarea', key: 'intro', label: 'Intro', max: 400 },
         { type: 'text', key: 'body_heading', label: 'Section heading', max: 80 },

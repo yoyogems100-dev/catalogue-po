@@ -14,9 +14,12 @@ import CatThumb from './CatThumb';
 
 const PHOTO_LIMIT = 36;
 
-export default function CategoryView({ page, selection, options, heading, intro, global }: {
+export default function CategoryView({ page, selection, options, heading, intro, global, chartSlugs = ['shapes', 'sizes', 'grades'] }: {
   page: CategoryPage; selection: Selection; options: OptionsByDim; heading: string; intro: string | null; global: ContentValue;
+  /** Charts not hidden in admin; links to hidden ones are left out. */
+  chartSlugs?: string[];
 }) {
+  const chartShown = (slug: string) => chartSlugs.includes(slug);
   const b = page.content;
   const filtered = !!intro;
   const results = page.photos.filter((p) => matches(p, selection));
@@ -158,11 +161,13 @@ export default function CategoryView({ page, selection, options, heading, intro,
             <RichText html={b.range?.body} className={c.prose} />
             {page.grades.length > 0 && (
               <div className={c.gradeRow}>
-                {page.grades.map((g) => (
-                  <Link key={g.slug} href={page.filters.grade ? filterHref(page.href, selection, 'grade', g.slug) + '#stones' : '/charts/grades'} className={c.grade} title={g.summary || undefined}>
-                    <strong>{g.name}</strong>{g.summary && <span>{g.summary}</span>}
-                  </Link>
-                ))}
+                {page.grades.map((g) => {
+                  const href = page.filters.grade ? filterHref(page.href, selection, 'grade', g.slug) + '#stones' : chartShown('grades') ? '/charts/grades' : null;
+                  const inner = <><strong>{g.name}</strong>{g.summary && <span>{g.summary}</span>}</>;
+                  return href
+                    ? <Link key={g.slug} href={href} className={c.grade} title={g.summary || undefined}>{inner}</Link>
+                    : <span key={g.slug} className={c.grade} title={g.summary || undefined}>{inner}</span>;
+                })}
               </div>
             )}
             {b.range?.show_shapes && page.shapes.length > 0 && (
@@ -222,11 +227,13 @@ export default function CategoryView({ page, selection, options, heading, intro,
               </>
             )}
             {b.charts?.note && <p className={c.note}>{b.charts.note}</p>}
-            <p className={c.chartLinks}>
-              <Link href="/charts/shapes" className={s.linkArrow}>Shape chart <Arrow /></Link>
-              <Link href="/charts/sizes" className={s.linkArrow}>Size &amp; mm → carat <Arrow /></Link>
-              <Link href="/charts/grades" className={s.linkArrow}>Quality grades <Arrow /></Link>
-            </p>
+            {['shapes', 'sizes', 'grades'].some(chartShown) && (
+              <p className={c.chartLinks}>
+                {chartShown('shapes') && <Link href="/charts/shapes" className={s.linkArrow}>Shape chart <Arrow /></Link>}
+                {chartShown('sizes') && <Link href="/charts/sizes" className={s.linkArrow}>Size &amp; mm → carat <Arrow /></Link>}
+                {chartShown('grades') && <Link href="/charts/grades" className={s.linkArrow}>Quality grades <Arrow /></Link>}
+              </p>
+            )}
           </div>
         </section>
       )}

@@ -9,7 +9,7 @@ import { thumb } from '@/lib/site/optimize';
 
 // Click a shape → its sizes and the materials that carry it. The selected
 // shape is kept in the URL hash (#oval) so a chosen shape can be shared.
-export default function ShapeChart({ shapes }: { shapes: ChartShape[] }) {
+export default function ShapeChart({ shapes, sizesLink = true }: { shapes: ChartShape[]; sizesLink?: boolean }) {
   const [active, setActive] = useState<string | null>(null);
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const panel = useRef<HTMLDivElement>(null);
@@ -93,7 +93,7 @@ export default function ShapeChart({ shapes }: { shapes: ChartShape[] }) {
                 <ul className={p.materialLinks}>{shape.materials.map((m) => <li key={m.href}><Link href={m.href}>{shape.name} {m.name} →</Link></li>)}</ul>
               </>
             )}
-            {shape.sizes.length > 0 && <Link className={p.panelLink} href={`/charts/sizes#${shape.slug}`}>Size & carat chart for {shape.name} →</Link>}
+            {sizesLink && shape.sizes.length > 0 && <Link className={p.panelLink} href={`/charts/sizes#${shape.slug}`}>Size & carat chart for {shape.name} →</Link>}
           </>
         ) : (
           <p className={p.panelHint}>Choose a shape to see its sizes and the materials it comes in.</p>
