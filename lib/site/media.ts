@@ -101,6 +101,26 @@ export async function watermarkStoredMedia(db: SupabaseClient, media: { id: numb
   };
 }
 
+/**
+ * Redraws the watermarked set of a website image from its clean copy in the
+ * originals bucket -- for when the watermark design changes. The set goes
+ * under a new name, so no cached page or CDN copy keeps serving the old
+ * design. Writes nothing to the row.
+ */
+export async function redrawStoredMedia(db: SupabaseClient, media: { id: number; storage_path: string; original_path: string; variants: Record<string, string> | null }) {
+  const { data, error } = await db.storage.from(ORIGINALS_BUCKET).download(media.original_path);
+  if (error || !data) throw new Error(`Media ${media.id}: could not download the original (${error?.message || 'missing'}).`);
+  const upright = await sharp(Buffer.from(await data.arrayBuffer())).rotate().png().toBuffer();
+  const base = media.original_path.replace(/\.webp$/, '') + `-wm-${randomUUID().slice(0, 8)}`;
+  const stored = await storeWatermarkedSet(db, upright, base, `Media ${media.id}`);
+  if ('error' in stored) throw new Error(stored.error);
+  return {
+    update: stored,
+    replaced: [media.storage_path, ...Object.values(media.variants || {})],
+    created: [stored.storage_path, ...Object.values(stored.variants)]
+  };
+}
+
 export async function removeStoredFiles(media: { storage_path: string; variants: Record<string, string> | null; original_path?: string | null }, db: SupabaseClient = supabaseAdmin) {
   const paths = [media.storage_path, ...Object.values(media.variants || {})].filter((p) => p.startsWith('site/'));
   if (paths.length) await db.storage.from(PHOTOS_BUCKET).remove(paths);
