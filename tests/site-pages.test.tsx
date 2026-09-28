@@ -23,6 +23,19 @@ test('chart pages: fixed charts plus the configured colour charts, with safe uni
   ]);
 });
 
+test('hidden charts leave the chart list, fixed and colour alike', () => {
+  const content = {
+    shapes: { hidden: true }, sizes: {}, grades: { hidden: false },
+    colours: { charts: [
+      { title: 'CZ Colours', slug: 'cz-colours', intro: '', categories: [7], hidden: true },
+      { title: 'Nano Colours', slug: 'nano-colours', intro: '', categories: [17], hidden: false }
+    ] }
+  };
+  assert.deepEqual(chartPages(content).map((c) => c.slug), ['sizes', 'nano-colours', 'grades']);
+  const allHidden = { shapes: { hidden: true }, sizes: { hidden: true }, grades: { hidden: true }, colours: { charts: [] } };
+  assert.deepEqual(chartPages(allHidden), []);
+});
+
 test('sizes sort by first dimension, then second', () => {
   assert.deepEqual(['1.1', '1x2', '10', '1', '2.5x5', '1x1.5', '2'].sort(byMm), ['1', '1x1.5', '1x2', '1.1', '2', '2.5x5', '10']);
 });

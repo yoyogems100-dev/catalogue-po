@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import SiteHeader from '@/components/site/SiteHeader';
 import SiteFooter from '@/components/site/SiteFooter';
 import { WhatsApp } from '@/components/site/icons';
-import { getGlobal, getMedia, getNavTree, whatsappHref } from '@/lib/site/public';
+import { getGlobal, getMedia, getNavTree, getPage, whatsappHref } from '@/lib/site/public';
+import { chartPages } from '@/lib/site/chart-pages';
 import { getPopularSearches } from '@/lib/site/seo-data';
 import { mediaSrc } from '@/lib/site/media-url';
 import { OG_BASE, shareCard } from '@/lib/site/page-meta';
@@ -25,7 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [g, categories, autoPopular] = await Promise.all([getGlobal(), getNavTree(), getPopularSearches().catch(() => [])]);
+  const [g, categories, autoPopular, chartsContent] = await Promise.all([getGlobal(), getNavTree(), getPopularSearches().catch(() => []), getPage('charts')]);
+  // Every chart hidden in Admin → Website → Charts: drop the Charts links too.
+  const showCharts = chartPages(chartsContent).length > 0;
   const wa = whatsappHref(g.contact?.whatsapp, g.contact?.whatsapp_message);
   const org = {
     '@context': 'https://schema.org',
@@ -44,9 +47,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           count, and applies the visitor's saved light/dark theme. */}
       <script dangerouslySetInnerHTML={{ __html: `document.documentElement.classList.add('js');${themeBootScript}` }} />
       <a href="#main" className={s.skip}>Skip to content</a>
-      <SiteHeader categories={categories} ctaLabel={g.header?.cta_label || 'Request Catalogue'} showTradeLogin={g.header?.show_trade_login !== false} whatsappHref={wa} />
+      <SiteHeader categories={categories} ctaLabel={g.header?.cta_label || 'Request Catalogue'} showTradeLogin={g.header?.show_trade_login !== false} whatsappHref={wa} showCharts={showCharts} />
       <main id="main" className={s.main}>{children}</main>
-      <SiteFooter global={g} categories={categories} autoPopular={autoPopular} />
+      <SiteFooter global={g} categories={categories} autoPopular={autoPopular} showCharts={showCharts} />
       {wa && (
         <a href={wa} className={s.waFloat} target="_blank" rel="noopener noreferrer" aria-label="Chat with YOYO GEMS on WhatsApp">
           <WhatsApp size={28} />

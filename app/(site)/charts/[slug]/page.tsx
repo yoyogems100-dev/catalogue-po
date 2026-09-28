@@ -56,7 +56,7 @@ export default async function ChartPage({ params }: Props) {
   let extraLd: unknown[] = [];
   if (chart.kind === 'shapes') {
     const shapes = await getChartShapes();
-    body = <ShapeChart shapes={shapes} />;
+    body = <ShapeChart shapes={shapes} sizesLink={charts.some((x) => x.slug === 'sizes')} />;
     extraLd = [{ '@context': 'https://schema.org', '@type': 'ItemList', name: chart.title, numberOfItems: shapes.length,
       itemListElement: shapes.map((x, i) => ({ '@type': 'ListItem', position: i + 1, name: x.name })) }];
   } else if (chart.kind === 'sizes') {

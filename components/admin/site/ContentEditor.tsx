@@ -267,7 +267,10 @@ function FieldInput({ field, value, onChange, id, media, onMedia }: {
             <div className={s.listItem}>
               <div className={s.listItemHead}>
                 <span>{field.itemLabel} {index + 1}</span>
-                <button type="button" className={s.linkBtn} onClick={() => onChange(items.filter((_, j) => j !== x.i))}>Remove</button>
+                <button type="button" className={s.linkBtn} onClick={() => {
+                  if (field.confirmRemove && !confirm(field.confirmRemove)) return;
+                  onChange(items.filter((_, j) => j !== x.i));
+                }}>{field.removeLabel || 'Remove'}</button>
               </div>
               <Fields fields={field.fields} value={x.item} path={`${id}.${x.i}`} media={media} onMedia={onMedia}
                 onChange={(v) => onChange(items.map((it, j) => (j === x.i ? v : it)))} />
