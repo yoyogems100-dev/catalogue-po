@@ -65,19 +65,37 @@ export const WORKSPACES: Workspace[] = [
           { href: '/admin/orders', label: 'Orders', detail: 'Purchase orders and quotation requests: prices, status, payment, PDFs.' }
         ]
       },
+      // The catalogue masters each get their own entry. Tags & specifications
+      // have no page: they are added from the Overview's quick actions or the
+      // tag row on each category.
       {
         title: 'Categories',
         list: 'po-categories',
         links: [
-          { href: '/admin/categories', label: 'All categories', detail: 'Add or rename /po categories, arrange their order, choose covers and manage their photos.' },
-          { href: '/admin/photos', label: 'Upload photos', detail: 'Upload or import photos into /po categories.' }
+          { href: '/admin/categories', label: 'All categories', detail: 'Add or rename /po categories, arrange their order, choose covers, archive, and manage their photos and tags.' }
         ]
       },
       {
-        title: 'Catalogue data',
+        title: 'Photos',
         links: [
-          { href: '/admin/shapes', label: 'Shapes & sizes', detail: 'Shapes and sizes available in the catalogue.' },
-          { href: '/admin/colors', label: 'Colours', detail: 'Colour names, swatches and reference photos.' },
+          { href: '/admin/photos', label: 'Photos', detail: 'Upload photos into any category, or leave them unassigned and file them later.' }
+        ]
+      },
+      {
+        title: 'Shapes & sizes',
+        links: [
+          { href: '/admin/shapes', label: 'Shapes & sizes', detail: 'Shapes and sizes available in the catalogue.' }
+        ]
+      },
+      {
+        title: 'Colours',
+        links: [
+          { href: '/admin/colors', label: 'Colours', detail: 'Colour names, swatches and reference photos.' }
+        ]
+      },
+      {
+        title: 'Pricing & linking',
+        links: [
           { href: '/admin/pricing', label: 'Pricing', detail: 'Catalogue prices and pricing settings.' },
           { href: '/admin/bulk-link', label: 'Bulk link', detail: 'Link many shapes, sizes or colours to categories at once.' }
         ]
