@@ -26,8 +26,8 @@ test('the watermark is spread evenly over the whole photo, faint on light and da
       for (const [left, top] of quarters) {
         const q = await region(out, Math.round(left), Math.round(top), Math.round(w / 2), Math.round(h / 2));
         // ...and only faintly: a light grey edge on white, a soft white on dark.
-        if (bg === '#ffffff') assert.ok(q.every(([min]) => min < 252 && min > 230), `faint mark on white at ${left},${top}`);
-        else assert.ok(q.every(([, max]) => max > 25 && max < 60), `faint mark on dark at ${left},${top}`);
+        if (bg === '#ffffff') assert.ok(q.every(([min]) => min < 250 && min > 225), `faint mark on white at ${left},${top}`);
+        else assert.ok(q.every(([, max]) => max > 35 && max < 75), `faint mark on dark at ${left},${top}`);
       }
     }
   }
