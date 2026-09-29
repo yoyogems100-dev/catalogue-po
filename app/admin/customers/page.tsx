@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Form from 'next/form';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
@@ -76,13 +77,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
 
   return <>
     <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm /></div></div>
-    <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+    <Form action="" replace scroll={false} className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />
       <MultiSelectFilter name="workStream" label="Work stream" options={WORK_STREAMS} selected={workStreams} />
       <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
       {filtersActive && <Link href="/admin/customers" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
-    </form>
+    </Form>
     {error && <p role="alert">Customers could not be loaded. Please refresh.</p>}
     <p className="admin-results-summary">{(customers || []).length} customers</p>
     <div className="admin-customer-cards">

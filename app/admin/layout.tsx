@@ -3,6 +3,8 @@ import AdminNav, { type NavCategory } from '@/components/admin/AdminNav';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
+import NavProgress from '@/components/admin/NavProgress';
 
 export const metadata = { title: 'Admin · YOYO GEMS', robots: { index: false, follow: false } };
 
@@ -21,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ...siteRows.filter((c) => c.parent_id === p.id).map((c) => ({ id: c.id, name: c.name, parent: p.name }))
   ]);
   return (
-    <HotEditing><div className="admin-shell">
+    <HotEditing><Suspense fallback={null}><NavProgress /></Suspense><div className="admin-shell">
       <AdminNav poCategories={poCategories} siteCategories={siteCategories} />
       <main className="admin-main"><HotStatus />{children}</main>
     </div></HotEditing>

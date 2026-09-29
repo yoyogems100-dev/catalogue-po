@@ -4,6 +4,7 @@ import { CUSTOMER_PLACES } from '@/lib/customer-places';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
 import Link from 'next/link';
+import Form from 'next/form';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
 import AutoSubmitField from '@/components/admin/AutoSubmitField';
@@ -188,7 +189,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <h1>Orders</h1>
         <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
       </div>
-      <form method="get" id="admin-order-search-form" className="admin-order-search">
+      <Form action="" replace scroll={false} id="admin-order-search-form" className="admin-order-search">
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
         <label>Search<DebouncedSearchField name="q" defaultValue={search} placeholder="Search orders" /></label>
         <AutoSubmitField>
@@ -202,7 +203,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         </AutoSubmitField>
         <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
         {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
-      </form>
+      </Form>
       {/* Eight statuses wrap to three rows on a phone, pushing the first order
           most of a screen further down. One swipeable row keeps the filter
           within reach without hiding it behind a disclosure. */}

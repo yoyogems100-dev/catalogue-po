@@ -2664,3 +2664,30 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-qty-input[aria-invalid="true"] { border-color: #a3341f; }
 .login-more summary { cursor: pointer; font-size: 13px; color: var(--navy); padding: 6px 0; }
 .po-missing-hint { margin-top: 8px; }
+
+/* Admin: page-change progress bar (components/admin/NavProgress.tsx). */
+.admin-nav-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 1000; pointer-events: none; background: var(--gold); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+.admin-nav-progress.is-active { opacity: 1; animation: admin-nav-progress 8s cubic-bezier(.1,.7,.2,1) forwards; }
+@keyframes admin-nav-progress { from { transform: scaleX(0); } 10% { transform: scaleX(.35); } to { transform: scaleX(.92); } }
+@media (prefers-reduced-motion: reduce) { .admin-nav-progress.is-active { animation: none; transform: scaleX(1); opacity: .7; } }
+
+/* Admin Overview: most-used jobs first (components/admin/DashboardStartHere.tsx). */
+.start-here { display: grid; grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(140px, 1fr)); gap: 12px; margin: 16px 0 8px; max-width: 1180px; }
+.start-card { background: #fff; border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.start-card label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--gold); }
+.start-card select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.start-hint { margin: 2px 0 0; font-size: 12px; color: #756e5c; }
+.start-link { text-decoration: none; color: var(--ink); justify-content: center; min-height: 72px; }
+.start-link strong { font-size: 15px; }
+.start-link span { font-size: 12px; color: #756e5c; }
+.start-link:hover, .start-link:focus-visible { border-color: var(--gold); }
+.admin-section-heading { margin: 24px 0 0; }
+@media (max-width: 900px) {
+  .start-here { grid-template-columns: 1fr 1fr; }
+  .start-card-wide { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .start-here { gap: 10px; }
+  .start-link { min-height: 64px; padding: 12px; }
+  .admin-work-queues a:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

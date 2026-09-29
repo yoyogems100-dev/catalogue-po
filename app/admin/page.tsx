@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
 import DashboardNotificationBar from '@/components/admin/DashboardNotificationBar';
 import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
+import DashboardStartHere from '@/components/admin/DashboardStartHere';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
@@ -56,8 +57,10 @@ export default async function AdminDashboard() {
     return order.contact_name || customer?.name || customer?.company || 'Guest order';
   };
   return <>
-    <h1>Admin overview</h1><p>Orders needing attention and shortcuts for today’s work.</p>
+    <h1>Admin overview</h1>
+    <DashboardStartHere categories={qaCategories || []} />
     <DashboardNotificationBar />
+    <h2 className="admin-section-heading">Orders needing attention</h2>
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>
