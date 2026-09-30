@@ -384,7 +384,6 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                   locked={pickCategoryId === 34}
                   values={pickColorIds}
                   onChange={setPickColorIds}
-              closeOnFirstPick={pickShapeIds.length === 0}
                   placeholder="Choose color(s)"
                   leading="swatch"
                 />
