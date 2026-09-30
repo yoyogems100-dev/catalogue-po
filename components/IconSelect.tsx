@@ -51,6 +51,12 @@ type MultiProps = CommonProps & {
   placeholder: string;
   /** Quick-select groups (e.g. a color/size palette) shown above the option list. */
   palettes?: Palette[];
+  /**
+   * Close after the first pick from an empty selection -- most buyers want
+   * one shape, and a panel left open hides the fields below it. Reopening
+   * then works as a normal multi-select that stays open for more picks.
+   */
+  closeOnFirstPick?: boolean;
 };
 
 type Props = SingleProps | MultiProps;
@@ -223,8 +229,10 @@ export default function IconSelect(props: Props) {
 
   function toggleValue(id: number) {
     if (!isMulti) return;
+    const firstPick = multi.values.length === 0;
     const next = multi.values.includes(id) ? multi.values.filter((v) => v !== id) : [...multi.values, id];
     multi.onChange(next);
+    if (multi.closeOnFirstPick && firstPick) closeAndRefocus();
   }
 
   function applyPalette(palette: Palette) {

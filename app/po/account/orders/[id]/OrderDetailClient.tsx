@@ -454,6 +454,7 @@ export default function OrderDetailClient({
                     options={shapeOptions}
                     values={pickShapeIds}
                     onChange={setPickShapeIds}
+              closeOnFirstPick
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                     leading="icon"
                     disabledIds={incompatibleShapes}

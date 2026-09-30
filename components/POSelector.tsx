@@ -504,6 +504,7 @@ export default function POSelector({
               options={shapeOptions}
               values={pickShapeIds}
               onChange={setPickShapeIds}
+              closeOnFirstPick
               placeholder="Choose shape(s)"
               leading="icon"
               disabledIds={incompatibleShapes}
