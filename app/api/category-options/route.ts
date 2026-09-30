@@ -14,13 +14,16 @@ import { supabasePublic } from '@/lib/supabase-public';
 const MAX_CATEGORIES = 25;
 
 type CategoryOptions = {
+  /** Today's name -- a cart line keeps the name it was added under. */
+  name?: string;
   shapes: { id: number; name: string; iconKey: string | null; refPhotoUrl: string | null }[];
   colors: { id: number; name: string; hex: string | null; refPhotoUrl: string | null }[];
   sizes: { id: number; shape_id: number; size_mm: string }[];
 };
 
 async function optionsFor(categoryId: number): Promise<CategoryOptions> {
-  const [{ data: shapeLinks }, { data: colorLinks }, { data: sizeLinks }] = await Promise.all([
+  const [{ data: category }, { data: shapeLinks }, { data: colorLinks }, { data: sizeLinks }] = await Promise.all([
+    supabasePublic.from('categories').select('name').eq('id', categoryId).maybeSingle(),
     supabasePublic.from('category_shapes').select('shape_id').eq('category_id', categoryId),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', categoryId),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId)
@@ -43,6 +46,7 @@ async function optionsFor(categoryId: number): Promise<CategoryOptions> {
   ]);
 
   return {
+    name: (category as any)?.name || undefined,
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: s.ref_photo_url })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shape_id: s.shape_id, size_mm: s.size_mm }))

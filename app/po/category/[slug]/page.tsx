@@ -14,6 +14,14 @@ import { parseExploreFilter } from '@/lib/explore-filter';
 
 export const revalidate = 30;
 
+// Every category tab used to read "YOYO GEMS — Collection Catalogue", so a
+// buyer with several open, or a link shared on WhatsApp, couldn't tell them apart.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const { data } = await supabasePublic.from('categories').select('name').eq('slug', slug).maybeSingle();
+  return data?.name ? { title: `${data.name} — YOYO GEMS` } : {};
+}
+
 async function getCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')

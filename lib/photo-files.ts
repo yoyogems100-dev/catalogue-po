@@ -102,7 +102,9 @@ export async function uploadWatermarked(db: SupabaseClient, photo: Pick<PhotoFil
   const path = kind === 'photo'
     ? `${folderOf(photo)}/wm-${randomUUID()}.webp`
     : `${folderOf(photo)}/crops/${photo.id}-${kind === 'crop-cover' ? 'cover' : 'photo'}-${randomUUID()}.webp`;
-  const { error } = await db.storage.from(PHOTOS_BUCKET).upload(path, bytes, { contentType: 'image/webp', upsert: false });
+  // Every file gets a fresh UUID name and is never overwritten, so browsers can
+  // keep it for a year instead of Storage's 1-hour default.
+  const { error } = await db.storage.from(PHOTOS_BUCKET).upload(path, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
   if (error) throw new Error('Could not save the watermarked image. Please retry.');
   return path;
 }

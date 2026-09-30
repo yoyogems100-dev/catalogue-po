@@ -19,6 +19,7 @@ import { loadCart, saveCart, mergeIntoCart as mergeCartLines, type CartItem, typ
 import QuantityInput from './QuantityInput';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { formatRupees } from '@/lib/money';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
@@ -37,10 +38,6 @@ type Size = { id: number; shape_id: number; size_mm: string };
 function strictSizeNum(s: string): number {
   const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
   return m ? parseFloat(m[1]) : NaN;
-}
-
-function formatInr(n: number): string {
-  return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
@@ -102,6 +99,11 @@ export default function POSelector({
   const [pickRequestType, setPickRequestType] = useState<RequestType>('Place Order');
   const [justAdded, setJustAdded] = useState(0);
   const [toast, setToast] = useState('');
+  // The cart as it was before the last "Add", so that add can be taken back.
+  const [undo, setUndo] = useState<{ cart: CartItem[]; message: string } | null>(null);
+  const undoCart = undo && undo.message === toast ? undo.cart : null;
+  // Set when the buyer types something that isn't a whole number of pieces.
+  const [qtyError, setQtyError] = useState(false);
 
   // POSelector isn't remounted when a customer client-side-navigates from one
   // category page to another (same component, new categoryId prop) -- without
@@ -145,9 +147,10 @@ export default function POSelector({
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(''), 2200);
+    // Longer when there is an Undo to reach, or a change to existing lines to read.
+    const t = setTimeout(() => { setToast(''); setUndo(null); }, undoCart ? 6000 : 2200);
     return () => clearTimeout(t);
-  }, [toast]);
+  }, [toast, undoCart]);
 
   // Shape, size and colour can be picked in any order: each list offers only
   // what goes with the picks already made in the other two (lib/faceted-picker).
@@ -364,6 +367,13 @@ export default function POSelector({
     rangeMin !== '' || rangeMax !== '' ||
     (categoryId !== 34 && pickColorIds.length > 0);
 
+  const missingFields = [
+    categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && 'shape',
+    pickSizeIdxs.length === 0 && 'size',
+    pickColorIds.length === 0 && lowerLabel,
+    !isQuotation && qtyNum <= 0 && 'quantity'
+  ].filter(Boolean) as string[];
+
   function clearSelection() {
     setPickShapeIds([]);
     setPickSizeIdxs([]);
@@ -371,6 +381,7 @@ export default function POSelector({
     setRangeMin('');
     setRangeMax('');
     setPickQty('');
+    setQtyError(false);
     setPickRequestType('Place Order');
   }
 
@@ -434,15 +445,34 @@ export default function POSelector({
       setToast('Those selections are no longer valid for this category. Please pick again.');
       return;
     }
+    // A combination already in the requirement is merged into that line rather
+    // than added twice -- say so, with the new total, since "Added 4 lines"
+    // while two existing lines quietly grew read as an over-order.
+    const grown = next.filter((item) => {
+      const before = cart.find((c) => c.id === item.id);
+      return before && before.qty !== item.qty;
+    });
+    const fresh = added - grown.length;
+    const parts: string[] = [];
+    if (fresh > 0) parts.push(fresh > 1 ? `Added ${fresh} lines` : 'Added 1 line');
+    if (grown.length === 1) {
+      const g = grown[0];
+      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${g.qty.toLocaleString('en-IN')} pcs`);
+    } else if (grown.length > 1) {
+      parts.push(`${grown.length} lines were already in your order — quantities added to them`);
+    }
+    const message = parts.join(' · ');
+    setUndo({ cart, message });
     setCart(next);
     setJustAdded((n) => n + 1);
-    setToast(added > 1 ? `Added ${added} lines to your order` : 'Added to your order');
+    setToast(message);
     // Reset only size + qty so the same shape/color picks can be reused for the
     // next size quickly. Request type always returns to Purchase -- it is the
     // primary action, and a quotation is a deliberate per-line choice rather
     // than a mode the buyer should stay stuck in.
     setPickSizeIdxs([]);
     setPickQty('');
+    setQtyError(false);
     setPickRequestType('Place Order');
   }
 
@@ -566,8 +596,18 @@ export default function POSelector({
               id="po-new-quantity"
               placeholder="e.g. 5000"
               value={pickQty}
-              onChange={(e) => setPickQty(e.target.value.replace(/\D/g, ''))}
+              aria-invalid={qtyError || undefined}
+              aria-describedby={qtyError ? 'po-new-quantity-error' : undefined}
+              onChange={(e) => {
+                // Keep what was typed and flag it, rather than rewrite it:
+                // stripping the "." turned 12.5 into 125. An invalid entry
+                // parses to nothing, so Add stays off until it is fixed.
+                const v = e.target.value;
+                setPickQty(v);
+                setQtyError(!/^\d*$/.test(v.trim()));
+              }}
             />
+            {qtyError && <p className="po-field-error" id="po-new-quantity-error" role="alert">Whole pieces only — enter a number like 500.</p>}
           </div>
         </div>
 
@@ -596,9 +636,9 @@ export default function POSelector({
         {!selectionHasUnpriced && <p className="po-type-hint" id="po-type-priced-note">Price already listed — no quotation needed.</p>}
         {selectionPrice && (
           <p className="po-price-preview" role="status">
-            <strong>₹{formatInr(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatInr(selectionPrice.max)}</>}</strong>
+            <strong>₹{formatRupees(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatRupees(selectionPrice.max)}</>}</strong>
             {' '}per {priceUnitLabel(priceUnit)}
-            {qtyNum > 0 && <> · est. ₹{Math.round(selectionPrice.sum * qtyNum).toLocaleString('en-IN')}</>}
+            {qtyNum > 0 && <> · est. ₹{formatRupees(selectionPrice.sum * qtyNum)}</>}
           </p>
         )}
 
@@ -606,6 +646,11 @@ export default function POSelector({
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
         {grades.length > 0 && !pickGrade && pickShapeIds.length > 0 && <p className="po-type-hint">Choose a quality ({grades.join(' or ')}) to add this.</p>}
+        {/* A grey button alone doesn't say what's missing. Only once the buyer
+            has started, so an untouched form isn't greeted with a to-do list. */}
+        {!canAdd && hasSelection && missingFields.length > 0 && (
+          <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
+        )}
         {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
         {/* Adding a line deliberately keeps the shape and colour so several
             sizes can be added in a row; this is the way back to an empty form
@@ -623,7 +668,16 @@ export default function POSelector({
           the full set lives. Repeating them here meant two carousels on one
           screen. */}
 
-      {toast && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
+      {toast && (
+        <div className="po-toast" role="status" aria-live="polite">
+          {toast}
+          {undoCart && (
+            <button type="button" className="po-toast-undo" onClick={() => { setCart(undoCart); setUndo(null); setToast('Undone — your order is as it was'); }}>
+              Undo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Running total, always on screen once there's something to total, and
           the route through to the full requirement at /po/cart. */}
@@ -635,7 +689,7 @@ export default function POSelector({
               {cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs
             </span>
             {/* Its own line: squeezed onto the counts it was cut to "₹12,1…" on a phone. */}
-            {hasAnyPricedLine && <span className="po-summary-total">₹{cartTotalInr.toLocaleString('en-IN')}</span>}
+            {hasAnyPricedLine && <span className="po-summary-total">₹{formatRupees(cartTotalInr)}</span>}
           </div>
           <Link href="/po/cart" className="po-summary-action">Review &amp; send</Link>
         </div>

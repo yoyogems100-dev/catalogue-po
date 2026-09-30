@@ -11,6 +11,7 @@ import { categoryIconUrl } from '@/lib/category-icons';
 import ColorSwatch from '@/components/ColorSwatch';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { formatRupees } from '@/lib/money';
 
 type RequestType = 'Place Order' | 'Request Quotation';
 
@@ -365,7 +366,7 @@ export default function OrderDetailClient({
                   </td>
                   {hasAnyPricedLine && (
                     <td className="mono" style={{ fontSize: 11.5, color: 'var(--gold)' }}>
-                      {i.unitPrice != null ? `₹${(i.unitPrice * (quantities[i.id] ?? i.quantity)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '--'}
+                      {i.unitPrice != null ? `₹${formatRupees(i.unitPrice * (quantities[i.id] ?? i.quantity))}` : '--'}
                     </td>
                   )}
                   {editing && (
@@ -399,7 +400,7 @@ export default function OrderDetailClient({
                   </td>
                   {hasAnyPricedLine && (
                     <td className="mono" style={{ fontSize: 11.5, color: 'var(--gold)' }}>
-                      {u !== null ? `₹${(u * l.quantity).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '--'}
+                      {u !== null ? `₹${formatRupees(u * l.quantity)}` : '--'}
                     </td>
                   )}
                   <td>
@@ -413,7 +414,7 @@ export default function OrderDetailClient({
         </div>
         {hasAnyPricedLine && (
           <p className="mono" style={{ textAlign: 'right', fontSize: 13, color: 'var(--ink)', marginTop: 8 }}>
-            Estimated total: ₹{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            Estimated total: ₹{formatRupees(cartTotalInr)}
           </p>
         )}
 
