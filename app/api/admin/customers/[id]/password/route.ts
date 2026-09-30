@@ -3,6 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { decryptForAdmin, passwordProblem } from '@/lib/customer-password';
 import { getCredentials, savePassword } from '@/lib/customer-credentials';
+import { withoutAccessRequest } from '@/lib/access-requests';
 
 async function customerId(params: Promise<{ id: string }>) {
   const id = Number((await params).id);
@@ -28,9 +29,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json().catch(() => ({}));
   const problem = passwordProblem(body.password);
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
-  const { data: customer } = await supabaseAdmin.from('customers').select('id, phone').eq('id', id).maybeSingle();
+  const { data: customer } = await supabaseAdmin.from('customers').select('id, phone, tags').eq('id', id).maybeSingle();
   if (!customer) return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });
   if (!customer.phone) return NextResponse.json({ error: 'Add a WhatsApp number first -- it is what they sign in with.' }, { status: 400 });
   await savePassword(id, body.password, 'admin');
+  // A PIN answers their access request, so it leaves the admin overview.
+  const tags = withoutAccessRequest(customer.tags);
+  if (tags.length !== (customer.tags || []).length) await supabaseAdmin.from('customers').update({ tags }).eq('id', id);
   return NextResponse.json({ ok: true });
 }

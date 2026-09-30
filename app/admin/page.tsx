@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
 import DashboardNotificationBar from '@/components/admin/DashboardNotificationBar';
 import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
+import AccessRequests from '@/components/admin/AccessRequests';
+import { ACCESS_REQUEST_TAG } from '@/lib/access-requests';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
@@ -20,11 +22,13 @@ export default async function AdminDashboard() {
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },
     { title: 'Partial payment', href: '/admin/orders?payment=partial', query: countable().eq('payment_status','partial') }
   ];
-  const [counts, {data: qaCategories}, {data: qaTags}] = await Promise.all([
+  const [counts, {data: qaCategories}, {data: qaTags}, {data: accessRows}] = await Promise.all([
     Promise.all(queues.map(queue => queue.query)),
     // For the quick-action forms below.
     supabaseAdmin.from('categories').select('id,name').order('num'),
-    supabaseAdmin.from('tags').select('id,name').order('name')
+    supabaseAdmin.from('tags').select('id,name').order('name'),
+    // Sign-up requests waiting for a PIN (see lib/access-requests).
+    supabaseAdmin.from('customers').select('id,name,company,phone,created_at').contains('tags', [ACCESS_REQUEST_TAG]).is('deleted_at', null).order('created_at', {ascending:false}).limit(50)
   ]);
   // "Order details" used to stand in for every order whose contact_name was
   // null, which is most of them -- a row reading "#8 - Order details - Placed"
@@ -58,6 +62,7 @@ export default async function AdminDashboard() {
   return <>
     <h1>Admin overview</h1><p>Orders needing attention and shortcuts for today’s work.</p>
     <DashboardNotificationBar />
+    <AccessRequests initial={(accessRows || []).map(r => ({id: r.id, name: r.name, company: r.company, phone: r.phone, createdAt: r.created_at}))} />
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>

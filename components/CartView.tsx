@@ -497,11 +497,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
             // Signing in captures the number once, verifies it, and keeps the
             // order in the buyer's own history instead of stranding it.
             <div className="cart-signin">
-              <h3 className="po-heading">Sign in to send this requirement</h3>
-              <p className="cart-signin-why">
-                We confirm price and availability by WhatsApp, so we need a verified number to reply to.
-                Signing in also keeps this and every future order in your account.
-              </p>
+              <h3 className="po-heading">Log in to send this requirement</h3>
               <LoginForm autoFocus={false} onSuccess={() => window.location.reload()} />
             </div>
           )}

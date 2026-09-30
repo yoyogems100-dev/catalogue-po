@@ -24,17 +24,13 @@ test('a returned-to path may only ever be a path on this site', () => {
   assert.equal(safeNext(''), null);
 });
 
-test('the sign-in screen explains itself, since it is the whole signed-out site', () => {
-  // A signed-out visitor now sees this page and nothing else. A bare phone
-  // field on an otherwise empty page reads as a broken site, so the brand,
-  // a line of context and a way to reach the business all have to be here.
+test('the sign-in screen is the brand plus number and PIN (trial phase)', () => {
+  // Owner, 2026-09-30: WhatsApp codes are off and the team explains access to
+  // each buyer directly, so the screen carries no instructions -- just the
+  // brand, WhatsApp number + PIN, and Sign up (a request for access).
   const html = renderToStaticMarkup(<LoginClient next="/po" whatsappUrl="https://wa.me/919079914601" />);
   assert.match(html, /Synthetic Gemstones\. Infinite Choices\. One Trusted Name\./);
-  assert.match(html, /trade buyers/i);
-  assert.match(html, /wa\.me/);
-
-  // With no WhatsApp number configured the help line is omitted rather than
-  // rendered as a dead link.
-  const noContact = renderToStaticMarkup(<LoginClient next="/po" whatsappUrl={null} />);
-  assert.doesNotMatch(noContact, /Trouble signing in/);
+  assert.match(html, />PIN</);
+  assert.match(html, /Sign up/);
+  assert.doesNotMatch(html, /one-time code|WhatsApp code|Forgot|Trouble signing in|trade buyers/i);
 });
