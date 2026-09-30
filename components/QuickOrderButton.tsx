@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
+import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
@@ -14,7 +15,6 @@ import { preferenceForFamily } from '@/lib/customer-preferences';
 import { useColorButtons, useOrderPreferences } from './useOrderPreferences';
 import { useCatalogueMap } from './useCatalogueMap';
 import StoneFinder from './StoneFinder';
-import { sizeKey } from '@/lib/size-options';
 
 /** Home-page colour chips open Quick Order already started on a colour. */
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
@@ -172,47 +172,36 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     [currentOptions, pickShapeIds]
   );
 
-  const sizesForShapes = useMemo(() => {
-    if (!currentOptions || pickShapeIds.length === 0) return [];
-    const bySizeMm = new Map<string, typeof currentOptions.sizes>();
-    currentOptions.sizes.forEach((sz) => {
-      if (!pickShapeIds.includes(sz.shapeId)) return;
-      if (!bySizeMm.has(sz.sizeMm)) bySizeMm.set(sz.sizeMm, []);
-      bySizeMm.get(sz.sizeMm)!.push(sz);
-    });
-    const common: { sizeMm: string; rows: typeof currentOptions.sizes }[] = [];
-    bySizeMm.forEach((rows, sizeMm) => {
-      const shapeIdsCovered = new Set(rows.map((r) => r.shapeId));
-      if (pickShapeIds.every((id) => shapeIdsCovered.has(id))) common.push({ sizeMm, rows });
-    });
-    return common.sort((a, b) => {
-      const na = strictSizeNum(a.sizeMm);
-      const nb = strictSizeNum(b.sizeMm);
-      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
-      if (Number.isNaN(na)) return 1;
-      if (Number.isNaN(nb)) return -1;
-      return na - nb;
-    });
-  }, [currentOptions, pickShapeIds]);
-
-  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map((row) => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
+  // Shape and size can be picked in either order: each list offers only what
+  // goes with the other's picks (lib/faceted-picker). Sizes index into the
+  // category's full size list, so a size picked first survives a shape pick.
+  const sizeGroups = useMemo(() => sizeGroupsOf(currentOptions?.sizes || []), [currentOptions]);
+  const available = useMemo(
+    () => facetAvailability((currentOptions?.shapes || []).map((s) => s.id), (currentOptions?.colors || []).map((c) => c.id), sizeGroups, null,
+      { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
+    [currentOptions, sizeGroups, pickShapeIds, pickSizeIdxs, pickColorIds]
+  );
+  const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
+  const sizeOptions = useMemo(
+    () => sizeGroups
+      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
+      .filter((o) => available.sizeIdxs.has(o.id)),
+    [sizeGroups, available, pickShapeIds]
+  );
 
   // Carry the finder's shape and size into the stone the buyer chose, once
-  // its options have loaded: first the shape, then (from that shape's size
-  // list) the size.
+  // its options have loaded. Sizes no longer wait on a shape, so both land
+  // together.
   useEffect(() => {
     if (!pendingPick || !currentOptions) return;
-    if (pendingPick.shapeId && pickShapeIds.length === 0 && currentOptions.shapes.some((s) => s.id === pendingPick.shapeId)) {
-      setPickShapeIds([pendingPick.shapeId]);
-      if (!pendingPick.size) setPendingPick(null);
-      return;
-    }
-    if (pendingPick.size && pickShapeIds.length > 0) {
-      const idx = sizesForShapes.findIndex((g) => sizeKey(g.sizeMm) === pendingPick.size);
+    const shapeId = pendingPick.shapeId && currentOptions.shapes.some((s) => s.id === pendingPick.shapeId) ? pendingPick.shapeId : null;
+    if (shapeId && pickShapeIds.length === 0) setPickShapeIds([shapeId]);
+    if (pendingPick.size) {
+      const idx = sizeGroups.findIndex((g) => g.key === pendingPick.size && (!shapeId || g.rows.some((r) => r.shapeId === shapeId)));
       if (idx >= 0) setPickSizeIdxs([idx]);
     }
     setPendingPick(null);
-  }, [pendingPick, currentOptions, pickShapeIds, sizesForShapes]);
+  }, [pendingPick, currentOptions, pickShapeIds, sizeGroups]);
 
   const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId) : [];
 
@@ -247,7 +236,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
         const color = currentOptions.colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizesForShapes[sizeIdx];
+          const group = sizeGroups[sizeIdx];
           const match = group?.rows.find((r) => r.shapeId === shapeId);
           if (!match) continue;
           const item: CartItem = {
@@ -405,9 +394,9 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
               <IconSelect
                 categoryId={Number(pickCategoryId) || undefined}
                 multiple
-                options={currentOptions?.shapes || []}
+                options={shapeOptions}
                 values={pickShapeIds}
-                onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+                onChange={setPickShapeIds}
                 placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                 leading="icon"
                 disabledIds={incompatibleShapes}
@@ -424,7 +413,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 options={sizeOptions}
                 values={pickSizeIdxs}
                 onChange={setPickSizeIdxs}
-                placeholder={pickShapeIds.length === 0 ? 'Pick a shape first' : sizeOptions.length === 0 ? 'No common size for these shapes' : 'Choose size(s)'}
+                placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
               />
             </div>
             <div>
@@ -449,7 +438,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
               categoryName={currentCategory.name}
               shapeIds={pickShapeIds}
               colorIds={pickColorIds}
-              sizeIds={pickSizeIdxs.flatMap((index) => sizesForShapes[index]?.rows.map((row) => row.id) || [])}
+              sizeIds={pickedSizeRows(sizeGroups, pickSizeIdxs, pickShapeIds).map((row) => row.id)}
               shapes={currentOptions.shapes}
               colors={currentOptions.colors}
             />

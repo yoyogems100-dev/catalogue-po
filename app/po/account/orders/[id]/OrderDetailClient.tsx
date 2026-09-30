@@ -5,6 +5,7 @@ import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
 import ColorSwatch from '@/components/ColorSwatch';
@@ -146,30 +147,22 @@ export default function OrderDetailClient({
   const currentOptions = typeof pickCategoryId === 'number' ? optionsCache[pickCategoryId] : null;
   const currentCategory = typeof pickCategoryId === 'number' ? allCategories.find((c) => c.id === pickCategoryId) : null;
 
-  const sizesForShapes = useMemo(() => {
-    if (!currentOptions || pickShapeIds.length === 0) return [];
-    const bySizeMm = new Map<string, typeof currentOptions.sizes>();
-    currentOptions.sizes.forEach((sz) => {
-      if (!pickShapeIds.includes(sz.shapeId)) return;
-      if (!bySizeMm.has(sz.sizeMm)) bySizeMm.set(sz.sizeMm, []);
-      bySizeMm.get(sz.sizeMm)!.push(sz);
-    });
-    const common: { sizeMm: string; rows: typeof currentOptions.sizes }[] = [];
-    bySizeMm.forEach((rows, sizeMm) => {
-      const shapeIdsCovered = new Set(rows.map((r) => r.shapeId));
-      if (pickShapeIds.every((id) => shapeIdsCovered.has(id))) common.push({ sizeMm, rows });
-    });
-    return common.sort((a, b) => {
-      const na = strictSizeNum(a.sizeMm);
-      const nb = strictSizeNum(b.sizeMm);
-      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
-      if (Number.isNaN(na)) return 1;
-      if (Number.isNaN(nb)) return -1;
-      return na - nb;
-    });
-  }, [currentOptions, pickShapeIds]);
-
-  const sizeOptions = useMemo(() => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })), [sizesForShapes]);
+  // Shape and size can be picked in either order: each list offers only what
+  // goes with the other's picks (lib/faceted-picker). Sizes index into the
+  // category's full size list, so a size picked first survives a shape pick.
+  const sizeGroups = useMemo(() => sizeGroupsOf(currentOptions?.sizes || []), [currentOptions]);
+  const available = useMemo(
+    () => facetAvailability((currentOptions?.shapes || []).map((s) => s.id), (currentOptions?.colors || []).map((c) => c.id), sizeGroups, null,
+      { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
+    [currentOptions, sizeGroups, pickShapeIds, pickSizeIdxs, pickColorIds]
+  );
+  const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
+  const sizeOptions = useMemo(
+    () => sizeGroups
+      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
+      .filter((o) => available.sizeIdxs.has(o.id)),
+    [sizeGroups, available, pickShapeIds]
+  );
 
   // Grey out shapes that share no size with the current pick -- same rule as
   // the category page and the admin builder.
@@ -199,12 +192,12 @@ export default function OrderDetailClient({
     }
     const lo = Math.min(min, max);
     const hi = Math.max(min, max);
-    const matchIdxs = sizesForShapes
-      .map((g, i) => ({ i, val: strictSizeNum(g.sizeMm) }))
+    const matchIdxs = sizeOptions
+      .map((o) => ({ i: o.id, val: strictSizeNum(sizeGroups[o.id].sizeMm) }))
       .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
       .map((g) => g.i);
     if (matchIdxs.length === 0) {
-      setToast(`No existing sizes between ${lo}-${hi}mm for these shapes.`);
+      setToast(`No existing sizes between ${lo}-${hi}mm here.`);
       return;
     }
     setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
@@ -229,7 +222,7 @@ export default function OrderDetailClient({
         const color = currentOptions.colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizesForShapes[sizeIdx];
+          const group = sizeGroups[sizeIdx];
           const match = group?.rows.find((r) => r.shapeId === shapeId);
           if (!match) continue;
           added.push({
@@ -458,9 +451,9 @@ export default function OrderDetailClient({
                   <IconSelect
                     categoryId={Number(pickCategoryId) || undefined}
                     multiple
-                    options={currentOptions?.shapes || []}
+                    options={shapeOptions}
                     values={pickShapeIds}
-                    onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+                    onChange={setPickShapeIds}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                     leading="icon"
                     disabledIds={incompatibleShapes}
@@ -478,10 +471,10 @@ export default function OrderDetailClient({
                     values={pickSizeIdxs}
                     onChange={setPickSizeIdxs}
                     placeholder={
-                      pickShapeIds.length === 0 ? 'Pick a shape first' : sizeOptions.length === 0 ? 'No common size for these shapes' : 'Choose size(s)'
+                      !currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'
                     }
                   />
-                  {pickShapeIds.length > 0 && (
+                  {sizeOptions.length > 1 && (
                     <div className="po-range-row">
                       <input type="text" inputMode="decimal" placeholder="Min mm" value={rangeMin} onChange={(e) => setRangeMin(e.target.value)} />
                       <span>to</span>

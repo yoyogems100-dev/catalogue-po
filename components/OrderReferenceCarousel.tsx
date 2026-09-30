@@ -23,8 +23,8 @@ export default function OrderReferenceCarousel({photos,categoryName,shapeIds,col
 // A borderless row of reference photos. The strip shows as many photos as the
 // width allows (one on a phone, several on desktop) and scrolls sideways with
 // snap; arrow buttons appear only while there is more to see in that direction.
-function ReferenceStrip({photos,matching,categoryName,shapes,colors,colorChartUrl}: {
-  photos:OrderReferencePhoto[];matching:boolean;fallback:boolean;categoryName:string;shapes:NamedOption[];colors:NamedOption[];colorChartUrl?:string|null;
+function ReferenceStrip({photos,matching,matchCount,categoryName,shapes,colors,colorChartUrl}: {
+  photos:OrderReferencePhoto[];matching:boolean;fallback:boolean;matchCount:number;categoryName:string;shapes:NamedOption[];colors:NamedOption[];colorChartUrl?:string|null;
 }) {
   const [index,setIndex] = useState<number|null>(null);
   const [failed,setFailed] = useState<number[]>([]);
@@ -75,6 +75,8 @@ function ReferenceStrip({photos,matching,categoryName,shapes,colors,colorChartUr
         onClick={e=>{opener.current=e.currentTarget;setIndex(i);}}>
         {failed.includes(photo.id) ? <span className="po-reference-unavailable">Image unavailable</span>
           : <img src={photo.url!} alt={altFor(photo,i)} loading={i<4?'eager':'lazy'} decoding="async" onError={()=>markFailed(photo.id)} />}
+        {/* Picks re-sort the strip live; this says which tiles moved up and why. */}
+        {i<matchCount && <span className="po-ref-strip-match">✓ Matches your pick</span>}
       </button>)}
       {colorChartUrl && <button type="button" className="po-ref-strip-tile po-ref-strip-chart-tile" aria-label={`Enlarge ${categoryName} color chart`}
         onClick={e=>{chartOpener.current=e.currentTarget;setChartOpen(true);}}>

@@ -25,7 +25,7 @@ const DIMENSIONS = ['shapeIds', 'colorIds', 'sizeIds'] as const;
 export function referencePhotos(photos: OrderReferencePhoto[], selection: { shapeIds: number[]; colorIds: number[]; sizeIds: number[] }) {
   const available = photos.filter((photo) => !!photo.url && !(photo.parentId ?? null));
   const selected = DIMENSIONS.filter((key) => selection[key].length > 0);
-  if (selected.length === 0) return { photos: available, matching: false, fallback: false };
+  if (selected.length === 0) return { photos: available, matching: false, fallback: false, matchCount: 0 };
 
   // Score = how many of the picked dimensions this photo matches, so a photo
   // tagged with both the chosen shape and the chosen colour outranks one
@@ -39,5 +39,6 @@ export function referencePhotos(photos: OrderReferencePhoto[], selection: { shap
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
   const matches = ranked.filter((entry) => entry.score > 0).length;
-  return { photos: ranked.map((entry) => entry.photo), matching: matches > 0, fallback: matches === 0 };
+  // Matches lead, so the first `matchCount` photos are the ones to mark.
+  return { photos: ranked.map((entry) => entry.photo), matching: matches > 0, fallback: matches === 0, matchCount: matches };
 }

@@ -3,6 +3,7 @@ import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
+import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { useEffect, useMemo, useState } from 'react';
@@ -83,31 +84,21 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
 
   // Only sizes every picked shape actually offers, grouped by the millimetre
   // label -- picking Round + Oval should not offer a size only Round has.
-  const sizesForShapes = useMemo(() => {
-    if (!currentOptions || pickShapeIds.length === 0) return [] as { sizeMm: string; rows: Options['sizes'] }[];
-    const bySizeMm = new Map<string, Options['sizes']>();
-    currentOptions.sizes.forEach((sz) => {
-      if (!pickShapeIds.includes(sz.shapeId)) return;
-      if (!bySizeMm.has(sz.sizeMm)) bySizeMm.set(sz.sizeMm, []);
-      bySizeMm.get(sz.sizeMm)!.push(sz);
-    });
-    const common: { sizeMm: string; rows: Options['sizes'] }[] = [];
-    bySizeMm.forEach((rows, sizeMm) => {
-      const covered = new Set(rows.map((r) => r.shapeId));
-      if (pickShapeIds.every((id) => covered.has(id))) common.push({ sizeMm, rows });
-    });
-    return common.sort((a, b) => {
-      const na = strictSizeNum(a.sizeMm), nb = strictSizeNum(b.sizeMm);
-      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
-      if (Number.isNaN(na)) return 1;
-      if (Number.isNaN(nb)) return -1;
-      return na - nb;
-    });
-  }, [currentOptions, pickShapeIds]);
-
+  // Shape and size can be picked in either order: each list offers only what
+  // goes with the other's picks (lib/faceted-picker). Sizes index into the
+  // category's full size list, so a size picked first survives a shape pick.
+  const sizeGroups = useMemo(() => sizeGroupsOf(currentOptions?.sizes || []), [currentOptions]);
+  const available = useMemo(
+    () => facetAvailability((currentOptions?.shapes || []).map((s) => s.id), (currentOptions?.colors || []).map((c) => c.id), sizeGroups, null,
+      { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
+    [currentOptions, sizeGroups, pickShapeIds, pickSizeIdxs, pickColorIds]
+  );
+  const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
   const sizeOptions = useMemo(
-    () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map((row) => row.id), name: `${g.sizeMm} mm` })),
-    [sizesForShapes]
+    () => sizeGroups
+      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
+      .filter((o) => available.sizeIdxs.has(o.id)),
+    [sizeGroups, available, pickShapeIds]
   );
 
   async function handleCategoryChange(categoryId: number | 'all') {
@@ -159,7 +150,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         const color = currentOptions.colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizesForShapes[sizeIdx];
+          const group = sizeGroups[sizeIdx];
           const match = group?.rows.find((r) => r.shapeId === shapeId);
           if (!match) continue;
           added.push({
@@ -350,9 +341,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             <IconSelect
               categoryId={Number(pickCategoryId) || undefined}
               multiple
-              options={currentOptions?.shapes || []}
+              options={shapeOptions}
               values={pickShapeIds}
-              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+              onChange={setPickShapeIds}
               placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
               leading="icon"
               disabledIds={incompatibleShapes}
@@ -382,7 +373,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
-              placeholder={pickShapeIds.length === 0 ? 'Pick a shape first' : sizeOptions.length === 0 ? 'No common size for these shapes' : 'Choose size(s)'}
+              placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
             />
           </div>
           <div>
