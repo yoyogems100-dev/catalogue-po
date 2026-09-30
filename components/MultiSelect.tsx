@@ -21,7 +21,8 @@ export default function MultiSelect({
   leading = 'none',
   placeholder = 'Nothing selected',
   emptyHint,
-  palettes
+  palettes,
+  closeOnFirstPick
 }: {
   categoryId?: number;
   optionKind?: OptionKind;
@@ -33,6 +34,9 @@ export default function MultiSelect({
   emptyHint?: string;
   /** Quick-select groups shown above the option list -- checking one selects every member at once. */
   palettes?: Palette[];
+  /** Close after the first pick from an empty selection; reopening then
+      stays open for more picks, like any multi-select. */
+  closeOnFirstPick?: boolean;
 }) {
   const { flags, ready } = useHotSelling();
   const kind = optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
@@ -143,6 +147,7 @@ export default function MultiSelect({
   }
 
   async function handleToggle(id: number, wasSelected: boolean) {
+    if (closeOnFirstPick && !wasSelected && localIds.length === 0) closeAndRefocus();
     setLocalIds((cur) => (wasSelected ? cur.filter((x) => x !== id) : [...cur, id]));
     try {
       await onToggle(id, wasSelected);

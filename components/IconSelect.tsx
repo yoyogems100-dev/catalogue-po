@@ -42,6 +42,8 @@ type SingleProps = CommonProps & {
   value: number | 'all';
   onChange: (v: number | 'all') => void;
   allLabel: string;
+  /** Leave the "all" row out of the list, for a picker that always has a real value. */
+  hideAllOption?: boolean;
 };
 
 type MultiProps = CommonProps & {
@@ -343,7 +345,7 @@ export default function IconSelect(props: Props) {
           )}
 
           <div className="icon-select-listbox" role="listbox" aria-label={ariaLabel} aria-multiselectable={isMulti} ref={listboxRef} onKeyDown={handleListKeyDown}>
-            {!isMulti && (
+            {!isMulti && !single.hideAllOption && (
               <div
                 role="option"
                 aria-selected={single.value === 'all'}

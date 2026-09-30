@@ -71,6 +71,7 @@ export default function CategoryAdminClient({
   thumbnailPhotoId,
   photos,
   otherCategories,
+  currentCategory,
   badgeTypes,
   shapeReference,
   optionLabel,
@@ -99,6 +100,8 @@ export default function CategoryAdminClient({
   /** Every other category's id/name, for the Photos tab's "Add to category"
       bulk action -- empty on every other tab. */
   otherCategories: { id: number; name: string; slug: string | null }[];
+  /** This category, shown first and pre-chosen in that bulk action's picker. */
+  currentCategory?: { id: number; name: string; slug: string | null };
   badgeTypes: BadgeType[];
   /** The Shapes & sizes tab's card grid of linked shapes. Rendered on the
       server (it reads per-category reference photos) and passed in as a slot
@@ -899,17 +902,25 @@ export default function CategoryAdminClient({
                 <span className="photo-select-sep" aria-hidden="true" />
                 <div style={{ maxWidth: 220, flex: '1 1 180px', opacity: selectedPhotoIds.length === 0 ? 0.5 : 1, pointerEvents: selectedPhotoIds.length === 0 ? 'none' : undefined }}>
                   <IconSelect
-                    options={otherCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
-                    value={moveTargetId === '' ? 'all' : moveTargetId}
-                    onChange={(v) => setMoveTargetId(v === 'all' ? '' : Number(v))}
+                    options={[
+                      ...(currentCategory ? [{ id: currentCategory.id, name: `${currentCategory.name} (this category)`, refPhotoUrl: categoryIconUrl(currentCategory.slug) }] : []),
+                      ...otherCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))
+                    ]}
+                    value={moveTargetId === '' ? (currentCategory ? currentCategory.id : 'all') : moveTargetId}
+                    onChange={(v) => setMoveTargetId(v === 'all' || v === currentCategory?.id ? '' : Number(v))}
                     allLabel="Add to category…"
+                    hideAllOption={!!currentCategory}
                     leading="photo"
                     searchable
                   />
                 </div>
-                <button className="btn" disabled={!moveTargetId || selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
-                  {bulkBusy ? 'Working…' : 'Add to category'}
-                </button>
+                {/* The photos are already in this category, so there is nothing
+                    to add until another one is chosen above. */}
+                {moveTargetId !== '' && moveTargetId !== categoryId && (
+                  <button className="btn-ghost" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={moveSelectedPhotos}>
+                    {bulkBusy ? 'Working…' : 'Add to category'}
+                  </button>
+                )}
                 <button
                   className="btn"
                   disabled={selectedPhotoIds.length < 2 || bulkBusy}
@@ -1237,6 +1248,7 @@ function PhotoRow({
             options={shapes.map((s) => ({ id: s.id, name: s.name, iconKey: s.iconKey }))}
             values={shapeIds}
             onChange={updateShapes}
+            closeOnFirstPick
             placeholder="No shapes"
             leading="icon"
           />
@@ -1249,6 +1261,7 @@ function PhotoRow({
             options={availableSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
             values={sizeIds}
             onChange={updateSizes}
+            closeOnFirstPick
             placeholder={shapeIds.length === 0 ? 'Pick a shape first' : 'No sizes'}
           />
         )}
@@ -1259,6 +1272,7 @@ function PhotoRow({
             options={colors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
             values={colorIds}
             onChange={updateColors}
+            closeOnFirstPick
             placeholder="No colors"
             leading="swatch"
           />

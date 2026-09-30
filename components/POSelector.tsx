@@ -461,6 +461,7 @@ export default function POSelector({
         locked={categoryId === 34}
         values={pickColorIds}
         onChange={setPickColorIds}
+              closeOnFirstPick
         placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
       />

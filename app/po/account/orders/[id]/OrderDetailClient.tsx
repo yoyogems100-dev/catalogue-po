@@ -442,6 +442,7 @@ export default function OrderDetailClient({
                     locked={pickCategoryId === 34}
                     values={pickColorIds}
                     onChange={setPickColorIds}
+              closeOnFirstPick
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
                     leading="swatch"
                   />

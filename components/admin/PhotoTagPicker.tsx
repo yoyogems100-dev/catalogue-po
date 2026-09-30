@@ -52,23 +52,23 @@ export default function PhotoTagPicker({
     <div className="photo-upload-grid">
       <div className="ps-field">
         <label>Shapes</label>
-        <MultiSelect categoryId={categoryId} optionKind="shape" options={shapes} selectedIds={value.shapeIds}
+        <MultiSelect closeOnFirstPick categoryId={categoryId} optionKind="shape" options={shapes} selectedIds={value.shapeIds}
           onToggle={toggle('shapeIds')} leading="icon" placeholder="No shape" emptyHint="This category has no shapes linked yet." />
       </div>
       <div className="ps-field">
         <label>Sizes</label>
-        <MultiSelect categoryId={categoryId} optionKind="size" options={sizeOptions} selectedIds={value.sizeIds}
+        <MultiSelect closeOnFirstPick categoryId={categoryId} optionKind="size" options={sizeOptions} selectedIds={value.sizeIds}
           onToggle={toggle('sizeIds')} placeholder="No size"
           emptyHint={value.shapeIds.length ? 'No sizes for the chosen shapes.' : 'This category has no sizes linked yet.'} />
       </div>
       <div className="ps-field">
         <label>{colorLabel}s</label>
-        <MultiSelect categoryId={categoryId} optionKind="color" options={colors} selectedIds={value.colorIds}
+        <MultiSelect closeOnFirstPick categoryId={categoryId} optionKind="color" options={colors} selectedIds={value.colorIds}
           onToggle={toggle('colorIds')} leading="swatch" placeholder={`No ${colorLabel.toLowerCase()}`} emptyHint={`This category has no ${colorLabel.toLowerCase()}s linked yet.`} />
       </div>
       <div className="ps-field">
         <label>Specifications</label>
-        <MultiSelect categoryId={categoryId} optionKind="tag" options={tags} selectedIds={value.tagIds}
+        <MultiSelect closeOnFirstPick categoryId={categoryId} optionKind="tag" options={tags} selectedIds={value.tagIds}
           onToggle={toggle('tagIds')} placeholder="No specification" emptyHint="This category has no specifications yet." />
       </div>
     </div>
