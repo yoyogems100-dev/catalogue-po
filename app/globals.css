@@ -2705,3 +2705,14 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   color: rgba(255,255,255,.5);
   font-family: var(--font-mono), 'JetBrains Mono', monospace; font-size: 9.5px; white-space: nowrap;
 }
+
+/* Admin overview: sign-up requests waiting for a PIN. */
+.access-requests { margin-bottom: 20px; padding: 14px 16px; border-left: 3px solid var(--gold); }
+.access-requests h2 { font-size: 16px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.access-requests-count { font-family: inherit; font-size: 12px; font-weight: 600; color: #fff; background: var(--gold); border-radius: 999px; padding: 1px 8px; }
+.access-requests ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.access-requests li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
+.access-requests li > a { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; flex: 1 1 220px; color: var(--ink); font-size: 13.5px; }
+.access-requests li small { color: var(--text-dim); font-size: 11.5px; margin-left: 6px; }
+.access-requests-actions { display: flex; gap: 6px; }
+.access-requests-actions .btn, .access-requests-actions .btn-ghost { padding: 6px 12px; font-size: 12.5px; }

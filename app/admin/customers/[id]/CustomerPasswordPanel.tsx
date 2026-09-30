@@ -7,10 +7,10 @@ type Status = { hasPassword: boolean; setAt: string | null; setBy: 'admin' | 'cu
 
 const when = (iso: string) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 
+// A 6-digit PIN: easy to send on WhatsApp and to type on a phone keypad.
 function suggest() {
-  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+  const bytes = crypto.getRandomValues(new Uint32Array(1));
+  return String(bytes[0] % 1_000_000).padStart(6, '0');
 }
 
 // Sign-in password for one customer: see it, copy it, set a new one. The
@@ -28,8 +28,8 @@ export default function CustomerPasswordPanel({ customerId, phone, status }: { c
     const res = await fetch(`/api/admin/customers/${customerId}/password`, { cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) return setMessage(data.error || 'Could not load the password.');
-    if (!data.viewable) return setMessage('This password was saved before the viewing key changed, so it can’t be shown. Set a new one below.');
+    if (!res.ok) return setMessage(data.error || 'Could not load the PIN.');
+    if (!data.viewable) return setMessage('This PIN was saved before the viewing key changed, so it can’t be shown. Set a new one below.');
     setShown(data.password);
   }
 
@@ -40,27 +40,27 @@ export default function CustomerPasswordPanel({ customerId, phone, status }: { c
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) return setMessage(data.error || 'Could not save the password.');
+    if (!res.ok) return setMessage(data.error || 'Could not save the PIN.');
     setShown(draft); setDraft('');
-    setMessage('Password saved. Send it to the customer on WhatsApp; they can change it from My Info.');
+    setMessage('PIN saved. Send it to the customer; they log in with their WhatsApp number and this PIN.');
     router.refresh();
   }
 
   async function copy() {
     if (shown === null) return;
-    try { await navigator.clipboard.writeText(shown); setMessage('Copied.'); } catch { setMessage('Copy failed -- select the password and copy it.'); }
+    try { await navigator.clipboard.writeText(shown); setMessage('Copied.'); } catch { setMessage('Copy failed -- select the PIN and copy it.'); }
   }
 
   return <section className="card admin-profile-editor" aria-labelledby="pw-heading">
-    <h2 id="pw-heading">Sign-in password</h2>
+    <h2 id="pw-heading">Login PIN</h2>
     {!phone ? (
-      <p className="login-hint">Add a WhatsApp number above first -- customers sign in with their number and password.</p>
+      <p className="login-hint">Add a WhatsApp number above first -- customers log in with their number and PIN.</p>
     ) : (
       <>
         <p className="login-hint" style={{ marginBottom: 14 }}>
           {status.hasPassword && status.setAt
-            ? <>Signs in with <strong>{phone}</strong> and a password, set by {status.setBy === 'admin' ? 'the team' : 'the customer'} on {when(status.setAt)}. They can also use a WhatsApp code.</>
-            : <>No password yet -- they sign in with a WhatsApp code. Set one below to let them use <strong>{phone}</strong> and a password.</>}
+            ? <>Logs in with <strong>{phone}</strong> and a PIN, set by {status.setBy === 'admin' ? 'the team' : 'the customer'} on {when(status.setAt)}.</>
+            : <>No PIN yet, so they can&rsquo;t log in. Set one below, then send it to them.</>}
         </p>
         {status.hasPassword && (
           <div className="admin-password-row">
@@ -70,12 +70,12 @@ export default function CustomerPasswordPanel({ customerId, phone, status }: { c
           </div>
         )}
         <div className="admin-profile-grid" style={{ marginTop: 14 }}>
-          <label>{status.hasPassword ? 'New password' : 'Password'}
+          <label>{status.hasPassword ? 'New PIN' : 'PIN'}
             <input type="text" autoComplete="off" spellCheck={false} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="At least 4 characters" />
           </label>
         </div>
         <div className="admin-form-actions">
-          <button type="button" className="btn" onClick={save} disabled={busy || draft.length < 4}>{busy ? 'Saving…' : status.hasPassword ? 'Set new password' : 'Set password'}</button>
+          <button type="button" className="btn" onClick={save} disabled={busy || draft.length < 4}>{busy ? 'Saving…' : status.hasPassword ? 'Set new PIN' : 'Set PIN'}</button>
           <button type="button" className="btn-ghost" onClick={() => setDraft(suggest())} disabled={busy}>Suggest one</button>
         </div>
       </>
