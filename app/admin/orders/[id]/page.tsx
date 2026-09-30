@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
 
@@ -79,7 +80,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     // For the line editor below: each order category's linked options.
     categoryIds.length ? supabaseAdmin.from('category_shapes').select('category_id, shape_id').in('category_id', categoryIds) : Promise.resolve({ data: [] }),
     categoryIds.length ? supabaseAdmin.from('category_colors').select('category_id, color_id').in('category_id', categoryIds) : Promise.resolve({ data: [] }),
-    categoryIds.length ? supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id').in('category_id', categoryIds) : Promise.resolve({ data: [] })
+    categoryIds.length ? fetchAllRows<{ category_id: number; shape_size_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id', { count: 'exact' }).in('category_id', categoryIds).order('category_id').order('shape_size_id').range(from, to)) : Promise.resolve({ data: [] })
   ]);
   // Only shown for a customer record that still exists, as before.
   const customerOrderHistory = customer ? customerOrderHistoryRaw : [];

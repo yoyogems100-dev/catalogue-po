@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { COVERAGE_FILTERS, catalogueGaps, matchesCoverage, type CoverageFilter } from '@/lib/catalogue-health';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
 // Same Google Drive rate-limiting story as the public catalogue (see
 // app/HomeCatalogue.tsx): this page lists every category at once, so eager
@@ -77,7 +78,7 @@ function StatsLineFormatted({ c }: { c: Row }) {
   return (
     <div className="admin-cat-card-stats mono">
       {parts.map(([n, label], i) => (
-        <span key={label}>
+        <span key={label} className={n === 0 ? 'admin-stat-missing' : undefined} title={n === 0 ? `No ${label} yet` : undefined}>
           {i > 0 && ' · '}
           <b>{n}</b> {label}
         </span>
@@ -132,7 +133,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
     });
     if (!res.ok) {
       setLocalRows(prev);
-      alert('Failed to save the new order.');
+      notify('Failed to save the new order.');
       return;
     }
     router.refresh();
@@ -163,7 +164,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
 
   async function setArchived(id: number, name: string, archived: boolean) {
     if (busyId) return;
-    if (archived && !confirm(`Archive "${name}"?\n\nIt will be hidden from the website and catalogue straight away. Its photos, shapes, colours, prices and past orders are all kept, and you can restore it any time from "Archived categories".`)) return;
+    if (archived && !(await confirmAction(`Archive "${name}"?\n\nIt will be hidden from the website and catalogue straight away. Its photos, shapes, colours, prices and past orders are all kept, and you can restore it any time from "Archived categories".`))) return;
     setBusyId(id);
     try {
       await saveCategory('PATCH', { id, archived });
@@ -174,7 +175,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
   }
 
   async function deleteCategory(id: number, name: string) {
-    if (!confirm(`Delete "${name}"? This also deletes all its photos and shape/color/size links. Past orders keep their line items. This cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete "${name}"? This also deletes all its photos and shape/color/size links. Past orders keep their line items. This cannot be undone.`))) return;
     try {
       await saveCategory('DELETE', { id });
       setToast('Category deleted.'); router.refresh();

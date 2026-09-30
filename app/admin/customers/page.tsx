@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Form from 'next/form';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 import StatusTag from '@/components/admin/StatusTag';
 import { CUSTOMER_PLACES } from '@/lib/customer-places';
 import CustomerCreateForm from './CustomerCreateForm';
@@ -18,13 +19,15 @@ function parseMulti(raw: string | undefined, allowed: readonly string[]) {
   return (raw || '').split(',').map((v) => v.trim()).filter((v) => allowed.includes(v));
 }
 
+// Buyers who have ordered from any of these categories: one paged read of the
+// matching order lines with their order's buyer embedded (it was two reads in
+// a row, and stopped silently at 1000 order lines).
 async function customerIdsOrderedFromCategories(categoryIds: number[]) {
   if (!categoryIds.length) return [];
-  const { data: matchingItems } = await supabaseAdmin.from('order_items').select('order_id').in('category_id', categoryIds);
-  const orderIds = [...new Set((matchingItems || []).map((i: any) => i.order_id))];
-  if (!orderIds.length) return [];
-  const { data: matchingOrders } = await supabaseAdmin.from('orders').select('customer_id').in('id', orderIds);
-  return [...new Set((matchingOrders || []).map((o: any) => o.customer_id).filter(Boolean))];
+  const { data } = await fetchAllRows<{ orders: { customer_id: number | null } | { customer_id: number | null }[] | null }>((from, to) =>
+    supabaseAdmin.from('order_items').select('id, orders(customer_id)', { count: 'exact' }).in('category_id', categoryIds).order('id').range(from, to));
+  // A line has one order; the untyped client just can't tell it's not a list.
+  return [...new Set((data || []).flatMap((i) => [i.orders].flat()).map((o) => o?.customer_id).filter(Boolean))] as number[];
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; place?: string; category?: string; workStream?: string }> }) {
@@ -34,14 +37,16 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const workStreams = parseMulti(params.workStream, WORK_STREAMS);
   const categoryIds = (params.category || '').split(',').map((v) => v.trim()).filter((v) => /^\d+$/.test(v)).map(Number);
   const safeQ = q.replace(/[,()%]/g, '');
-  const { data: allCategories } = await supabaseAdmin.from('categories').select('id,name,slug').order('name');
-
-  let categoryCustomerIds: number[] = [];
-  if (safeQ) {
-    const { data: matchingCategories } = await supabaseAdmin.from('categories').select('id').ilike('name', `%${safeQ}%`);
-    const matchedCategoryIds = (matchingCategories || []).map((c: any) => c.id);
-    categoryCustomerIds = await customerIdsOrderedFromCategories(matchedCategoryIds);
-  }
+  // Everything the customer query depends on is looked up side by side.
+  const [{ data: allCategories }, categoryCustomerIds, filterCustomerIds] = await Promise.all([
+    supabaseAdmin.from('categories').select('id,name,slug').order('name'),
+    // A search also finds buyers of any category whose name matches.
+    safeQ
+      ? supabaseAdmin.from('categories').select('id').ilike('name', `%${safeQ}%`)
+          .then(({ data }) => customerIdsOrderedFromCategories((data || []).map((c: any) => c.id)))
+      : Promise.resolve([] as number[]),
+    categoryIds.length ? customerIdsOrderedFromCategories(categoryIds) : Promise.resolve(null)
+  ]);
 
   let query = supabaseAdmin.from('customers').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(250);
   if (safeQ) {
@@ -51,14 +56,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   }
   if (places.length) query = query.in('place', places);
   if (workStreams.length) query = query.in('work_stream', workStreams);
-  if (categoryIds.length) {
-    const ids = await customerIdsOrderedFromCategories(categoryIds);
-    query = query.in('id', ids.length ? ids : [-1]);
-  }
+  if (filterCustomerIds) query = query.in('id', filterCustomerIds.length ? filterCustomerIds : [-1]);
   const { data: customers, error } = await query;
   const customerIds = (customers || []).map((customer: any) => customer.id);
   const { data: orders } = customerIds.length
-    ? await supabaseAdmin.from('orders').select('id,customer_id,status,created_at').in('customer_id', customerIds).order('created_at', { ascending: false })
+    ? await fetchAllRows<{ id: number; customer_id: number; status: string; created_at: string }>((from, to) =>
+        supabaseAdmin.from('orders').select('id,customer_id,status,created_at', { count: 'exact' }).in('customer_id', customerIds).order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to))
     : { data: [] };
   const stats = new Map<number, { count: number; latest?: any }>();
   for (const order of orders || []) {

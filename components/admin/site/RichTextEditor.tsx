@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { safeHref, sanitizeRichText } from '@/lib/site/rich-text';
 import s from './site-admin.module.css';
+import { notify } from '@/components/admin/AdminDialogs';
 
 // A deliberately small editor: bold, italic, bullet list, link. The owner
 // never sees HTML. Whatever the browser produces (including pastes from Word
@@ -40,7 +41,7 @@ export default function RichTextEditor({ value, onChange, label, id }: { value: 
     const raw = window.prompt('Link address (for example https://wa.me/91… or /charts)');
     if (raw === null) return;
     const href = safeHref(raw.trim()) || (/^[\w.-]+\.[a-z]{2,}/i.test(raw.trim()) ? `https://${raw.trim()}` : null);
-    if (!href) { window.alert('Use a full web address starting with https://, or a page on this site starting with /.'); return; }
+    if (!href) { notify('Use a full web address starting with https://, or a page on this site starting with /.'); return; }
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
       exec('insertHTML', `<a href="${href.replace(/"/g, '&quot;')}">${href.replace(/</g, '&lt;')}</a>`);

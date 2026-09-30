@@ -23,9 +23,10 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
       supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).order('id').range(from, to)
     ),
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
-    supabaseAdmin.from('category_shapes').select('category_id, shape_id'),
+    // Every category's shape links; paged so the table can grow past the 1000-row cap.
+    fetchAllRows<{ category_id: number; shape_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id, shape_id', { count: 'exact' }).order('category_id').order('shape_id').range(from, to)),
     categoryFilter
-      ? supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id').eq('category_id', categoryFilter)
+      ? fetchAllRows<{ category_id: number; shape_size_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id', { count: 'exact' }).eq('category_id', categoryFilter).order('shape_size_id').range(from, to))
       : Promise.resolve({ data: [] as { category_id: number; shape_size_id: number }[] })
   ]);
 

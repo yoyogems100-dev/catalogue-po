@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ShapeIcon from '@/components/ShapeIcon';
 import ShapeReferenceImage from '@/components/ShapeReferenceImage';
 import ColorSwatch from '@/components/ColorSwatch';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 // Semi Precious Beads' own shapes, sizes and materials, in one place: the
 // materials never appear on the shared Colors page, and every name here
@@ -126,7 +127,7 @@ export default function CategoryMaterialsManager({
                     <span className="materials-size-chip" key={s.id}>
                       {s.sizeMm} mm
                       {shape.owned && <button type="button" aria-label={`Delete size ${s.sizeMm} mm from ${shape.name}`} disabled={busy}
-                        onClick={() => { if (confirm(`Delete ${s.sizeMm} mm from ${shape.name}? Its ${lower} ticks go too.`)) call({ action: 'delete_size', id: s.id }, 'Size deleted.'); }}>×</button>}
+                        onClick={() => { void confirmAction(`Delete ${s.sizeMm} mm from ${shape.name}? Its ${lower} ticks go too.`).then((ok) => { if (ok) call({ action: 'delete_size', id: s.id }, 'Size deleted.'); }); }}>×</button>}
                     </span>
                   ))}
                   {shape.owned && (
@@ -153,7 +154,7 @@ export default function CategoryMaterialsManager({
                     onChange={(e) => { upload(`/api/admin/categories/${categoryId}/shape-reference`, { shape_id: String(shape.id) }, e.target.files?.[0], 'Shape photo saved.'); e.currentTarget.value = ''; }} />
                 </label>
                 {shape.owned && <button type="button" className="materials-link-danger" disabled={busy}
-                  onClick={() => { if (confirm(`Delete the shape ${shape.name} and its sizes?`)) call({ action: 'delete_shape', id: shape.id }, 'Shape deleted.'); }}>Delete</button>}
+                  onClick={() => { void confirmAction(`Delete the shape ${shape.name} and its sizes?`).then((ok) => { if (ok) call({ action: 'delete_shape', id: shape.id }, 'Shape deleted.'); }); }}>Delete</button>}
               </div>
             </article>
           ))}
@@ -191,7 +192,7 @@ export default function CategoryMaterialsManager({
                 </label>
                 {m.refPhotoUrl && <button type="button" className="materials-link" disabled={busy} onClick={() => call({ action: 'remove_material_photo', id: m.id }, 'Photo removed.')}>Remove photo</button>}
                 <button type="button" className="materials-link-danger" disabled={busy}
-                  onClick={() => { if (confirm(`Delete ${m.name}?`)) call({ action: 'delete_material', id: m.id }, `${label} deleted.`); }}>Delete</button>
+                  onClick={() => { void confirmAction(`Delete ${m.name}?`).then((ok) => { if (ok) call({ action: 'delete_material', id: m.id }, `${label} deleted.`); }); }}>Delete</button>
               </div>
             </article>
           ))}

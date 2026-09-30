@@ -40,8 +40,12 @@ export default function NotificationBell() {
     load();
     // Light polling so a new order/edit shows up without a manual refresh --
     // 30s is frequent enough to feel live without hammering the endpoint.
-    const t = setInterval(load, 30000);
-    return () => clearInterval(t);
+    // Skipped while the tab is in the background, and caught up the moment
+    // it is looked at again.
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
 
   async function openNotification(n: Notification) {

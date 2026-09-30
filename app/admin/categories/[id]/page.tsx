@@ -70,7 +70,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, icon_key, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(id, name, hex_value, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
     supabaseAdmin.from('category_tags').select('tag_id, tags(id, name, is_global)').eq('category_id', categoryId),
-    supabaseAdmin.from('category_shape_sizes').select('shape_size_id, shape_sizes(id, shape_id, size_mm, weight_ct)').eq('category_id', categoryId),
+    fetchAllRows<any>((from, to) => supabaseAdmin.from('category_shape_sizes').select('shape_size_id, shape_sizes(id, shape_id, size_mm, weight_ct)', { count: 'exact' }).eq('category_id', categoryId).order('shape_size_id').range(from, to)),
     needsFullShapeSizeCatalogue
       ? fetchAllRows<{ id: number; shape_id: number; size_mm: string; weight_ct: number | null }>((from, to) =>
           supabaseAdmin.from('shape_sizes').select('id, shape_id, size_mm, weight_ct', { count: 'exact' }).range(from, to)

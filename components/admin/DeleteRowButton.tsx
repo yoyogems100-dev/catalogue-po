@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
 const TrashIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -23,14 +24,14 @@ export default function DeleteRowButton({ endpoint, confirmText, label }: { endp
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (busy || !confirm(confirmText)) return;
+    if (busy || !(await confirmAction(confirmText))) return;
     setBusy(true);
     try {
       const res = await fetch(endpoint, { method: 'DELETE' });
       if (res.ok) router.refresh();
-      else { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not move this to the bin. Please retry.'); }
+      else { const d = await res.json().catch(() => ({})); notify(d.error || 'Could not move this to the bin. Please retry.'); }
     } catch {
-      alert('Connection failed. Please retry.');
+      notify('Connection failed. Please retry.');
     } finally {
       setBusy(false);
     }

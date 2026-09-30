@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import MediaPicker, { Thumb } from '@/components/admin/site/MediaPicker';
 import type { MediaRow } from '@/lib/site/media-url';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Category = { id: number; parent_id: number | null; slug: string; name: string; descriptor: string; is_visible: boolean; hero_media_id: number | null };
 
@@ -27,7 +28,7 @@ export default function DetailsForm({ category, parents, hasChildren, tileMedia,
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (slug !== category.slug && !confirm('Changing the web address breaks links people already have (WhatsApp, Google). Continue?')) return;
+    if (slug !== category.slug && !(await confirmAction('Changing the web address breaks links people already have (WhatsApp, Google). Continue?'))) return;
     setSaving(true); setMessage('');
     const res = await fetch(`/api/admin/site/categories/${category.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },

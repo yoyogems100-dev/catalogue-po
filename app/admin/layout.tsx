@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import NavProgress from '@/components/admin/NavProgress';
+import AdminDialogs from '@/components/admin/AdminDialogs';
 
 export const metadata = { title: 'Admin · YOYO GEMS', robots: { index: false, follow: false } };
 
@@ -26,6 +27,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <HotEditing><Suspense fallback={null}><NavProgress /></Suspense><div className="admin-shell">
       <AdminNav poCategories={poCategories} siteCategories={siteCategories} />
       <main className="admin-main"><HotStatus />{children}</main>
-    </div></HotEditing>
+    </div><AdminDialogs /></HotEditing>
   );
 }

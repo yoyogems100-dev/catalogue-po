@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 // Archive / restore from inside a category's workspace. Archived categories
 // get a banner so nobody edits one thinking customers can see it.
@@ -12,7 +13,7 @@ export default function CategoryArchiveToggle({ id, name, archivedAt }: { id: nu
 
   async function save(archived: boolean) {
     if (busy) return;
-    if (archived && !confirm(`Archive "${name}"?\n\nIt will be hidden from the website and catalogue straight away. Its photos, shapes, colours, prices and past orders are all kept, and you can restore it any time.`)) return;
+    if (archived && !(await confirmAction(`Archive "${name}"?\n\nIt will be hidden from the website and catalogue straight away. Its photos, shapes, colours, prices and past orders are all kept, and you can restore it any time.`))) return;
     setBusy(true); setError('');
     const res = await fetch('/api/categories', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, archived })

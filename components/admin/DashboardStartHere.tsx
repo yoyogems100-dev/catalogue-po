@@ -35,9 +35,11 @@ export default function DashboardStartHere({ categories }: { categories: Categor
       <a className="start-card start-link" href="/" target="_blank" rel="noopener">
         <strong>View website ↗</strong><span>yoyogems.co.in</span>
       </a>
-      <Link className="start-card start-link" href="/admin/orders">
-        <strong>Orders</strong><span>Prices, status, payment, PDFs</span>
-      </Link>
+      <div className="start-card start-link">
+        <Link href="/admin/orders"><strong>Orders</strong></Link>
+        <span>Prices, status, payment, PDFs</span>
+        <Link className="start-sub" href="/admin/orders/new">+ New order</Link>
+      </div>
     </section>
   );
 }

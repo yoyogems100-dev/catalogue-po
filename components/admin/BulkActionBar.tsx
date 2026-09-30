@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Category = { id: number; name: string };
 type Mode = 'add' | 'remove' | null;
@@ -57,7 +58,7 @@ export default function BulkActionBar({
     if (!mode || picked.length === 0) return;
     const names = categories.filter((c) => picked.includes(c.id)).map((c) => c.name);
     const where = names.length === 1 ? names[0] : `${names.length} categories`;
-    if (mode === 'remove' && !confirm(`Remove ${count} ${noun} from ${where}? The ${noun} stay in the catalogue and in past orders.`)) return;
+    if (mode === 'remove' && !(await confirmAction(`Remove ${count} ${noun} from ${where}? The ${noun} stay in the catalogue and in past orders.`))) return;
     setBusy(true);
     const res = await fetch('/api/category-links/bulk', {
       method: mode === 'add' ? 'POST' : 'DELETE',

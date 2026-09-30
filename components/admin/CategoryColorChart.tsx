@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ColorChart from '@/components/ColorChart';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 export default function CategoryColorChart({ categoryId, categoryName, initialUrl }: { categoryId: number; categoryName: string; initialUrl: string | null }) {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function CategoryColorChart({ categoryId, categoryName, initialUr
       <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void save(file); }} />
     </label>
     <p>JPG, PNG or WebP · up to 3 MB. Upload the complete chart; it will not be cropped. Customers can enlarge and zoom to read the names.</p>
-    {url && <button className="btn-ghost" disabled={busy} onClick={() => { if (confirm('Remove this color chart from the website? You can upload it again later.')) void save(); }}>Remove chart</button>}
+    {url && <button className="btn-ghost" disabled={busy} onClick={() => { void confirmAction('Remove this color chart from the website? You can upload it again later.').then((ok) => { if (ok) void save(); }); }}>Remove chart</button>}
     <p role="status">{busy ? 'Saving chart…' : message}</p>
   </section>;
 }

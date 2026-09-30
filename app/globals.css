@@ -2691,3 +2691,21 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   .start-link { min-height: 64px; padding: 12px; }
   .admin-work-queues a:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
+
+/* Admin: in-page confirm and toasts (components/admin/AdminDialogs.tsx). */
+.admin-confirm { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin: auto; background: #fff; color: var(--ink); }
+.admin-confirm::backdrop { background: rgb(12 25 45 / 55%); }
+.admin-confirm p { margin: 0 0 18px; white-space: pre-line; line-height: 1.5; font-size: 15px; }
+.admin-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.admin-confirm-actions button { min-height: 44px; min-width: 96px; }
+.admin-confirm-danger { background: #9b2c2c; border-color: #9b2c2c; }
+.admin-confirm-danger:hover { background: #7f2222; }
+.admin-toasts { position: fixed; right: 16px; bottom: 16px; z-index: 1001; display: grid; gap: 8px; max-width: min(420px, calc(100vw - 32px)); }
+.admin-toast { margin: 0; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border-radius: 8px; background: #fff; border: 1px solid var(--line); border-left: 4px solid #2f6b3a; box-shadow: 0 6px 20px rgb(12 25 45 / 15%); font-size: 14px; line-height: 1.4; }
+.admin-toast.error { border-left-color: #9b2c2c; }
+.admin-toast button { border: 0; background: none; font-size: 18px; line-height: 1; cursor: pointer; color: #756e5c; min-width: 28px; min-height: 28px; }
+@media (max-width: 600px) { .admin-toasts { left: 16px; right: 16px; max-width: none; } }
+.admin-muted { color: #756e5c; font-size: 12px; }
+.start-link a { color: inherit; text-decoration: none; }
+.start-link a.start-sub { color: var(--navy); font-size: 12.5px; text-decoration: underline; margin-top: 2px; }
+.admin-stat-missing b, .admin-stat-missing { color: #9b2c2c; }

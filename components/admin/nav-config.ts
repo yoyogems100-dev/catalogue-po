@@ -33,13 +33,13 @@ export const WORKSPACES: Workspace[] = [
         title: 'Categories',
         list: 'site-categories',
         links: [
-          { href: '/admin/site/categories', label: 'All categories', detail: 'The website categories and sub-categories: order, visibility, page text, photos and filters.' }
+          { href: '/admin/site/categories', label: 'All website categories', detail: 'The website categories and sub-categories: order, visibility, page text, photos and filters.' }
         ]
       },
       {
         title: 'Photos',
         links: [
-          { href: '/admin/site/media', label: 'Photos & images', detail: 'Every website picture. The website’s own copies, separate from the /po photos.' }
+          { href: '/admin/site/media', label: 'Website photos & images', detail: 'Every website picture. The website’s own copies, separate from the /po photos.' }
         ]
       },
       {
@@ -72,7 +72,7 @@ export const WORKSPACES: Workspace[] = [
         title: 'Categories',
         list: 'po-categories',
         links: [
-          { href: '/admin/categories', label: 'All categories', detail: 'Add or rename /po categories, arrange their order, choose covers, archive, and manage their photos and tags.' }
+          { href: '/admin/categories', label: 'All /po categories', detail: 'Add or rename /po categories, arrange their order, choose covers, archive, and manage their photos and tags.' }
         ]
       },
       {

@@ -10,6 +10,7 @@ import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import BulkActionBar from '@/components/admin/BulkActionBar';
 import ColorSwatch from '@/components/ColorSwatch';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
 type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null };
 type Category = { id: number; num: number; name: string; slug: string | null };
@@ -88,7 +89,7 @@ export default function ColorsClient({
   async function bulkDelete() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} color${ids.length > 1 ? 's' : ''} from the whole catalogue? This removes them from every category and can't be undone. To take them out of one category only, use "Remove from category".`)) return;
+    if (!(await confirmAction(`Delete ${ids.length} color${ids.length > 1 ? 's' : ''} from the whole catalogue? This removes them from every category and can't be undone. To take them out of one category only, use "Remove from category".`))) return;
     const results = await Promise.all(ids.map((id) => fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => ({ ok: r.ok }))));
     const failed = results.filter((r) => !r.ok).length;
     setSelected(new Set());
@@ -105,7 +106,7 @@ export default function ColorsClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add palette.');
+      notify(data.error || 'Failed to add palette.');
       return;
     }
     setNewPaletteName('');
@@ -114,9 +115,9 @@ export default function ColorsClient({
   }
 
   async function removePalette(id: number, name: string) {
-    if (!confirm(`Delete "${name}"? It stops appearing as a quick-select everywhere -- the colors themselves are unaffected.`)) return;
+    if (!(await confirmAction(`Delete "${name}"? It stops appearing as a quick-select everywhere -- the colors themselves are unaffected.`))) return;
     const res = await fetch('/api/color-palettes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (!res.ok) { alert('Failed to delete palette -- try again.'); return; }
+    if (!res.ok) { notify('Failed to delete palette -- try again.'); return; }
     setToast('Palette deleted.');
     router.refresh();
   }
@@ -142,7 +143,7 @@ export default function ColorsClient({
     });
     if (!res.ok) {
       setLocalColors(prev);
-      alert('Failed to save the new order.');
+      notify('Failed to save the new order.');
       return;
     }
     router.refresh();
@@ -157,7 +158,7 @@ export default function ColorsClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add color -- a color with this name may already exist.');
+      notify(data.error || 'Failed to add color -- a color with this name may already exist.');
       return;
     }
     const created = await res.json();
@@ -172,9 +173,9 @@ export default function ColorsClient({
   }
 
   async function remove(id: number, name: string) {
-    if (!confirm(`Delete "${name}"?`)) return;
+    if (!(await confirmAction(`Delete "${name}"?`))) return;
     const res = await fetch('/api/colors', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (!res.ok) { alert('Failed to delete color -- try again.'); return; }
+    if (!res.ok) { notify('Failed to delete color -- try again.'); return; }
     setToast('Color deleted.');
     router.refresh();
   }
@@ -185,7 +186,7 @@ export default function ColorsClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, hex_value: hex })
     });
-    if (!res.ok) { alert('Failed to save color -- try again.'); return; }
+    if (!res.ok) { notify('Failed to save color -- try again.'); return; }
     router.refresh();
   }
 
@@ -196,7 +197,7 @@ export default function ColorsClient({
     const res = await fetch(`/api/colors/${id}/photo`, { method: 'POST', body: fd });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to upload photo.');
+      notify(data.error || 'Failed to upload photo.');
       return;
     }
     setToast('Photo uploaded.');
@@ -204,9 +205,9 @@ export default function ColorsClient({
   }
 
   async function removePhoto(id: number) {
-    if (!confirm('Remove this reference photo? The swatch will fall back to the plain hex color.')) return;
+    if (!(await confirmAction('Remove this reference photo? The swatch will fall back to the plain hex color.'))) return;
     const res = await fetch(`/api/colors/${id}/photo`, { method: 'DELETE' });
-    if (!res.ok) { alert('Failed to remove photo -- try again.'); return; }
+    if (!res.ok) { notify('Failed to remove photo -- try again.'); return; }
     setToast('Photo removed.');
     router.refresh();
   }
@@ -219,7 +220,7 @@ export default function ColorsClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to rename color');
+      notify(data.error || 'Failed to rename color');
       return;
     }
     setToast('Renamed.');
@@ -237,14 +238,22 @@ export default function ColorsClient({
   }
 
   async function moveColor(id: number, direction: 'up' | 'down') {
+    // Move it on screen straight away; the server swaps it with the same
+    // neighbour. Put it back if the save fails.
+    const prev = localColors;
+    const from = prev.findIndex((x) => x.id === id);
+    const to = direction === 'up' ? from - 1 : from + 1;
+    if (from < 0 || to < 0 || to >= prev.length) return;
+    setLocalColors(moveItem(prev, from, to));
     const res = await fetch('/api/colors/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ color_id: id, direction })
     });
     if (!res.ok) {
+      setLocalColors(prev);
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to reorder color');
+      notify(data.error || 'Failed to reorder color');
       return;
     }
     router.refresh();

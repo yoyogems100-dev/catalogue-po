@@ -16,6 +16,8 @@ export default async function AdminDashboard() {
     { title: 'New catalogue requests', href: '/admin/site/leads', query: supabaseAdmin.from('site_leads').select('id', {count:'exact',head:true}).eq('status','new') },
     { title: 'Orders placed today', href: `/admin/orders?from=${today}&to=${today}`, query: countable().gte('created_at', `${today}T00:00:00+05:30`).lte('created_at', `${today}T23:59:59.999+05:30`) },
     { title: 'Awaiting confirmation', href: '/admin/orders?status=placed', query: countable().eq('status','placed') },
+    // Quotation requests nobody has answered yet (still at Placed).
+    { title: 'Quotations to price', href: '/admin/orders?status=placed#request-quotations', query: countable().eq('status','placed').in('request_type', ['Request Quotation','Mixed']) },
     { title: 'Sourcing', href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },
     { title: 'Ready to dispatch', href: '/admin/orders?status=packed', query: countable().eq('status','packed') },
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },
@@ -64,7 +66,6 @@ export default async function AdminDashboard() {
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>
-    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn" href="/admin/orders/new">Create order</Link><Link className="btn-ghost" href="/admin/orders#request-quotations">Review quotations</Link><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
     <DashboardQuickActions categories={qaCategories || []} tags={qaTags || []} />
     <h2>Recent orders</h2>
     {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}
