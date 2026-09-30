@@ -17,6 +17,7 @@ export default function CustomerCreateForm() {
   const [place, setPlace] = useState('');
   const [workStream, setWorkStream] = useState('');
   const [goToRequirements, setGoToRequirements] = useState('');
+  const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -27,7 +28,7 @@ export default function CustomerCreateForm() {
     const response = await fetch('/api/admin/customers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, company, phone, place, workStream, goToRequirements })
+      body: JSON.stringify({ name, company, phone, place, workStream, goToRequirements, password })
     });
     const data = await response.json().catch(() => ({}));
     setSaving(false);
@@ -51,6 +52,7 @@ export default function CustomerCreateForm() {
       </div>
       <input placeholder="Work stream, e.g. Silver Jewellery Manufacturer" value={workStream} onChange={(e) => setWorkStream(e.target.value)} />
       <textarea rows={2} placeholder="Go-to requirements (optional)" value={goToRequirements} onChange={(e) => setGoToRequirements(e.target.value)} />
+      <input type="text" autoComplete="off" spellCheck={false} placeholder="Sign-in password (optional, needs a WhatsApp number)" value={password} onChange={(e) => setPassword(e.target.value)} />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button className="btn" onClick={create} disabled={saving}>{saving ? 'Adding…' : 'Add customer'}</button>
         <button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
