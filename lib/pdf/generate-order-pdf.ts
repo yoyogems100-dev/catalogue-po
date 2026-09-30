@@ -6,6 +6,8 @@ import { milestoneLabel } from '@/lib/order-milestones';
 import OrderPdfDocument from './OrderPdfDocument';
 import { getPdfLogoDataUrl } from './brand';
 import { buildPdfItems } from './build-pdf-items';
+import { getQuantityFields } from '../quantity-fields-server';
+import { normalizePacketWeights, weighedPackets } from '../packet-weights';
 
 // Shared by the order-summary/quotation PDF and the invoice PDF -- same
 // document data assembly and upload, just a different storage path/URL
@@ -51,7 +53,24 @@ export async function generateOrderPdf(orderId: number, { isInvoice = false }: {
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
   const colorMap: Record<number, string> = Object.fromEntries((colorsData || []).map((c: any) => [c.id, c.name]));
 
-  const pdfItems = buildPdfItems(items || [], { categoryName: catMap, shapeName: shapeMap, sizeMm: sizeMap, colorName: colorMap });
+  const fieldOf = await getQuantityFields();
+  const pdfItems = buildPdfItems(items || [], { categoryName: catMap, shapeName: shapeMap, sizeMm: sizeMap, colorName: colorMap }, (id) => fieldOf(id).unit);
+
+  // Read on its own so a PDF still generates if the column isn't there yet.
+  const { data: packetRow } = await supabaseAdmin.from('orders').select('packet_weights').eq('id', orderId).maybeSingle();
+  const packets = weighedPackets(
+    (items || []).filter((it: any) => it.request_type !== 'Request Quotation').map((it: any) => ({
+      categoryId: it.category_id,
+      categoryName: catMap[it.category_id] || '',
+      shapeId: it.shape_id || null,
+      shapeName: shapeMap[it.shape_id] || '',
+      sizeId: it.shape_size_id || null,
+      sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '',
+      quantity: it.quantity,
+      qtyUnit: fieldOf(it.category_id).unit
+    })),
+    normalizePacketWeights((packetRow as any)?.packet_weights)
+  ).map((p) => ({ label: p.label, detail: `${p.count} · ${p.quantity}`, weight: p.weight }));
 
   const settings = await getSettings();
 
@@ -70,6 +89,7 @@ export async function generateOrderPdf(orderId: number, { isInvoice = false }: {
         customerCompany: (customer as any)?.company || null,
         comment: order.comment,
         items: pdfItems,
+        packets,
         contactWhatsapp: settings.whatsapp_number || null,
         contactLocation: settings.location || null,
         logoUrl: await getPdfLogoDataUrl(),

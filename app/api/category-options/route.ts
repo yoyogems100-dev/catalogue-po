@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { supabasePublic } from '@/lib/supabase-public';
 
 // The shapes, colours and sizes a category offers, for one or more categories.
@@ -16,12 +17,14 @@ const MAX_CATEGORIES = 25;
 type CategoryOptions = {
   /** Today's name -- a cart line keeps the name it was added under. */
   name?: string;
+  /** What a quantity counts here ("lines"); null means pieces. */
+  qtyUnit?: string | null;
   shapes: { id: number; name: string; iconKey: string | null; refPhotoUrl: string | null }[];
   colors: { id: number; name: string; hex: string | null; refPhotoUrl: string | null }[];
   sizes: { id: number; shape_id: number; size_mm: string }[];
 };
 
-async function optionsFor(categoryId: number): Promise<CategoryOptions> {
+async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: string | null }): Promise<CategoryOptions> {
   const [{ data: category }, { data: shapeLinks }, { data: colorLinks }, { data: sizeLinks }] = await Promise.all([
     supabasePublic.from('categories').select('name').eq('id', categoryId).maybeSingle(),
     supabasePublic.from('category_shapes').select('shape_id').eq('category_id', categoryId),
@@ -47,6 +50,7 @@ async function optionsFor(categoryId: number): Promise<CategoryOptions> {
 
   return {
     name: (category as any)?.name || undefined,
+    qtyUnit: fieldOf(categoryId).unit,
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: s.ref_photo_url })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shape_id: s.shape_id, size_mm: s.size_mm }))
@@ -61,7 +65,8 @@ export async function GET(req: NextRequest) {
 
   if (!ids.length) return NextResponse.json({ options: {} });
 
-  const results = await Promise.all(ids.map(async (id) => [id, await optionsFor(id)] as const));
+  const fieldOf = await getQuantityFields();
+  const results = await Promise.all(ids.map(async (id) => [id, await optionsFor(id, fieldOf)] as const));
   const options: Record<number, CategoryOptions> = {};
   results.forEach(([id, value]) => { options[id] = value; });
 

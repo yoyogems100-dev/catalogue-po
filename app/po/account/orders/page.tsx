@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import { getQuantityFields } from '@/lib/quantity-fields-server';
+import { formatQtyTotals } from '@/lib/quantity-field';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
@@ -32,14 +34,15 @@ export default async function AccountOrdersPage() {
 
   const orderIds = (orders || []).map((o) => o.id);
   const { data: items } = orderIds.length
-    ? await supabaseAdmin.from('order_items').select('order_id, quantity').in('order_id', orderIds)
+    ? await supabaseAdmin.from('order_items').select('order_id, category_id, quantity').in('order_id', orderIds)
     : { data: [] };
 
-  const statsByOrder: Record<number, { lines: number; pieces: number }> = {};
+  const fieldOf = await getQuantityFields();
+  const statsByOrder: Record<number, { lines: number; qty: { qty: number; unit: string | null }[] }> = {};
   (items || []).forEach((it: any) => {
-    if (!statsByOrder[it.order_id]) statsByOrder[it.order_id] = { lines: 0, pieces: 0 };
+    if (!statsByOrder[it.order_id]) statsByOrder[it.order_id] = { lines: 0, qty: [] };
     statsByOrder[it.order_id].lines += 1;
-    statsByOrder[it.order_id].pieces += it.quantity;
+    statsByOrder[it.order_id].qty.push({ qty: it.quantity, unit: fieldOf(it.category_id).unit });
   });
 
   return (
@@ -60,7 +63,7 @@ export default async function AccountOrdersPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(orders || []).map((o) => {
-              const stats = statsByOrder[o.id] || { lines: 0, pieces: 0 };
+              const stats = statsByOrder[o.id] || { lines: 0, qty: [] };
               return (
                 <Link key={o.id} href={`/po/account/orders/${o.id}`} className="account-order-row card">
                   <div className="account-order-row-top">
@@ -71,7 +74,7 @@ export default async function AccountOrdersPage() {
                   </div>
                   <OrderStepper status={o.status} compact />
                   <div className="account-order-row-bottom">
-                    <span>{stats.lines} line{stats.lines !== 1 ? 's' : ''} · {stats.pieces.toLocaleString('en-IN')} pcs</span>
+                    <span>{stats.lines} item{stats.lines !== 1 ? 's' : ''} · {formatQtyTotals(stats.qty)}</span>
                     <span className={`payment-badge payment-${o.payment_status}`}>{o.payment_status}</span>
                     <RepeatOrderButton orderId={o.id} />
                   </div>

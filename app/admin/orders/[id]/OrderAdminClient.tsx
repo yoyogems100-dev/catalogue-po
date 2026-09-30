@@ -1,5 +1,8 @@
 'use client';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import PacketWeights from '@/components/admin/PacketWeights';
+import type { PacketWeights as PacketWeightsValue } from '@/lib/packet-weights';
+import { formatQty, type WeightUnit } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from '@/components/IconSelect';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
@@ -30,6 +33,8 @@ type Item = {
   colorName: string;
   colorHex: string;
   quantity: number;
+  /** "lines" for Semi Precious Beads; null means pieces. */
+  qtyUnit?: string | null;
   unitPrice: number | null;
   costPrice: number | null;
   supplierId: number | null;
@@ -75,7 +80,9 @@ export default function OrderAdminClient({
   categoryOptions,
   history,
   notes,
-  suppliers
+  suppliers,
+  packetWeights = null,
+  weightUnitOf = {}
 }: {
   orderId: number;
   status: string;
@@ -93,6 +100,8 @@ export default function OrderAdminClient({
   history: HistoryEntry[];
   notes: Note[];
   suppliers: { id: number; name: string; categoryIds: number[] }[];
+  packetWeights?: PacketWeightsValue | null;
+  weightUnitOf?: Record<number, WeightUnit>;
 }) {
   const router = useRouter();
   const [statusValue, setStatusValue] = useState(status);
@@ -533,15 +542,15 @@ export default function OrderAdminClient({
                 </td>
                 <td>
                   {rowEditing ? (
-                    <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
+                    <label>{i.orderSpecs?.kind==='rainbow'?'Strips':i.qtyUnit ? i.qtyUnit[0].toUpperCase() + i.qtyUnit.slice(1) : 'Pieces'}<input
                       type="text"
                       inputMode="numeric"
-                      aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                      aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':`Quantity in ${i.qtyUnit || 'pieces'}`} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
                       onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                       style={{ maxWidth: 70, ...rowInputStyle }}
                     /></label>
                   ) : (
-                    i.quantity
+                    formatQty(i.quantity, i.qtyUnit)
                   )}
                 </td>
                 <td>
@@ -684,6 +693,15 @@ export default function OrderAdminClient({
             </>
           )}
         </div>
+
+        <PacketWeights
+          key={JSON.stringify(packetWeights)}
+          orderId={orderId}
+          lines={items.filter((i) => i.requestType !== 'Request Quotation')}
+          saved={packetWeights}
+          defaultUnitOf={weightUnitOf}
+          onSaved={(message) => { setToast(message); setJustUpdated(true); router.refresh(); }}
+        />
 
         {justUpdated && (
           <div className="card" style={{ marginTop: 16, padding: 14 }}>

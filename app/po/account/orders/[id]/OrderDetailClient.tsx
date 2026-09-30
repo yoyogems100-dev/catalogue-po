@@ -1,5 +1,6 @@
 'use client';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import { formatQty } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -30,6 +31,7 @@ type Item = {
   colorHex: string;
   colorRefPhotoUrl?: string | null;
   quantity: number;
+  qtyUnit?: string | null;
   requestType: string;
   unitPrice?: number | null;
 };
@@ -66,15 +68,6 @@ type TimelineEntry =
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-}
-
-// Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" (x/X/* used
-// interchangeably) -- range-select and sort both key off the leading
-// number either way, so "4x6" sits with "4" and a 4x6-to-8x6 range picks
-// up every compound size whose first dimension falls in that span.
-function strictSizeNum(s: string): number {
-  const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
-  return m ? parseFloat(m[1]) : NaN;
 }
 
 export default function OrderDetailClient({
@@ -121,8 +114,6 @@ export default function OrderDetailClient({
   const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
-  const [rangeMin, setRangeMin] = useState('');
-  const [rangeMax, setRangeMax] = useState('');
   const [pickQty, setPickQty] = useState('');
   const [pickRequestType, setPickRequestType] = useState<RequestType>('Place Order');
 
@@ -183,28 +174,6 @@ export default function OrderDetailClient({
   const hasSelection =
     pickCategoryId !== '' || pickShapeIds.length > 0 || pickColorIds.length > 0 ||
     pickSizeIdxs.length > 0 || pickQty !== '';
-
-  function applyRange() {
-    const min = parseFloat(rangeMin);
-    const max = parseFloat(rangeMax);
-    if (Number.isNaN(min) || Number.isNaN(max)) {
-      setToast('Enter both a min and max size in mm.');
-      return;
-    }
-    const lo = Math.min(min, max);
-    const hi = Math.max(min, max);
-    const matchIdxs = sizeOptions
-      .map((o) => ({ i: o.id, val: strictSizeNum(sizeGroups[o.id].sizeMm) }))
-      .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
-      .map((g) => g.i);
-    if (matchIdxs.length === 0) {
-      setToast(`No existing sizes between ${lo}-${hi}mm here.`);
-      return;
-    }
-    setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
-    setRangeMin('');
-    setRangeMax('');
-  }
 
   const qtyNum = parseInt(pickQty, 10) || 0;
   const canAddPending = !!currentOptions && pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0;
@@ -353,15 +322,15 @@ export default function OrderDetailClient({
                   </td>
                   <td>
                     {editing ? (
-                      <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
+                      <label>{i.orderSpecs?.kind==='rainbow'?'Strips':i.qtyUnit ? i.qtyUnit[0].toUpperCase() + i.qtyUnit.slice(1) : 'Pieces'}<input
                         type="text"
                         inputMode="numeric"
-                        aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                        aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':`Quantity in ${i.qtyUnit || 'pieces'}`} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
                         onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                         style={{ maxWidth: 80, fontSize: 13 }}
                       /></label>
                     ) : (
-                      i.quantity
+                      formatQty(i.quantity, i.qtyUnit)
                     )}
                   </td>
                   {hasAnyPricedLine && (
@@ -477,15 +446,7 @@ export default function OrderDetailClient({
                       !currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'
                     }
                   />
-                  {sizeOptions.length > 1 && (
-                    <div className="po-range-row">
-                      <input type="text" inputMode="decimal" placeholder="Min mm" value={rangeMin} onChange={(e) => setRangeMin(e.target.value)} />
-                      <span>to</span>
-                      <input type="text" inputMode="decimal" placeholder="Max mm" value={rangeMax} onChange={(e) => setRangeMax(e.target.value)} />
-                      <button type="button" className="po-inline-link" onClick={applyRange}>Select range</button>
-                    </div>
-                  )}
-                </div>
+                                  </div>
                 <div>
                   <label className="po-label">Qty (pcs)</label>
                   <input

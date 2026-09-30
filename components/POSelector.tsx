@@ -20,6 +20,7 @@ import QuantityInput from './QuantityInput';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
+import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
@@ -30,15 +31,6 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
-
-// Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" (x/X/* used
-// interchangeably) -- range-select and sort both key off the leading
-// number either way, so "4x6" sits with "4" and a 4x6-to-8x6 range picks
-// up every compound size whose first dimension falls in that span.
-function strictSizeNum(s: string): number {
-  const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
-  return m ? parseFloat(m[1]) : NaN;
-}
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
 
@@ -57,7 +49,8 @@ export default function POSelector({
   pricing,
   priceUnit,
   optionLabel,
-  sizeColors
+  sizeColors,
+  quantityField
 }: {
   categoryId: number;
   categoryName: string;
@@ -77,6 +70,8 @@ export default function POSelector({
   /** [shape_size_id, color_id] pairs this category offers. Empty means every
       colour comes in every size, the rule for every other category. */
   sizeColors?: [number, number][];
+  /** What the quantity field is called and starts on ("No. of Lines", 5). */
+  quantityField?: QuantityField;
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -91,9 +86,12 @@ export default function POSelector({
   const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
-  const [rangeMin, setRangeMin] = useState('');
-  const [rangeMax, setRangeMax] = useState('');
-  const [pickQty, setPickQty] = useState('');
+  // Where the quantity starts: the buyer's own last number for this category,
+  // else the shop's default, else empty. Only categories with a default
+  // remember -- elsewhere quantities vary too much line to line.
+  const adminDefaultQty = quantityField?.defaultQty ?? null;
+  const [startQty, setStartQty] = useState(adminDefaultQty ? String(adminDefaultQty) : '');
+  const [pickQty, setPickQty] = useState(startQty);
   // Per-line, not per-order -- one requirement can mix Place Order and Request
   // Quotation lines. Defaults to Place Order, the more common/actionable case.
   const [pickRequestType, setPickRequestType] = useState<RequestType>('Place Order');
@@ -117,12 +115,13 @@ export default function POSelector({
     setPickShapeIds([]);
     setPickColorIds([]);
     setPickSizeIdxs([]);
-    setRangeMin('');
-    setRangeMax('');
-    setPickQty('');
+    const start = adminDefaultQty ? String(rememberedQty(categoryId) ?? adminDefaultQty) : '';
+    setStartQty(start);
+    setPickQty(start);
+    setQtyError(false);
     setPickRequestType('Place Order');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId]);
+  }, [categoryId, adminDefaultQty]);
 
   // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
   // above), so silently keep the selection pinned to Round instead of leaving it
@@ -199,30 +198,6 @@ export default function POSelector({
   );
 
   const pickedRows = useMemo(() => pickedSizeRows(sizeGroups, pickSizeIdxs, pickShapeIds), [sizeGroups, pickSizeIdxs, pickShapeIds]);
-
-  function applyRange() {
-    const min = parseFloat(rangeMin);
-    const max = parseFloat(rangeMax);
-    if (Number.isNaN(min) || Number.isNaN(max)) {
-      setToast('Enter both a min and max size in mm.');
-      return;
-    }
-    const lo = Math.min(min, max);
-    const hi = Math.max(min, max);
-    const matchIdxs = sizeOptions
-      .map((o) => ({ i: o.id, val: strictSizeNum(sizeGroups[o.id].sizeMm) }))
-      .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
-      .map((g) => g.i);
-
-    if (matchIdxs.length === 0) {
-      setToast(`No sizes between ${lo}–${hi} mm here.`);
-      return;
-    }
-    setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
-    setToast(`Selected ${matchIdxs.length} size${matchIdxs.length > 1 ? 's' : ''} between ${lo}-${hi}mm`);
-    setRangeMin('');
-    setRangeMax('');
-  }
 
   // Quality grade, for categories that offer one inside the category (Ruby
   // Corundum 5A / 7A). Starts on the buyer's usual grade for this category,
@@ -301,7 +276,6 @@ export default function POSelector({
     if (!selectionHasUnpriced && isQuotation) setPickRequestType('Place Order');
   }, [selectionHasUnpriced, isQuotation]);
 
-  const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
   // Fetch a price list for every other category sitting in the cart, once each.
   const missingPricingIds = useMemo(() => {
@@ -363,24 +337,21 @@ export default function POSelector({
   // locked to White (DEF) by the picker itself, so clearing it would only be
   // re-applied on the next render -- leave it alone rather than flicker.
   const hasSelection =
-    pickShapeIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== '' ||
-    rangeMin !== '' || rangeMax !== '' ||
+    pickShapeIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== startQty ||
     (categoryId !== 34 && pickColorIds.length > 0);
 
   const missingFields = [
     categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && 'shape',
     pickSizeIdxs.length === 0 && 'size',
     pickColorIds.length === 0 && lowerLabel,
-    !isQuotation && qtyNum <= 0 && 'quantity'
+    !isQuotation && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
   ].filter(Boolean) as string[];
 
   function clearSelection() {
     setPickShapeIds([]);
     setPickSizeIdxs([]);
     if (categoryId !== 34) setPickColorIds([]);
-    setRangeMin('');
-    setRangeMax('');
-    setPickQty('');
+    setPickQty(startQty);
     setQtyError(false);
     setPickRequestType('Place Order');
   }
@@ -419,6 +390,7 @@ export default function POSelector({
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
+            qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
             ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
           };
@@ -457,7 +429,7 @@ export default function POSelector({
     if (fresh > 0) parts.push(fresh > 1 ? `Added ${fresh} lines` : 'Added 1 line');
     if (grown.length === 1) {
       const g = grown[0];
-      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${g.qty.toLocaleString('en-IN')} pcs`);
+      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${formatQty(g.qty, g.qtyUnit)}`);
     } else if (grown.length > 1) {
       parts.push(`${grown.length} lines were already in your order — quantities added to them`);
     }
@@ -471,7 +443,16 @@ export default function POSelector({
     // primary action, and a quotation is a deliberate per-line choice rather
     // than a mode the buyer should stay stuck in.
     setPickSizeIdxs([]);
-    setPickQty('');
+    // With a default, the number just used becomes this buyer's starting
+    // point here -- now and on later visits -- and stays in the box for the
+    // next shape. Otherwise the box empties as before.
+    if (adminDefaultQty && qtyNum > 0) {
+      rememberQty(categoryId, qtyNum);
+      setStartQty(String(qtyNum));
+      setPickQty(String(qtyNum));
+    } else {
+      setPickQty(startQty);
+    }
     setQtyError(false);
     setPickRequestType('Place Order');
   }
@@ -563,38 +544,16 @@ export default function POSelector({
                   : 'Choose size(s)'
               }
             />
-            {sizeOptions.length > 1 && (
-              <div className="po-range-row">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Min"
-                  aria-label="Minimum size in millimetres"
-                  value={rangeMin}
-                  onChange={(e) => setRangeMin(e.target.value)}
-                />
-                <span>to</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Max"
-                  aria-label="Maximum size in millimetres"
-                  value={rangeMax}
-                  onChange={(e) => setRangeMax(e.target.value)}
-                />
-                <button type="button" className="po-inline-link" onClick={applyRange}>Select range</button>
-              </div>
-            )}
-          </div>
+                      </div>
           {allowedBySize && colorField}
           <div>
-            <label className="po-label" htmlFor="po-new-quantity">Qty per line (pcs)</label>
+            <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty per line (pcs)'}</label>
             <input
               type="text"
               inputMode="numeric"
               className="po-qty-input"
               id="po-new-quantity"
-              placeholder="e.g. 5000"
+              placeholder={adminDefaultQty ? `e.g. ${adminDefaultQty}` : 'e.g. 5000'}
               value={pickQty}
               aria-invalid={qtyError || undefined}
               aria-describedby={qtyError ? 'po-new-quantity-error' : undefined}
@@ -607,7 +566,7 @@ export default function POSelector({
                 setQtyError(!/^\d*$/.test(v.trim()));
               }}
             />
-            {qtyError && <p className="po-field-error" id="po-new-quantity-error" role="alert">Whole pieces only — enter a number like 500.</p>}
+            {qtyError && <p className="po-field-error" id="po-new-quantity-error" role="alert">{quantityField?.label ? `Whole numbers only — e.g. ${adminDefaultQty || 5}.` : 'Whole pieces only — enter a number like 500.'}</p>}
           </div>
         </div>
 
@@ -651,7 +610,9 @@ export default function POSelector({
         {!canAdd && hasSelection && missingFields.length > 0 && (
           <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
         )}
-        {canAdd && <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>}
+        {canAdd && (quantityField?.unit
+          ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} × {formatQty(qtyNum, quantityField.unit)} = {formatQty(comboCount * qtyNum, quantityField.unit)} to add</p>
+          : <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>)}
         {/* Adding a line deliberately keeps the shape and colour so several
             sizes can be added in a row; this is the way back to an empty form
             without reloading the page. Plain text, not a button -- it sits
@@ -686,7 +647,7 @@ export default function POSelector({
           <div className="po-summary-figures">
             <span className="po-summary-label">Your requirement</span>
             <span className="po-summary-counts">
-              {cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs
+              {cart.length} {cart.length === 1 ? 'item' : 'items'} · {formatQtyTotals(cart.map((i) => ({ qty: i.qty, unit: i.categoryId === categoryId ? quantityField?.unit : i.qtyUnit })))}
             </span>
             {/* Its own line: squeezed onto the counts it was cut to "₹12,1…" on a phone. */}
             {hasAnyPricedLine && <span className="po-summary-total">₹{formatRupees(cartTotalInr)}</span>}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { QuantityField } from '@/lib/quantity-field';
 import POSelector from '@/components/POSelector';
 import CategoryClient from './CategoryClient';
 import type { ExploreFilter } from '@/lib/explore-filter';
@@ -39,6 +40,7 @@ export default function CategoryTabs({
   priceUnit,
   optionLabel,
   sizeColors,
+  quantityField,
   exploreDefault
 }: {
   categoryId: number;
@@ -60,6 +62,7 @@ export default function CategoryTabs({
   optionLabel?: string | null;
   /** [shape_size_id, color_id] pairs this category offers; empty = any with any. */
   sizeColors?: [number, number][];
+  quantityField?: QuantityField;
   /** The filter Explore Photos opens with, chosen in the admin. */
   exploreDefault?: ExploreFilter;
 }) {
@@ -107,6 +110,7 @@ export default function CategoryTabs({
           active={tab === 'order'}
           optionLabel={optionLabel}
           sizeColors={sizeColors}
+          quantityField={quantityField}
         />
         </div>
       {tab === 'photos' && (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { DEFAULT_PRICE_UNIT, PRICE_UNIT_PRESETS, PRICE_UNIT_MAX, priceUnitLabel } from '@/lib/price-unit';
+import { QUANTITY_LABEL_MAX, QUANTITY_UNIT_MAX } from '@/lib/quantity-field';
 
 type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string };
@@ -27,6 +28,13 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   // "Other..." while the saved unit is still a preset left nothing to type in.
   const [otherUnit, setOtherUnit] = useState(false);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
+  // The order form's quantity field for this category: its name and starting value.
+  const [qtyLabel, setQtyLabel] = useState('');
+  const [defaultQty, setDefaultQty] = useState('');
+  const [qtyUnitWord, setQtyUnitWord] = useState('');
+  const [weightUnit, setWeightUnit] = useState<'g' | 'ct'>('g');
+  const [savedQty, setSavedQty] = useState({ label: '', defaultQty: '', unit: '', weightUnit: 'g' });
+  const [savingQty, setSavingQty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
 
@@ -49,6 +57,12 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         setColumns(data.columns || []);
         setPrices(data.prices || []);
         setActiveShapeId(data.shapes?.[0]?.id ?? null);
+        const q = { label: data.quantityField?.label || '', defaultQty: data.quantityField?.defaultQty ? String(data.quantityField.defaultQty) : '', unit: data.quantityField?.unit || '', weightUnit: data.quantityField?.weightUnit === 'ct' ? 'ct' : 'g' };
+        setQtyLabel(q.label);
+        setDefaultQty(q.defaultQty);
+        setQtyUnitWord(q.unit);
+        setWeightUnit(q.weightUnit as 'g' | 'ct');
+        setSavedQty(q);
         const unit = priceUnitLabel(data.priceUnit);
         setPriceUnit(unit);
         // A unit the owner typed themselves has to survive the round trip, so
@@ -101,6 +115,27 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
     setToast('Saved.');
     } catch { setToast('Price could not be saved. Please retry the edit before exporting.'); }
     finally { setSavingPrice(false); }
+  }
+
+  async function saveQuantityField() {
+    if (!categoryId) return;
+    setSavingQty(true);
+    try {
+      const res = await fetch(`/api/admin/categories/${categoryId}/quantity-field`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: qtyLabel, defaultQty: defaultQty.trim() || null, unit: qtyUnitWord, weightUnit })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'The quantity field could not be saved. Please retry.');
+      setSavedQty({ label: qtyLabel.trim(), defaultQty: defaultQty.trim(), unit: body.field?.unit || '', weightUnit });
+      setQtyUnitWord(body.field?.unit || '');
+      setToast('Saved. The order form now uses this.');
+    } catch (e) {
+      setToast((e as Error).message);
+    } finally {
+      setSavingQty(false);
+    }
   }
 
   async function saveUnit(unit: string) {
@@ -220,6 +255,50 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
           />
         ) : null}
         <span className="price-unit-hint">₹ prices below are per {priceUnit}.</span>
+      </div>
+      <div className="price-unit-row qty-field-row">
+        <label htmlFor="qty-field-label">Quantity field</label>
+        <input
+          id="qty-field-label"
+          placeholder="Qty per line (pcs)"
+          maxLength={QUANTITY_LABEL_MAX}
+          value={qtyLabel}
+          disabled={!categoryId || loading || savingQty}
+          onChange={(e) => setQtyLabel(e.target.value)}
+        />
+        <label htmlFor="qty-field-default">starts at</label>
+        <input
+          id="qty-field-default"
+          inputMode="numeric"
+          placeholder="empty"
+          className="qty-field-default"
+          value={defaultQty}
+          disabled={!categoryId || loading || savingQty}
+          onChange={(e) => setDefaultQty(e.target.value.replace(/\D/g, ''))}
+        />
+        <label htmlFor="qty-field-unit">counted in</label>
+        <input
+          id="qty-field-unit"
+          placeholder="pcs"
+          maxLength={QUANTITY_UNIT_MAX}
+          value={qtyUnitWord}
+          disabled={!categoryId || loading || savingQty}
+          onChange={(e) => setQtyUnitWord(e.target.value)}
+        />
+        <label htmlFor="qty-field-weight">weighed in</label>
+        <select id="qty-field-weight" value={weightUnit} disabled={!categoryId || loading || savingQty} onChange={(e) => setWeightUnit(e.target.value as 'g' | 'ct')}>
+          <option value="g">g</option>
+          <option value="ct">ct</option>
+        </select>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={!categoryId || loading || savingQty || (qtyLabel.trim() === savedQty.label && defaultQty.trim() === savedQty.defaultQty && qtyUnitWord.trim().toLowerCase() === savedQty.unit && weightUnit === savedQty.weightUnit)}
+          onClick={saveQuantityField}
+        >
+          {savingQty ? 'Saving…' : 'Save'}
+        </button>
+        <span className="price-unit-hint">Buyers start on this number and keep their own once they change it. “Counted in” shows as “8 lines” on orders and PDFs; “weighed in” is where packet weights start.</span>
       </div>
       {loadError && <p role="alert">{loadError}</p>}
       {loading ? (

@@ -10,6 +10,8 @@ export type OrderCartItem = {
   colorId: number;
   colorName: string;
   qty: number;
+  /** "lines" for Semi Precious Beads; absent means pieces (printed bare). */
+  qtyUnit?: string | null;
   requestType: string;
   // Populated server-side (order creation looks this up fresh from the admin-set
   // price/multiplier) -- absent for categories with no pricing set up yet.
@@ -48,7 +50,7 @@ export function buildOrderMessage(cart: OrderCartItem[], contactName: string, co
     shape: [item.shapeName,specText(item.orderSpecs,item.qty)].filter(Boolean).join(" / "),
     size: item.sizeMm,
     color: item.colorName,
-    qty: String(item.qty),
+    qty: item.qtyUnit ? `${item.qty} ${item.qtyUnit}` : String(item.qty),
     amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined
   });
 
