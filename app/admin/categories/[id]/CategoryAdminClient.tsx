@@ -483,6 +483,9 @@ export default function CategoryAdminClient({
       const target = e.target as Node | null;
       // A press on the page scrollbar lands on <html>; that is not "elsewhere".
       if (!target || target === document.documentElement || bulkBusy) return;
+      // A confirm/notice dialog opened from the toolbar (e.g. "Delete
+      // selected") is part of the same action, not a click elsewhere.
+      if (target instanceof Element && target.closest('dialog, [role="dialog"], [role="alertdialog"]')) return;
       if ([selectBarRef, photoGridRef, selectToggleRef].some((ref) => ref.current?.contains(target))) return;
       toggleSelectMode();
     }
