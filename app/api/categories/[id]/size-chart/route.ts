@@ -48,7 +48,7 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
  const [category,shapes,sizes,colorLinks]=await Promise.all([
   supabasePublic.from('categories').select('name,price_unit').eq('id',id).single(),
   supabasePublic.from('category_shapes').select('shape_id,ref_photo_url,shapes(name,ref_photo_url)').eq('category_id',id),
-  supabasePublic.from('category_shape_sizes').select('diamond_equivalent_ct,shape_sizes(id,shape_id,size_mm)').eq('category_id',id),
+  supabasePublic.from('category_shape_sizes').select('diamond_equivalent_ct,pcs_per_ct,shape_sizes(id,shape_id,size_mm)').eq('category_id',id),
   supabasePublic.from('category_colors').select('color_id,colors(name,hex_value,ref_photo_url)').eq('category_id',id)
  ]);
  // PGRST116: no row visible -- the category doesn't exist or is archived.
@@ -70,7 +70,7 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
  const sections:SizeChartSection[]=await Promise.all((shapes.data||[]).map(async(s:any)=>{
   const shape=Array.isArray(s.shapes)?s.shapes[0]:s.shapes;
   const image=await imageDataUrl(s.ref_photo_url||shape?.ref_photo_url);
-  return {name:shape?.name||`Shape #${s.shape_id}`,image,rows:(sizes.data||[]).filter((r:any)=>r.shape_sizes?.shape_id===s.shape_id).map((r:any)=>({size:r.shape_sizes.size_mm,diamondEquivalentCt:r.diamond_equivalent_ct===null?null:Number(r.diamond_equivalent_ct),...(includePrices?{priceInr:pricing&&colorId?lineInrPrice(pricing,s.shape_id,r.shape_sizes.id,colorId):null}:{})})).sort((a,b)=>compareDimensions(a.size,b.size))};
+  return {name:shape?.name||`Shape #${s.shape_id}`,image,rows:(sizes.data||[]).filter((r:any)=>r.shape_sizes?.shape_id===s.shape_id).map((r:any)=>({size:r.shape_sizes.size_mm,diamondEquivalentCt:r.diamond_equivalent_ct===null?null:Number(r.diamond_equivalent_ct),pcsPerCt:r.pcs_per_ct??null,...(includePrices?{priceInr:pricing&&colorId?lineInrPrice(pricing,s.shape_id,r.shape_sizes.id,colorId):null}:{})})).sort((a,b)=>compareDimensions(a.size,b.size))};
  }));
  sections.sort((a,b)=>a.name==='Round'?-1:b.name==='Round'?1:a.name.localeCompare(b.name));
  if(!sections.some(s=>s.rows.length))return NextResponse.json({error:'No sizes configured yet.'},{status:404});
