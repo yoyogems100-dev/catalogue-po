@@ -146,6 +146,18 @@ export default function CategoryAdminClient({
   const [uploadTags, setUploadTags] = useState<PhotoTagSet>(EMPTY_TAG_SET);
   const [bulkTags, setBulkTags] = useState<PhotoTagSet>(EMPTY_TAG_SET);
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  // Brief "✓ Added" on the button that was pressed, in place of a toast.
+  const [bulkTagDone, setBulkTagDone] = useState<'add' | 'remove' | null>(null);
+  useEffect(() => {
+    if (!bulkTagDone) return;
+    const t = setTimeout(() => setBulkTagDone(null), 2500);
+    return () => clearTimeout(t);
+  }, [bulkTagDone]);
+  // Select mode ends on a tap anywhere outside the toolbar and the photos,
+  // so there is no need to scroll back up to "Done selecting".
+  const selectBarRef = useRef<HTMLDivElement>(null);
+  const photoGridRef = useRef<HTMLDivElement>(null);
+  const selectToggleRef = useRef<HTMLButtonElement>(null);
   // Narrows the admin gallery; can also be saved as the Explore Photos default.
   const [filter, setFilter] = useState<ExploreFilter>(NO_FILTER);
   const [savedDefault, setSavedDefault] = useState<ExploreFilter>(exploreDefault);
@@ -462,7 +474,22 @@ export default function CategoryAdminClient({
     setMoveTargetId('');
     setBulkTagOpen(false);
     setBulkTags(EMPTY_TAG_SET);
+    setBulkTagDone(null);
   }
+
+  useEffect(() => {
+    if (!selectMode) return;
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node | null;
+      // A press on the page scrollbar lands on <html>; that is not "elsewhere".
+      if (!target || target === document.documentElement || bulkBusy) return;
+      if ([selectBarRef, photoGridRef, selectToggleRef].some((ref) => ref.current?.contains(target))) return;
+      toggleSelectMode();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode, bulkBusy]);
 
   function toggleSelectPhoto(photoId: number) {
     setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur.filter((id) => id !== photoId) : [...cur, photoId]));
@@ -588,8 +615,10 @@ export default function CategoryAdminClient({
       colorIds: apply(p.colorIds, bulkTags.colorIds),
       tag_ids: apply(p.tag_ids, bulkTags.tagIds)
     } : p));
-    const n = selectedPhotoIds.length;
-    setToast(`${mode === 'add' ? 'Tagged' : 'Removed tags from'} ${n} photo${n === 1 ? '' : 's'}.`);
+    // The choices are spent: clear them so the next pick starts fresh, and
+    // confirm on the button itself rather than in a toast elsewhere.
+    setBulkTags(EMPTY_TAG_SET);
+    setBulkTagDone(mode);
     router.refresh();
   }
 
@@ -819,7 +848,7 @@ export default function CategoryAdminClient({
                   <DownloadIcon size={14} /> Download all photos
                 </a>
               )}
-              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
+              <button type="button" ref={selectToggleRef} className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
                 {selectMode ? 'Done selecting' : 'Select'}
               </button>
             </div>
@@ -880,7 +909,7 @@ export default function CategoryAdminClient({
               </div>
             )}
             {selectMode ? (
-              <div className="photo-select-bar">
+              <div className="photo-select-bar" ref={selectBarRef}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
                   <input
                     type="checkbox"
@@ -948,14 +977,14 @@ export default function CategoryAdminClient({
                 tags={linkedTags}
                 colorLabel={colorLabel}
                       value={bulkTags}
-                      onChange={setBulkTags}
+                      onChange={(next) => { setBulkTags(next); setBulkTagDone(null); }}
                     />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                      <button className="btn" disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('add')}>
-                        {bulkBusy ? 'Working…' : `Add to ${selectedPhotoIds.length} photo${selectedPhotoIds.length === 1 ? '' : 's'}`}
+                      <button className={`btn${bulkTagDone === 'add' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('add')}>
+                        {bulkBusy ? 'Working…' : bulkTagDone === 'add' ? '✓ Added' : `Add to ${selectedPhotoIds.length} photo${selectedPhotoIds.length === 1 ? '' : 's'}`}
                       </button>
-                      <button className="btn-ghost" disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('remove')}>
-                        Remove from selected
+                      <button className={`btn-ghost${bulkTagDone === 'remove' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('remove')}>
+                        {bulkTagDone === 'remove' ? '✓ Removed' : 'Remove from selected'}
                       </button>
                       {tagSetCount(bulkTags) > 0 && <button type="button" className="btn-link" onClick={() => setBulkTags(EMPTY_TAG_SET)}>Clear choice</button>}
                     </div>
@@ -986,7 +1015,7 @@ export default function CategoryAdminClient({
             {filterActive && visibleGroups.length === 0 && (
               <p style={{ fontSize: 12.5, color: '#756e5c', padding: '24px 0' }}>No photos match this filter. <button type="button" className="btn-link" onClick={() => setFilter(NO_FILTER)}>Show all</button></p>
             )}
-            <div className="admin-photo-grid">
+            <div className="admin-photo-grid" ref={photoGridRef}>
               {visibleGroups.map(({ group: { lead: p, media }, index: i }) => (
                 <PhotoRow
                   categoryId={categoryId}
@@ -1018,6 +1047,20 @@ export default function CategoryAdminClient({
                   angleBusy={angleBusyId === p.id}
                 />
               ))}
+              {/* Upload straight from the end of the gallery -- same picker
+                  (and upload tags) as the upload box at the top. */}
+              {!selectMode && (
+                <button
+                  type="button"
+                  className="admin-photo-add-tile"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  aria-label="Upload more photos"
+                >
+                  <span aria-hidden="true">+</span>
+                  {uploading ? 'Uploading…' : 'Add photos'}
+                </button>
+              )}
             </div>
           </section>
         </>
@@ -1144,6 +1187,14 @@ function PhotoRow({
     return tagOrder.slice(start).find((f) => !filled[f] && !(f === 'size' && !filled.shape)) ?? null;
   };
   const [field, setField] = useState<FieldType>(() => nextEmpty() ?? visibleFieldOptions[0]?.value ?? 'shape');
+  // The first pick in an empty field moves the card straight on to the next
+  // empty one (shape -> colour -> size), as the dropdown has just closed.
+  // Adding a second shape or colour is still one step away via the field list.
+  function advanceAfterFirstPick(from: FieldType, nowFilled: Partial<Record<FieldType, boolean>>) {
+    const f = { ...filled, ...nowFilled };
+    const next = tagOrder.slice(tagOrder.indexOf(from) + 1).find((x) => !f[x] && !(x === 'size' && !f.shape));
+    if (next) setField(next);
+  }
   const upNext = filled[field] ? nextEmpty(field) : null;
   const [otherText, setOtherText] = useState('');
   const [creatingTag, setCreatingTag] = useState(false);
@@ -1160,16 +1211,19 @@ function PhotoRow({
     const validSizeIds = sizeIds.filter((id) => sizes.some((s) => s.id === id && next.includes(s.shape_id)));
     setSizeIds(validSizeIds);
     onUpdate(photo.id, { shapeIds: next, sizeIds: validSizeIds });
+    if (shapeIds.length === 0 && next.length > 0) advanceAfterFirstPick('shape', { shape: true, size: validSizeIds.length > 0 });
   }
 
   function updateSizes(next: number[]) {
     setSizeIds(next);
     onUpdate(photo.id, { sizeIds: next });
+    if (sizeIds.length === 0 && next.length > 0) advanceAfterFirstPick('size', { size: true });
   }
 
   function updateColors(next: number[]) {
     setColorIds(next);
     onUpdate(photo.id, { colorIds: next });
+    if (colorIds.length === 0 && next.length > 0) advanceAfterFirstPick('color', { color: true });
   }
 
   function toggleTag(id: number) {

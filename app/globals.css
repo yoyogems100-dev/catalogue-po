@@ -1149,6 +1149,13 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .admin-recent-orders li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .admin-recent-orders-meta { display: inline-flex; align-items: center; gap: 10px; }
 .admin-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.admin-photo-add-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 220px; padding: 16px; border: 1.5px dashed var(--line); border-radius: 12px; background: transparent; color: var(--navy); font: inherit; font-size: 13px; cursor: pointer; }
+.admin-photo-add-tile span { font-size: 40px; line-height: 1; font-weight: 300; color: var(--gold); }
+.admin-photo-add-tile:hover:not(:disabled) { border-color: var(--gold); background: #fff; }
+.admin-photo-add-tile:disabled { opacity: 0.6; cursor: progress; }
+/* "✓ Added" confirmation: the button is spent (its choices were cleared) but
+   must read as a success, not as a greyed-out control. */
+.btn.btn-done:disabled, .btn-ghost.btn-done:disabled { opacity: 1; background: #2f6b47; border-color: #2f6b47; color: #fff; }
 /* One 343px column at phone width made a 33-photo category a ~24,000px scroll
    (342px of photo plus 386px of controls each). Two columns halve that; the
    photo shrinks to a square thumbnail that still identifies a stone, and the
