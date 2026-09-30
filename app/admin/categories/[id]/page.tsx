@@ -191,6 +191,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         thumbnailPhotoId={category.thumbnail_photo_id}
         photos={photosFormatted}
         otherCategories={otherCategories}
+        currentCategory={{ id: category.id, name: category.name, slug: category.slug }}
         shapeReference={tab === 'shapes' ? <ShapeReferenceManager
         categoryId={categoryId}
         references={linkedShapes.map((shape: any) => {

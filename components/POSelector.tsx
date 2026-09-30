@@ -8,6 +8,7 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
 import { useOrderPreferences } from './useOrderPreferences';
 import IconSelect from './IconSelect';
+import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
@@ -148,81 +149,53 @@ export default function POSelector({
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Only sizes shared by every currently-selected shape -- so any size picked
-  // here is guaranteed to have a matching shape_sizes row for each shape in
-  // the combo, and "Add line" never has to silently skip a shape.
-  const sizesForShapes = useMemo(() => {
-    if (pickShapeIds.length === 0) return [];
-    const bySizeMm = new Map<string, Size[]>();
-    sizes.forEach((sz) => {
-      if (!pickShapeIds.includes(sz.shape_id)) return;
-      if (!bySizeMm.has(sz.size_mm)) bySizeMm.set(sz.size_mm, []);
-      bySizeMm.get(sz.size_mm)!.push(sz);
-    });
-    const common: { sizeMm: string; rows: Size[] }[] = [];
-    bySizeMm.forEach((rows, sizeMm) => {
-      const shapeIdsCovered = new Set(rows.map((r) => r.shape_id));
-      if (pickShapeIds.every((id) => shapeIdsCovered.has(id))) common.push({ sizeMm, rows });
-    });
-    // Numeric sizes first in ascending order, non-numeric (e.g. "6x8") after --
-    // makes the range quick-pick predictable and the list easy to scan.
-    return common.sort((a, b) => {
-      const na = strictSizeNum(a.sizeMm);
-      const nb = strictSizeNum(b.sizeMm);
-      if (Number.isNaN(na) && Number.isNaN(nb)) return a.sizeMm.localeCompare(b.sizeMm);
-      if (Number.isNaN(na)) return 1;
-      if (Number.isNaN(nb)) return -1;
-      return na - nb;
-    });
-  }, [sizes, pickShapeIds]);
-
-  // Sizes are only offered when every selected shape has them, so it was
-  // possible to pick three shapes, open the size list and be told there is no
-  // size in common -- leaving the buyer to work out which shape to drop. Work
-  // it out for them instead: once a shape is chosen, any shape that shares no
-  // size with the current selection is greyed out in the shape list, with the
-  // reason on the row, so an impossible combination can't be built at all.
-  const incompatibleShapes = useMemo(
-    () => incompatibleShapeIds(shapes, sizes.map((s) => ({ shapeId: s.shape_id, sizeMm: s.size_mm })), pickShapeIds),
-    [pickShapeIds, shapes, sizes]
-  );
-
-  const sizeOptions = useMemo(
-    () => sizesForShapes.map((g, i) => ({ id: i, hotIds: g.rows.map(row => row.id), name: `${g.sizeMm} mm` })),
-    [sizesForShapes]
+  // Shape, size and colour can be picked in any order: each list offers only
+  // what goes with the picks already made in the other two (lib/faceted-picker).
+  // Sizes are indexed into the category's full size list, so a size picked
+  // before a shape stays picked when the shape is chosen.
+  const sizeGroups = useMemo(
+    () => sizeGroupsOf(sizes.map((s) => ({ ...s, shapeId: s.shape_id, sizeMm: s.size_mm }))),
+    [sizes]
   );
 
   const label = optionLabel || 'Color';
   const lowerLabel = label.toLowerCase();
   // Categories like Semi Precious Beads list which materials each shape+size
-  // comes in; there the buyer picks shape and size first, and only sees the
-  // materials those carry.
-  const allowedBySize = useMemo(() => {
-    if (!sizeColors?.length) return null;
-    const map = new Map<number, Set<number>>();
-    sizeColors.forEach(([sizeId, colorId]) => {
-      if (!map.has(sizeId)) map.set(sizeId, new Set());
-      map.get(sizeId)!.add(colorId);
-    });
-    return map;
-  }, [sizeColors]);
+  // comes in; there the material list and the shape/size lists narrow each other.
+  const allowedBySize = useMemo(() => allowedColorsOf(sizeColors), [sizeColors]);
   const comboAllowed = (sizeId: number, colorId: number) => !allowedBySize || !!allowedBySize.get(sizeId)?.has(colorId);
-  const colorOptions = useMemo(() => {
-    if (!allowedBySize) return colors;
-    if (pickShapeIds.length === 0) return [];
-    const sizeIds = pickSizeIdxs.length
-      ? pickSizeIdxs.flatMap((i) => sizesForShapes[i]?.rows.map((r) => r.id) || [])
-      : sizes.filter((sz) => pickShapeIds.includes(sz.shape_id)).map((sz) => sz.id);
-    const offered = new Set(sizeIds.flatMap((id) => [...(allowedBySize.get(id) || [])]));
-    return colors.filter((c) => offered.has(c.id));
-  }, [allowedBySize, colors, pickShapeIds, pickSizeIdxs, sizesForShapes, sizes]);
-  // A material picked for one shape/size drops out when the buyer switches
-  // to one that doesn't come in it, rather than lingering unseen.
+
+  const available = useMemo(
+    () => facetAvailability(shapes.map((s) => s.id), colors.map((c) => c.id), sizeGroups, allowedBySize,
+      { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
+    [shapes, colors, sizeGroups, allowedBySize, pickShapeIds, pickSizeIdxs, pickColorIds]
+  );
+  const shapeOptions = useMemo(() => shapes.filter((s) => available.shapeIds.has(s.id)), [shapes, available]);
+  const colorOptions = useMemo(() => colors.filter((c) => available.colorIds.has(c.id)), [colors, available]);
+  const sizeOptions = useMemo(
+    () => sizeGroups
+      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shape_id)).map((row) => row.id), name: `${g.sizeMm} mm` }))
+      .filter((o) => available.sizeIdxs.has(o.id)),
+    [sizeGroups, available, pickShapeIds]
+  );
+
+  // Picks only ever narrow the other lists, so this is a safety net for a
+  // pick left over from data that has since changed, not a normal path.
   useEffect(() => {
-    if (!allowedBySize) return;
-    const offered = new Set(colorOptions.map((c) => c.id));
-    setPickColorIds((cur) => (cur.every((id) => offered.has(id)) ? cur : cur.filter((id) => offered.has(id))));
-  }, [allowedBySize, colorOptions]);
+    setPickShapeIds((cur) => keepAvailable(cur, available.shapeIds));
+    setPickSizeIdxs((cur) => keepAvailable(cur, available.sizeIdxs));
+    setPickColorIds((cur) => keepAvailable(cur, available.colorIds));
+  }, [available]);
+
+  // Among several shapes, a shape sharing no size with those already picked
+  // is greyed out with the reason on the row, so an impossible combination
+  // can't be built at all.
+  const incompatibleShapes = useMemo(
+    () => incompatibleShapeIds(shapes, sizes.map((s) => ({ shapeId: s.shape_id, sizeMm: s.size_mm })), pickShapeIds),
+    [pickShapeIds, shapes, sizes]
+  );
+
+  const pickedRows = useMemo(() => pickedSizeRows(sizeGroups, pickSizeIdxs, pickShapeIds), [sizeGroups, pickSizeIdxs, pickShapeIds]);
 
   function applyRange() {
     const min = parseFloat(rangeMin);
@@ -233,13 +206,13 @@ export default function POSelector({
     }
     const lo = Math.min(min, max);
     const hi = Math.max(min, max);
-    const matchIdxs = sizesForShapes
-      .map((g, i) => ({ i, val: strictSizeNum(g.sizeMm) }))
+    const matchIdxs = sizeOptions
+      .map((o) => ({ i: o.id, val: strictSizeNum(sizeGroups[o.id].sizeMm) }))
       .filter((g) => !Number.isNaN(g.val) && g.val >= lo && g.val <= hi)
       .map((g) => g.i);
 
     if (matchIdxs.length === 0) {
-      setToast(`No sizes between ${lo}–${hi} mm for these shapes.`);
+      setToast(`No sizes between ${lo}–${hi} mm here.`);
       return;
     }
     setPickSizeIdxs((cur) => [...new Set([...cur, ...matchIdxs])]);
@@ -267,12 +240,12 @@ export default function POSelector({
     if (!allowedBySize) return pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
     let n = 0;
     for (const shapeId of pickShapeIds) for (const sizeIdx of pickSizeIdxs) {
-      const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+      const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
       if (match) n += pickColorIds.filter((colorId) => comboAllowed(match.id, colorId)).length;
     }
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedBySize, pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes]);
+  }, [allowedBySize, pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups]);
 
   const pricingByCategory = useMemo(
     () => ({ ...otherPricing, ...(pricing ? { [categoryId]: pricing } : {}) }),
@@ -287,7 +260,7 @@ export default function POSelector({
     if (!pickShapeIds.length || !pickColorIds.length || !pickSizeIdxs.length) return true;
     for (const shapeId of pickShapeIds) {
       for (const sizeIdx of pickSizeIdxs) {
-        const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+        const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
         if (!match) continue;
         for (const colorId of pickColorIds) {
           if (!comboAllowed(match.id, colorId)) continue;
@@ -296,7 +269,7 @@ export default function POSelector({
       }
     }
     return false;
-  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes, pricingByCategory, categoryId]);
+  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups, pricingByCategory, categoryId]);
 
   // The price of what is picked, shown before it is added -- a buyer used to
   // only learn it from the running total after adding. Only when every picked
@@ -306,7 +279,7 @@ export default function POSelector({
     const prices: number[] = [];
     for (const shapeId of pickShapeIds) {
       for (const sizeIdx of pickSizeIdxs) {
-        const match = sizesForShapes[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+        const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
         if (!match) continue;
         for (const colorId of pickColorIds) {
           if (!comboAllowed(match.id, colorId)) continue;
@@ -318,7 +291,7 @@ export default function POSelector({
     }
     if (!prices.length) return null;
     return { min: Math.min(...prices), max: Math.max(...prices), sum: prices.reduce((a, b) => a + b, 0) };
-  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizesForShapes, pricingByCategory, categoryId]);
+  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups, pricingByCategory, categoryId]);
 
   // Never leave the buyer stuck on a request type that is no longer offered.
   useEffect(() => {
@@ -417,9 +390,9 @@ export default function POSelector({
         const color = colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizesForShapes[sizeIdx];
+          const group = sizeGroups[sizeIdx];
           const match = group?.rows.find((r) => r.shape_id === shapeId);
-          if (!match) continue; // shouldn't happen -- sizesForShapes is already the cross-shape intersection
+          if (!match) continue; // shouldn't happen -- only sizes every picked shape has are offered
           if (!comboAllowed(match.id, color.id)) continue; // this shape/size doesn't come in this material
 
           const item: CartItem = {
@@ -488,7 +461,8 @@ export default function POSelector({
         locked={categoryId === 34}
         values={pickColorIds}
         onChange={setPickColorIds}
-        placeholder={allowedBySize && pickShapeIds.length === 0 ? 'Pick a shape first' : `Choose ${lowerLabel}(s)`}
+              closeOnFirstPick
+        placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
       />
     </div>
@@ -498,7 +472,7 @@ export default function POSelector({
     <div className="po-wrap">
       <section className="po-card po-compose-card">
         <h2 className="po-heading">Add to Order</h2>
-        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickSizeIdxs.flatMap(index=>sizesForShapes[index]?.rows.map(row=>row.id) || [])} shapes={shapes} colors={colors} />
+        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {!specialCategory(categoryId) && shapes.length === 0 ? (
           <div className="po-no-options">
@@ -528,9 +502,10 @@ export default function POSelector({
             <IconSelect
               categoryId={categoryId}
               multiple
-              options={shapes}
+              options={shapeOptions}
               values={pickShapeIds}
-              onChange={(v) => { setPickShapeIds(v); setPickSizeIdxs([]); }}
+              onChange={setPickShapeIds}
+              closeOnFirstPick
               placeholder="Choose shape(s)"
               leading="icon"
               disabledIds={incompatibleShapes}
@@ -549,18 +524,16 @@ export default function POSelector({
               onChange={setPickSizeIdxs}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
-              locked={sizeOptions.length === 1}
+              locked={pickShapeIds.length > 0 && sizeOptions.length === 1}
               placeholder={
-                pickShapeIds.length === 0
-                  ? 'Pick a shape first'
-                  : sizeOptions.length === 0
-                  ? 'No common size for these shapes'
+                sizeOptions.length === 0
+                  ? 'No size matches these picks'
                   : sizeOptions.length === 1
                   ? 'Size'
                   : 'Choose size(s)'
               }
             />
-            {pickShapeIds.length > 0 && sizeOptions.length > 1 && (
+            {sizeOptions.length > 1 && (
               <div className="po-range-row">
                 <input
                   type="text"
