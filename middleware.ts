@@ -71,6 +71,7 @@ const PUBLIC_PATHS = new Set([
   '/api/account/otp/verify',
   '/api/account/password/login',
   '/api/account/password/reset',
+  '/api/account/access-request', // Sign up: a signed-out visitor asks for a PIN
   '/api/account/email/request',
   '/api/account/email/verify',
   '/api/account/logout',
