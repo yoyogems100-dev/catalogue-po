@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ProfileCompletionForm, { DEALS_IN_OPTIONS } from './ProfileCompletionForm';
 
 type Tab = 'login' | 'signup';
@@ -14,9 +14,12 @@ type Step = 'enter' | 'verify' | 'profile';
 // on "Log in" falls back to a short details step after verifying, and an
 // existing number on "Sign up" is simply logged in (its collected details
 // are dropped since the account already has its own).
-export default function LoginForm({ onSuccess, initialTab = 'login' }: {
+export default function LoginForm({ onSuccess, initialTab = 'login', autoFocus = true }: {
   onSuccess: () => void;
   initialTab?: Tab;
+  /** Off where the form sits below other content (the cart): focusing it
+   *  jumped the page to the bottom and opened the phone keyboard over the list. */
+  autoFocus?: boolean;
   /** @deprecated email login isn't offered; kept so existing callers compile. */
   phoneOnly?: boolean;
 }) {
@@ -29,6 +32,13 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
+  // Seconds until "Resend code" is offered again.
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   // Signup-only profile fields, collected up front alongside the phone number.
   const [name, setName] = useState('');
@@ -56,6 +66,10 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
       setError('Enter your name or your company name.');
       return;
     }
+    await sendCode();
+  }
+
+  async function sendCode() {
     setError('');
     setSending(true);
     const res = await fetch('/api/account/otp/request', {
@@ -73,6 +87,7 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
     if (tab === 'signup' && !data.needsName) setNotice('This number already has an account — verify the code to log in.');
     else if (tab === 'login' && data.needsName) setNotice("Looks like you're new here — verify the code, then add a few details.");
     else setNotice('');
+    setResendIn(30);
     setStep('verify');
   }
 
@@ -132,7 +147,7 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
           {signup && (
             <>
               <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your name</label>
-              <input type="text" placeholder="e.g. Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ marginBottom: 12 }} />
+              <input type="text" placeholder="e.g. Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} autoFocus={autoFocus} style={{ marginBottom: 12 }} />
 
               <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Company name</label>
               <input type="text" placeholder="e.g. Kumar Gems Pvt Ltd" value={company} onChange={(e) => setCompany(e.target.value)} style={{ marginBottom: 12 }} />
@@ -140,11 +155,16 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
           )}
 
           <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>WhatsApp number</label>
-          <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number, e.g. 9XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus={!signup} style={{ marginBottom: signup ? 12 : 14 }} />
+          <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number, e.g. 9XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus={autoFocus && !signup} style={{ marginBottom: signup ? 12 : 14 }} />
 
           {signup && (
             <>
-              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>What do you deal in? (optional)</label>
+              {/* Optional, so folded away: on a phone these six checkboxes, a
+                  text box and email made sign-up a long scroll before the one
+                  button that matters. */}
+              <details className="login-more" style={{ marginBottom: 14 }}>
+              <summary>Add more details (optional)</summary>
+              <label className="po-label" style={{ marginBottom: 6, marginTop: 10, display: 'block' }}>What do you deal in?</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                 {DEALS_IN_OPTIONS.map((option) => (
                   <label key={option} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--ink)', cursor: 'pointer' }}>
@@ -154,11 +174,12 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
                 ))}
               </div>
 
-              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your go-to requirements (optional)</label>
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Your go-to requirements</label>
               <textarea rows={2} placeholder="e.g. Round white CZ 1-3mm, regular monthly" value={goToRequirements} onChange={(e) => setGoToRequirements(e.target.value)} style={{ marginBottom: 12 }} />
 
-              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email (optional)</label>
-              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 14 }} />
+              <label className="po-label" style={{ marginBottom: 6, display: 'block' }}>Email</label>
+              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </details>
             </>
           )}
 
@@ -171,6 +192,7 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
 
       {step === 'verify' && (
         <form onSubmit={verifyPhone}>
+          <p className="login-hint">Code sent on WhatsApp to <strong>{phone.trim()}</strong>.</p>
           {notice && <p className="login-hint">{notice}</p>}
           {devDisplay && (
             <p style={{ fontSize: 12.5, background: '#f4e6d0', color: '#8a5a1f', padding: '8px 10px', marginBottom: 14, borderRadius: 4 }}>
@@ -189,6 +211,9 @@ export default function LoginForm({ onSuccess, initialTab = 'login' }: {
           {error && <p className="login-error">{error}</p>}
           <button type="submit" className="btn" style={{ width: '100%' }} disabled={sending || code.length !== 6}>
             {sending ? 'Verifying…' : needsProfile ? 'Verify & continue' : 'Verify & log in'}
+          </button>
+          <button type="button" className="btn-ghost" style={{ width: '100%', marginTop: 8 }} disabled={sending || resendIn > 0} onClick={() => { setCode(''); sendCode(); }}>
+            {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
           </button>
           <button type="button" className="btn-ghost" style={{ width: '100%', marginTop: 8 }} onClick={() => reset()}>
             &larr; Use a different number

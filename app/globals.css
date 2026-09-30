@@ -2536,3 +2536,15 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .quick-note { font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
 .quick-note.ok { color: #2f6b3a; }
 .quick-note.err { color: #a3341f; }
+
+/* Undo on the "Added to your order" toast, and the composer's inline
+   quantity error. */
+.po-toast { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.po-toast-undo {
+  flex: 0 0 auto; background: none; border: none; padding: 4px 2px; cursor: pointer;
+  color: var(--gold-soft); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
+}
+.po-field-error { margin: 5px 0 0; font-size: 11.5px; color: #a3341f; }
+.po-qty-input[aria-invalid="true"] { border-color: #a3341f; }
+.login-more summary { cursor: pointer; font-size: 13px; color: var(--navy); padding: 6px 0; }
+.po-missing-hint { margin-top: 8px; }

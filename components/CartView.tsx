@@ -14,6 +14,7 @@ import {
   CART_EVENT, cartPieces, loadCart, mergeIntoCart, saveCart,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
+import { formatRupees } from '@/lib/money';
 
 // Glass Pearls is always Round and never shows the shape to the customer, so
 // the colour -- the thing that actually varies -- is the meaningful image.
@@ -22,7 +23,13 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type SizeRef = { id: number; shape_id: number; size_mm: string };
-type CategoryOptions = { shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
+type CategoryOptions = { name?: string; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
+
+// Leading number of a size ("4", "4x6", "1.5") for ordering lines small to large.
+function sizeSortKey(sizeMm: string): number {
+  const n = parseFloat(sizeMm);
+  return Number.isNaN(n) ? Number.POSITIVE_INFINITY : n;
+}
 
 /**
  * The whole requirement, on its own page.
@@ -49,6 +56,9 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
+  // The line just removed and where it sat, so the removal can be undone.
+  const [removed, setRemoved] = useState<{ item: CartItem; index: number; message: string } | null>(null);
+  const canUndoRemove = !!removed && removed.message === toast;
   const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
   // Collapsed category groups, keyed by request type + category so Purchase and
   // Quotation fold independently. A fifty-line requirement spanning several
@@ -74,9 +84,9 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   useEffect(() => { if (reviewing) reviewDialog.current?.showModal(); }, [reviewing]);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(''), 2600);
+    const t = setTimeout(() => { setToast(''); setRemoved(null); }, canUndoRemove ? 6000 : 2600);
     return () => clearTimeout(t);
-  }, [toast]);
+  }, [toast, canUndoRemove]);
 
   const categoryIds = useMemo(
     () => Array.from(new Set(cart.map((i) => i.categoryId))).sort((a, b) => a - b),
@@ -123,8 +133,24 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     setCart(cart.map((i) => (i.id === id ? { ...i, requestType } : i)));
   }
   function removeItem(id: string) {
+    const index = cart.findIndex((i) => i.id === id);
+    if (index < 0) return;
+    const message = `Removed ${cart[index].shapeName} ${cart[index].sizeMm} mm`;
+    setRemoved({ item: cart[index], index, message });
     setCart(cart.filter((i) => i.id !== id));
+    setToast(message);
   }
+  function undoRemove() {
+    if (!removed) return;
+    const next = [...cart];
+    next.splice(Math.min(removed.index, next.length), 0, removed.item);
+    setCart(next);
+    setRemoved(null);
+    setToast('Line restored');
+  }
+  // A line keeps the category name it was added under; show today's name once
+  // the category's details have loaded, so a renamed category doesn't linger.
+  const categoryLabel = (item: CartItem) => optionsByCategory[item.categoryId]?.name || item.categoryName;
 
   function replaceItemOptions(item: CartItem, nextSizeIds: number[], nextColorIds: number[]) {
     const opts = optionsByCategory[item.categoryId];
@@ -245,6 +271,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       <div className="cart-empty-state">
         <h2 className="po-heading">Your requirement is empty</h2>
         <p>Browse the collection and add shapes, sizes and colours — they&rsquo;ll gather here, across as many categories as you like.</p>
+        {/* Removing the last line lands here, so the Undo has to as well. */}
+        {canUndoRemove && (
+          <p className="po-type-hint">{toast}. <button type="button" className="po-inline-link" onClick={undoRemove}>Undo</button></p>
+        )}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
@@ -281,15 +311,23 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
               const groupItems = cart.filter((item) => item.requestType === group.type);
               if (groupItems.length === 0) return null;
               const isQuote = group.type === 'Request Quotation';
-              // Newest line first, and therefore newest category first.
+              // Newest category first; inside a category, lines run by shape and
+              // then size small to large, so a long list reads like a checklist.
               const categoryGroups: { categoryId: number; categoryName: string; items: CartItem[] }[] = [];
               const categoryIndex = new Map<number, number>();
               for (const item of [...groupItems].reverse()) {
                 if (!categoryIndex.has(item.categoryId)) {
                   categoryIndex.set(item.categoryId, categoryGroups.length);
-                  categoryGroups.push({ categoryId: item.categoryId, categoryName: item.categoryName, items: [] });
+                  categoryGroups.push({ categoryId: item.categoryId, categoryName: categoryLabel(item), items: [] });
                 }
                 categoryGroups[categoryIndex.get(item.categoryId)!].items.push(item);
+              }
+              for (const g of categoryGroups) {
+                g.items.sort((a, b) =>
+                  a.shapeName.localeCompare(b.shapeName) ||
+                  sizeSortKey(a.sizeMm) - sizeSortKey(b.sizeMm) ||
+                  a.sizeMm.localeCompare(b.sizeMm) ||
+                  a.colorName.localeCompare(b.colorName));
               }
               return (
                 <section className="po-requirement-group" key={group.type} aria-label={group.title}>
@@ -336,7 +374,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                   {item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}
                                 </span>
                                 {unit !== null && (
-                                  <span className="po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                  <span className="po-item-price">&#8377;{formatRupees(unit)} &times; {item.qty.toLocaleString('en-IN')} = &#8377;{formatRupees(unit * item.qty)}</span>
                                 )}
                                 {isQuote && <span className="po-item-price po-item-on-request">Price on request</span>}
                                 {group.moveLabel && (
@@ -393,7 +431,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
 
         {hasAnyPricedLine && (
           <div className="po-cart-total">
-            {unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: &#8377;{cartTotalInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            {unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: &#8377;{formatRupees(cartTotalInr)}
             {/* No "N lines need price confirmation" note: buyers already know
                 unlisted items are priced by the team (owner, 2026-09-25). */}
           </div>
@@ -432,7 +470,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                 We confirm price and availability by WhatsApp, so we need a verified number to reply to.
                 Signing in also keeps this and every future order in your account.
               </p>
-              <LoginForm onSuccess={() => window.location.reload()} />
+              <LoginForm autoFocus={false} onSuccess={() => window.location.reload()} />
             </div>
           )}
         </div>}
@@ -443,10 +481,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} lines · {totalPieces.toLocaleString('en-IN')} pieces</p>
         <ul className="order-review-lines">{[...cart].reverse().map((item) => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{item.categoryName}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
+          <strong>{categoryLabel(item)}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
           {item.qty > 0 ? `${item.qty.toLocaleString('en-IN')} pieces` : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
-        {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{cartTotalInr.toLocaleString('en-IN')}</p>}
+        {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{formatRupees(cartTotalInr)}</p>}
         <p>Your saved account details will be used for this requirement.</p>
         {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
         <p>Our team will confirm pricing and availability before your order is confirmed.</p>
@@ -456,7 +494,12 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         </div>
         {toast && <p role="status">{toast}</p>}
       </dialog>}
-      {toast && !reviewing && <div className="po-toast" role="status" aria-live="polite">{toast}</div>}
+      {toast && !reviewing && (
+        <div className="po-toast" role="status" aria-live="polite">
+          {toast}
+          {canUndoRemove && <button type="button" className="po-toast-undo" onClick={undoRemove}>Undo</button>}
+        </div>
+      )}
     </div>
   );
 }

@@ -50,5 +50,27 @@ export function useDropdownBounds(open: boolean, root: RefObject<HTMLDivElement 
       window.visualViewport?.removeEventListener('scroll', update);
     };
   }, [open, root]);
+
+  // On a phone the list opens near the bottom of the screen, where the fixed
+  // "Your requirement" bar covers it -- the buyer saw one option and had to
+  // guess the list scrolled. Once, on open, scroll the page just enough that
+  // the whole panel sits above anything pinned to the bottom, without pushing
+  // the trigger itself off the top.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      const el = root.current;
+      const panel = el?.querySelector<HTMLElement>(':scope > .icon-select-panel, :scope > .ms-panel');
+      if (!el || !panel) return;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const bar = document.querySelector<HTMLElement>('.po-summary-bar');
+      const visibleBottom = viewportHeight - (bar ? bar.getBoundingClientRect().height : 0) - 8;
+      const overlap = panel.getBoundingClientRect().bottom - visibleBottom;
+      const room = Math.max(0, el.getBoundingClientRect().top - 72); // keep the trigger below the header
+      const by = Math.min(overlap, room);
+      if (by > 0) window.scrollBy({ top: by, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, root]);
   return style;
 }
