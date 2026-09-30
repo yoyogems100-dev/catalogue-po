@@ -10,13 +10,14 @@ import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
 import Link from 'next/link';
+import { parseExploreFilter } from '@/lib/explore-filter';
 
 export const revalidate = 30;
 
 async function getCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug, color_chart_url, price_unit, option_label')
+    .select('id, num, name, slug, color_chart_url, price_unit, option_label, explore_default_filter')
     .eq('slug', slug)
     .single();
 
@@ -156,6 +157,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           pricing={data.pricing}
           optionLabel={(data.category as any).option_label ?? null}
           sizeColors={data.sizeColors}
+          exploreDefault={parseExploreFilter((data.category as any).explore_default_filter)}
         />
       </div>
       <Footer settings={settings} />

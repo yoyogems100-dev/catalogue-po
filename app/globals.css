@@ -2304,6 +2304,25 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .photo-upload-head { font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
 .photo-upload-head span { text-transform: none; letter-spacing: 0; color: #756e5c; font-size: 11.5px; margin-left: 8px; }
 .photo-upload-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+/* Two across on phones (owner rule): four one-per-row pickers left half the
+   screen empty and pushed the file input far down. */
+@media (max-width: 640px) {
+  .photo-upload-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+.btn-link { background: none; border: 0; padding: 0; font: inherit; font-size: inherit; color: var(--navy); text-decoration: underline; cursor: pointer; }
+.btn-link:disabled { opacity: 0.5; cursor: default; }
+/* Admin category Photos tab: narrow the gallery, and save a filter as the
+   one the public Explore Photos tab opens with. */
+.admin-photo-filter { padding: 0 0 12px; }
+.admin-photo-filter-count { font-size: 12px; color: #756e5c; }
+.admin-photo-filter-default {
+  flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  font-size: 12.5px; color: #756e5c; padding: 8px 12px; background: #fbfaf6; border: 1px solid var(--line); border-radius: 6px;
+}
+.admin-photo-filter-default strong { color: var(--ink); font-weight: 500; }
+.admin-photo-filter-default .btn { font-size: 12px; padding: 6px 12px; }
+.photo-next-field { display: block; font-size: 12px; margin: -4px 0 8px; }
+.photo-bulk-tags { flex-basis: 100%; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px; }
 .photo-upload-group { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0 0 12px; cursor: pointer; }
 .photo-upload-group input { margin-top: 3px; }
 .photo-upload-group em { display: block; font-style: normal; font-size: 11.5px; color: #756e5c; margin-top: 2px; }

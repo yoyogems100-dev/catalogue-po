@@ -11,6 +11,7 @@ import PricingClient from '../../pricing/PricingClient';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManager';
+import { parseExploreFilter } from '@/lib/explore-filter';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -62,7 +63,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     fullSizesResult,
     { data: otherCategoriesRaw }
   ] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url, archived_at').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url, archived_at, explore_default_filter').eq('id', categoryId).single(),
     // Shared shapes, plus this category's own -- never another category's.
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').or(`owner_category_id.is.null,owner_category_id.eq.${categoryId}`).order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
@@ -209,6 +210,8 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
         })}
 /> : null}
         badgeTypes={(category.badge_types || []) as ('shapes' | 'colors' | 'sizes')[]}
+        optionLabel={optionLabel}
+        exploreDefault={parseExploreFilter((category as any).explore_default_filter)}
       /></>}
     </>
   );
