@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { parseWorkbookRows } from '@/lib/xlsx-import';
-import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import { canonicalPlace } from '@/lib/customer-places';
 
 const ALIASES: Record<string, string> = {
   name: 'name',
@@ -29,19 +29,17 @@ export async function POST(request: NextRequest) {
   }
   if (!parsedRows.length) return NextResponse.json({ error: 'No data rows found in the first sheet.' }, { status: 400 });
 
-  const placeSet = new Set<string>(CUSTOMER_PLACES);
-
   const rows = parsedRows.map((row) => {
     const name = (row.name || '').trim();
     const company = (row.company || '').trim();
-    const place = (row.place || '').trim();
+    // Any place is accepted now; it's just tidied to one spelling.
+    const place = canonicalPlace(row.place) || '';
     return {
       data: {
         name, company, phone: row.phone || '', email: row.email || '', address: row.address || '',
-        place: placeSet.has(place) ? place : '', workStream: row.workStream || '', goToRequirements: row.goToRequirements || ''
+        place, workStream: row.workStream || '', goToRequirements: row.goToRequirements || ''
       },
       status: (!name && !company) ? 'missing_required' as const : 'valid' as const,
-      unmatchedPlace: place && !placeSet.has(place) ? place : undefined
     };
   });
 

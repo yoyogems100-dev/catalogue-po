@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { normalizePhone } from '@/lib/phone';
-import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import { canonicalPlace } from '@/lib/customer-places';
 import { passwordProblem } from '@/lib/customer-password';
 import { savePassword } from '@/lib/customer-credentials';
 
@@ -37,9 +37,7 @@ export async function POST(request: NextRequest) {
     if (existing) return NextResponse.json({ id: existing.id, existed: true });
   }
 
-  const place = typeof body.place === 'string' && (CUSTOMER_PLACES as readonly string[]).includes(body.place)
-    ? body.place
-    : null;
+  const place = canonicalPlace(body.place);
 
   const { data, error } = await supabaseAdmin.from('customers').insert({
     name: name || null,
