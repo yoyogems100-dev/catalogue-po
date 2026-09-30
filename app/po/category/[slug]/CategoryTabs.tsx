@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import POSelector from '@/components/POSelector';
 import CategoryClient from './CategoryClient';
+import type { ExploreFilter } from '@/lib/explore-filter';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
@@ -37,7 +38,8 @@ export default function CategoryTabs({
   pricing,
   priceUnit,
   optionLabel,
-  sizeColors
+  sizeColors,
+  exploreDefault
 }: {
   categoryId: number;
   categoryName: string;
@@ -58,6 +60,8 @@ export default function CategoryTabs({
   optionLabel?: string | null;
   /** [shape_size_id, color_id] pairs this category offers; empty = any with any. */
   sizeColors?: [number, number][];
+  /** The filter Explore Photos opens with, chosen in the admin. */
+  exploreDefault?: ExploreFilter;
 }) {
   const [tab, setTab] = useState<'order' | 'photos'>('order');
 
@@ -118,6 +122,7 @@ export default function CategoryTabs({
           pricing={pricing}
           priceUnit={priceUnit}
           optionLabel={optionLabel}
+          exploreDefault={exploreDefault}
           onRaiseOrder={() => setTab('order')}
         />
         </div>

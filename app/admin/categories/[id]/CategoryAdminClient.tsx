@@ -10,6 +10,8 @@ import { categoryIconUrl } from '@/lib/category-icons';
 import ShapeSizeSelect from '@/components/ShapeSizeSelect';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { buildPhotoGroups, groupMemberIds } from '@/lib/photo-groups';
+import PhotoTagPicker, { EMPTY_TAG_SET, tagSetCount, type PhotoTagSet } from '@/components/admin/PhotoTagPicker';
+import { NO_FILTER, isFilterEmpty, matchesFilter, sizeGroupsFor, type ExploreFilter } from '@/lib/explore-filter';
 
 type Ref = { id: number; name: string };
 type ColorRef = Ref & { hexValue?: string | null; refPhotoUrl?: string | null };
@@ -70,7 +72,9 @@ export default function CategoryAdminClient({
   photos,
   otherCategories,
   badgeTypes,
-  shapeReference
+  shapeReference,
+  optionLabel,
+  exploreDefault = NO_FILTER
 }: {
   categoryId: number;
   section?: string;
@@ -100,6 +104,10 @@ export default function CategoryAdminClient({
       server (it reads per-category reference photos) and passed in as a slot
       so it can sit below the picker, matching the Colors tab's order. */
   shapeReference?: React.ReactNode;
+  /** What "Color" is called in this category ("Material" for Semi Precious Beads). */
+  optionLabel?: string | null;
+  /** The filter this category's public Explore Photos tab opens with. */
+  exploreDefault?: ExploreFilter;
 }) {
   const router = useRouter();
   const [expandedSummary, setExpandedSummary] = useState<Record<string, boolean>>({});
@@ -130,6 +138,16 @@ export default function CategoryAdminClient({
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
   const [moveTargetId, setMoveTargetId] = useState<number | ''>('');
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Tags put on every file of the next upload, and on every ticked photo in
+  // Select mode -- one choice for many photos instead of one photo at a time.
+  const [uploadTags, setUploadTags] = useState<PhotoTagSet>(EMPTY_TAG_SET);
+  const [bulkTags, setBulkTags] = useState<PhotoTagSet>(EMPTY_TAG_SET);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  // Narrows the admin gallery; can also be saved as the Explore Photos default.
+  const [filter, setFilter] = useState<ExploreFilter>(NO_FILTER);
+  const [savedDefault, setSavedDefault] = useState<ExploreFilter>(exploreDefault);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const colorLabel = optionLabel || 'Color';
 
   // UI/UX audit ("visible saved-state feedback"): upload/import/delete/set-cover
   // previously refreshed with no acknowledgement -- a failed request and a
@@ -152,6 +170,13 @@ export default function CategoryAdminClient({
   // across the grid with nothing but a badge to say which group they belonged
   // to, so finding a group meant hunting for it.
   const galleryGroups = buildPhotoGroups(galleryPhotos.map((p) => ({ ...p, parentId: p.parentPhotoId })));
+  // Filtering keeps each group's index in the full gallery, so dragging and
+  // the arrows still reorder the real running order, not the filtered view.
+  const filterActive = !isFilterEmpty(filter);
+  const visibleGroups = galleryGroups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => !filterActive || matchesFilter({ ...group.lead, tagIds: group.lead.tag_ids }, filter, linkedSizes));
+  const filterSizeGroups = sizeGroupsFor(linkedSizes, filter.shapeId);
   const untaggedCount = galleryPhotos.filter((p) => !p.shapeIds.length && !p.colorIds.length).length;
   const coverPhoto = localPhotos.find((p) => p.id === thumbnailPhotoId) || null;
 
@@ -232,25 +257,41 @@ export default function CategoryAdminClient({
     // The first file of a group is its cover; every later one attaches to it,
     // which is why these go up one at a time rather than all at once.
     let parentId: number | null = null;
+    // Cards in the gallery are group leads, so only those are ticked afterwards.
+    const newLeadIds: number[] = [];
+    let tagFailures = 0;
     for (const file of Array.from(files)) {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('category_id', String(categoryId));
+      if (uploadTags.shapeIds.length) fd.append('shape_ids', uploadTags.shapeIds.join(','));
+      if (uploadTags.sizeIds.length) fd.append('size_ids', uploadTags.sizeIds.join(','));
+      if (uploadTags.colorIds.length) fd.append('color_ids', uploadTags.colorIds.join(','));
+      if (uploadTags.tagIds.length) fd.append('tag_ids', uploadTags.tagIds.join(','));
       if (uploadAsGroup && parentId !== null) fd.append('parent_photo_id', String(parentId));
       const res = await fetch('/api/photos/upload', { method: 'POST', body: fd });
       if (!res.ok) { failures++; continue; }
-      if (uploadAsGroup && parentId === null) {
-        const photo = await res.json().catch(() => null);
-        if (photo?.id) parentId = photo.id;
-      }
+      const photo = await res.json().catch(() => null);
+      if (photo?.tagError) tagFailures++;
+      if (photo?.id && (!uploadAsGroup || parentId === null)) newLeadIds.push(photo.id);
+      if (uploadAsGroup && parentId === null && photo?.id) parentId = photo.id;
     }
     setUploading(false);
     setUploadAsGroup(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     const count = files.length;
+    // The new photos come back ticked in Select mode, so a common tag can be
+    // added to exactly this batch straight away without hunting for them.
+    if (newLeadIds.length) {
+      setFilter(NO_FILTER);
+      setSelectMode(true);
+      setSelectedPhotoIds(newLeadIds);
+      setBulkTagOpen(true);
+      setBulkTags(EMPTY_TAG_SET);
+    }
     setToast(
       failures === 0
-        ? `${count} photo${count === 1 ? '' : 's'} uploaded.`
+        ? `${count} photo${count === 1 ? '' : 's'} uploaded${tagFailures ? ` -- tags missing on ${tagFailures}` : ''}. They are ticked below to tag together.`
         : `${count - failures} of ${count} uploaded -- ${failures} failed.`
     );
     router.refresh();
@@ -416,14 +457,17 @@ export default function CategoryAdminClient({
     setSelectMode((cur) => !cur);
     setSelectedPhotoIds([]);
     setMoveTargetId('');
+    setBulkTagOpen(false);
+    setBulkTags(EMPTY_TAG_SET);
   }
 
   function toggleSelectPhoto(photoId: number) {
     setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur.filter((id) => id !== photoId) : [...cur, photoId]));
   }
 
+  // With a filter on, "Select all" means every photo you can see.
   function toggleSelectAll(checked: boolean) {
-    setSelectedPhotoIds(checked ? galleryPhotos.map((p) => p.id) : []);
+    setSelectedPhotoIds(checked ? visibleGroups.map(({ group }) => group.lead.id) : []);
   }
 
   // A group is one stone photographed from several angles, so a bulk action on
@@ -509,6 +553,64 @@ export default function CategoryAdminClient({
     if (failed > 0) setToast(`${deletedIds.length} deleted, ${failed} failed -- try again.`);
     else setToast(`Deleted ${deletedIds.length} photo${deletedIds.length === 1 ? '' : 's'}.`);
     router.refresh();
+  }
+
+  async function tagSelectedPhotos(mode: 'add' | 'remove') {
+    if (selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const res = await fetch('/api/photos/bulk-tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        photo_ids: selectedPhotoIds,
+        mode,
+        shape_ids: bulkTags.shapeIds,
+        size_ids: bulkTags.sizeIds,
+        color_ids: bulkTags.colorIds,
+        tag_ids: bulkTags.tagIds
+      })
+    });
+    setBulkBusy(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setToast(body.error || 'Failed to tag these photos -- try again.');
+      return;
+    }
+    const apply = (cur: number[], ids: number[]) =>
+      mode === 'add' ? Array.from(new Set([...cur, ...ids])) : cur.filter((id) => !ids.includes(id));
+    setLocalPhotos((cur) => cur.map((p) => selectedPhotoIds.includes(p.id) ? {
+      ...p,
+      shapeIds: apply(p.shapeIds, bulkTags.shapeIds),
+      sizeIds: apply(p.sizeIds, bulkTags.sizeIds),
+      colorIds: apply(p.colorIds, bulkTags.colorIds),
+      tag_ids: apply(p.tag_ids, bulkTags.tagIds)
+    } : p));
+    const n = selectedPhotoIds.length;
+    setToast(`${mode === 'add' ? 'Tagged' : 'Removed tags from'} ${n} photo${n === 1 ? '' : 's'}.`);
+    router.refresh();
+  }
+
+  async function saveExploreDefault(next: ExploreFilter) {
+    setSavingDefault(true);
+    const res = await fetch(`/api/admin/categories/${categoryId}/explore-default`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shape_id: next.shapeId, size_key: next.sizeKey, color_id: next.colorId, tag_id: next.tagId })
+    });
+    setSavingDefault(false);
+    if (!res.ok) { setToast('Could not save the Explore Photos default -- try again.'); return; }
+    setSavedDefault(next);
+    setToast(isFilterEmpty(next) ? 'Explore Photos now opens showing every photo.' : 'Saved. Explore Photos now opens with this filter.');
+  }
+
+  function describeFilter(f: ExploreFilter) {
+    const parts = [
+      f.shapeId !== null ? linkedShapes.find((s) => s.id === f.shapeId)?.name || 'a removed shape' : null,
+      f.sizeKey !== null ? `${f.sizeKey} mm` : null,
+      f.colorId !== null ? linkedColors.find((c) => c.id === f.colorId)?.name || `a removed ${colorLabel.toLowerCase()}` : null,
+      f.tagId !== null ? linkedTags.find((t) => t.id === f.tagId)?.name || 'a removed specification' : null
+    ].filter(Boolean);
+    return parts.length ? parts.join(' · ') : 'All photos';
   }
 
   function toggleSummary(key: string) {
@@ -645,8 +747,30 @@ export default function CategoryAdminClient({
           <div id="category-upload" className="admin-upload-row">
             <section>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} />
-              {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+              <details className="photo-upload-tags" open={tagSetCount(uploadTags) > 0 || undefined}>
+                <summary>
+                  {tagSetCount(uploadTags) > 0
+                    ? `${tagSetCount(uploadTags)} tag${tagSetCount(uploadTags) === 1 ? '' : 's'} will go on every photo in this upload`
+                    : 'Add tags to every photo in this upload (optional)'}
+                </summary>
+                <PhotoTagPicker
+                  categoryId={categoryId}
+                  shapes={linkedShapes}
+                  sizes={linkedSizes}
+                  colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
+                  tags={linkedTags}
+                  colorLabel={colorLabel}
+                  value={uploadTags}
+                  onChange={setUploadTags}
+                />
+              </details>
+              <div style={{ marginTop: 10 }}>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} disabled={uploading} />
+                {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
+                {!uploading && tagSetCount(uploadTags) > 0 && (
+                  <button type="button" className="btn-link" style={{ marginLeft: 10, fontSize: 12.5 }} onClick={() => setUploadTags(EMPTY_TAG_SET)}>Clear upload tags</button>
+                )}
+              </div>
               <label className="photo-upload-group" style={{ marginTop: 10 }}>
                 <input type="checkbox" checked={uploadAsGroup} onChange={(e) => setUploadAsGroup(e.target.checked)} disabled={uploading} />
                 <span>
@@ -696,17 +820,83 @@ export default function CategoryAdminClient({
                 {selectMode ? 'Done selecting' : 'Select'}
               </button>
             </div>
+            {galleryPhotos.length > 0 && (
+              <div className="filter-bar admin-photo-filter" role="group" aria-label="Filter photos">
+                {linkedShapes.length > 0 && (
+                  <IconSelect
+                    categoryId={categoryId}
+                    options={linkedShapes}
+                    value={filter.shapeId ?? 'all'}
+                    onChange={(v) => setFilter((f) => ({ ...f, shapeId: v === 'all' ? null : Number(v), sizeKey: null }))}
+                    allLabel="All shapes"
+                    leading="icon"
+                  />
+                )}
+                {filterSizeGroups.length > 0 && (
+                  <select aria-label="Filter by size" value={filter.sizeKey ?? 'all'} onChange={(e) => setFilter((f) => ({ ...f, sizeKey: e.target.value === 'all' ? null : e.target.value }))}>
+                    <option value="all">All sizes</option>
+                    {filterSizeGroups.map((g) => <option key={g.key} value={g.key}>{g.label} mm</option>)}
+                  </select>
+                )}
+                {linkedColors.length > 0 && (
+                  <IconSelect
+                    categoryId={categoryId}
+                    options={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
+                    value={filter.colorId ?? 'all'}
+                    onChange={(v) => setFilter((f) => ({ ...f, colorId: v === 'all' ? null : Number(v) }))}
+                    allLabel={`All ${colorLabel.toLowerCase()}s`}
+                    leading="swatch"
+                  />
+                )}
+                {linkedTags.length > 0 && (
+                  <select aria-label="Filter by specification" value={filter.tagId ?? 'all'} onChange={(e) => setFilter((f) => ({ ...f, tagId: e.target.value === 'all' ? null : Number(e.target.value) }))}>
+                    <option value="all">All specifications</option>
+                    {linkedTags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                )}
+                <span className="admin-photo-filter-count">
+                  {filterActive ? `${visibleGroups.length} of ${galleryGroups.length} shown` : `${galleryGroups.length} product${galleryGroups.length === 1 ? '' : 's'}`}
+                  {filterActive && <> · <button type="button" className="btn-link" onClick={() => setFilter(NO_FILTER)}>Show all</button></>}
+                </span>
+                <div className="admin-photo-filter-default">
+                  <span>
+                    Explore Photos opens with: <strong>{describeFilter(savedDefault)}</strong>
+                  </span>
+                  {filterActive && describeFilter(filter) !== describeFilter(savedDefault) && (
+                    <button type="button" className="btn" disabled={savingDefault} onClick={() => saveExploreDefault(filter)}>
+                      {savingDefault ? 'Saving…' : 'Use this filter on the public page'}
+                    </button>
+                  )}
+                  {!isFilterEmpty(savedDefault) && (
+                    <>
+                      <button type="button" className="btn-link" onClick={() => setFilter(savedDefault)}>Preview</button>
+                      <button type="button" className="btn-link" disabled={savingDefault} onClick={() => saveExploreDefault(NO_FILTER)}>Show all photos instead</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             {selectMode ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#f4f1e8', borderRadius: 6 }}>
+              <div className="photo-select-bar">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
                   <input
                     type="checkbox"
-                    checked={galleryPhotos.length > 0 && selectedPhotoIds.length === galleryPhotos.length}
+                    checked={visibleGroups.length > 0 && visibleGroups.every(({ group }) => selectedPhotoIds.includes(group.lead.id))}
                     onChange={(e) => toggleSelectAll(e.target.checked)}
                   />
                   Select all
                 </label>
-                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length} selected</span>
+                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length === 0 ? 'Tick photos below' : `${selectedPhotoIds.length} selected`}</span>
+                <button
+                  type="button"
+                  className={bulkTagOpen ? 'btn' : 'btn-ghost'}
+                  disabled={selectedPhotoIds.length === 0 && !bulkTagOpen}
+                  onClick={() => setBulkTagOpen((cur) => !cur)}
+                  aria-expanded={bulkTagOpen}
+                >
+                  Tag selected
+                </button>
+                <span className="photo-select-sep" aria-hidden="true" />
                 <div style={{ maxWidth: 220, flex: '1 1 180px', opacity: selectedPhotoIds.length === 0 ? 0.5 : 1, pointerEvents: selectedPhotoIds.length === 0 ? 'none' : undefined }}>
                   <IconSelect
                     options={otherCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
@@ -734,6 +924,32 @@ export default function CategoryAdminClient({
                 <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Delete selected'}
                 </button>
+                {bulkTagOpen && (
+                  <div className="photo-bulk-tags">
+                    <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 8px' }}>
+                      Choose tags to add to all {selectedPhotoIds.length} selected photo{selectedPhotoIds.length === 1 ? '' : 's'} (a grouped stone's tags live on its cover). Tags each photo already has are kept.
+                    </p>
+                    <PhotoTagPicker
+                      categoryId={categoryId}
+                shapes={linkedShapes}
+                sizes={linkedSizes}
+                colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
+                tags={linkedTags}
+                colorLabel={colorLabel}
+                      value={bulkTags}
+                      onChange={setBulkTags}
+                    />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                      <button className="btn" disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('add')}>
+                        {bulkBusy ? 'Working…' : `Add to ${selectedPhotoIds.length} photo${selectedPhotoIds.length === 1 ? '' : 's'}`}
+                      </button>
+                      <button className="btn-ghost" disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('remove')}>
+                        Remove from selected
+                      </button>
+                      {tagSetCount(bulkTags) > 0 && <button type="button" className="btn-link" onClick={() => setBulkTags(EMPTY_TAG_SET)}>Clear choice</button>}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -756,8 +972,11 @@ export default function CategoryAdminClient({
                 )}
               </>
             )}
+            {filterActive && visibleGroups.length === 0 && (
+              <p style={{ fontSize: 12.5, color: '#756e5c', padding: '24px 0' }}>No photos match this filter. <button type="button" className="btn-link" onClick={() => setFilter(NO_FILTER)}>Show all</button></p>
+            )}
             <div className="admin-photo-grid">
-              {galleryGroups.map(({ lead: p, media }, i) => (
+              {visibleGroups.map(({ group: { lead: p, media }, index: i }) => (
                 <PhotoRow
                   categoryId={categoryId}
                   key={p.id}
@@ -798,6 +1017,8 @@ export default function CategoryAdminClient({
 }
 
 type FieldType = 'shape' | 'size' | 'color' | 'tags' | 'other';
+
+const TAG_ORDER: FieldType[] = ['shape', 'color', 'size', 'tags'];
 
 const FIELD_OPTIONS: { value: FieldType; label: string }[] = [
   { value: 'shape', label: 'Shape' },
@@ -881,10 +1102,38 @@ function PhotoRow({
   const [sizeIds, setSizeIds] = useState<number[]>(photo.sizeIds);
   const [colorIds, setColorIds] = useState<number[]>(photo.colorIds);
   const [tagIds, setTagIds] = useState<number[]>(photo.tag_ids);
+  // Bulk tagging changes these from outside the card; without re-syncing, the
+  // card would show stale chips and its next edit would save the old list
+  // over the bulk tags (the per-photo save replaces the whole list).
+  const tagSig = [photo.shapeIds, photo.sizeIds, photo.colorIds, photo.tag_ids].map((l) => l.join(',')).join('|');
+  useEffect(() => {
+    setShapeIds(photo.shapeIds);
+    setSizeIds(photo.sizeIds);
+    setColorIds(photo.colorIds);
+    setTagIds(photo.tag_ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagSig]);
   const [productCode, setProductCode] = useState(photo.product_code || '');
   const [notes, setNotes] = useState(photo.notes || '');
   const visibleFieldOptions = fieldOptions ? FIELD_OPTIONS.filter((o) => fieldOptions.includes(o.value)) : FIELD_OPTIONS;
-  const [field, setField] = useState<FieldType>(visibleFieldOptions[0]?.value || 'shape');
+  // Tagging order the team works in: shape, then colour, then size, then
+  // specifications. A card opens on the first of those still empty, so a
+  // photo that already has its shape starts on Colour rather than Shape.
+  const filled: Record<FieldType, boolean> = {
+    shape: shapeIds.length > 0,
+    color: colorIds.length > 0,
+    size: sizeIds.length > 0,
+    tags: tagIds.length > 0,
+    other: false
+  };
+  const tagOrder = TAG_ORDER.filter((f) => visibleFieldOptions.some((o) => o.value === f));
+  const nextEmpty = (after?: FieldType) => {
+    const start = after ? tagOrder.indexOf(after) + 1 : 0;
+    // Size needs a shape first, so it is never "next" before one is chosen.
+    return tagOrder.slice(start).find((f) => !filled[f] && !(f === 'size' && !filled.shape)) ?? null;
+  };
+  const [field, setField] = useState<FieldType>(() => nextEmpty() ?? visibleFieldOptions[0]?.value ?? 'shape');
+  const upNext = filled[field] ? nextEmpty(field) : null;
   const [otherText, setOtherText] = useState('');
   const [creatingTag, setCreatingTag] = useState(false);
   const [showAddTag, setShowAddTag] = useState(false);
@@ -974,10 +1223,11 @@ function PhotoRow({
   );
 
   // Field selector + its matching value picker side by side, not stacked.
-  const fieldPicker = (
+  const fieldLabel = (f: FieldType) => FIELD_OPTIONS.find((o) => o.value === f)?.label || f;
+  const fieldPickerRow = (
     <div className="photo-field-picker" style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
       <select value={field} onChange={(e) => setField(e.target.value as FieldType)} style={{ fontSize: 12, flex: '0 0 auto', width: 'auto', minWidth: 90 }}>
-        {visibleFieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {visibleFieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}{filled[o.value] ? ' ✓' : ''}</option>)}
       </select>
       <div style={{ flex: 1, minWidth: 0 }}>
         {field === 'shape' && (
@@ -1075,6 +1325,17 @@ function PhotoRow({
         )}
       </div>
     </div>
+  );
+
+  const fieldPicker = (
+    <>
+      {fieldPickerRow}
+      {upNext && (
+        <button type="button" className="btn-link photo-next-field" onClick={() => setField(upNext)}>
+          Next: {fieldLabel(upNext)} →
+        </button>
+      )}
+    </>
   );
 
   const cropControls = <PhotoCropEditor photoId={photo.id} photoCrop={photo.photoCrop} coverCrop={photo.coverCrop} coverOnly={compact || photo.isCoverOnly} isCover={isThumbnail} />;

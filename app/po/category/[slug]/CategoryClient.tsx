@@ -8,6 +8,7 @@ import { groupSizes } from '@/lib/size-options';
 import { buildPhotoGroups } from '@/lib/photo-groups';
 import ProductSheet, { type SheetPhoto } from '@/components/ProductSheet';
 import type { CategoryPricing } from '@/lib/pricing-calc';
+import { NO_FILTER, matchesFilter, reconcileFilter, type ExploreFilter } from '@/lib/explore-filter';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -24,6 +25,7 @@ export default function CategoryClient({
   pricing,
   priceUnit,
   optionLabel,
+  exploreDefault = NO_FILTER,
   onRaiseOrder
 }: {
   categoryId: number;
@@ -36,14 +38,27 @@ export default function CategoryClient({
   pricing?: CategoryPricing;
   priceUnit?: string | null;
   optionLabel?: string | null;
+  exploreDefault?: ExploreFilter;
   onRaiseOrder?: () => void;
 }) {
   const { flags } = useHotSelling();
 
-  const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
-  const [colorFilter, setColorFilter] = useState<number | 'all'>('all');
-  const [sizeFilter, setSizeFilter] = useState<string>('all');
-  const [tagFilter, setTagFilter] = useState<number | 'all'>('all');
+  // The page opens on the admin's chosen default -- minus anything this
+  // category no longer offers, and ignored outright if nothing would match it,
+  // so a stale default can never greet a customer with an empty page.
+  const [start] = useState(() => {
+    const f = reconcileFilter(exploreDefault, { shapeIds: shapes.map((s) => s.id), colorIds: colors.map((c) => c.id), tagIds: tags.map((t) => t.id), sizes });
+    const anyMatch = buildPhotoGroups(photos).some(({ lead }) => matchesFilter({ ...lead, tagIds: lead.tag_ids }, f, sizes));
+    return anyMatch ? f : NO_FILTER;
+  });
+  const [shapeFilter, setShapeFilter] = useState<number | 'all'>(start.shapeId ?? 'all');
+  const [colorFilter, setColorFilter] = useState<number | 'all'>(start.colorId ?? 'all');
+  const [sizeFilter, setSizeFilter] = useState<string>(start.sizeKey ?? 'all');
+  const [tagFilter, setTagFilter] = useState<number | 'all'>(start.tagId ?? 'all');
+  const filtering = shapeFilter !== 'all' || colorFilter !== 'all' || sizeFilter !== 'all' || tagFilter !== 'all';
+  function clearFilters() {
+    setShapeFilter('all'); setColorFilter('all'); setSizeFilter('all'); setTagFilter('all');
+  }
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -135,6 +150,7 @@ export default function CategoryClient({
           <span style={{ fontSize: 12, color: '#756e5c' }}>
             {filtered.length} of {groups.length} {groups.length === 1 ? 'product' : 'products'}
             {photoCount !== groups.length ? ` · ${photoCount} photos` : ''}
+            {filtering && filtered.length < groups.length && <> · <button type="button" className="btn-link" onClick={clearFilters}>Show all</button></>}
           </span>
         </div>
       )}
