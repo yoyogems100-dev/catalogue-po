@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHotSelling } from '@/components/HotSelling';
 import { isHot } from '@/lib/hot-selling';
 import IconSelect from '@/components/IconSelect';
@@ -9,6 +9,10 @@ import { buildPhotoGroups } from '@/lib/photo-groups';
 import ProductSheet, { type SheetPhoto } from '@/components/ProductSheet';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { NO_FILTER, matchesFilter, reconcileFilter, type ExploreFilter } from '@/lib/explore-filter';
+import { PHOTO_SORTS, sortPhotoGroups, type PhotoSort } from '@/lib/photo-sort';
+
+// A buyer's sort choice carries across categories on this device.
+const SORT_STORAGE_KEY = 'yoyo_explore_sort';
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string };
@@ -59,6 +63,20 @@ export default function CategoryClient({
   function clearFilters() {
     setShapeFilter('all'); setColorFilter('all'); setSizeFilter('all'); setTagFilter('all');
   }
+  // Starts on the team's own order; a saved choice is applied after hydration
+  // so the server and first client render agree.
+  const [sort, setSort] = useState<PhotoSort>('featured');
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SORT_STORAGE_KEY);
+      if (saved && PHOTO_SORTS.some((s) => s.value === saved)) setSort(saved as PhotoSort);
+    } catch { /* storage blocked: keep the default */ }
+  }, []);
+  function chooseSort(value: PhotoSort) {
+    setSort(value);
+    setOpenIndex(null);
+    try { window.localStorage.setItem(SORT_STORAGE_KEY, value); } catch { /* not remembered, still applied */ }
+  }
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -73,14 +91,14 @@ export default function CategoryClient({
   const groups = useMemo(() => buildPhotoGroups(photos), [photos]);
 
   const filtered = useMemo(() => {
-    return groups.filter(({ lead }) => {
+    return sortPhotoGroups(groups, sort).filter(({ lead }) => {
       if (shapeFilter !== 'all' && !lead.shapeIds.includes(shapeFilter)) return false;
       if (colorFilter !== 'all' && !lead.colorIds.includes(colorFilter)) return false;
       if (sizeFilter !== 'all' && !availableSizes.find((size) => size.key === sizeFilter)?.ids.some((id) => lead.sizeIds.includes(id))) return false;
       if (tagFilter !== 'all' && !lead.tag_ids.includes(tagFilter)) return false;
       return true;
     });
-  }, [groups, shapeFilter, colorFilter, sizeFilter, tagFilter, availableSizes]);
+  }, [groups, sort, shapeFilter, colorFilter, sizeFilter, tagFilter, availableSizes]);
 
   // Precompute id -> name lookups once instead of a linear .find() per id per
   // photo, and cache each lead's details string once instead of rebuilding it
@@ -120,7 +138,7 @@ export default function CategoryClient({
 
   return (
     <>
-      {(shapes.length > 0 || colors.length > 0 || tags.length > 0) && (
+      {(shapes.length > 0 || colors.length > 0 || tags.length > 0 || groups.length > 1) && (
         <div className="filter-bar">
           {shapes.length > 0 && (
             <IconSelect
@@ -146,6 +164,14 @@ export default function CategoryClient({
               <option value="all">All specifications</option>
               {[...tags].sort((a,b) => Number(isHot(flags,categoryId,'tag',[b.id]))-Number(isHot(flags,categoryId,'tag',[a.id]))).map((t) => <option key={t.id} value={t.id}>{isHot(flags,categoryId,'tag',[t.id]) ? '🔥 ' : ''}{t.name}</option>)}
             </select>
+          )}
+          {groups.length > 1 && (
+            <label className="explore-sort">
+              <span>Sort</span>
+              <select aria-label="Sort photos" value={sort} onChange={(e) => chooseSort(e.target.value as PhotoSort)}>
+                {PHOTO_SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </label>
           )}
           <span style={{ fontSize: 12, color: '#756e5c' }}>
             {filtered.length} of {groups.length} {groups.length === 1 ? 'product' : 'products'}

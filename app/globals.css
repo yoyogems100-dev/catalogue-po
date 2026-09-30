@@ -236,6 +236,8 @@ html, body { overflow-x: hidden; }
 }
 .filter-bar select:hover { border-color: var(--gold); }
 .filter-bar .icon-select-trigger { width: auto; min-width: 140px; }
+.explore-sort { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #756e5c; }
+.filter-bar .explore-sort select { min-width: 150px; }
 
 .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 8px 0 20px; flex-wrap: wrap; gap: 8px; }
 .section-head h2 { font-size: 22px; color: var(--ink); }
@@ -1037,6 +1039,8 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   .filter-bar { gap: 6px; }
   .filter-bar select { min-width: 0; flex: 1 1 auto; font-size: 12.5px; padding: 8px 26px 8px 10px; }
   .filter-bar .icon-select { min-width: 0; flex: 1 1 auto; }
+  .filter-bar .explore-sort { flex: 1 1 100%; }
+  .filter-bar .explore-sort select { flex: 1 1 auto; }
   .filter-bar .icon-select-trigger { min-width: 0; font-size: 12.5px; padding: 8px 10px; }
   .home-search-bar { gap: 8px; }
   .home-filter-row { flex-wrap: wrap; }
