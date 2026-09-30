@@ -12,6 +12,7 @@ import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { buildPhotoGroups, groupMemberIds } from '@/lib/photo-groups';
 import PhotoTagPicker, { EMPTY_TAG_SET, tagSetCount, type PhotoTagSet } from '@/components/admin/PhotoTagPicker';
 import { NO_FILTER, isFilterEmpty, matchesFilter, sizeGroupsFor, type ExploreFilter } from '@/lib/explore-filter';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
 type Ref = { id: number; name: string };
 type ColorRef = Ref & { hexValue?: string | null; refPhotoUrl?: string | null };
@@ -211,7 +212,7 @@ export default function CategoryAdminClient({
     });
     if (!res.ok) {
       setLocalPhotos(prevAll);
-      alert('Failed to save the new photo order.');
+      notify('Failed to save the new photo order.');
       return;
     }
     router.refresh();
@@ -322,7 +323,7 @@ export default function CategoryAdminClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to update tags');
+      notify(data.error || 'Failed to update tags');
     }
     router.refresh();
   }
@@ -403,7 +404,7 @@ export default function CategoryAdminClient({
   }
 
   async function deletePhoto(photoId: number) {
-    if (!confirm('Delete this photo? This removes it from the catalogue and this cannot be undone.')) return;
+    if (!(await confirmAction('Delete this photo? This removes it from the catalogue and this cannot be undone.'))) return;
     const res = await fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: photoId }) });
     if (!res.ok) { setToast('Failed to delete photo -- try again.'); return; }
     setToast('Photo deleted.');
@@ -573,7 +574,7 @@ export default function CategoryAdminClient({
     const targetIds = withWholeGroups(selectedPhotoIds);
     const count = targetIds.length;
     const extra = count - selectedPhotoIds.length;
-    if (!confirm(`Delete ${count} photo${count === 1 ? '' : 's'}${extra > 0 ? ` (including ${extra} grouped angle${extra === 1 ? '' : 's'})` : ''}? This removes them from the catalogue and cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete ${count} photo${count === 1 ? '' : 's'}${extra > 0 ? ` (including ${extra} grouped angle${extra === 1 ? '' : 's'})` : ''}? This removes them from the catalogue and cannot be undone.`))) return;
     setBulkBusy(true);
     const results = await Promise.all(
       targetIds.map((id) => fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))

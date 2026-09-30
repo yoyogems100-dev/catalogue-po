@@ -9,6 +9,7 @@ import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import ShapeIcon from '@/components/ShapeIcon';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import BulkActionBar from '@/components/admin/BulkActionBar';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
 type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
@@ -87,7 +88,7 @@ export default function ShapesClient({
   async function bulkDelete() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} shape${ids.length > 1 ? 's' : ''} and all their sizes? Photos tagged with them will keep the photo but lose the shape tag.`)) return;
+    if (!(await confirmAction(`Delete ${ids.length} shape${ids.length > 1 ? 's' : ''} and all their sizes? Photos tagged with them will keep the photo but lose the shape tag.`))) return;
     const results = await Promise.all(ids.map((id) => fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then((r) => r.ok)));
     const failed = results.filter((ok) => !ok).length;
     setSelected(new Set());
@@ -106,7 +107,7 @@ export default function ShapesClient({
     });
     if (!res.ok) {
       setLocalShapes(prev);
-      alert('Failed to save the new order.');
+      notify('Failed to save the new order.');
       return;
     }
     router.refresh();
@@ -117,7 +118,7 @@ export default function ShapesClient({
     const res = await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape }) });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add shape -- a shape with this name may already exist.');
+      notify(data.error || 'Failed to add shape -- a shape with this name may already exist.');
       return;
     }
     setNewShape('');
@@ -126,23 +127,31 @@ export default function ShapesClient({
   }
 
   async function moveShape(id: number, direction: 'up' | 'down') {
+    // Move it on screen straight away; the server swaps it with the same
+    // neighbour. Put it back if the save fails.
+    const prev = localShapes;
+    const from = prev.findIndex((x) => x.id === id);
+    const to = direction === 'up' ? from - 1 : from + 1;
+    if (from < 0 || to < 0 || to >= prev.length) return;
+    setLocalShapes(moveItem(prev, from, to));
     const res = await fetch('/api/shapes/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shape_id: id, direction })
     });
     if (!res.ok) {
+      setLocalShapes(prev);
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to reorder shape');
+      notify(data.error || 'Failed to reorder shape');
       return;
     }
     router.refresh();
   }
 
   async function deleteShape(id: number, name: string) {
-    if (!confirm(`Delete "${name}" and all its sizes? Photos tagged with it will keep the photo but lose the shape tag.`)) return;
+    if (!(await confirmAction(`Delete "${name}" and all its sizes? Photos tagged with it will keep the photo but lose the shape tag.`))) return;
     const res = await fetch('/api/shapes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (!res.ok) { alert('Failed to delete shape -- try again.'); return; }
+    if (!res.ok) { notify('Failed to delete shape -- try again.'); return; }
     setToast('Shape deleted.');
     router.refresh();
   }
@@ -155,7 +164,7 @@ export default function ShapesClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to rename shape');
+      notify(data.error || 'Failed to rename shape');
       return;
     }
     setToast('Renamed.');
@@ -169,7 +178,7 @@ export default function ShapesClient({
     const res = await fetch(`/api/shapes/${id}/photo`, { method: 'POST', body: fd });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to upload photo.');
+      notify(data.error || 'Failed to upload photo.');
       return;
     }
     setToast('Photo uploaded.');
@@ -177,9 +186,9 @@ export default function ShapesClient({
   }
 
   async function removePhoto(id: number) {
-    if (!confirm('Remove this reference photo? The shape will fall back to the plain vector icon.')) return;
+    if (!(await confirmAction('Remove this reference photo? The shape will fall back to the plain vector icon.'))) return;
     const res = await fetch(`/api/shapes/${id}/photo`, { method: 'DELETE' });
-    if (!res.ok) { alert('Failed to remove photo -- try again.'); return; }
+    if (!res.ok) { notify('Failed to remove photo -- try again.'); return; }
     setToast('Photo removed.');
     router.refresh();
   }
@@ -204,7 +213,7 @@ export default function ShapesClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Failed to add size.');
+      notify(data.error || 'Failed to add size.');
       return;
     }
     setNewSize('');
@@ -215,7 +224,7 @@ export default function ShapesClient({
 
   async function deleteSize(id: number) {
     const res = await fetch('/api/shape-sizes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (!res.ok) { alert('Failed to delete size -- try again.'); return; }
+    if (!res.ok) { notify('Failed to delete size -- try again.'); return; }
     setToast('Size deleted.');
     router.refresh();
   }

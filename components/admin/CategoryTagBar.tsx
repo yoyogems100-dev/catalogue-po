@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HotMark } from '@/components/HotSelling';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Tag = { id: number; name: string };
 
@@ -45,7 +46,7 @@ export default function CategoryTagBar({ categoryId, tags, allTags }: { category
   }
 
   async function remove(tag: Tag) {
-    if (!confirm(`Remove “${tag.name}” from this category? Other categories keep it.`)) return;
+    if (!(await confirmAction(`Remove “${tag.name}” from this category? Other categories keep it.`))) return;
     const res = await fetch('/api/category-links/tag', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: categoryId, tag_id: tag.id }) });
     if (!res.ok) { setError('Could not remove the tag -- try again.'); return; }
     router.refresh();

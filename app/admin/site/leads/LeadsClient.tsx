@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { displayWhatsapp, LEAD_STATUSES, replyHref, STATUS_LABEL, type Lead, type LeadStatus, type ReplySettings } from '@/lib/site/leads';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 async function send(url: string, method: string, body?: unknown) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -46,7 +47,7 @@ export default function LeadsClient({ initial, reply: initialReply }: { initial:
     try { await send(`/api/admin/site/leads/${l.id}`, 'PATCH', { notes }); update(l.id, { notes }); flash('Note saved.'); } catch (e: any) { flash(e.message); }
   }
   async function remove(l: Lead) {
-    if (!confirm(`Delete the request from ${l.name} (${displayWhatsapp(l.whatsapp)})?\n\nUse this for spam or tests. It cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete the request from ${l.name} (${displayWhatsapp(l.whatsapp)})?\n\nUse this for spam or tests. It cannot be undone.`))) return;
     try { await send(`/api/admin/site/leads/${l.id}`, 'DELETE'); setLeads((cur) => cur.filter((x) => x.id !== l.id)); flash('Request deleted.'); } catch (e: any) { flash(e.message); }
   }
 

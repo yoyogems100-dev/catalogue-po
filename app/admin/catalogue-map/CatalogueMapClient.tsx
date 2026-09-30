@@ -11,6 +11,7 @@ import { categoryIconUrl } from '@/lib/category-icons';
 import { COLOR_FAMILIES } from '@/lib/color-family';
 import { sizeKey } from '@/lib/size-options';
 import { compareSizeKeys, groupByMaterial, type CatalogueMap, type MapCategory } from '@/lib/catalogue-map';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 export type Tab = 'buttons' | 'colour' | 'size' | 'materials' | 'preview';
 
@@ -139,9 +140,9 @@ function ColourTab({ map, busy, run, updateCategory }: TabProps) {
   const color = map.colors.find((c) => c.id === colorId) || null;
   const carriedBy = color ? map.categories.filter((c) => c.colorIds.includes(color.id)).length : 0;
 
-  function toggle(cat: MapCategory, on: boolean) {
+  async function toggle(cat: MapCategory, on: boolean) {
     if (!color) return;
-    if (!on && !window.confirm(`Remove ${color.name} from ${cat.name}? Buyers will no longer be able to pick it there. Past orders are not affected.`)) return;
+    if (!on && !(await confirmAction(`Remove ${color.name} from ${cat.name}? Buyers will no longer be able to pick it there. Past orders are not affected.`))) return;
     void run(`c${cat.id}`, async () => {
       await send('/api/category-links/color', on ? 'POST' : 'DELETE', { category_id: cat.id, color_id: color.id });
       updateCategory(cat.id, (c) => ({ ...c, colorIds: on ? [...c.colorIds, color.id] : c.colorIds.filter((id) => id !== color.id) }));
@@ -204,10 +205,10 @@ function SizeTab({ map, busy, run, updateCategory }: TabProps) {
   const sizeIds = sizeGroups.find((g) => g.key === size)?.ids || [];
   const carriedBy = map.categories.filter((c) => c.sizeIds.some((id) => sizeIds.includes(id))).length;
 
-  function toggle(cat: MapCategory, on: boolean) {
+  async function toggle(cat: MapCategory, on: boolean) {
     if (!shape || !size || sizeIds.length === 0) return;
     const label = `${shape.name} ${size} mm`;
-    if (!on && !window.confirm(`Remove ${label} from ${cat.name}? Buyers will no longer be able to pick it there. Past orders are not affected.`)) return;
+    if (!on && !(await confirmAction(`Remove ${label} from ${cat.name}? Buyers will no longer be able to pick it there. Past orders are not affected.`))) return;
     void run(`s${cat.id}`, async () => {
       if (on) {
         // A size only shows once its shape is linked too.
@@ -317,8 +318,8 @@ function MaterialsTab({ map, setMap, busy, run, ready }: {
     }, `Renamed to ${name}.`);
   }
 
-  function remove(id: number, name: string) {
-    if (!window.confirm(`Delete the material ${name}? Its stones stay exactly as they are; they just stop being grouped under ${name}.`)) return;
+  async function remove(id: number, name: string) {
+    if (!(await confirmAction(`Delete the material ${name}? Its stones stay exactly as they are; they just stop being grouped under ${name}.`))) return;
     void run(`m${id}`, async () => {
       await send('/api/admin/materials', 'DELETE', { id });
       setMap((m) => ({ ...m, materials: m.materials.filter((mat) => mat.id !== id) }));

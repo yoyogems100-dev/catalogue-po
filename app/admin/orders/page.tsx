@@ -4,6 +4,7 @@ import { CUSTOMER_PLACES } from '@/lib/customer-places';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
 import Link from 'next/link';
+import Form from 'next/form';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import CategoryChips from '@/components/admin/CategoryChips';
 import AutoSubmitField from '@/components/admin/AutoSubmitField';
@@ -19,16 +20,25 @@ const PURCHASE_TYPES = ['Place Order'];
 // A "Mixed" order has at least one quotation line in it, so it still needs
 // quotation follow-up -- it belongs in the RQ table, not just the purchase one.
 const RQ_TYPES = ['Request Quotation', 'Mixed'];
+const PAYMENT_FILTERS = [
+  { key: 'pending', label: 'Payment outstanding' },
+  { key: 'partial', label: 'Partial payment' },
+  { key: 'paid', label: 'Paid' }
+];
+const PAYMENT_LABEL: Record<string, string> = { pending: 'Outstanding', partial: 'Partial', paid: 'Paid' };
 const PAGE_SIZE = 50;
 
-export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string }> }) {
+export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
   const search = (searchParams.q || '').replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 80);
   const places = (searchParams.place || '').split(',').map((v) => v.trim()).filter((v) => (CUSTOMER_PLACES as readonly string[]).includes(v));
   const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value ? value : undefined;
   const from = validDate(searchParams.from), to = validDate(searchParams.to);
-  const filtersActive = Boolean(statusFilter || search || places.length || from || to);
+  // The Overview's payment cards link here with ?payment=; the list used to
+  // ignore it and open unfiltered.
+  const paymentFilter = PAYMENT_FILTERS.find((p) => p.key === searchParams.payment);
+  const filtersActive = Boolean(statusFilter || search || places.length || from || to || paymentFilter);
   const oldest = searchParams.sort === 'oldest';
   const parsePage = (raw: string | undefined) => {
     const n = Number(raw || 1);
@@ -36,8 +46,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
   };
   const page = parsePage(searchParams.page);
   const rqPage = parsePage(searchParams.rqPage);
-  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1, sortOldest = oldest) {
+  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1, sortOldest = oldest, payment = paymentFilter?.key) {
     const params = new URLSearchParams();
+    if (payment) params.set('payment', payment);
     if (search) params.set('q', search);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -49,22 +60,25 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     return `/admin/orders${params.size ? `?${params}` : ''}`;
   }
 
+  // The customer lookups behind the search and the place filter run side by side.
+  const [searchMatches, placeMatches] = await Promise.all([
+    search
+      ? supabaseAdmin.from('customers').select('id').or(`name.ilike.%${search}%,phone.ilike.%${search}%`).limit(1000)
+      : Promise.resolve(null),
+    places.length
+      ? supabaseAdmin.from('customers').select('id').in('place', places).limit(1000)
+      : Promise.resolve(null)
+  ]);
   let searchFilters: string[] | null = null;
-  if (search) {
-    const { data: matches, error: customerError } = await supabaseAdmin.from('customers').select('id')
-      .or(`name.ilike.%${search}%,phone.ilike.%${search}%`).limit(1000);
+  if (search && searchMatches) {
+    const { data: matches, error: customerError } = searchMatches;
     if (customerError) return <p role="alert">Customer search could not be loaded. Please retry.</p>;
     if ((matches || []).length >= 1000) return <p role="alert">This search matches too many customers. <Link href="/admin/orders">Return to orders</Link> and enter a more specific name or number.</p>;
     searchFilters = [`contact_name.ilike.%${search}%`];
     if (/^\d+$/.test(search) && Number.isSafeInteger(Number(search))) searchFilters.push(`id.eq.${Number(search)}`);
     if (matches?.length) searchFilters.push(`customer_id.in.(${matches.map(row => row.id).join(',')})`);
   }
-
-  let placeCustomerIds: number[] | null = null;
-  if (places.length) {
-    const { data: matches } = await supabaseAdmin.from('customers').select('id').in('place', places).limit(1000);
-    placeCustomerIds = (matches || []).map((row: any) => row.id);
-  }
+  const placeCustomerIds: number[] | null = placeMatches ? (placeMatches.data || []).map((row: any) => row.id) : null;
 
   function baseQuery() {
     let q = supabaseAdmin
@@ -73,6 +87,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
       .is('deleted_at', null)
       .order('created_at', { ascending: oldest }).order('id', { ascending: oldest });
     if (statusFilter) q = q.eq('status', statusFilter);
+    if (paymentFilter) q = q.eq('payment_status', paymentFilter.key);
     if (from) q = q.gte('created_at', `${from}T00:00:00+05:30`);
     if (to) q = q.lte('created_at', `${to}T23:59:59.999+05:30`);
     if (searchFilters) q = q.or(searchFilters.join(','));
@@ -101,13 +116,31 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     supabaseAdmin.from('categories').select('id, name')
   ]);
   const categoryNameById: Record<number, string> = Object.fromEntries((categories || []).map((c: any) => [c.id, c.name]));
-  const stats: Record<number, { unpricedQuotes: number; categoryNames: string[] }> = {};
+  // Per order: its categories, line count, and the value of the lines that
+  // have a price (with how many don't yet), so the list answers "how big is
+  // this and is it paid" without opening each order.
+  type Stats = { unpricedQuotes: number; categoryNames: string[]; lines: number; value: number; unpriced: number };
+  const emptyStats: Stats = { unpricedQuotes: 0, categoryNames: [], lines: 0, value: 0, unpriced: 0 };
+  const stats: Record<number, Stats> = {};
   (items || []).forEach((it: any) => {
-    if (!stats[it.order_id]) stats[it.order_id] = { unpricedQuotes: 0, categoryNames: [] };
+    if (!stats[it.order_id]) stats[it.order_id] = { ...emptyStats, categoryNames: [] };
+    stats[it.order_id].lines += 1;
+    if (it.unit_price != null) stats[it.order_id].value += Number(it.unit_price) * Number(it.quantity || 0);
+    else stats[it.order_id].unpriced += 1;
     if (it.request_type === 'Request Quotation' && it.unit_price == null) stats[it.order_id].unpricedQuotes += 1;
     const name = categoryNameById[it.category_id];
     if (name && !stats[it.order_id].categoryNames.includes(name)) stats[it.order_id].categoryNames.push(name);
   });
+
+  function OrderValue({ s }: { s: Stats }) {
+    if (!s.lines) return <>—</>;
+    if (s.value === 0) return <span className="admin-muted">Not priced</span>;
+    return <>₹{Math.round(s.value).toLocaleString('en-IN')}{s.unpriced > 0 && <span className="admin-muted"> + {s.unpriced} unpriced</span>}</>;
+  }
+  function PaymentTag({ status }: { status: string | null }) {
+    const key = status || 'pending';
+    return <span className={`payment-badge payment-${key}`}>{PAYMENT_LABEL[key] || key}</span>;
+  }
 
   function OrdersTable({ orders, count, currentPage, pageParam, title, emptyText, anchorId, headerExtra }: { orders: any[]; count: number; currentPage: number; pageParam: 'page' | 'rqPage'; title: string; emptyText: string; anchorId?: string; headerExtra?: React.ReactNode }) {
     return (
@@ -122,7 +155,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <div className="admin-order-cards">
           {orders.map((o: any) => {
             const cust = custMap[o.customer_id];
-            const s = stats[o.id] || { unpricedQuotes: 0, categoryNames: [] };
+            const s = stats[o.id] || emptyStats;
             return (
               <article key={o.id} className="card admin-order-card">
                 <Link href={`/admin/orders/${o.id}`} className="admin-order-card-hit" aria-label={`Open order ${o.id}`} />
@@ -135,6 +168,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
                   <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
+                  <div><dt>Lines</dt><dd>{s.lines}</dd></div>
+                  <div><dt>Value</dt><dd><OrderValue s={s} /></dd></div>
+                  <div><dt>Payment</dt><dd><PaymentTag status={o.payment_status} /></dd></div>
                 </dl>
                 {!!s.unpricedQuotes && <p>{s.unpricedQuotes} quotation lines need pricing</p>}
                 <span className="admin-card-open-label">Open order →</span>
@@ -146,12 +182,12 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <div className="admin-orders-table-wrap" tabIndex={0} role="region" aria-label={`${title} table`}>
           <table>
             <thead>
-              <tr><th>#</th><th>Customer</th><th>Date</th><th>Category</th><th>Status</th><th></th></tr>
+              <tr><th>#</th><th>Customer</th><th>Date</th><th>Category</th><th>Lines</th><th>Value</th><th>Payment</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {orders.map((o: any) => {
                 const cust = custMap[o.customer_id];
-                const s = stats[o.id] || { unpricedQuotes: 0, categoryNames: [] };
+                const s = stats[o.id] || emptyStats;
                 return (
                   <tr key={o.id}>
                     <td>{o.id}</td>
@@ -160,6 +196,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     </td>
                     <td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                     <td><CategoryChips names={s.categoryNames} />{s.unpricedQuotes > 0 && <p className="admin-coverage-note">{s.unpricedQuotes} quote {s.unpricedQuotes === 1 ? 'line needs' : 'lines need'} pricing</p>}</td>
+                    <td>{s.lines}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}><OrderValue s={s} /></td>
+                    <td><PaymentTag status={o.payment_status} /></td>
                     <td><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>
@@ -169,7 +208,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                 );
               })}
               {orders.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#756e5c', padding: 30 }}>{emptyText}</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: '#756e5c', padding: 30 }}>{emptyText}</td></tr>
               )}
             </tbody>
           </table>
@@ -188,8 +227,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <h1>Orders</h1>
         <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
       </div>
-      <form method="get" id="admin-order-search-form" className="admin-order-search">
+      <Form action="" replace scroll={false} id="admin-order-search-form" className="admin-order-search">
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+        {paymentFilter && <input type="hidden" name="payment" value={paymentFilter.key} />}
         <label>Search<DebouncedSearchField name="q" defaultValue={search} placeholder="Search orders" /></label>
         <AutoSubmitField>
           <label style={{ flex: '0 1 200px' }}>
@@ -202,11 +242,12 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         </AutoSubmitField>
         <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
         {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
-      </form>
+      </Form>
       {/* Eight statuses wrap to three rows on a phone, pushing the first order
           most of a screen further down. One swipeable row keeps the filter
           within reach without hiding it behind a disclosure. */}
       <div className="admin-status-chips">
+        {paymentFilter && <Link href={filterUrl(statusFilter, 1, 1, oldest, undefined)} className="tag-chip active" title="Show every payment state">{paymentFilter.label} ✕</Link>}
         <Link href={filterUrl(undefined)} className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All statuses</Link>
         {ORDER_STATUS_OPTIONS.map((m) => (
           <Link

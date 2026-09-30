@@ -5,6 +5,7 @@ import Sortable from '@/components/admin/site/Sortable';
 import RichTextEditor from '@/components/admin/site/RichTextEditor';
 import EarlierVersions from '@/components/admin/site/EarlierVersions';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Grade = { id: number; code: string; name: string; summary: string; description: string; sort_order: number; is_visible: boolean };
 
@@ -37,7 +38,7 @@ export default function GradesClient({ initial, usedIn }: { initial: Grade[]; us
   }
   async function remove(g: Grade) {
     const where = usedIn[g.id]?.length ? ` It is set on: ${usedIn[g.id].join(', ')}.` : '';
-    if (!confirm(`Delete grade ${g.name}?${where}`)) return;
+    if (!(await confirmAction(`Delete grade ${g.name}?${where}`))) return;
     try { await send(`/api/admin/site/grades/${g.id}`, 'DELETE'); setGrades(grades.filter((x) => x.id !== g.id)); flash(`${g.name} deleted.`); } catch (e: any) { flash(e.message); }
   }
 

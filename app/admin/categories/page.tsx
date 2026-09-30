@@ -9,18 +9,44 @@ import CategoriesClient from './CategoriesClient';
 // deploy. Every admin list page needs this for the same reason.
 export const dynamic = 'force-dynamic';
 
-export default async function CategoriesListPage() {
-  // Unfiltered reads of the whole join table (no per-category scope is possible
-  // here -- this page computes the counts for every category at once), so each
-  // must page past the project's 1000-row response cap or silently undercount
-  // whichever categories' rows land past the first page.
-  const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
+async function countByPaging() {
+  const [{ data: categories }, ...links] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, archived_at').order('num'),
-    fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*', { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id', { count: 'exact' }).range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id', { count: 'exact' }).range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to))
+    ...(['category_shapes', 'category_colors', 'category_shape_sizes'] as const).map((table) =>
+      fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from(table).select('category_id', { count: 'exact' }).range(from, to)))
   ]);
+  const [shapes, colors, sizes] = links.map(({ data }) => {
+    const counts: Record<number, number> = {};
+    (data || []).forEach((r) => { counts[r.category_id] = (counts[r.category_id] || 0) + 1; });
+    return counts;
+  });
+  return (categories || []).map((c) => ({
+    ...c,
+    category_shapes: [{ count: shapes[c.id] || 0 }],
+    category_colors: [{ count: colors[c.id] || 0 }],
+    category_shape_sizes: [{ count: sizes[c.id] || 0 }]
+  }));
+}
+
+export default async function CategoriesListPage() {
+  // Link counts come back with the categories as embedded counts -- one
+  // request that Postgres counts, instead of downloading every row of three
+  // join tables (4000+ size links) just to count them here. Photos are still
+  // read (narrow columns, paged past the 1000-row cap) because the cards need
+  // each category's first photo for its cover.
+  type CategoryRow = {
+    id: number; num: number; name: string; slug: string | null; thumbnail_photo_id: number | null; archived_at: string | null;
+    category_shapes: { count: number }[]; category_colors: { count: number }[]; category_shape_sizes: { count: number }[];
+  };
+  const [{ data: countedRaw, error: countedError }, { data: photos }] = await Promise.all([
+    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, archived_at, category_shapes(count), category_colors(count), category_shape_sizes(count)').order('num'),
+    fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('id, category_id, is_cover_only, storage_path, drive_id, photo_crop, cover_crop', { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to))
+  ]);
+  // Should the embedded counts ever be refused, count the old way (every
+  // link row, paged) rather than show a broken page.
+  const categoriesRaw = countedError ? await countByPaging() : countedRaw;
+  const categories = (categoriesRaw || []) as unknown as CategoryRow[];
+  const countOf = (rows: { count: number }[] | null | undefined) => rows?.[0]?.count ?? 0;
 
   function countBy(rows: { category_id: number }[] | null) {
     const counts: Record<number, number> = {};
@@ -34,9 +60,6 @@ export default async function CategoriesListPage() {
   // below still finds it fine either way).
   const galleryPhotos = (photos || []).filter((p: any) => !p.is_cover_only);
   const photoCounts = countBy(galleryPhotos);
-  const shapeCounts = countBy(catShapes);
-  const colorCounts = countBy(catColors);
-  const sizeCounts = countBy(catSizes);
 
   const firstPhotoByCategory: Record<number, any> = {};
   galleryPhotos.forEach((p: any) => {
@@ -54,16 +77,16 @@ export default async function CategoriesListPage() {
     return cover ? photoUrl(cover, 500, 'cover') : null;
   }
 
-  const rows = (categories || []).map((c) => ({
+  const rows = categories.map((c) => ({
     id: c.id,
     num: c.num,
     name: c.name,
-    archivedAt: c.archived_at as string | null,
+    archivedAt: c.archived_at,
     coverUrl: coverUrl(c),
     photoCount: photoCounts[c.id] || 0,
-    shapeCount: shapeCounts[c.id] || 0,
-    sizeCount: sizeCounts[c.id] || 0,
-    colorCount: colorCounts[c.id] || 0
+    shapeCount: countOf(c.category_shapes),
+    sizeCount: countOf(c.category_shape_sizes),
+    colorCount: countOf(c.category_colors)
   }));
 
   return (
