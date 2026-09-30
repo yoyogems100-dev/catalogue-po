@@ -622,14 +622,15 @@ export default function POSelector({
               className="po-qty-input"
               id="po-new-quantity"
               placeholder={adminDefaultQty ? `e.g. ${adminDefaultQty}` : 'e.g. 5000'}
-              value={pickQty}
+              // Pieces worked out from carats are approximate: shown as "~128".
+              value={caratRate && pickQty ? `~${pickQty}` : pickQty}
               aria-invalid={qtyError || undefined}
               aria-describedby={qtyError ? 'po-new-quantity-error' : undefined}
               onChange={(e) => {
                 // Keep what was typed and flag it, rather than rewrite it:
                 // stripping the "." turned 12.5 into 125. An invalid entry
                 // parses to nothing, so Add stays off until it is fixed.
-                const v = e.target.value;
+                const v = caratRate ? e.target.value.replace(/^\s*~/, '') : e.target.value;
                 setPickQty(v);
                 setQtyError(!/^\d*$/.test(v.trim()));
               }}
@@ -681,7 +682,7 @@ export default function POSelector({
         )}
         {canAdd && (quantityField?.unit
           ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} × {formatQty(qtyNum, quantityField.unit)} = {formatQty(comboCount * qtyNum, quantityField.unit)} to add</p>
-          : <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>)}
+          : <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {caratRate ? '~' : ''}{qtyNum.toLocaleString('en-IN')} pcs = {caratRate ? '~' : ''}{(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>)}
         {/* Adding a line deliberately keeps the shape and colour so several
             sizes can be added in a row; this is the way back to an empty form
             without reloading the page. Plain text, not a button -- it sits
