@@ -57,9 +57,9 @@ async function isCustomer(req: NextRequest) {
 
 // The catalogue is private: a visitor who is not signed in sees the sign-in
 // page and nothing else. Only the doors themselves stay open -- the two sign-in
-// screens and the endpoints that issue a session. Everything not listed here is
-// gated, so a route added later is private by default rather than public by
-// omission.
+// screens and the endpoints that issue a session. Everything under /po, /admin
+// and /api that is not listed here is gated, so a route added there later is
+// private by default rather than public by omission.
 const PUBLIC_PATHS = new Set([
   '/', // the public website's home page; the catalogue itself lives under /po
   '/login', // admin sign-in
@@ -82,7 +82,12 @@ const PUBLIC_PATHS = new Set([
 // it shows no prices and no catalogue beyond what the owner publishes there.
 // Listed explicitly (not "everything outside /po") so a route added later is
 // still private unless someone decides otherwise.
-const PUBLIC_SITE_PREFIXES = ['/products', '/charts', '/about', '/quality', '/how-to-order', '/request-catalogue', '/faq', '/contact', '/api/site/'];
+const PUBLIC_SITE_PREFIXES = ['/products', '/charts', '/about', '/quality', '/how-to-order', '/request-catalogue', '/faq', '/contact', '/privacy', '/api/site/'];
+
+// Where the private app lives. Any other address belongs to the public website:
+// it is either one of its pages or a mistyped/old link, which should get the
+// site's "page not found" (a real 404) rather than a trade sign-in screen.
+const PRIVATE_PREFIXES = ['/po', '/admin', '/api'];
 
 // The catalogue used to live at the site root. Bookmarks, WhatsApp links and
 // order PDFs sent before the move still point at those addresses, so they are
@@ -101,6 +106,7 @@ export async function middleware(req: NextRequest) {
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (PUBLIC_SITE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith('/') ? p : `${p}/`))) return NextResponse.next();
+  if (!PRIVATE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return NextResponse.next();
 
   if (pathname.startsWith('/admin')) {
     if (await isAdmin(req)) return NextResponse.next();

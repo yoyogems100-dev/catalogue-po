@@ -14,11 +14,15 @@ export const revalidate = 3600;
 export async function generateMetadata(): Promise<Metadata> {
   const [home, g] = await Promise.all([getPage('home'), getGlobal()]);
   const img = home.seo?.image ? (await getMedia([home.seo.image])).get(home.seo.image) : null;
+  // Always absolute: the site layout's title default/template doesn't reach a
+  // page in its own segment, so leaving this empty shipped no <title> at all.
+  const title = home.seo?.title || `YOYO GEMS® — ${g.brand?.tagline || 'Synthetic Gemstones'}`;
+  const description = home.seo?.description || g.seo?.description;
   return {
-    title: home.seo?.title ? { absolute: home.seo.title } : undefined,
-    description: home.seo?.description || g.seo?.description,
+    title: { absolute: title },
+    description,
     alternates: { canonical: '/' },
-    openGraph: { ...OG_BASE, images: shareImages(img, '') }
+    openGraph: { ...OG_BASE, title, description, url: '/', images: shareImages(img, '') }
   };
 }
 
