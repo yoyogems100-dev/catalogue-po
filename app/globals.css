@@ -2353,6 +2353,8 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 /* Sits above the phone Select footer instead of on top of its buttons. */
 body:has(.photo-select-footer) .admin-scroll-jump { bottom: calc(84px + env(safe-area-inset-bottom)); }
 body:has(.photo-select-sheet) .admin-scroll-jump { display: none; }
+/* Admin notices (#64) sit above the footer rather than over its buttons. */
+body:has(.photo-select-footer) .admin-toasts { bottom: calc(84px + env(safe-area-inset-bottom)); }
 /* Long-press to select (phones) and tap-to-tick in Select mode. */
 .admin-photo-media.is-pressable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .admin-photo-media.is-selected { box-shadow: inset 0 0 0 3px var(--navy); }
