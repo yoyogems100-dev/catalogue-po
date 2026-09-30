@@ -65,6 +65,7 @@ async function getCategoryData(slug: string) {
     parentId: p.parent_photo_id ?? null,
     productCode: p.product_code ?? null,
     notes: p.notes ?? null,
+    uploadedAt: p.created_at ?? null,
     shapeIds: (p.photo_shapes || []).map((r: any) => r.shape_id),
     sizeIds: (p.photo_sizes || []).map((r: any) => r.shape_size_id),
     colorIds: (p.photo_colors || []).map((r: any) => r.color_id),

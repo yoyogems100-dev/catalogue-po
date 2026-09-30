@@ -18,6 +18,8 @@ export type SheetPhoto = {
   tag_ids: number[];
   productCode?: string | null;
   notes?: string | null;
+  /** photos.created_at -- for sorting Explore Photos by upload date. */
+  uploadedAt?: string | null;
 };
 
 type Ref = { id: number; name: string; iconKey?: string | null; hex?: string | null; refPhotoUrl?: string | null };
