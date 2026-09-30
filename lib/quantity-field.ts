@@ -1,23 +1,35 @@
 // How a category's order form asks for quantity: what the field is called
 // and what it starts on. Most categories ask "Qty per line (pcs)" and start
 // empty; Semi Precious Beads are bought by the line (strand), so there it is
-// "No. of Lines" starting on 5. Edited in Admin > category > Pricing and
-// stored as one JSON map in settings, so a new category needs no migration.
+// "No. of Lines" starting on 5, counted in lines and weighed in carats.
+// Edited in Admin > category > Pricing and stored as one JSON map in
+// settings, so a new category needs no migration.
 
 export const QUANTITY_FIELDS_SETTING_KEY = 'category_quantity_fields';
 export const QUANTITY_LABEL_MAX = 32;
 export const DEFAULT_QTY_MAX = 1_000_000;
 
-export type QuantityField = { label: string | null; defaultQty: number | null };
+export type WeightUnit = 'g' | 'ct';
+export const WEIGHT_UNITS: WeightUnit[] = ['g', 'ct'];
+
+export type QuantityField = {
+  label: string | null;
+  defaultQty: number | null;
+  /** What a quantity is counted in ("lines"); null means pieces. */
+  unit: string | null;
+  /** The weight unit an order line starts on in admin; null means grams. */
+  weightUnit: WeightUnit | null;
+};
 
 const SEMI_PRECIOUS_BEADS_CATEGORY_ID = 45;
 
 // Until the owner saves something for a category, these apply.
 const BUILT_IN: Record<number, QuantityField> = {
-  [SEMI_PRECIOUS_BEADS_CATEGORY_ID]: { label: 'No. of Lines', defaultQty: 5 }
+  [SEMI_PRECIOUS_BEADS_CATEGORY_ID]: { label: 'No. of Lines', defaultQty: 5, unit: 'lines', weightUnit: 'ct' }
 };
 
-const NONE: QuantityField = { label: null, defaultQty: null };
+const NONE: QuantityField = { label: null, defaultQty: null, unit: null, weightUnit: null };
+export const QUANTITY_UNIT_MAX = 16;
 
 /** One entry from the admin form, or undefined when it is unusable. */
 export function normalizeQuantityField(raw: unknown): QuantityField | undefined {
@@ -29,13 +41,24 @@ export function normalizeQuantityField(raw: unknown): QuantityField | undefined 
     label = labelRaw.replace(/\s+/g, ' ').trim() || null;
     if (label && label.length > QUANTITY_LABEL_MAX) return undefined;
   } else if (labelRaw != null) return undefined;
+  const unitRaw = (raw as any).unit;
+  let unit: string | null = null;
+  if (typeof unitRaw === 'string') {
+    unit = unitRaw.replace(/\s+/g, ' ').trim().toLowerCase() || null;
+    if (unit === 'pcs' || unit === 'pieces' || unit === 'piece') unit = null;
+    if (unit && unit.length > QUANTITY_UNIT_MAX) return undefined;
+  } else if (unitRaw != null) return undefined;
+  const weightRaw = (raw as any).weightUnit;
+  let weightUnit: WeightUnit | null = null;
+  if (weightRaw === 'ct') weightUnit = 'ct';
+  else if (weightRaw != null && weightRaw !== '' && weightRaw !== 'g') return undefined;
   let defaultQty: number | null = null;
   if (qtyRaw !== null && qtyRaw !== undefined && qtyRaw !== '') {
     const n = Number(qtyRaw);
     if (!Number.isSafeInteger(n) || n < 1 || n > DEFAULT_QTY_MAX) return undefined;
     defaultQty = n;
   }
-  return { label, defaultQty };
+  return { label, defaultQty, unit, weightUnit };
 }
 
 export function parseQuantityFields(value: string | null | undefined): Record<number, QuantityField> {
@@ -81,4 +104,35 @@ export function rememberQty(categoryId: number, qty: number) {
     map[categoryId] = qty;
     localStorage.setItem(REMEMBERED_KEY, JSON.stringify(map));
   } catch { /* private mode: the admin default still applies */ }
+}
+
+/** "pcs", or the category's own unit ("lines"). */
+export function qtyUnit(field: Pick<QuantityField, 'unit'> | null | undefined): string {
+  return field?.unit || 'pcs';
+}
+
+/** "8 lines", "5,000 pcs". */
+export function formatQty(qty: number, unit?: string | null): string {
+  return `${qty.toLocaleString('en-IN')} ${unit || 'pcs'}`;
+}
+
+/** Totals per unit, pieces first: "2,064 pcs · 8 lines". Adding lines to
+ *  pieces would give a number that means nothing. */
+export function formatQtyTotals(items: { qty: number; unit?: string | null }[]): string {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const unit = item.unit || 'pcs';
+    totals.set(unit, (totals.get(unit) || 0) + item.qty);
+  }
+  if (!totals.size) totals.set('pcs', 0);
+  return [...totals.entries()]
+    .sort(([a], [b]) => (a === 'pcs' ? -1 : b === 'pcs' ? 1 : a.localeCompare(b)))
+    .map(([unit, qty]) => formatQty(qty, unit))
+    .join(' · ');
+}
+
+/** A weight as printed: "12.5 ct", "3 g". */
+export function formatWeight(weight: number | null | undefined, unit: string | null | undefined): string {
+  if (weight == null) return '';
+  return `${weight.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit === 'ct' ? 'ct' : 'g'}`;
 }

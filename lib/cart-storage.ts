@@ -22,6 +22,8 @@ export type CartItem = {
   colorHex: string;
   colorRefPhotoUrl?: string | null;
   qty: number;
+  /** What qty counts ("lines" for Semi Precious Beads); absent means pieces. */
+  qtyUnit?: string | null;
   requestType: RequestType;
 };
 

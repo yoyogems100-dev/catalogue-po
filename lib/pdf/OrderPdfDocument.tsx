@@ -10,9 +10,14 @@ export type PdfItem = {
   sizeMm: string;
   colorName: string;
   quantity: number;
+  /** "lines" for Semi Precious Beads; absent means pieces (printed bare, as before). */
+  qtyUnit?: string | null;
   unitPrice: number | null;
   requestType: string;
 };
+
+/** A weighed packet: "Oval 6x8 mm", "12 materials · 96 lines", "14.2 ct". */
+export type PdfPacket = { label: string; detail: string; weight: string };
 
 export type PdfOrderData = {
   orderId: number;
@@ -24,6 +29,7 @@ export type PdfOrderData = {
   customerCompany: string | null;
   comment: string | null;
   items: PdfItem[];
+  packets?: PdfPacket[];
   contactWhatsapp: string | null;
   contactLocation: string | null;
   logoUrl: string;
@@ -82,6 +88,8 @@ const styles = StyleSheet.create({
   grandTotalLabel: { fontSize: 11, color: '#12233F', fontFamily: 'Helvetica-Bold' },
   grandTotalValue: { fontSize: 11, color: '#12233F', fontFamily: 'Helvetica-Bold' },
   comment: { marginTop: 16, fontSize: 9.5, color: '#3A3F44' },
+  packetsTitle: { marginTop: 18, marginBottom: 4, fontSize: 8.5, color: '#9C7A25', fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
+  packetRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e4ddc9', borderBottomStyle: 'solid', paddingVertical: 6, paddingHorizontal: 6 },
   footer: {
     position: 'absolute',
     bottom: 30,
@@ -170,7 +178,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
               <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}{item.orderSpecs ? `\n${specText(item.orderSpecs,item.quantity)}` : ""}</Text>
               <Text style={[styles.cell, { width: `${cols.size * 100}%` }]}>{item.sizeMm} mm</Text>
               <Text style={[styles.cell, { width: `${cols.color * 100}%` }]}>{item.colorName}</Text>
-              <Text style={[styles.cell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>{item.quantity.toLocaleString('en-IN')}</Text>
+              <Text style={[styles.cell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>{item.quantity.toLocaleString('en-IN')}{item.qtyUnit ? ` ${item.qtyUnit}` : ''}</Text>
               {hasPricing && (
                 <Text style={[styles.cell, { width: `${cols.price * 100}%`, textAlign: 'right' }]}>
                   {item.unitPrice != null ? money(item.unitPrice) : '-'}
@@ -191,6 +199,19 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
               <Text style={styles.grandTotalLabel}>{allPriced ? 'Total' : 'Priced lines subtotal'}</Text>
               <Text style={styles.grandTotalValue}>{money(grandTotal)}</Text>
             </View>
+          </View>
+        )}
+
+        {data.packets && data.packets.length > 0 && (
+          <View wrap={false}>
+            <Text style={styles.packetsTitle}>PACKETS</Text>
+            {data.packets.map((p, i) => (
+              <View key={i} style={styles.packetRow}>
+                <Text style={[styles.cell, { width: '40%', fontFamily: 'Helvetica-Bold' }]}>{p.label}</Text>
+                <Text style={[styles.cell, { width: '40%' }]}>{p.detail}</Text>
+                <Text style={[styles.cell, { width: '20%', textAlign: 'right' }]}>{p.weight}</Text>
+              </View>
+            ))}
           </View>
         )}
 

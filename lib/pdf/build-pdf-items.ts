@@ -14,7 +14,8 @@ export function buildPdfItems(
     shapeName: Record<number, string>;
     sizeMm: Record<number, string>;
     colorName: Record<number, string>;
-  }
+  },
+  qtyUnitOf: (categoryId: number) => string | null = () => null
 ): PdfItem[] {
   return (items || []).map((it: any) => ({
     categoryName: maps.categoryName[it.category_id] || '—',
@@ -23,6 +24,7 @@ export function buildPdfItems(
     colorName: maps.colorName[it.color_id] || '—',
     orderSpecs: it.order_specs || null,
     quantity: it.quantity,
+    qtyUnit: qtyUnitOf(it.category_id),
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     requestType: it.request_type || 'Place Order'
   }));

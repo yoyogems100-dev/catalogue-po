@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
+import { getQuantityFields } from '@/lib/quantity-fields-server';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
@@ -50,6 +51,8 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }])
   );
 
+  const fieldOf = await getQuantityFields();
+
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
     categoryId: it.category_id,
@@ -65,6 +68,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     orderSpecs: it.order_specs || null,
     quantity: it.quantity,
+    qtyUnit: fieldOf(it.category_id).unit,
     requestType: it.request_type || 'Place Order',
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null
   }));

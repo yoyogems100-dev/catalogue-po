@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { formatQty, formatQtyTotals } from '@/lib/quantity-field';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
@@ -11,7 +12,7 @@ import QuickOrderButton from './QuickOrderButton';
 import { specText, quantityFactor } from '@/lib/order-specs';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
-  CART_EVENT, cartPieces, loadCart, mergeIntoCart, saveCart,
+  CART_EVENT, loadCart, mergeIntoCart, saveCart,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
@@ -23,7 +24,7 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type SizeRef = { id: number; shape_id: number; size_mm: string };
-type CategoryOptions = { name?: string; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
+type CategoryOptions = { name?: string; qtyUnit?: string | null; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
 
 // Leading number of a size ("4", "4x6", "1.5") for ordering lines small to large.
 function sizeSortKey(sizeMm: string): number {
@@ -108,7 +109,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     return () => { active = false; };
   }, [categoryKey]);
 
-  const totalPieces = cartPieces(cart);
 
   function unitPriceInr(item: CartItem): number | null {
     // A quotation is a request for a price, so it never displays one.
@@ -151,6 +151,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   // A line keeps the category name it was added under; show today's name once
   // the category's details have loaded, so a renamed category doesn't linger.
   const categoryLabel = (item: CartItem) => optionsByCategory[item.categoryId]?.name || item.categoryName;
+  // Lines added before a category had its own unit carry none; today's wins.
+  const unitOf = (item: CartItem) => optionsByCategory[item.categoryId]?.qtyUnit ?? item.qtyUnit ?? null;
 
   function replaceItemOptions(item: CartItem, nextSizeIds: number[], nextColorIds: number[]) {
     const opts = optionsByCategory[item.categoryId];
@@ -395,7 +397,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                   />
                                 </label>
                               ) : (
-                                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind === 'rainbow' ? 'strips' : 'pcs'})</span>
+                                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind === 'rainbow' ? 'strips' : unitOf(item) || 'pcs'})</span>
                                   <QuantityInput
                                     value={item.qty / quantityFactor(item.orderSpecs)}
                                     label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
@@ -479,10 +481,10 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       {reviewing && <dialog ref={reviewDialog} className="order-review-dialog" aria-labelledby="order-review-title"
         onClose={() => setReviewing(false)} onCancel={() => setReviewing(false)}>
         <h2 id="order-review-title">Confirm your requirement</h2>
-        <p>{cart.length} lines · {totalPieces.toLocaleString('en-IN')} pieces</p>
+        <p>{cart.length} {cart.length === 1 ? 'item' : 'items'} · {formatQtyTotals(cart.map((item) => ({ qty: item.qty, unit: unitOf(item) })))}</p>
         <ul className="order-review-lines">{[...cart].reverse().map((item) => <li key={item.id}><StoneReference item={item} /><div>
           <strong>{categoryLabel(item)}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
-          {item.qty > 0 ? `${item.qty.toLocaleString('en-IN')} pieces` : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
+          {item.qty > 0 ? formatQty(item.qty, unitOf(item) || 'pieces') : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{formatRupees(cartTotalInr)}</p>}
         <p>Your saved account details will be used for this requirement.</p>

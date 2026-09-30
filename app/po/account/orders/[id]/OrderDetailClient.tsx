@@ -1,5 +1,6 @@
 'use client';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
+import { formatQty } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -30,6 +31,7 @@ type Item = {
   colorHex: string;
   colorRefPhotoUrl?: string | null;
   quantity: number;
+  qtyUnit?: string | null;
   requestType: string;
   unitPrice?: number | null;
 };
@@ -320,15 +322,15 @@ export default function OrderDetailClient({
                   </td>
                   <td>
                     {editing ? (
-                      <label>{i.orderSpecs?.kind==='rainbow'?'Strips':'Pieces'}<input
+                      <label>{i.orderSpecs?.kind==='rainbow'?'Strips':i.qtyUnit ? i.qtyUnit[0].toUpperCase() + i.qtyUnit.slice(1) : 'Pieces'}<input
                         type="text"
                         inputMode="numeric"
-                        aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':'Quantity in pieces'} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
+                        aria-label={i.orderSpecs?.kind==='rainbow'?'Number of strips':`Quantity in ${i.qtyUnit || 'pieces'}`} value={quantities[i.id] / quantityFactor(i.orderSpecs)}
                         onChange={(e) => setQuantities({ ...quantities, [i.id]: (parseInt(e.target.value.replace(/\D/g, ''), 10) || 0) * quantityFactor(i.orderSpecs) })}
                         style={{ maxWidth: 80, fontSize: 13 }}
                       /></label>
                     ) : (
-                      i.quantity
+                      formatQty(i.quantity, i.qtyUnit)
                     )}
                   </td>
                   {hasAnyPricedLine && (

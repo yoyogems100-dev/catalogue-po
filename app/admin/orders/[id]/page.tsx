@@ -1,6 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
+import { getQuantityFields } from '@/lib/quantity-fields-server';
+import { normalizePacketWeights } from '@/lib/packet-weights';
+import type { WeightUnit } from '@/lib/quantity-field';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -51,6 +54,13 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   ]);
 
   const catMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.name]));
+  // Read on its own so the page still opens if the column isn't there yet.
+  const [fieldOf, { data: packetRow }] = await Promise.all([
+    getQuantityFields(),
+    supabaseAdmin.from('orders').select('packet_weights').eq('id', orderId).maybeSingle()
+  ]);
+  const packetWeights = normalizePacketWeights((packetRow as any)?.packet_weights) || null;
+  const weightUnitOf: Record<number, WeightUnit> = Object.fromEntries(categoryIds.map((id: number) => [id, fieldOf(id).weightUnit || 'g']));
   const shapeMap: Record<number, string> = Object.fromEntries((shapesData || []).map((s: any) => [s.id, s.name]));
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
   const colorMap: Record<number, { name: string; hex: string | null }> = Object.fromEntries(
@@ -79,6 +89,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     orderSpecs: it.order_specs || null,
     quantity: it.quantity,
+    qtyUnit: fieldOf(it.category_id).unit,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
     costPrice: it.cost_price != null ? Number(it.cost_price) : null,
     supplierId: it.supplier_id || null,
@@ -159,6 +170,8 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         history={history || []}
         notes={notes || []}
         suppliers={suppliersFormatted}
+        packetWeights={packetWeights}
+        weightUnitOf={weightUnitOf}
       />
     </>
   );

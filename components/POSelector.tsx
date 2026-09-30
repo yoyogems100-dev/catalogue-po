@@ -20,7 +20,7 @@ import QuantityInput from './QuantityInput';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
-import { rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
+import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
@@ -276,7 +276,6 @@ export default function POSelector({
     if (!selectionHasUnpriced && isQuotation) setPickRequestType('Place Order');
   }, [selectionHasUnpriced, isQuotation]);
 
-  const totalPieces = cart.reduce((sum, i) => sum + i.qty, 0);
 
   // Fetch a price list for every other category sitting in the cart, once each.
   const missingPricingIds = useMemo(() => {
@@ -391,6 +390,7 @@ export default function POSelector({
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
+            qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
             ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
           };
@@ -429,7 +429,7 @@ export default function POSelector({
     if (fresh > 0) parts.push(fresh > 1 ? `Added ${fresh} lines` : 'Added 1 line');
     if (grown.length === 1) {
       const g = grown[0];
-      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${g.qty.toLocaleString('en-IN')}${quantityField?.label ? '' : ' pcs'}`);
+      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${formatQty(g.qty, g.qtyUnit)}`);
     } else if (grown.length > 1) {
       parts.push(`${grown.length} lines were already in your order — quantities added to them`);
     }
@@ -610,8 +610,8 @@ export default function POSelector({
         {!canAdd && hasSelection && missingFields.length > 0 && (
           <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
         )}
-        {canAdd && (quantityField?.label
-          ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} to add · {quantityField.label}: {qtyNum.toLocaleString('en-IN')} each</p>
+        {canAdd && (quantityField?.unit
+          ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} × {formatQty(qtyNum, quantityField.unit)} = {formatQty(comboCount * qtyNum, quantityField.unit)} to add</p>
           : <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {qtyNum.toLocaleString('en-IN')} pcs = {(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>)}
         {/* Adding a line deliberately keeps the shape and colour so several
             sizes can be added in a row; this is the way back to an empty form
@@ -647,7 +647,7 @@ export default function POSelector({
           <div className="po-summary-figures">
             <span className="po-summary-label">Your requirement</span>
             <span className="po-summary-counts">
-              {cart.length} {cart.length === 1 ? 'line' : 'lines'} · {totalPieces.toLocaleString('en-IN')} pcs
+              {cart.length} {cart.length === 1 ? 'item' : 'items'} · {formatQtyTotals(cart.map((i) => ({ qty: i.qty, unit: i.categoryId === categoryId ? quantityField?.unit : i.qtyUnit })))}
             </span>
             {/* Its own line: squeezed onto the counts it was cut to "₹12,1…" on a phone. */}
             {hasAnyPricedLine && <span className="po-summary-total">₹{formatRupees(cartTotalInr)}</span>}
