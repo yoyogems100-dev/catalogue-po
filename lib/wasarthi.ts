@@ -12,9 +12,9 @@
 // available, so "repeat the variable's position twice" is inferred, not
 // confirmed -- verify against a real send before trusting it beyond 1-2 vars.
 //
-// Also unconfirmed: the response body shape on success/failure (never seen a
-// real response yet). res.ok is checked on HTTP status only; log output should
-// be checked after the first real send to tighten this up.
+// The reply body's shape is still unconfirmed, so it is logged (capped, token
+// redacted) on every send, and only an explicit JSON failure on a 200
+// (success:false / status:"error") is treated as undelivered.
 //
 // Sending is gated behind WHATSAPP_OTP_ENABLED (defaults to disabled) until the
 // env vars below are set and the template IDs are confirmed correct. While
@@ -67,19 +67,40 @@ export async function sendWhatsAppTemplate(
     const res = await fetch(WASARTHI_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
+      body,
+      signal: AbortSignal.timeout(15_000)
     });
+    // The provider's own words are the only way to tell a low balance, an
+    // expired token or a paused template apart, so they go in the log.
+    const reply = providerReply(await res.text().catch(() => ''), apiToken);
 
-    if (!res.ok) {
-      console.error(`WhatsApp send failed (${res.status}).`);
+    if (!res.ok || replySaysFailed(reply)) {
+      console.error(`WhatsApp send failed for template "${template.name}" (${res.status}): ${reply || '(empty reply)'}`);
       return { ok: false, stubbed: false, error: `Provider returned ${res.status}` };
     }
 
-    console.log(`WhatsApp send accepted for template "${template.name}" (${res.status}).`);
+    console.log(`WhatsApp send accepted for template "${template.name}" (${res.status}): ${reply || '(empty reply)'}`);
     return { ok: true, stubbed: false };
   } catch (err: any) {
-    console.error('WhatsApp send threw:', err);
+    console.error(`WhatsApp send threw for template "${template.name}":`, err?.name === 'TimeoutError' ? 'no reply within 15s' : err);
     return { ok: false, stubbed: false, error: err.message || 'Network error' };
+  }
+}
+
+/** Provider reply for the log: one line, capped, never echoing our token. */
+export function providerReply(text: string, apiToken: string) {
+  return text.split(apiToken).join('[token]').replace(/\s+/g, ' ').trim().slice(0, 400);
+}
+
+/** A 200 whose JSON body still reports failure (only the explicit forms). */
+export function replySaysFailed(reply: string) {
+  try {
+    const j = JSON.parse(reply);
+    if (!j || typeof j !== 'object') return false;
+    if (j.success === false || j.status === false) return true;
+    return typeof j.status === 'string' && ['error', 'failed', 'fail', 'false'].includes(j.status.toLowerCase());
+  } catch {
+    return false;
   }
 }
 
