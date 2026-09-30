@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { DEFAULT_PRICE_UNIT, PRICE_UNIT_PRESETS, PRICE_UNIT_MAX, priceUnitLabel } from '@/lib/price-unit';
+import { QUANTITY_LABEL_MAX } from '@/lib/quantity-field';
 
 type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string };
@@ -27,6 +28,11 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   // "Other..." while the saved unit is still a preset left nothing to type in.
   const [otherUnit, setOtherUnit] = useState(false);
   const [activeShapeId, setActiveShapeId] = useState<number | null>(null);
+  // The order form's quantity field for this category: its name and starting value.
+  const [qtyLabel, setQtyLabel] = useState('');
+  const [defaultQty, setDefaultQty] = useState('');
+  const [savedQty, setSavedQty] = useState({ label: '', defaultQty: '' });
+  const [savingQty, setSavingQty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
 
@@ -49,6 +55,10 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         setColumns(data.columns || []);
         setPrices(data.prices || []);
         setActiveShapeId(data.shapes?.[0]?.id ?? null);
+        const q = { label: data.quantityField?.label || '', defaultQty: data.quantityField?.defaultQty ? String(data.quantityField.defaultQty) : '' };
+        setQtyLabel(q.label);
+        setDefaultQty(q.defaultQty);
+        setSavedQty(q);
         const unit = priceUnitLabel(data.priceUnit);
         setPriceUnit(unit);
         // A unit the owner typed themselves has to survive the round trip, so
@@ -101,6 +111,26 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
     setToast('Saved.');
     } catch { setToast('Price could not be saved. Please retry the edit before exporting.'); }
     finally { setSavingPrice(false); }
+  }
+
+  async function saveQuantityField() {
+    if (!categoryId) return;
+    setSavingQty(true);
+    try {
+      const res = await fetch(`/api/admin/categories/${categoryId}/quantity-field`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: qtyLabel, defaultQty: defaultQty.trim() || null })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'The quantity field could not be saved. Please retry.');
+      setSavedQty({ label: qtyLabel.trim(), defaultQty: defaultQty.trim() });
+      setToast('Saved. The order form now uses this.');
+    } catch (e) {
+      setToast((e as Error).message);
+    } finally {
+      setSavingQty(false);
+    }
   }
 
   async function saveUnit(unit: string) {
@@ -220,6 +250,36 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
           />
         ) : null}
         <span className="price-unit-hint">₹ prices below are per {priceUnit}.</span>
+      </div>
+      <div className="price-unit-row qty-field-row">
+        <label htmlFor="qty-field-label">Quantity field</label>
+        <input
+          id="qty-field-label"
+          placeholder="Qty per line (pcs)"
+          maxLength={QUANTITY_LABEL_MAX}
+          value={qtyLabel}
+          disabled={!categoryId || loading || savingQty}
+          onChange={(e) => setQtyLabel(e.target.value)}
+        />
+        <label htmlFor="qty-field-default">starts at</label>
+        <input
+          id="qty-field-default"
+          inputMode="numeric"
+          placeholder="empty"
+          className="qty-field-default"
+          value={defaultQty}
+          disabled={!categoryId || loading || savingQty}
+          onChange={(e) => setDefaultQty(e.target.value.replace(/\D/g, ''))}
+        />
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={!categoryId || loading || savingQty || (qtyLabel.trim() === savedQty.label && defaultQty.trim() === savedQty.defaultQty)}
+          onClick={saveQuantityField}
+        >
+          {savingQty ? 'Saving…' : 'Save'}
+        </button>
+        <span className="price-unit-hint">Buyers start on this number; once they change it, their own number is kept for next time.</span>
       </div>
       {loadError && <p role="alert">{loadError}</p>}
       {loading ? (

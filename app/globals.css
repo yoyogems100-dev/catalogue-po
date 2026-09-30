@@ -686,19 +686,6 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   font-size: 10.5px; text-transform: none; letter-spacing: 0; font-weight: 400;
   color: var(--navy); text-decoration: underline;
 }
-/* The size field sits in a two-column grid, so on a phone this row only has
-   about 155px to share between two inputs, the "to" separator and the link --
-   which squeezed both inputs to 37px, too narrow to show "Min mm" or to read
-   back a typed value. Give the inputs a floor and let the row wrap: on desktop
-   there is room for one line and nothing moves, on a phone the link drops to
-   its own line and the inputs keep a usable width. */
-.po-range-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-.po-range-row input { flex: 1 1 4rem; min-width: 3.5rem; }
-.po-range-row span { font-size: 11px; color: #756e5c; flex-shrink: 0; }
-.po-range-row .po-inline-link { margin-left: 0; flex-shrink: 0; white-space: nowrap; }
-@media (max-width: 560px) {
-  .po-range-row .po-inline-link { flex: 1 0 100%; margin-top: 2px; }
-}
 .po-search { margin-bottom: 16px; }
 
 .po-shape-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -2187,6 +2174,10 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   min-width: 110px;
 }
 .price-unit-hint { color: var(--text-dim); font-size: 12.5px; }
+/* By id: the site-wide input rule (four :not()s) otherwise wins and stretches them. */
+#qty-field-label { width: 170px; }
+#qty-field-default { width: 80px; min-width: 0; }
+.qty-field-row .btn-ghost { padding: 5px 12px; font-size: 12.5px; }
 
 /* ---------------------------------------------------------------------------
    Explore Photos as products: one card per stone, swipeable through the

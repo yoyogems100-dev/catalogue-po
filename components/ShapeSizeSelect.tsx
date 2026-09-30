@@ -39,8 +39,6 @@ export default function ShapeSizeSelect({
   const [sizeOrder, setSizeOrder] = useState<number[]>([]);
   const [query, setQuery] = useState('');
   const [expandedShapeId, setExpandedShapeId] = useState<number | null>(null);
-  const [rangeMin, setRangeMin] = useState('');
-  const [rangeMax, setRangeMax] = useState('');
 
   // Local optimistic copies so clicks reflect instantly instead of waiting on
   // a server round-trip + page refresh -- fixes selections that appeared "stuck".
@@ -123,35 +121,6 @@ export default function ShapeSizeSelect({
     onBulkSizes(shapeId, sizeIds);
   }
 
-  // Matches a plain "1" / "1.5", or a compound "AxB"/"A*B" (x/X/* used
-  // interchangeably) -- range-select and sort both key off the leading
-  // number either way, so "4x6" sits with "4" and a 4x6-to-8x6 range picks
-  // up every compound size whose first dimension falls in that span.
-  function strictSizeNum(s: string): number {
-    const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(?:[xX*]\s*\d+(?:\.\d+)?)?$/);
-    return m ? parseFloat(m[1]) : NaN;
-  }
-
-  function applyRange(shapeId: number) {
-    const min = parseFloat(rangeMin);
-    const max = parseFloat(rangeMax);
-    if (Number.isNaN(min) || Number.isNaN(max)) return;
-    const lo = Math.min(min, max);
-    const hi = Math.max(min, max);
-    const sizesForShape = sizesByShapeId.get(shapeId) || [];
-    const matchIds = sizesForShape
-      .filter((sz) => {
-        const v = strictSizeNum(sz.size_mm);
-        return !Number.isNaN(v) && v >= lo && v <= hi;
-      })
-      .map((sz) => sz.id);
-    if (matchIds.length === 0) return;
-    const merged = [...new Set([...localSizeIds.filter((id) => sizesForShape.some((sz) => sz.id === id)), ...matchIds])];
-    handleBulkSizes(shapeId, merged);
-    setRangeMin('');
-    setRangeMax('');
-  }
-
   return (
     <div ref={rootRef} style={{ position: 'relative' }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); triggerRef.current?.focus(); } }}>
       <button ref={triggerRef} type="button" aria-label="Choose shapes and sizes" aria-expanded={open} className="ms-trigger" onClick={() => setOpen((v) => !v)}>
@@ -223,26 +192,6 @@ export default function ShapeSizeSelect({
                         <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                           <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => handleBulkSizes(shape.id, sizesForShape.map((sz) => sz.id))}>All</button>
                           <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => handleBulkSizes(shape.id, [])}>None</button>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Min"
-                            value={rangeMin}
-                            onChange={(e) => setRangeMin(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ width: 42, fontSize: 10.5, padding: '3px 5px' }}
-                          />
-                          <span style={{ fontSize: 10, color: '#756e5c' }}>to</span>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Max"
-                            value={rangeMax}
-                            onChange={(e) => setRangeMax(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ width: 42, fontSize: 10.5, padding: '3px 5px' }}
-                          />
-                          <button className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }} onClick={() => applyRange(shape.id)}>Range</button>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                           {sizesForShape.map((sz) => {

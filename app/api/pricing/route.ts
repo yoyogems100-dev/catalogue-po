@@ -3,13 +3,14 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { priceColumns, groupsInScope } from '@/lib/price-columns';
 import { normalizePriceUnit, PRICE_UNIT_MAX } from '@/lib/price-unit';
+import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
 
-  const [{ data: shapes }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, { data: category } ] = await Promise.all([
+  const [{ data: shapes }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, { data: category }, { data: quantitySetting } ] = await Promise.all([
     supabaseAdmin
       .from('category_shapes')
       .select('shape_id, shapes(id, name)')
@@ -18,7 +19,8 @@ export async function GET(req: NextRequest) {
     supabaseAdmin.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),
     supabaseAdmin.from('category_colors').select('color_id, colors(name)').eq('category_id', categoryId),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id'),
-    supabaseAdmin.from('categories').select('price_unit').eq('id', categoryId).single()
+    supabaseAdmin.from('categories').select('price_unit').eq('id', categoryId).single(),
+    supabaseAdmin.from('settings').select('value').eq('key', QUANTITY_FIELDS_SETTING_KEY).maybeSingle()
   ]);
 
   const shapeIds = (shapes || []).map((s: any) => s.shape_id);
@@ -45,7 +47,8 @@ export async function GET(req: NextRequest) {
     prices: (prices || []).map((p: any) => ({ shapeId: p.shape_id, shapeSizeId: p.shape_size_id, groupId: p.price_group_id, priceInr: p.price_inr })),
     // null means "piece" in the column; the UI and the PDFs resolve that
     // through priceUnitLabel() rather than each guessing a default.
-    priceUnit: (category as any)?.price_unit ?? null
+    priceUnit: (category as any)?.price_unit ?? null,
+    quantityField: quantityFieldFor(parseQuantityFields(quantitySetting?.value), categoryId)
   });
 }
 
