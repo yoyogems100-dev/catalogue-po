@@ -27,6 +27,34 @@ test('Moissanite import replaces only its links and retains other categories and
   assert.equal((await db.query("SELECT * FROM shape_sizes WHERE size_mm='old-size'")).rows.length,1);
  }finally{await db.close();}
 });
+test('supplier-sheet sizes are added once, Tapered Baguette mirrors Trapezoid, and existing links are kept',async()=>{
+ const db=new PGlite();
+ try{
+  await db.exec(`CREATE TABLE categories(id int primary key,slug text);INSERT INTO categories VALUES(34,'moissanite'),(1,'other');
+  CREATE TABLE shapes(id serial primary key,name text);CREATE TABLE shape_sizes(id serial primary key,shape_id int,size_mm text);
+  CREATE TABLE category_shapes(category_id int,shape_id int,ref_photo_url text,reference_style text default 'vector',primary key(category_id,shape_id));
+  CREATE TABLE category_shape_sizes(category_id int,shape_size_id int,diamond_equivalent_ct numeric,primary key(category_id,shape_size_id));`);
+  for(const name of [...chart.map(s=>s.name),'Tapered Baguette'])await db.query('INSERT INTO shapes(name) VALUES($1)',[name]);
+  await db.exec(`INSERT INTO shapes(name) VALUES('Heart');
+  INSERT INTO category_shapes(category_id,shape_id) SELECT DISTINCT ON (name) 34,id FROM shapes ORDER BY name,id;
+  INSERT INTO shape_sizes(shape_id,size_mm) SELECT id,'2x1.5x1' FROM shapes WHERE name='Trapezoid';
+  INSERT INTO shape_sizes(shape_id,size_mm) SELECT id,'2.25' FROM shapes WHERE name='Round';
+  INSERT INTO category_shape_sizes VALUES(34,1,0.06),(1,2,NULL);`);
+  const sql=readFileSync('supabase/migrations/20261005090000_moissanite_excel_sizes.sql','utf8');await db.exec(sql);await db.exec(sql);
+  const count=async(q:string)=>Number((await db.query<{n:number}>(`SELECT count(*)::int n FROM ${q}`)).rows[0].n);
+  // 1 pre-existing Trapezoid link + 93 sheet sizes + 13 Trapezoid sizes copied to Tapered Baguette.
+  assert.equal(await count('category_shape_sizes WHERE category_id=34'),1+93+13);
+  assert.equal(await count("category_shape_sizes css JOIN shape_sizes z ON z.id=css.shape_size_id JOIN shapes s ON s.id=z.shape_id WHERE css.category_id=34 AND s.name='Tapered Baguette'"),13);
+  assert.equal(await count("shape_sizes z JOIN shapes s ON s.id=z.shape_id WHERE s.name='Round' AND z.size_mm='2.25'"),1);
+  assert.equal(await count('category_shape_sizes WHERE category_id=1'),1);
+  // A second, unlinked master shape with the same name gets nothing.
+  assert.equal(await count("shape_sizes z JOIN shapes s ON s.id=z.shape_id WHERE s.name='Heart' AND s.id=(SELECT max(id) FROM shapes WHERE name='Heart')"),0);
+  const tb=await db.query<{ref_photo_url:string,reference_style:string}>("SELECT ref_photo_url,reference_style FROM category_shapes cs JOIN shapes s ON s.id=cs.shape_id WHERE s.name='Tapered Baguette'");
+  assert.deepEqual(tb.rows[0],{ref_photo_url:'/moissanite-shapes/trapezoid.png',reference_style:'photo'});
+  const dew=await db.query<{d:string}>("SELECT css.diamond_equivalent_ct::text d FROM category_shape_sizes css JOIN shape_sizes z ON z.id=css.shape_size_id JOIN shapes s ON s.id=z.shape_id WHERE s.name='Tapered Baguette' AND z.size_mm='2x1.5x1'");
+  assert.equal(dew.rows[0].d,'0.06');
+ }finally{await db.close();}
+});
 test('confirmed final Moissanite rows and all supplied reference images are included',()=>{
  for(const [name,size,ct] of [['Trillion','11x11',5],['Princess','12x12',10],['Baguette','3x6',0.65]] as const){const rows=chart.find(s=>s.name===name)!.rows;assert.deepEqual(rows.at(-1),{size,diamondEquivalentCt:ct});}
  for(const s of chart){assert(readFileSync(`public${s.image}`).length>100);assert.equal(new Set(s.rows.map(r=>r.size)).size,s.rows.length);}

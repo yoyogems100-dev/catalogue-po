@@ -9,6 +9,7 @@ import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import SizeChartDocument, { type SizeChartColor, type SizeChartSection } from '@/lib/pdf/SizeChartDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
+import { isAdminAuthed } from '@/lib/auth';
 export const runtime='nodejs';
 function compareDimensions(a:string,b:string){
  const left=a.split('x').map(Number),right=b.split('x').map(Number);
@@ -42,6 +43,8 @@ async function imageDataUrl(source:string|null|undefined){
 export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>}){
  const id=Number((await params).id);
  const includePrices=_req.nextUrl.searchParams.get('type')==='prices'&&id===34;
+ // Prices are admin-only: customers and the public site get the size chart, never the price list.
+ if(includePrices&&!(await isAdminAuthed()))return NextResponse.json({error:'Unauthorized'},{status:401});
  const [category,shapes,sizes,colorLinks]=await Promise.all([
   supabasePublic.from('categories').select('name,price_unit').eq('id',id).single(),
   supabasePublic.from('category_shapes').select('shape_id,ref_photo_url,shapes(name,ref_photo_url)').eq('category_id',id),
@@ -73,5 +76,5 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
  if(!sections.some(s=>s.rows.length))return NextResponse.json({error:'No sizes configured yet.'},{status:404});
  const buffer=await renderToBuffer(React.createElement(SizeChartDocument,{sections,colors,categoryName:category.data.name,includePrices,priceUnit:(category.data as any).price_unit??null,logoUrl:await getPdfLogoDataUrl()}) as any);
  const categorySlug=category.data.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
- return new NextResponse(new Uint8Array(buffer),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="YOYO-GEMS-${categorySlug}-${includePrices?'Price-List':'Shapes-Sizes'}.pdf"`,'Cache-Control':'public, max-age=60'}});
+ return new NextResponse(new Uint8Array(buffer),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="YOYO-GEMS-${categorySlug}-${includePrices?'Price-List':'Shapes-Sizes'}.pdf"`,'Cache-Control':includePrices?'private, no-store':'public, max-age=60'}});
 }
