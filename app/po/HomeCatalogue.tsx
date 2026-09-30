@@ -7,6 +7,7 @@ import ColorSwatch from '@/components/ColorSwatch';
 import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId, colorSearchText } from '@/lib/color-family';
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 import { useColorButtons } from '@/components/useOrderPreferences';
+import { layoutHomeSections, type HomeSections } from '@/lib/home-sections';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
 // lh3.googleusercontent.com, which starts returning 429 when a page asks for
@@ -85,13 +86,13 @@ export default function HomeCatalogue({
   categories,
   allShapes,
   allColors,
-  mostOrderedIds,
+  sections,
   colorButtonIds
 }: {
   categories: Category[];
   allShapes: Ref[];
   allColors: Ref[];
-  mostOrderedIds: number[];
+  sections: HomeSections;
   colorButtonIds: number[];
 }) {
   const [query, setQuery] = useState('');
@@ -135,7 +136,19 @@ export default function HomeCatalogue({
     return index;
   }, [categories, allShapes, allColors]);
 
-  const rank = useMemo(() => new Map(mostOrderedIds.map((id, i) => [id, i])), [mostOrderedIds]);
+  const { shelves, rest: unshelved } = useMemo(() => layoutHomeSections(sections, categories), [sections, categories]);
+
+  // Search results: categories on a shelf rank first, in shelf order. Each
+  // keeps the card tag of the first shelf it sits on that has one.
+  const { rank, cardLabel } = useMemo(() => {
+    const rank = new Map<number, number>();
+    const cardLabel = new Map<number, string>();
+    shelves.flatMap((s) => s.categories.map((c) => ({ id: c.id, label: s.cardLabel }))).forEach(({ id, label }, i) => {
+      if (!rank.has(id)) rank.set(id, i);
+      if (label && !cardLabel.has(id)) cardLabel.set(id, label);
+    });
+    return { rank, cardLabel };
+  }, [shelves]);
 
   const filtered = useMemo(() => {
     const tokens = query.trim().toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -161,17 +174,20 @@ export default function HomeCatalogue({
   const hasActiveFilter = query.trim() !== '' || shapeFilter !== 'all' || familyFilter !== 'all';
   const clearAll = () => { setQuery(''); setShapeFilter('all'); setFamilyFilter('all'); };
 
-  const mostOrdered = hasActiveFilter ? [] : mostOrderedIds.map((id) => categories.find((c) => c.id === id)).filter((c): c is Category => !!c);
-  const mostOrderedSet = new Set(mostOrdered.map((c) => c.id));
-  const rest = hasActiveFilter ? filtered : categories.filter((c) => !mostOrderedSet.has(c.id));
+  const visibleShelves = hasActiveFilter ? [] : shelves;
+  const rest = hasActiveFilter ? filtered : unshelved;
+  const shelvedCards = visibleShelves.reduce((n, s) => n + s.categories.length, 0);
 
-  const renderGrid = (list: Category[], offset: number, tagMostOrdered: boolean) => (
+  // A shelf's own cards need no tag -- the heading already says it. Tags
+  // only show in search results, where the heading is gone.
+  const renderGrid = (list: Category[], offset: number, tagged: boolean) => (
     <div className="grid-cats">
       {list.map((cat, i) => (
-        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} mostOrdered={tagMostOrdered && rank.has(cat.id)} />
+        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} label={tagged ? cardLabel.get(cat.id) : undefined} />
       ))}
     </div>
   );
+  let offset = 0;
 
   return (
     <>
@@ -210,18 +226,22 @@ export default function HomeCatalogue({
         </div>
       )}
 
-      {mostOrdered.length > 0 && (
-        <>
-          <div className="section-head">
-            <h2>Most ordered</h2>
-            <span className="count">Our buyers&rsquo; top picks</span>
-          </div>
-          {renderGrid(mostOrdered, 0, false)}
-        </>
-      )}
+      {visibleShelves.map((shelf, i) => {
+        const grid = renderGrid(shelf.categories, offset, false);
+        offset += shelf.categories.length;
+        return (
+          <section key={shelf.key} aria-label={shelf.title}>
+            <div className="section-head" style={i > 0 ? { marginTop: 36 } : undefined}>
+              <h2>{shelf.title}</h2>
+              {shelf.subtitle && <span className="count">{shelf.subtitle}</span>}
+            </div>
+            {grid}
+          </section>
+        );
+      })}
 
-      <div className="section-head" style={mostOrdered.length > 0 ? { marginTop: 36 } : undefined}>
-        <h2>{hasActiveFilter ? 'Results' : mostOrdered.length > 0 ? 'More categories' : 'The collection'}</h2>
+      <div className="section-head" style={visibleShelves.length > 0 ? { marginTop: 36 } : undefined}>
+        <h2>{hasActiveFilter ? 'Results' : visibleShelves.length > 0 ? sections.restTitle : 'The collection'}</h2>
         <span className="count mono">{hasActiveFilter ? `${filtered.length} of ${categories.length} categories` : `${rest.length} categories`}</span>
       </div>
 
@@ -231,12 +251,12 @@ export default function HomeCatalogue({
           <p className="home-empty-hint">Try a stone (ruby, CZ), a shape (oval, pear) or a colour (blue, pink).</p>
           <button type="button" className="btn-ghost" onClick={clearAll}>Show all categories</button>
         </div>
-      ) : renderGrid(rest, mostOrdered.length, hasActiveFilter)}
+      ) : renderGrid(rest, shelvedCards, hasActiveFilter)}
     </>
   );
 }
 
-function CategoryCard({ cat, cardIndex, mostOrdered }: { cat: Category; cardIndex: number; mostOrdered: boolean }) {
+function CategoryCard({ cat, cardIndex, label }: { cat: Category; cardIndex: number; label?: string }) {
   // One tag, not the same counts twice. The card used to badge
   // counts over the thumbnail AND repeat all three as text under the
   // name. Worse, a count of 1 tells a buyer nothing -- "1 shape" on a
@@ -265,7 +285,7 @@ function CategoryCard({ cat, cardIndex, mostOrdered }: { cat: Category; cardInde
           {/* Painted under the cover, so a missing or failed photo still shows something. */}
           <span className="cat-thumb-initial" aria-hidden="true">{cat.name.charAt(0)}</span>
           {cat.thumb ? <CategoryThumb src={cat.thumb} alt={cat.name} index={cardIndex} /> : null}
-          {mostOrdered && <span className="cat-most-ordered">Most ordered</span>}
+          {label && <span className="cat-most-ordered">{label}</span>}
           {badges.length > 0 && (
             <div className="cat-badge-stack">
               {badges.map((b) => <span key={b} className="cat-badge">{b}</span>)}

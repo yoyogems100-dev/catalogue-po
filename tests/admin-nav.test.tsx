@@ -28,7 +28,7 @@ test('the most specific link is highlighted', () => {
   assert.equal(currentHref('/admin/site/leads'), '/admin/site/leads');
   assert.equal(currentHref('/admin/site'), '/admin/site');
   assert.equal(currentHref('/admin/site/categories/4'), '/admin/site/categories');
-  assert.equal(currentHref('/admin/content/most-ordered'), '/admin/content/most-ordered');
+  assert.equal(currentHref('/admin/content/home-sections'), '/admin/content/home-sections');
   assert.equal(currentHref('/admin/orders/9'), '/admin/orders');
   assert.equal(currentHref('/admin'), '/admin');
 });
