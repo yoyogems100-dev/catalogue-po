@@ -472,7 +472,7 @@ export default function POSelector({
         locked={categoryId === 34}
         values={pickColorIds}
         onChange={setPickColorIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickShapeIds.length === 0}
         placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
       />
@@ -516,7 +516,7 @@ export default function POSelector({
               options={shapeOptions}
               values={pickShapeIds}
               onChange={setPickShapeIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickColorIds.length === 0}
               placeholder="Choose shape(s)"
               leading="icon"
               disabledIds={incompatibleShapes}
