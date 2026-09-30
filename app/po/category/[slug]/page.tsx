@@ -36,7 +36,7 @@ async function getCategoryData(slug: string) {
     supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_tags').select('tag_id').eq('category_id', category.id),
-    supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', category.id),
+    supabasePublic.from('category_shape_sizes').select('shape_size_id, pcs_per_ct').eq('category_id', category.id),
     // Which colours/materials each shape+size carries -- only set for
     // categories like Semi Precious Beads; empty means any with any.
     fetchAllRows<{ shape_size_id: number; color_id: number }>((from, to) =>
@@ -47,6 +47,8 @@ async function getCategoryData(slug: string) {
   const colorIds = (linkedColorIds || []).map((r: any) => r.color_id);
   const tagIds = (linkedTagIds || []).map((r: any) => r.tag_id);
   const sizeIds = (linkedSizeIds || []).map((r: any) => r.shape_size_id);
+  // Sizes sold by carat (Moissanite melee): pieces in one carat.
+  const pcsPerCt = new Map<number, number>((linkedSizeIds || []).filter((r: any) => r.pcs_per_ct).map((r: any) => [r.shape_size_id, r.pcs_per_ct]));
 
   const [{ data: shapes }, { data: colors }, { data: tags }, { data: sizes }] = await Promise.all([
     shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name') : { data: [] },
@@ -117,7 +119,7 @@ async function getCategoryData(slug: string) {
     shapes: shapesFormatted,
     colors: colorsFormatted,
     tags: tags || [],
-    sizes: sizes || [],
+    sizes: (sizes || []).map((z: any) => ({ ...z, pcs_per_ct: pcsPerCt.get(z.id) ?? null })),
     photos: photosWithUrl,
     colorPalettes,
     pricing,

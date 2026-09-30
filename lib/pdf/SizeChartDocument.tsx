@@ -6,9 +6,20 @@ import { PageWatermark } from './PageWatermark';
 export type SizeChartSection = {
   name: string;
   image: string | null;
-  rows: { size: string; diamondEquivalentCt: number | null; priceInr?: number | null }[];
+  /** pcsPerCt: sizes sold by carat (Moissanite melee) -- pieces in 1 ct. */
+  rows: { size: string; diamondEquivalentCt: number | null; priceInr?: number | null; pcsPerCt?: number | null }[];
 };
 export type SizeChartColor = { name: string; hex: string | null; image: string | null };
+
+// A4 in points, less the page padding, masthead, legend and footer.
+const CONTENT_W = 595 - 52;
+const GAP = 8;
+const HALF = (CONTENT_W - GAP) / 2;
+const PAGE_BODY_H = 842 - 26 - 42 - 82 - 30 - 6;
+const HEAD_H = 34, COLHEAD_H = 15, ROW_H = 12.5;
+// Up to this many sizes a shape takes half the page width in two columns;
+// beyond it, the full width in four.
+const HALF_MAX_ROWS = 44;
 
 const css = StyleSheet.create({
   page: { padding: 26, paddingBottom: 42, fontFamily: 'Helvetica', color: '#12233f', fontSize: 8 },
@@ -20,24 +31,28 @@ const css = StyleSheet.create({
   titleBlock: { alignItems: 'flex-end' },
   title: { fontSize: 14, fontFamily: 'Helvetica-Bold' },
   category: { marginTop: 3, color: '#62666d', fontSize: 8.5 },
-  legend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9, paddingVertical: 5, paddingHorizontal: 8, backgroundColor: '#f3efe4', color: '#62666d', fontSize: 6.7 },
-  sectionStack: { flexDirection: 'column', gap: 9 },
-  section: { height: 325, flexDirection: 'row', borderWidth: .8, borderColor: '#b9c1cc', backgroundColor: '#fff' },
-  identity: { width: 98, alignItems: 'center', justifyContent: 'center', padding: 10, backgroundColor: '#e5edf6', borderRightWidth: .8, borderRightColor: '#b9c1cc' },
-  imageFrame: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
-  image: { width: 62, height: 62, objectFit: 'contain' },
-  vectorFallback: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', borderWidth: .8, borderColor: '#8995a6', color: '#8995a6', fontSize: 6 },
-  name: { fontFamily: 'Helvetica-Bold', fontSize: 10.5, textAlign: 'center', lineHeight: 1.25 },
-  values: { flex: 1, minWidth: 0 },
-  valuesHead: { height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 9, backgroundColor: '#12233f', color: '#fff' },
-  valuesTitle: { fontFamily: 'Helvetica-Bold', fontSize: 7.2, letterSpacing: .5 },
-  valuesCount: { color: '#d8bf73', fontSize: 6.2 },
-  columns: { flex: 1, flexDirection: 'row' },
-  column: { flex: 1, borderRightWidth: .45, borderRightColor: '#d6dbe2' },
-  cell: { minHeight: 15.7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 6, borderBottomWidth: .35, borderBottomColor: '#d6dbe2' },
-  cellAlt: { backgroundColor: '#f7f9fb' },
-  size: { fontFamily: 'Helvetica-Bold', fontSize: 6.9 },
-  meta: { color: '#62666d', fontSize: 6.2, textAlign: 'right' },
+  legend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 3, backgroundColor: '#FAF8F3', color: '#6b6451', fontSize: 6.7 },
+  // Shape cards flow in two columns and are only as tall as their sizes;
+  // a shape with many sizes (Round) spans the page in four columns.
+  segment: { flexDirection: 'row', gap: GAP, marginBottom: GAP },
+  stack: { width: HALF, flexDirection: 'column', gap: GAP },
+  card: { borderWidth: .6, borderColor: '#d5dae2', borderTopWidth: 2, borderTopColor: '#9C7A25', borderRadius: 3, backgroundColor: '#fff', marginBottom: GAP },
+  cardInStack: { borderWidth: .6, borderColor: '#d5dae2', borderTopWidth: 2, borderTopColor: '#9C7A25', borderRadius: 3, backgroundColor: '#fff' },
+  cardHead: { height: HEAD_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: '#FAF8F3', borderBottomWidth: .6, borderBottomColor: '#e6dfcc' },
+  imageRing: { width: 26, height: 26, borderRadius: 13, marginRight: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: .6, borderColor: '#e6dfcc' },
+  image: { width: 21, height: 21, objectFit: 'contain' },
+  name: { flex: 1, fontFamily: 'Times-Bold', fontSize: 12.5, color: '#1B3A6B', letterSpacing: .2 },
+  count: { color: '#9C7A25', fontSize: 6.2, letterSpacing: .6 },
+  columnsHead: { height: COLHEAD_H, flexDirection: 'row', borderBottomWidth: .6, borderBottomColor: '#1B3A6B' },
+  columnHead: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 7, color: '#6b7280', fontFamily: 'Helvetica-Bold', fontSize: 5.4, letterSpacing: .8 },
+  columns: { flexDirection: 'row' },
+  column: { flex: 1, borderRightWidth: .4, borderRightColor: '#e3e7ec' },
+  cell: { height: ROW_H, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 7 },
+  cellAlt: { backgroundColor: '#f6f7f9' },
+  size: { fontFamily: 'Helvetica-Bold', fontSize: 7, color: '#12233F' },
+  meta: { color: '#5b616b', fontSize: 6.3, textAlign: 'right' },
+  carat: { color: '#9C7A25', fontFamily: 'Helvetica-Bold', fontSize: 6.2, textAlign: 'right' },
+  dash: { color: '#c3c8cf', fontSize: 6.3, textAlign: 'right' },
   price: { color: '#8b702a', fontFamily: 'Helvetica-Bold', fontSize: 6.3, textAlign: 'right' },
   footer: { position: 'absolute', bottom: 18, left: 26, right: 26, flexDirection: 'row', justifyContent: 'space-between', paddingTop: 7, borderTopWidth: .5, borderTopColor: '#c8cdd5', color: '#62666d', fontSize: 6.8 },
   colorIntro: { marginBottom: 12, color: '#62666d', fontSize: 8.2, lineHeight: 1.35 },
@@ -49,56 +64,108 @@ const css = StyleSheet.create({
   colorName: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 7.6, lineHeight: 1.25 },
 });
 
-function formatDew(value: number | null) {
-  if (value === null) return 'DEW -';
+function formatDew(value: number): string {
   return `${value.toFixed(value < .1 ? 3 : 2).replace(/0+$/, '').replace(/\.$/, '')} ct`;
 }
 
-function sectionColumns(rows: SizeChartSection['rows']) {
-  const count = rows.length > 54 ? 4 : rows.length > 34 ? 3 : 2;
-  const perColumn = Math.ceil(rows.length / count);
-  return Array.from({ length: count }, (_, index) => rows.slice(index * perColumn, (index + 1) * perColumn));
+// What the right-hand figure in a column is: DEW, pieces per carat (melee), or both.
+function valueHeading(rows: SizeChartSection['rows'], includePrices: boolean): string {
+  if (includePrices) return 'PRICE';
+  const carat = rows.filter((r) => r.pcsPerCt).length;
+  return carat === 0 ? 'DEW' : carat === rows.length ? 'PCS PER CT' : 'DEW / PCS PER CT';
 }
 
-function ShapeSection({ section, includePrices, showName }: { section: SizeChartSection; includePrices: boolean; showName: boolean }) {
-  const columns = sectionColumns(section.rows);
+type Card = { section: SizeChartSection; full: boolean; columns: number; height: number };
+
+function cardOf(section: SizeChartSection): Card {
+  const full = section.rows.length > HALF_MAX_ROWS;
+  const columns = full ? 4 : section.rows.length > 6 ? 2 : 1;
+  const lines = Math.ceil(section.rows.length / columns);
+  return { section, full, columns, height: HEAD_H + COLHEAD_H + lines * ROW_H + 2 };
+}
+
+// A page is a run of segments: a full-width card, or two stacks of half cards
+// side by side. Each gap is filled with the first card (in chart order) that
+// fits it, so no page is left half empty while a later shape would have fitted;
+// a card never splits across pages.
+type Segment = { kind: 'full'; card: Card } | { kind: 'pair'; left: Card[]; right: Card[] };
+export function layoutCards(sections: SizeChartSection[]): Segment[][] {
+  const remaining = sections.filter((s) => s.rows.length).map(cardOf);
+  const pages: Segment[][] = [];
+  const take = (i: number) => remaining.splice(i, 1)[0];
+  while (remaining.length) {
+    const page: Segment[] = [];
+    let used = 0;
+    // Full-width cards first, while they fit (always at least one per page).
+    for (let i = 0; i < remaining.length; i++) {
+      const h = remaining[i].height + GAP;
+      if (remaining[i].full && (used + h <= PAGE_BODY_H || !page.length)) { page.push({ kind: 'full', card: take(i) }); used += h; i--; }
+    }
+    const left: Card[] = [], right: Card[] = [];
+    let lh = 0, rh = 0;
+    for (;;) {
+      const sides = lh <= rh ? (['l', 'r'] as const) : (['r', 'l'] as const);
+      let placed = false;
+      for (const side of sides) {
+        const sideH = side === 'l' ? lh : rh;
+        const i = remaining.findIndex((c) => !c.full && used + sideH + c.height + GAP <= PAGE_BODY_H);
+        if (i < 0) continue;
+        const card = take(i);
+        if (side === 'l') { left.push(card); lh += card.height + GAP; } else { right.push(card); rh += card.height + GAP; }
+        placed = true;
+        break;
+      }
+      if (!placed) break;
+    }
+    // A card taller than a whole page still gets a page of its own.
+    if (!page.length && !left.length && remaining.length) left.push(take(0));
+    if (left.length || right.length) page.push({ kind: 'pair', left, right });
+    pages.push(page);
+  }
+  return pages;
+}
+
+function ShapeCard({ card, includePrices, showName, inStack }: { card: Card; includePrices: boolean; showName: boolean; inStack: boolean }) {
+  const { section, columns: count } = card;
+  const perColumn = Math.ceil(section.rows.length / count);
+  const columns = Array.from({ length: count }, (_, index) => section.rows.slice(index * perColumn, (index + 1) * perColumn));
   return (
-    <View style={css.section} wrap={false}>
-      <View style={css.identity}>
-        <View style={css.imageFrame}>
-          {section.image ? <Image src={section.image} style={css.image} /> : <View style={css.vectorFallback}><Text>VECTOR REFERENCE</Text></View>}
-        </View>
+    <View style={inStack ? css.cardInStack : css.card} wrap={false}>
+      <View style={css.cardHead}>
+        {section.image && <View style={css.imageRing}><Image src={section.image} style={css.image} /></View>}
         {/* With one shape in the whole chart the name says nothing the photo
-            above it doesn't -- and for the round-only categories it is just
-            the word "Round" over the only table on the page. */}
-        {showName && <Text style={css.name}>{section.name === 'Cushion Elongated' ? 'Long cushion' : section.name}</Text>}
+            beside it doesn't -- for round-only categories it is just "Round". */}
+        <Text style={css.name}>{showName ? (section.name === 'Cushion Elongated' ? 'Long cushion' : section.name) : ''}</Text>
+        <Text style={css.count}>{section.rows.length} {section.rows.length === 1 ? 'SIZE' : 'SIZES'}</Text>
       </View>
-      <View style={css.values}>
-        <View style={css.valuesHead}>
-          <Text style={css.valuesTitle}>{includePrices ? 'SIZE (MM) AND PRICE' : 'AVAILABLE SIZE (MM) AND DEW'}</Text>
-          <Text style={css.valuesCount}>{section.rows.length} sizes</Text>
-        </View>
-        <View style={css.columns}>
-          {columns.map((column, columnIndex) => (
-            <View key={columnIndex} style={[css.column, columnIndex === columns.length - 1 ? { borderRightWidth: 0 } : {}]}>
-              {column.map((row, rowIndex) => (
-                <View key={`${row.size}-${rowIndex}`} style={[css.cell, rowIndex % 2 ? css.cellAlt : {}]}>
-                  <Text style={css.size}>{row.size.replace(/x/g, ' x ')}</Text>
-                  {includePrices
-                    ? <Text style={css.price}>{row.priceInr == null ? 'On request' : row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text>
-                    : <Text style={css.meta}>{formatDew(row.diamondEquivalentCt)}</Text>}
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
+      <View style={css.columnsHead}>
+        {columns.map((column, i) => <View key={i} style={css.columnHead}><Text>SIZE (MM)</Text><Text>{valueHeading(column, includePrices)}</Text></View>)}
+      </View>
+      <View style={css.columns}>
+        {columns.map((column, columnIndex) => (
+          <View key={columnIndex} style={[css.column, columnIndex === columns.length - 1 ? { borderRightWidth: 0 } : {}]}>
+            {column.map((row, rowIndex) => (
+              <View key={`${row.size}-${rowIndex}`} style={[css.cell, rowIndex % 2 ? css.cellAlt : {}]}>
+                <Text style={css.size}>{row.size.replace(/x/g, ' x ')}</Text>
+                {includePrices
+                  ? <Text style={css.price}>{row.priceInr == null ? 'On request' : row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text>
+                  : row.pcsPerCt
+                  ? <Text style={css.carat}>1ct = ~{row.pcsPerCt} pcs</Text>
+                  : row.diamondEquivalentCt === null
+                  ? <Text style={css.dash}>–</Text>
+                  : <Text style={css.meta}>{formatDew(row.diamondEquivalentCt)}</Text>}
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
     </View>
   );
 }
 
 export default function SizeChartDocument({ sections, colors = [], categoryName = 'Moissanite', includePrices = false, logoUrl = '', priceUnit = null }: { sections: SizeChartSection[]; colors?: SizeChartColor[]; categoryName?: string; includePrices?: boolean; logoUrl?: string; priceUnit?: string | null }) {
-  const pages = Array.from({ length: Math.ceil(sections.length / 2) }, (_, index) => sections.slice(index * 2, (index + 1) * 2));
+  const pages = layoutCards(sections);
+  const showName = sections.length > 1;
   const showColorPage = colors.length > 1;
   const totalPages = pages.length + (showColorPage ? 1 : 0);
   const categoryLabel = colors.length === 1 ? `${categoryName} - ${colors[0].name}` : categoryName;
@@ -145,11 +212,17 @@ export default function SizeChartDocument({ sections, colors = [], categoryName 
           </View>
           <View style={css.legend}>
             <Text>Dimensions in millimetres</Text>
-            <Text>{includePrices ? `Prices in INR (Rs.) per ${priceUnitLabel(priceUnit)} - availability and final price confirmed by our team` : 'DEW is approximate diamond-equivalent weight'}</Text>
+            <Text>{includePrices ? `Prices in INR (Rs.) per ${priceUnitLabel(priceUnit)} - availability and final price confirmed by our team` : sections.some((s) => s.rows.some((r) => r.pcsPerCt)) ? 'DEW is approximate diamond-equivalent weight  |  1ct = ~pcs: approx. pieces per carat' : 'DEW is approximate diamond-equivalent weight'}</Text>
           </View>
-          <View style={css.sectionStack}>
-            {group.map((section) => <ShapeSection key={section.name} section={section} includePrices={includePrices} showName={sections.length > 1} />)}
-          </View>
+          {group.map((segment, i) => segment.kind === 'full'
+            ? <ShapeCard key={i} card={segment.card} includePrices={includePrices} showName={showName} inStack={false} />
+            : <View key={i} style={css.segment}>
+                {[segment.left, segment.right].map((stack, side) => (
+                  <View key={side} style={css.stack}>
+                    {stack.map((card) => <ShapeCard key={card.section.name} card={card} includePrices={includePrices} showName={showName} inStack />)}
+                  </View>
+                ))}
+              </View>)}
           <View style={css.footer} fixed>
             <Text>yoyogems.co.in  |  +91 9079914601  |  Jaipur</Text>
             <Text>{pageIndex + 1 + (showColorPage ? 1 : 0)} / {totalPages}</Text>

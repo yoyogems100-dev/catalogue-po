@@ -24,8 +24,16 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
    let canonical:OrderSpecs|undefined;
    if(item.orderSpecs) {
     const spec=item.orderSpecs as any;
-    if(spec?.kind!=='grade'||!categoryGrades(item.categoryId).includes(spec.grade))throw Error('Extra specifications are not supported for this category.');
-    canonical={kind:'grade',grade:spec.grade};
+    if(spec?.kind==='carat') {
+     // Carat lines only for sizes the category sells by carat, at its own rate.
+     const rate=item.sizeId===null?null:await database.from('category_shape_sizes').select('pcs_per_ct').eq('category_id',item.categoryId).eq('shape_size_id',item.sizeId).maybeSingle();
+     if(rate?.error)throw Error('Could not validate category options. Please retry.');
+     if(!rate?.data?.pcs_per_ct||rate.data.pcs_per_ct!==spec.pcsPerCt)throw Error('The carat conversion for this size has changed. Please add the line again.');
+     canonical={kind:'carat',pcsPerCt:spec.pcsPerCt};
+    } else {
+     if(spec?.kind!=='grade'||!categoryGrades(item.categoryId).includes(spec.grade))throw Error('Extra specifications are not supported for this category.');
+     canonical={kind:'grade',grade:spec.grade};
+    }
    }
    // Every other category (everything but Moissanite/Rainbow Corundum/Hole
    // Punched, handled above) previously skipped verification entirely -- a
