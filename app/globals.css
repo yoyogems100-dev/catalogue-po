@@ -2315,6 +2315,11 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
    one the public Explore Photos tab opens with. */
 .admin-photo-filter { padding: 0 0 12px; }
 .admin-photo-filter-count { font-size: 12px; color: #756e5c; }
+@media (max-width: 640px) {
+  .filter-bar.admin-photo-filter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .filter-bar.admin-photo-filter > *, .filter-bar.admin-photo-filter .icon-select-trigger { min-width: 0; width: 100%; }
+  .admin-photo-filter-count, .admin-photo-filter-default { grid-column: 1 / -1; }
+}
 .admin-photo-filter-default {
   flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   font-size: 12.5px; color: #756e5c; padding: 8px 12px; background: #fbfaf6; border: 1px solid var(--line); border-radius: 6px;
@@ -2322,6 +2327,18 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .admin-photo-filter-default strong { color: var(--ink); font-weight: 500; }
 .admin-photo-filter-default .btn { font-size: 12px; padding: 6px 12px; }
 .photo-next-field { display: block; font-size: 12px; margin: -4px 0 8px; }
+/* Stays in view while ticking photos further down a long gallery. */
+.photo-select-bar {
+  position: sticky; top: 72px; z-index: 20; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 10px 12px; background: #fff; border: 1px solid var(--navy); border-radius: 10px;
+  box-shadow: 0 6px 18px rgb(18 35 63 / 12%);
+}
+.photo-select-bar .btn, .photo-select-bar .btn-ghost, .photo-select-bar .btn-danger { font-size: 12px; padding: 7px 12px; }
+.photo-select-sep { width: 1px; align-self: stretch; background: var(--line); }
+@media (max-width: 640px) { .photo-select-sep { display: none; } .photo-select-bar { max-height: 70vh; overflow-y: auto; } }
+.photo-upload-tags { margin: 0 0 10px; }
+.photo-upload-tags summary { cursor: pointer; font-size: 12.5px; color: var(--navy); padding: 6px 0; }
+.photo-upload-tags[open] summary { margin-bottom: 8px; }
 .photo-bulk-tags { flex-basis: 100%; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px; }
 .photo-upload-group { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0 0 12px; cursor: pointer; }
 .photo-upload-group input { margin-top: 3px; }

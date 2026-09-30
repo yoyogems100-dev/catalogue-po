@@ -747,25 +747,28 @@ export default function CategoryAdminClient({
           <div id="category-upload" className="admin-upload-row">
             <section>
               <h3 style={{ fontSize: 14, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Upload photos</h3>
-              <p className="photo-upload-head" style={{ margin: '0 0 8px' }}>Tags for every photo in this upload <span>optional — or tag them after, they come back ticked</span></p>
-              <PhotoTagPicker
-                categoryId={categoryId}
-                shapes={linkedShapes}
-                sizes={linkedSizes}
-                colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
-                tags={linkedTags}
-                colorLabel={colorLabel}
-                value={uploadTags}
-                onChange={setUploadTags}
-              />
+              <details className="photo-upload-tags" open={tagSetCount(uploadTags) > 0 || undefined}>
+                <summary>
+                  {tagSetCount(uploadTags) > 0
+                    ? `${tagSetCount(uploadTags)} tag${tagSetCount(uploadTags) === 1 ? '' : 's'} will go on every photo in this upload`
+                    : 'Add tags to every photo in this upload (optional)'}
+                </summary>
+                <PhotoTagPicker
+                  categoryId={categoryId}
+                  shapes={linkedShapes}
+                  sizes={linkedSizes}
+                  colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
+                  tags={linkedTags}
+                  colorLabel={colorLabel}
+                  value={uploadTags}
+                  onChange={setUploadTags}
+                />
+              </details>
               <div style={{ marginTop: 10 }}>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleUpload(e.target.files)} disabled={uploading} />
                 {uploading && <span style={{ marginLeft: 10, fontSize: 12.5 }}>Uploading…</span>}
                 {!uploading && tagSetCount(uploadTags) > 0 && (
-                  <span style={{ marginLeft: 10, fontSize: 12.5, color: '#756e5c' }}>
-                    {tagSetCount(uploadTags)} tag{tagSetCount(uploadTags) === 1 ? '' : 's'} will be added to each photo.{' '}
-                    <button type="button" className="btn-link" onClick={() => setUploadTags(EMPTY_TAG_SET)}>Clear</button>
-                  </span>
+                  <button type="button" className="btn-link" style={{ marginLeft: 10, fontSize: 12.5 }} onClick={() => setUploadTags(EMPTY_TAG_SET)}>Clear upload tags</button>
                 )}
               </div>
               <label className="photo-upload-group" style={{ marginTop: 10 }}>
@@ -874,7 +877,7 @@ export default function CategoryAdminClient({
               </div>
             )}
             {selectMode ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#f4f1e8', borderRadius: 6 }}>
+              <div className="photo-select-bar">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
                   <input
                     type="checkbox"
@@ -883,7 +886,7 @@ export default function CategoryAdminClient({
                   />
                   Select all
                 </label>
-                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length} selected</span>
+                <span style={{ fontSize: 12.5, color: '#756e5c' }}>{selectedPhotoIds.length === 0 ? 'Tick photos below' : `${selectedPhotoIds.length} selected`}</span>
                 <button
                   type="button"
                   className={bulkTagOpen ? 'btn' : 'btn-ghost'}
@@ -893,6 +896,7 @@ export default function CategoryAdminClient({
                 >
                   Tag selected
                 </button>
+                <span className="photo-select-sep" aria-hidden="true" />
                 <div style={{ maxWidth: 220, flex: '1 1 180px', opacity: selectedPhotoIds.length === 0 ? 0.5 : 1, pointerEvents: selectedPhotoIds.length === 0 ? 'none' : undefined }}>
                   <IconSelect
                     options={otherCategories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
