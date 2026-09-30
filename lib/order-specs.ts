@@ -2,7 +2,13 @@
 export const RAINBOW_CATEGORY_ID = 29;
 export const DRILLED_CATEGORY_ID = 20;
 export function specialCategory(id:number) { return id===RAINBOW_CATEGORY_ID ? 'rainbow' : id===DRILLED_CATEGORY_ID ? 'drilled' : null; }
-export type OrderSpecs = {kind:'rainbow'; colorMode:'default'|'custom'; stonesPerStrip:number; colors:{id:number;name:string}[]} | {kind:'drilled'; drill:'half'|'full'} | {kind:'grade'; grade:string};
+export type OrderSpecs = {kind:'rainbow'; colorMode:'default'|'custom'; stonesPerStrip:number; colors:{id:number;name:string}[]} | {kind:'drilled'; drill:'half'|'full'} | {kind:'grade'; grade:string} | {kind:'carat'; pcsPerCt:number};
+
+// Moissanite melee is ordered by whole carats: the line's qty stays in pieces,
+// always a whole number of carats times the size's pieces-per-carat.
+export function caratSpec(pcsPerCt: number): OrderSpecs { return { kind: 'carat', pcsPerCt }; }
+/** Carats for a pieces count, rounded UP to a whole carat. */
+export function caratsFor(pcs: number, pcsPerCt: number): number { return pcs > 0 ? Math.ceil(pcs / pcsPerCt) : 0; }
 
 // Quality grades offered inside a category, chosen alongside colour/shape/size
 // rather than as separate categories. (The CZ grades predate this and are
@@ -16,9 +22,10 @@ export function specText(spec?:OrderSpecs|null, quantity?:number):string {
  if(!spec) return '';
  if(spec.kind==='drilled') return spec.drill==='half'?'Half drill':'Full drill';
  if(spec.kind==='grade') return `Quality ${spec.grade}`;
+ if(spec.kind==='carat') return quantity ? `${quantity/spec.pcsPerCt} ct (1ct = ~${spec.pcsPerCt} pcs)` : `1ct = ~${spec.pcsPerCt} pcs`;
  return `${spec.colorMode==='default'?'Default colors':`Custom colors: ${spec.colors.map(c=>c.name).join(', ')}`} · ${quantity ? `${quantity/spec.stonesPerStrip} strips × ` : ''}${spec.stonesPerStrip} stones${quantity?'':' per strip'}`;
 }
 export function specKey(spec?:OrderSpecs|null) {return JSON.stringify(spec || null);}
-export function validSpecQuantity(spec:OrderSpecs|null|undefined, qty:number) {return Number.isSafeInteger(qty) && qty>0 && qty<=2147483647 && (spec?.kind!=='rainbow' || (Number.isSafeInteger(spec.stonesPerStrip) && spec.stonesPerStrip>0 && qty%spec.stonesPerStrip===0));}
+export function validSpecQuantity(spec:OrderSpecs|null|undefined, qty:number) {return Number.isSafeInteger(qty) && qty>0 && qty<=2147483647 && (spec?.kind!=='rainbow' || (Number.isSafeInteger(spec.stonesPerStrip) && spec.stonesPerStrip>0 && qty%spec.stonesPerStrip===0)) && (spec?.kind!=='carat' || (Number.isSafeInteger(spec.pcsPerCt) && spec.pcsPerCt>0 && qty%spec.pcsPerCt===0));}
 
-export function quantityFactor(spec?:OrderSpecs|null){return spec?.kind==='rainbow'?spec.stonesPerStrip:1;}
+export function quantityFactor(spec?:OrderSpecs|null){return spec?.kind==='rainbow'?spec.stonesPerStrip:spec?.kind==='carat'?spec.pcsPerCt:1;}

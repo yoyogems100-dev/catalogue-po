@@ -425,7 +425,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                   />
                                 </label>
                               ) : (
-                                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind === 'rainbow' ? 'strips' : unitOf(item) || 'pcs'})</span>
+                                <label className="po-item-qty"><span>Qty ({item.orderSpecs?.kind === 'rainbow' ? 'strips' : item.orderSpecs?.kind === 'carat' ? 'ct' : unitOf(item) || 'pcs'})</span>
                                   <QuantityInput
                                     value={item.qty / quantityFactor(item.orderSpecs)}
                                     label={`Quantity for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}

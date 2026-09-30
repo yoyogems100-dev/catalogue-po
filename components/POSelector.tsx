@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
-import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
+import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,type OrderSpecs} from '@/lib/order-specs';
 import { useOrderPreferences } from './useOrderPreferences';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -30,7 +30,8 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
-type Size = { id: number; shape_id: number; size_mm: string };
+/** pcs_per_ct: set on sizes sold by carat (Moissanite melee) -- pieces in 1 ct. */
+type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
 
@@ -102,6 +103,9 @@ export default function POSelector({
   const undoCart = undo && undo.message === toast ? undo.cart : null;
   // Set when the buyer types something that isn't a whole number of pieces.
   const [qtyError, setQtyError] = useState(false);
+  // Weight in whole carats, for sizes sold by carat; pieces follow from it.
+  const [pickCt, setPickCt] = useState('');
+  const [ctError, setCtError] = useState(false);
 
   // POSelector isn't remounted when a customer client-side-navigates from one
   // category page to another (same component, new categoryId prop) -- without
@@ -115,6 +119,8 @@ export default function POSelector({
     setPickShapeIds([]);
     setPickColorIds([]);
     setPickSizeIdxs([]);
+    setPickCt('');
+    setCtError(false);
     const start = adminDefaultQty ? String(rememberedQty(categoryId) ?? adminDefaultQty) : '';
     setStartQty(start);
     setPickQty(start);
@@ -198,6 +204,34 @@ export default function POSelector({
   );
 
   const pickedRows = useMemo(() => pickedSizeRows(sizeGroups, pickSizeIdxs, pickShapeIds), [sizeGroups, pickSizeIdxs, pickShapeIds]);
+
+  // Sizes sold by carat are picked one at a time -- the weight and its pieces
+  // belong to that one size. Picking one replaces the other sizes; picking
+  // another size replaces it.
+  const isCaratSize = (idx: number) => !!sizeGroups[idx]?.rows.some((r) => r.pcs_per_ct && (!pickShapeIds.length || pickShapeIds.includes(r.shape_id)));
+  function pickSizes(next: number[]) {
+    const added = next.filter((i) => !pickSizeIdxs.includes(i));
+    if (added.length && (added.some(isCaratSize) || pickSizeIdxs.some(isCaratSize))) setPickSizeIdxs([added[added.length - 1]]);
+    else setPickSizeIdxs(next);
+  }
+  // Pieces in one carat for the one size being added, else null (pieces only).
+  const caratRate = pickedRows.length === 1 ? pickedRows[0].pcs_per_ct ?? null : null;
+  // Carats are whole: pieces round up to the next full carat, and the pieces
+  // box then shows that carat's pieces (130 at 62/ct -> 3 ct, 186 pcs).
+  function settlePieces(pcs: number, rate: number) {
+    const ct = caratsFor(pcs, rate);
+    setPickCt(ct ? String(ct) : '');
+    setCtError(false);
+    setPickQty(ct ? String(ct * rate) : '');
+  }
+  // A new carat size keeps the weight already entered and re-derives pieces.
+  useEffect(() => {
+    if (!caratRate) return;
+    const ct = parseQuantity(pickCt);
+    if (ct) setPickQty(String(ct * caratRate));
+    else { const pcs = parseQuantity(pickQty); if (pcs) settlePieces(pcs, caratRate); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caratRate]);
 
   // Quality grade, for categories that offer one inside the category (Ruby
   // Corundum 5A / 7A). Starts on the buyer's usual grade for this category,
@@ -351,6 +385,8 @@ export default function POSelector({
     setPickShapeIds([]);
     setPickSizeIdxs([]);
     if (categoryId !== 34) setPickColorIds([]);
+    setPickCt('');
+    setCtError(false);
     setPickQty(startQty);
     setQtyError(false);
     setPickRequestType('Place Order');
@@ -364,6 +400,8 @@ export default function POSelector({
 
     let next = cart;
     let added = 0;
+    // By carat: always a whole number of carats' worth of pieces.
+    const lineQty = caratRate ? caratsFor(qtyNum, caratRate) * caratRate : qtyNum;
 
     for (const shapeId of pickShapeIds) {
       const shape = shapes.find((s) => s.id === shapeId);
@@ -389,10 +427,11 @@ export default function POSelector({
             colorName: color.name,
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
-            qty: qtyNum,
+            qty: lineQty,
             qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
-            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
+            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {}),
+            ...(caratRate && lineQty > 0 ? { orderSpecs: caratSpec(caratRate) } : {})
           };
           next = mergeIntoCart(next, item);
           added++;
@@ -443,6 +482,8 @@ export default function POSelector({
     // primary action, and a quotation is a deliberate per-line choice rather
     // than a mode the buyer should stay stuck in.
     setPickSizeIdxs([]);
+    setPickCt('');
+    setCtError(false);
     // With a default, the number just used becomes this buyer's starting
     // point here -- now and on later visits -- and stays in the box for the
     // next shape. Otherwise the box empties as before.
@@ -532,7 +573,7 @@ export default function POSelector({
               optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
-              onChange={setPickSizeIdxs}
+              onChange={pickSizes}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
               locked={pickShapeIds.length > 0 && sizeOptions.length === 1}
@@ -546,6 +587,33 @@ export default function POSelector({
             />
                       </div>
           {allowedBySize && colorField}
+          {caratRate && (
+            <div>
+              <label className="po-label" htmlFor="po-new-carats">Weight (ct)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="po-qty-input"
+                id="po-new-carats"
+                placeholder="e.g. 2"
+                value={pickCt}
+                aria-invalid={ctError || undefined}
+                aria-describedby={ctError ? 'po-new-carats-error' : 'po-new-carats-rate'}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPickCt(v);
+                  const bad = !/^\d*$/.test(v.trim());
+                  setCtError(bad);
+                  const ct = parseQuantity(v);
+                  if (!bad) setPickQty(ct ? String(ct * caratRate) : '');
+                  setQtyError(false);
+                }}
+              />
+              {ctError
+                ? <p className="po-field-error" id="po-new-carats-error" role="alert">Whole carats only — e.g. 2.</p>
+                : <p className="po-carat-rate" id="po-new-carats-rate">1ct = ~{caratRate} pcs</p>}
+            </div>
+          )}
           <div>
             <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty per line (pcs)'}</label>
             <input
@@ -565,6 +633,7 @@ export default function POSelector({
                 setPickQty(v);
                 setQtyError(!/^\d*$/.test(v.trim()));
               }}
+              onBlur={() => { if (caratRate && qtyNum > 0) settlePieces(qtyNum, caratRate); }}
             />
             {qtyError && <p className="po-field-error" id="po-new-quantity-error" role="alert">{quantityField?.label ? `Whole numbers only — e.g. ${adminDefaultQty || 5}.` : 'Whole pieces only — enter a number like 500.'}</p>}
           </div>
