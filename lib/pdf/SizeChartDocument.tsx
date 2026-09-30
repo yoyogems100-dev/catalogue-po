@@ -31,26 +31,28 @@ const css = StyleSheet.create({
   titleBlock: { alignItems: 'flex-end' },
   title: { fontSize: 14, fontFamily: 'Helvetica-Bold' },
   category: { marginTop: 3, color: '#62666d', fontSize: 8.5 },
-  legend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9, paddingVertical: 5, paddingHorizontal: 8, backgroundColor: '#f3efe4', color: '#62666d', fontSize: 6.7 },
+  legend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 3, backgroundColor: '#FAF8F3', color: '#6b6451', fontSize: 6.7 },
   // Shape cards flow in two columns and are only as tall as their sizes;
   // a shape with many sizes (Round) spans the page in four columns.
   segment: { flexDirection: 'row', gap: GAP, marginBottom: GAP },
   stack: { width: HALF, flexDirection: 'column', gap: GAP },
-  card: { borderWidth: .8, borderColor: '#b9c1cc', backgroundColor: '#fff', marginBottom: GAP },
-  cardInStack: { borderWidth: .8, borderColor: '#b9c1cc', backgroundColor: '#fff' },
-  cardHead: { height: HEAD_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 7, backgroundColor: '#e5edf6', borderBottomWidth: .8, borderBottomColor: '#b9c1cc' },
-  image: { width: 27, height: 27, objectFit: 'contain', marginRight: 8 },
-  name: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 10 },
-  count: { color: '#62666d', fontSize: 6.4 },
-  columnsHead: { height: COLHEAD_H, flexDirection: 'row', backgroundColor: '#12233f' },
-  columnHead: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, color: '#fff', fontFamily: 'Helvetica-Bold', fontSize: 5.8, letterSpacing: .4 },
+  card: { borderWidth: .6, borderColor: '#d5dae2', borderTopWidth: 2, borderTopColor: '#9C7A25', borderRadius: 3, backgroundColor: '#fff', marginBottom: GAP },
+  cardInStack: { borderWidth: .6, borderColor: '#d5dae2', borderTopWidth: 2, borderTopColor: '#9C7A25', borderRadius: 3, backgroundColor: '#fff' },
+  cardHead: { height: HEAD_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: '#FAF8F3', borderBottomWidth: .6, borderBottomColor: '#e6dfcc' },
+  imageRing: { width: 26, height: 26, borderRadius: 13, marginRight: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: .6, borderColor: '#e6dfcc' },
+  image: { width: 21, height: 21, objectFit: 'contain' },
+  name: { flex: 1, fontFamily: 'Times-Bold', fontSize: 12.5, color: '#1B3A6B', letterSpacing: .2 },
+  count: { color: '#9C7A25', fontSize: 6.2, letterSpacing: .6 },
+  columnsHead: { height: COLHEAD_H, flexDirection: 'row', borderBottomWidth: .6, borderBottomColor: '#1B3A6B' },
+  columnHead: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 7, color: '#6b7280', fontFamily: 'Helvetica-Bold', fontSize: 5.4, letterSpacing: .8 },
   columns: { flexDirection: 'row' },
-  column: { flex: 1, borderRightWidth: .45, borderRightColor: '#d6dbe2' },
-  cell: { height: ROW_H, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 6, borderBottomWidth: .35, borderBottomColor: '#d6dbe2' },
-  cellAlt: { backgroundColor: '#f7f9fb' },
-  size: { fontFamily: 'Helvetica-Bold', fontSize: 6.9 },
-  meta: { color: '#62666d', fontSize: 6.2, textAlign: 'right' },
-  dash: { color: '#b9c1cc', fontSize: 6.2, textAlign: 'right' },
+  column: { flex: 1, borderRightWidth: .4, borderRightColor: '#e3e7ec' },
+  cell: { height: ROW_H, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 7 },
+  cellAlt: { backgroundColor: '#f6f7f9' },
+  size: { fontFamily: 'Helvetica-Bold', fontSize: 7, color: '#12233F' },
+  meta: { color: '#5b616b', fontSize: 6.3, textAlign: 'right' },
+  carat: { color: '#9C7A25', fontFamily: 'Helvetica-Bold', fontSize: 6.2, textAlign: 'right' },
+  dash: { color: '#c3c8cf', fontSize: 6.3, textAlign: 'right' },
   price: { color: '#8b702a', fontFamily: 'Helvetica-Bold', fontSize: 6.3, textAlign: 'right' },
   footer: { position: 'absolute', bottom: 18, left: 26, right: 26, flexDirection: 'row', justifyContent: 'space-between', paddingTop: 7, borderTopWidth: .5, borderTopColor: '#c8cdd5', color: '#62666d', fontSize: 6.8 },
   colorIntro: { marginBottom: 12, color: '#62666d', fontSize: 8.2, lineHeight: 1.35 },
@@ -64,6 +66,13 @@ const css = StyleSheet.create({
 
 function formatDew(value: number): string {
   return `${value.toFixed(value < .1 ? 3 : 2).replace(/0+$/, '').replace(/\.$/, '')} ct`;
+}
+
+// What the right-hand figure in a column is: DEW, pieces per carat (melee), or both.
+function valueHeading(rows: SizeChartSection['rows'], includePrices: boolean): string {
+  if (includePrices) return 'PRICE';
+  const carat = rows.filter((r) => r.pcsPerCt).length;
+  return carat === 0 ? 'DEW' : carat === rows.length ? 'PCS PER CT' : 'DEW / PCS PER CT';
 }
 
 type Card = { section: SizeChartSection; full: boolean; columns: number; height: number };
@@ -123,14 +132,14 @@ function ShapeCard({ card, includePrices, showName, inStack }: { card: Card; inc
   return (
     <View style={inStack ? css.cardInStack : css.card} wrap={false}>
       <View style={css.cardHead}>
-        {section.image && <Image src={section.image} style={css.image} />}
+        {section.image && <View style={css.imageRing}><Image src={section.image} style={css.image} /></View>}
         {/* With one shape in the whole chart the name says nothing the photo
             beside it doesn't -- for round-only categories it is just "Round". */}
         <Text style={css.name}>{showName ? (section.name === 'Cushion Elongated' ? 'Long cushion' : section.name) : ''}</Text>
-        <Text style={css.count}>{section.rows.length} {section.rows.length === 1 ? 'size' : 'sizes'}</Text>
+        <Text style={css.count}>{section.rows.length} {section.rows.length === 1 ? 'SIZE' : 'SIZES'}</Text>
       </View>
       <View style={css.columnsHead}>
-        {columns.map((_, i) => <View key={i} style={css.columnHead}><Text>SIZE (MM)</Text><Text>{includePrices ? 'PRICE' : 'DEW'}</Text></View>)}
+        {columns.map((column, i) => <View key={i} style={css.columnHead}><Text>SIZE (MM)</Text><Text>{valueHeading(column, includePrices)}</Text></View>)}
       </View>
       <View style={css.columns}>
         {columns.map((column, columnIndex) => (
@@ -141,7 +150,7 @@ function ShapeCard({ card, includePrices, showName, inStack }: { card: Card; inc
                 {includePrices
                   ? <Text style={css.price}>{row.priceInr == null ? 'On request' : row.priceInr.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text>
                   : row.pcsPerCt
-                  ? <Text style={css.meta}>1ct = ~{row.pcsPerCt} pcs</Text>
+                  ? <Text style={css.carat}>1ct = ~{row.pcsPerCt} pcs</Text>
                   : row.diamondEquivalentCt === null
                   ? <Text style={css.dash}>–</Text>
                   : <Text style={css.meta}>{formatDew(row.diamondEquivalentCt)}</Text>}
