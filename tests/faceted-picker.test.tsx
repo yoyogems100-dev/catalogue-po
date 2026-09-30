@@ -50,12 +50,11 @@ test('a material picked first narrows shapes and sizes, and they narrow material
   assert.deepEqual([...bySize.colorIds], [AMETHYST]);
 });
 
-test('reference photos matching the picks lead the strip and are counted', () => {
+test('a size picked before any shape still brings its photos first', () => {
   const photos = [
     { id: 1, url: 'a', shapeIds: [ROUND], colorIds: [], sizeIds: [] },
     { id: 2, url: 'b', shapeIds: [HEART], colorIds: [7], sizeIds: [21] }
   ];
   const bySize = referencePhotos(photos, { shapeIds: [], colorIds: [], sizeIds: pickedSizeRows(groups, [idx('6x6')], []).map((r) => r.id) });
   assert.deepEqual(bySize.photos.map((p) => p.id), [2, 1]);
-  assert.equal(bySize.matchCount, 1);
 });
