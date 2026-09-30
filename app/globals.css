@@ -2686,3 +2686,22 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .admin-password-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .admin-password-value { font-size: 15px; padding: 8px 12px; background: var(--ivory, #FAF8F3); border: 0.5px solid var(--line); border-radius: 6px; min-width: 150px; letter-spacing: 0.5px; user-select: all; }
 .admin-password-row .btn-ghost { min-height: 38px; }
+
+/* Checkout: inside a category, lines sit under the shape (or colour) they
+   were chosen for -- "Oval" with its materials, then "Heart" with its own. */
+.po-line-group { display: flex; flex-direction: column; gap: 6px; }
+.po-line-group + .po-line-group { margin-top: 10px; }
+.po-line-group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 2px 2px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.po-line-group-head .requirement-stone { width: 26px; height: 26px; flex: none; }
+.po-line-group-head .requirement-stone img { width: 26px; height: 26px; object-fit: contain; }
+.po-line-group-head strong {
+  flex: 1; min-width: 0; color: #fff;
+  font-family: var(--font-sans), 'Jost', sans-serif; font-size: 13.5px; font-weight: 600;
+}
+.po-line-group-head span {
+  color: rgba(255,255,255,.5);
+  font-family: var(--font-mono), 'JetBrains Mono', monospace; font-size: 9.5px; white-space: nowrap;
+}

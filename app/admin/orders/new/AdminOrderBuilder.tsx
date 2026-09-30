@@ -344,7 +344,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               options={shapeOptions}
               values={pickShapeIds}
               onChange={setPickShapeIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickColorIds.length === 0}
               placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
               leading="icon"
               disabledIds={incompatibleShapes}
@@ -361,7 +361,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               locked={pickCategoryId === 34}
               values={pickColorIds}
               onChange={setPickColorIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickShapeIds.length === 0}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"
             />

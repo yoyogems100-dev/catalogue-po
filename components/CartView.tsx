@@ -16,6 +16,7 @@ import {
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
+import { groupLines, type LineGroupBy } from '@/lib/cart-grouping';
 
 // Glass Pearls is always Round and never shows the shape to the customer, so
 // the colour -- the thing that actually varies -- is the meaningful image.
@@ -266,6 +267,18 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     );
   }
 
+  // The confirm step lists lines in the same order as the page: category, then
+  // the shape or colour they were chosen under.
+  function reviewLines(): { item: CartItem; heading: string }[] {
+    const byCategory = new Map<number, CartItem[]>();
+    for (const item of [...cart].reverse()) byCategory.set(item.categoryId, [...(byCategory.get(item.categoryId) || []), item]);
+    return [...byCategory.values()].flatMap((items) => {
+      const category = categoryLabel(items[0]);
+      if (items[0].categoryId === GLASS_PEARLS_CATEGORY_ID) return items.map((item) => ({ item, heading: category }));
+      return groupLines(items).flatMap((g) => g.items.map((item) => ({ item, heading: `${category} · ${g.name}` })));
+    });
+  }
+
   if (!hydrated) return <div className="po-empty po-cart-loading">Loading your requirement…</div>;
 
   if (cart.length === 0 && !receipt) {
@@ -355,7 +368,22 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                         );
                       })()}
                       <div className="po-item-list" hidden={!!collapsed[`${group.type}:${catGroup.categoryId}`]}>
-                        {catGroup.items.map((item) => {
+                        {(catGroup.categoryId === GLASS_PEARLS_CATEGORY_ID
+                          ? [{ by: null, id: 0, name: '', items: catGroup.items }]
+                          : groupLines(catGroup.items)
+                        ).map((lineGroup) => (
+                        <div className="po-line-group" key={`${lineGroup.by}:${lineGroup.id}`}>
+                          {lineGroup.by && (
+                            <div className="po-line-group-head">
+                              {lineGroup.by === 'shape'
+                                ? <StoneReference item={lineGroup.items[0]} />
+                                : <ColorSwatch hex={lineGroup.items[0].colorHex} refPhotoUrl={lineGroup.items[0].colorRefPhotoUrl} name={lineGroup.name} size={18} />}
+                              <strong>{lineGroup.name}</strong>
+                              <span>{lineGroup.items.length} {lineGroup.items.length === 1 ? 'line' : 'lines'}</span>
+                            </div>
+                          )}
+                        {lineGroup.items.map((item) => {
+                          const groupedBy: LineGroupBy | null = lineGroup.by;
                           const unit = unitPriceInr(item);
                           const canEdit = !!optionsByCategory[item.categoryId] && !item.orderSpecs;
                           return (
@@ -363,7 +391,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                               <StoneReference item={item} />
                               <div className="po-item-details">
                                 <strong>
-                                  {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}
+                                  {item.categoryId !== GLASS_PEARLS_CATEGORY_ID && groupedBy !== 'shape' && `${item.shapeName} · `}
                                   {canEdit && item.sizeId
                                     ? <button type="button" className="po-item-option-link" onClick={() => setEditingOption({ itemId: item.id, kind: 'size', values: [item.sizeId!] })}>{item.sizeMm}mm</button>
                                     : `${item.sizeMm}mm`}
@@ -422,6 +450,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                             </div>
                           );
                         })}
+                        </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -482,8 +512,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         onClose={() => setReviewing(false)} onCancel={() => setReviewing(false)}>
         <h2 id="order-review-title">Confirm your requirement</h2>
         <p>{cart.length} {cart.length === 1 ? 'item' : 'items'} · {formatQtyTotals(cart.map((item) => ({ qty: item.qty, unit: unitOf(item) })))}</p>
-        <ul className="order-review-lines">{[...cart].reverse().map((item) => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{categoryLabel(item)}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
+        <ul className="order-review-lines">{reviewLines().map(({ item, heading }) => <li key={item.id}><StoneReference item={item} /><div>
+          <strong>{heading}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
           {item.qty > 0 ? formatQty(item.qty, unitOf(item) || 'pieces') : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
         </div></li>)}</ul>
         {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{formatRupees(cartTotalInr)}</p>}

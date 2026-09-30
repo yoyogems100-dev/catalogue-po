@@ -412,7 +412,7 @@ export default function OrderDetailClient({
                     locked={pickCategoryId === 34}
                     values={pickColorIds}
                     onChange={setPickColorIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickShapeIds.length === 0}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
                     leading="swatch"
                   />
@@ -425,7 +425,7 @@ export default function OrderDetailClient({
                     options={shapeOptions}
                     values={pickShapeIds}
                     onChange={setPickShapeIds}
-              closeOnFirstPick
+              closeOnFirstPick={pickColorIds.length === 0}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
                     leading="icon"
                     disabledIds={incompatibleShapes}
