@@ -14,12 +14,18 @@ test('the marketing website is public while the catalogue stays private', async 
   process.env.ADMIN_SESSION_SECRET = 'test-only-secret-not-used-by-any-deployment';
   try {
     for (const path of ['/', '/products', '/products/cz', '/products/cz/white-cz', '/charts', '/charts/grades', '/about', '/quality',
-      '/how-to-order', '/request-catalogue', '/faq', '/contact', '/api/site/lead']) {
+      '/how-to-order', '/request-catalogue', '/faq', '/contact', '/privacy', '/api/site/lead']) {
       assert.equal((await get(path)).status, 200, `${path} should be public`);
     }
-    // Look-alike paths are not swept in by the prefix match.
-    assert.notEqual((await get('/productsx')).status, 200);
+    // A mistyped or old website address reaches the site's own 404 page
+    // instead of being bounced to the trade sign-in screen.
+    for (const path of ['/productsx', '/terms', '/does-not-exist']) {
+      assert.equal((await get(path)).status, 200, `${path} should reach the site's not-found page`);
+    }
+    // Look-alike paths inside the private app are not swept in by the prefix match.
     assert.notEqual((await get('/api/site-admin')).status, 200);
+    assert.equal((await get('/po/anything')).status, 307);
+    assert.equal((await get('/admin-anything')).status, 200, 'not under /admin/, so it is just a missing site page');
     // The catalogue and admin are still behind sign-in.
     assert.equal((await get('/po')).status, 307);
     assert.equal((await get('/admin/site')).status, 307);

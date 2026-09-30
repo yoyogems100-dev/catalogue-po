@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { ChoiceGroup } from '@/lib/site/lead-choices';
 import { Arrow, WhatsApp } from './icons';
@@ -89,8 +90,10 @@ export default function RequestForm({ groups, copy, whatsapp }: { groups: Choice
 
   const invalid = (name: string) => (error?.field === name ? { 'aria-invalid': true, 'aria-describedby': 'form-error' } : {});
 
+  // POST, not the default GET: a tap before the script loads would otherwise
+  // put the name and phone number in the address bar and server logs.
   return (
-    <form ref={formRef} className={p.formPanel} onSubmit={submit}>
+    <form ref={formRef} className={p.formPanel} onSubmit={submit} method="post">
       <div className={p.formField}>
         <label htmlFor="rq-name">Name</label>
         <input id="rq-name" name="name" type="text" autoComplete="name" required minLength={2} maxLength={80} {...invalid('name')} />
@@ -142,7 +145,7 @@ export default function RequestForm({ groups, copy, whatsapp }: { groups: Choice
       <button type="submit" className={`${s.btn} ${p.formSubmit}`} disabled={state === 'sending'}>
         {state === 'sending' ? 'Sending…' : <>{copy.button} <Arrow /></>}
       </button>
-      {copy.privacy && <p className={p.formSmall}>{copy.privacy}</p>}
+      <p className={p.formSmall}>{copy.privacy ? `${copy.privacy} ` : ''}<Link href="/privacy">Privacy policy</Link></p>
     </form>
   );
 }

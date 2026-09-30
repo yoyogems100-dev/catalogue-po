@@ -62,6 +62,7 @@ export default function SiteFooter({ global, categories, autoPopular = [], showC
         <div className={s.footerBottom}>
           <span>© {new Date().getFullYear()} YOYO GEMS®. {global.footer?.legal}</span>
           {c.gst_note && <span>{c.gst_note}</span>}
+          <Link href="/privacy">Privacy policy</Link>
         </div>
       </div>
     </footer>
