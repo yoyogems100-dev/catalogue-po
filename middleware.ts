@@ -69,6 +69,8 @@ const PUBLIC_PATHS = new Set([
   '/api/admin-logout',
   '/api/account/otp/request',
   '/api/account/otp/verify',
+  '/api/account/password/login',
+  '/api/account/password/reset',
   '/api/account/email/request',
   '/api/account/email/verify',
   '/api/account/logout',

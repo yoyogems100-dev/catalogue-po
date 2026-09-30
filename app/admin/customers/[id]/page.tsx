@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import CustomerProfileEditor from './CustomerProfileEditor';
 import CustomerColourSetup from './CustomerColourSetup';
+import CustomerPasswordPanel from './CustomerPasswordPanel';
+import { getCredentials } from '@/lib/customer-credentials';
 import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons, sanitizeColorButtons } from '@/lib/color-family';
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences, sanitizePreferences } from '@/lib/customer-preferences';
 import CategoryChips from '@/components/admin/CategoryChips';
@@ -13,10 +15,14 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const customerId = Number((await params).id);
   const requested = (await searchParams).tab;
   const tab = requested === 'orders' || requested === 'colours' ? requested : 'details';
-  const [{ data: customer }, { data: orders }] = await Promise.all([
+  const [{ data: customer }, { data: orders }, creds] = await Promise.all([
     supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle(),
     supabaseAdmin.from('orders').select('id,status,payment_status,request_type,created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
+    getCredentials(customerId),
   ]);
+  // Only whether a password exists and when -- the password itself is fetched
+  // by the panel's Show button, so it is never part of this page.
+  const passwordStatus = { hasPassword: !!creds, setAt: creds?.set_at ?? null, setBy: creds?.set_by ?? null };
   if (!customer) return <p>Customer not found. <Link href="/admin/customers">Back to customers</Link></p>;
 
   const orderIds = (orders || []).map((order: any) => order.id);
@@ -45,7 +51,10 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
       <Link href={`/admin/customers/${customerId}?tab=orders`} className={`tag-chip ${tab === 'orders' ? 'active' : ''}`} aria-current={tab === 'orders' ? 'page' : undefined}>Order history ({orders?.length || 0})</Link>
     </nav>
     {tab === 'details' ? (
-      <CustomerProfileEditor customer={customer} />
+      <>
+        <CustomerProfileEditor customer={customer} />
+        <CustomerPasswordPanel customerId={customer.id} phone={customer.phone} status={passwordStatus} />
+      </>
     ) : tab === 'colours' ? (
       <CustomerColourSetup
         customerId={customer.id}

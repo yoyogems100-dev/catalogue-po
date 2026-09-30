@@ -5,6 +5,8 @@ import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
 import ProfileEditForm from '@/components/ProfileEditForm';
+import PasswordSettings from '@/components/PasswordSettings';
+import { getCredentials } from '@/lib/customer-credentials';
 
 export const metadata = { title: 'My Info — YOYO GEMS' };
 
@@ -13,7 +15,10 @@ export default async function ProfilePage() {
   if (!customerId) redirect('/po/account/login');
 
   // '*' so the page still opens if order_preferences hasn't been migrated yet.
-  const { data: row } = await supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle();
+  const [{ data: row }, creds] = await Promise.all([
+    supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle(),
+    getCredentials(customerId)
+  ]);
 
   if (!row) redirect('/po/account/login');
   const customer = {
@@ -35,6 +40,7 @@ export default async function ProfilePage() {
         <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 6px' }}>My Info</h1>
         <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 20 }}>Everything you told us when you signed up -- edit any of it except your phone number.</p>
         <ProfileEditForm customer={customer} />
+        <PasswordSettings phone={row.phone} hasPassword={!!creds} />
       </div>
     </>
   );
