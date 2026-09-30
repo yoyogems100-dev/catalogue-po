@@ -111,7 +111,7 @@ export const WORKSPACES: Workspace[] = [
         title: '/po page setup',
         links: [
           { href: '/admin/content', label: '/po setup home' },
-          { href: '/admin/content/most-ordered', label: 'Most ordered', detail: 'The categories shown first on the /po home page, in order.' },
+          { href: '/admin/content/home-sections', label: 'Home page sections', detail: 'Shelves like Most ordered and New in: which categories, and in what order.' },
           { href: '/admin/catalogue-map', label: 'Colour buttons & map', detail: 'Colour buttons buyers see and the stone each opens; stones by colour, size and material.' },
           { href: '/admin/brand-upload', label: 'Header logo', detail: 'The logo in the /po header.' }
         ]
