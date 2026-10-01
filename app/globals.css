@@ -2785,7 +2785,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-add { min-height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--navy); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .po-sheet-add:disabled { opacity: .5; cursor: default; }
 .po-sheet-help, .po-sheet-error { margin: 6px 2px 0; font-size: 11.5px; color: var(--text-dim); }
-.po-sheet-help { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-sheet-help { line-height: 1.4; }
 .po-sheet-error { color: #b3261e; font-weight: 600; }
 
 .category-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

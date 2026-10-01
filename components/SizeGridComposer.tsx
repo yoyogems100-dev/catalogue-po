@@ -374,7 +374,7 @@ export default function SizeGridComposer({
                 {mixedUnits
                   ? 'Sizes under 3 mm are in ct and the rest in pcs — add them separately'
                   : draftSizes.length > 1
-                  ? 'Add one common quantity — change any size/qty later.'
+                  ? 'Add a common qty — you can also add/update size/qty later.'
                   : 'Pick sizes with the same quantity — change any later.'}
               </p>}
         </div>
