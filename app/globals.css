@@ -2364,6 +2364,38 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .photo-select-bar .btn, .photo-select-bar .btn-ghost, .photo-select-bar .btn-danger { font-size: 12px; padding: 7px 12px; }
 .photo-select-sep { width: 1px; align-self: stretch; background: var(--line); }
 @media (max-width: 640px) { .photo-select-sep { display: none; } .photo-select-bar { max-height: 70vh; overflow-y: auto; } }
+/* Admin: jump to the bottom / back to the top of long pages. */
+.admin-scroll-jump { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 55; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--navy); background: #fff; color: var(--navy); box-shadow: 0 4px 14px rgb(18 35 63 / 18%); cursor: pointer; }
+.admin-scroll-jump:hover { background: var(--navy); color: #fff; }
+/* Sits above the phone Select footer instead of on top of its buttons. */
+body:has(.photo-select-footer) .admin-scroll-jump { bottom: calc(84px + env(safe-area-inset-bottom)); }
+body:has(.photo-select-sheet) .admin-scroll-jump { display: none; }
+/* Admin notices (#64) sit above the footer rather than over its buttons. */
+body:has(.photo-select-footer) .admin-toasts { bottom: calc(84px + env(safe-area-inset-bottom)); }
+/* Long-press to select (phones) and tap-to-tick in Select mode. */
+.admin-photo-media.is-pressable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.admin-photo-media.is-selected { box-shadow: inset 0 0 0 3px var(--navy); }
+.admin-photo-media.is-selected img { opacity: .82; }
+.admin-photo-grid.is-selecting .admin-photo-media { cursor: pointer; }
+/* Phone footer while selecting: count, Add tag, Done -- and the tag sheet above it. */
+.photo-select-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: #fff; border-top: 1px solid var(--navy); box-shadow: 0 -6px 18px rgb(18 35 63 / 14%); padding-bottom: env(safe-area-inset-bottom); }
+.photo-select-footer-bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+.photo-select-footer-bar .btn, .photo-select-footer-bar .btn-ghost { min-height: 44px; padding: 0 16px; font-size: 13px; }
+.photo-select-footer-count { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; color: var(--ink); }
+.photo-select-sheet { max-height: 62vh; overflow-y: auto; padding: 12px 12px 4px; border-bottom: 1px solid var(--line); }
+.photo-select-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+.photo-select-sheet .photo-bulk-tags { border-top: 0; padding-top: 0; }
+/* Inside the scrolling sheet a floating dropdown would be clipped at the
+   sheet's edge, so its list opens in place and pushes the rest down. */
+.photo-select-sheet .ms-panel, .photo-select-sheet .icon-select-panel {
+  /* !important: the dropdown sets its own placement inline. */
+  position: static !important; width: auto !important; max-height: 240px !important; transform: none !important; margin-top: 4px; border-top: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .admin-photo-grid.is-selecting { padding-bottom: 88px; }
+  /* The footer carries Add tag and Done, so the top bar stays short. */
+  .photo-select-bar { max-height: none; overflow: visible; }
+}
 .photo-upload-tags { margin: 0 0 10px; }
 .photo-upload-tags summary { cursor: pointer; font-size: 12.5px; color: var(--navy); padding: 6px 0; }
 .photo-upload-tags[open] summary { margin-bottom: 8px; }
