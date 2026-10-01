@@ -253,7 +253,6 @@ export default function SizeGridComposer({
       {shape && (
         <div className="po-grid-sheet">
           <div className="po-grid-sheet-head">
-            <strong>Pick the sizes you need for {shape.name} shape</strong>
             <span>{shapeSizes.some((s) => s.pcs_per_ct) ? 'Under 3 mm in ct · 3 mm and above in pcs' : 'Quantity in pcs'}</span>
           </div>
 
