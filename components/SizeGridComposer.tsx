@@ -71,16 +71,9 @@ export default function SizeGridComposer({
   const [sizeText, setSizeText] = useState('');
   const [amountText, setAmountText] = useState('');
   const [error, setError] = useState('');
-  // The size panel: opens from the size box and stays open while sizes are
-  // ticked (a tap on a phone blurs the box), closing on a tap elsewhere.
+  // The size panel opens from the size box and stays open -- tick sizes, type
+  // one quantity, Add, tick the next set -- until Done.
   const [panelOpen, setPanelOpen] = useState(false);
-  const entryRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!panelOpen) return;
-    const close = (e: PointerEvent) => { if (!entryRef.current?.contains(e.target as Node)) setPanelOpen(false); };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [panelOpen]);
   // Sizes ticked in the size panel, to take one quantity together.
   const [picked, setPicked] = useState<number[]>([]);
   // The last amount entered per unit, repeated when the amount is left empty.
@@ -117,28 +110,42 @@ export default function SizeGridComposer({
   // the panel.
   const pickedSizes = shapeSizes.filter((s) => picked.includes(s.id));
   const draft = useMemo(
-    () => (picked.length || !sizeText.trim() ? null : resolveSizes(shapeSizes, sizeText)),
-    [shapeSizes, sizeText, picked.length]
+    () => (picked.length || panelOpen || !sizeText.trim() ? null : resolveSizes(shapeSizes, sizeText)),
+    [shapeSizes, sizeText, picked.length, panelOpen]
   );
   const draftSizes = picked.length ? pickedSizes : draft && 'sizes' in draft ? draft.sizes : [];
   const mixedUnits = draftSizes.length > 0 && !draftSizes.every((s) => unitOf(s) === unitOf(draftSizes[0]));
   const draftUnit = draftSizes.length && !mixedUnits ? unitOf(draftSizes[0]) : null;
   const repeat = draftUnit ? last[draftUnit] : undefined;
-  const suggestions = useMemo(() => {
-    if (!panelOpen) return [];
-    if (!sizeText.trim()) return shapeSizes;
-    if (picked.length) return suggestSizes(shapeSizes, sizeText, 200);
-    const hits = suggestSizes(shapeSizes, sizeText, 200);
-    // Nothing to offer once the box already holds exactly that one size.
-    return hits.length === 1 && draftSizes.length === 1 && hits[0].id === draftSizes[0].id ? [] : hits;
-  }, [panelOpen, sizeText, shapeSizes, draftSizes, picked.length]);
+  // The panel's sizes, narrowed by whatever is typed in the size box.
+  const suggestions = useMemo(
+    () => (sizeText.trim() ? suggestSizes(shapeSizes, sizeText, 200) : shapeSizes),
+    [sizeText, shapeSizes]
+  );
+  const split = new Set(shapeSizes.map(unitOf)).size > 1;
+
+  // Select all / Unselect all for one group (one unit), leaving other units' picks off.
+  function selectGroup(group: GridSize[]) {
+    const ids = group.map((s) => s.id);
+    const all = ids.length > 0 && ids.every((id) => picked.includes(id));
+    const unit = group[0] ? unitOf(group[0]) : null;
+    setPicked((cur) => all
+      ? cur.filter((id) => !ids.includes(id))
+      : [...new Set([...cur.filter((id) => { const s = shapeSizes.find((z) => z.id === id); return s && unitOf(s) === unit; }), ...ids])]);
+    setError('');
+  }
+  function closePanel() {
+    setPanelOpen(false);
+    setPicked([]);
+    setSizeText('');
+    setError('');
+  }
 
   function togglePick(id: number) {
     const unit = unitOf(shapeSizes.find((s) => s.id === id)!);
     // A size in the other unit starts a new pick: ct and pcs never share an amount.
     setPicked((cur) => (cur.includes(id) ? cur.filter((p) => p !== id)
       : [...cur.filter((p) => { const s = shapeSizes.find((z) => z.id === p); return s && unitOf(s) === unit; }), id]));
-    setSizeText('');
     setError('');
   }
 
@@ -153,6 +160,7 @@ export default function SizeGridComposer({
 
   function addDraft() {
     if (!picked.length) {
+      if (panelOpen) { setError('Pick sizes first'); return; }
       if (!sizeText.trim()) { sizeInput.current?.focus(); return; }
       if (!draft || 'error' in draft) { setError(draft && 'error' in draft ? draft.error : 'Type a size'); sizeInput.current?.focus(); return; }
     }
@@ -170,29 +178,50 @@ export default function SizeGridComposer({
     setAmountText('');
     setPicked([]);
     setError('');
-    // Ready for the next line, without the size panel covering the page.
-    sizeInput.current?.focus();
-    setPanelOpen(false);
+    // In the panel the next set of sizes is a tap away; typing goes back to the size box.
+    if (panelOpen) amountInput.current?.blur();
+    else sizeInput.current?.focus();
   }
 
   function onSizeKey(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Escape') { setPanelOpen(false); return; }
+    if (e.key === 'Escape') { closePanel(); return; }
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    if (picked.length) {
-      // Filtering the ticked list: Enter ticks the one match, else moves on.
-      if (sizeText.trim() && suggestions.length === 1) { togglePick(suggestions[0].id); return; }
-      setPanelOpen(false);
-      amountInput.current?.focus();
-      return;
-    }
-    // A partly typed size with one match takes it, like picking from a list.
-    if (draftSizes.length === 0 && suggestions.length === 1) setSizeText(suggestions[0].size_mm);
-    else if (!draft || 'error' in draft) { if (draft && 'error' in draft) setError(draft.error); return; }
-    setError('');
-    setPanelOpen(false);
+    // In the panel, typing finds sizes: Enter ticks the one match (or each
+    // size of a typed list or range), then the quantity is next.
+    const typed = sizeText.trim() ? resolveSizes(shapeSizes, sizeText) : null;
+    const hits = typed && 'sizes' in typed ? typed.sizes : suggestions.length === 1 ? suggestions : [];
+    if (hits.length) {
+      hits.forEach((s) => { if (!picked.includes(s.id)) togglePick(s.id); });
+      setSizeText('');
+      setError('');
+    } else if (sizeText.trim()) { setError(typed && 'error' in typed ? typed.error : 'No such size'); return; }
     amountInput.current?.focus();
   }
+
+  const qtyControls = (
+    <>
+      <span className="po-sheet-amount">
+        <input
+          ref={amountInput}
+          className="po-sheet-input"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          enterKeyHint="done"
+          placeholder={repeat ? String(repeat) : 'Qty'}
+          aria-label={`Quantity${draftUnit ? ` (${draftUnit})` : ''}`}
+          value={amountText}
+          onChange={(e) => { setAmountText(e.target.value); setError(''); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraft(); } }}
+        />
+        <span className="po-sheet-unit">{draftUnit || ''}</span>
+      </span>
+      <button type="button" className="po-sheet-add" onClick={addDraft} disabled={panelOpen && !picked.length}>
+        {panelOpen && picked.length > 1 ? `Add ${picked.length}` : 'Add'}
+      </button>
+    </>
+  );
 
   return (
     <div className="po-grid">
@@ -223,7 +252,9 @@ export default function SizeGridComposer({
             <span>{shapeSizes.some((s) => s.pcs_per_ct) ? 'Under 3 mm in ct · 3 mm and above in pcs' : 'Quantity in pcs'}</span>
           </div>
 
-          {rows.length > 0 && (
+          {/* While the panel is open its buttons show each quantity; the rows
+              come back for editing after Done, so the panel never drifts down. */}
+          {rows.length > 0 && !panelOpen && (
             <ul className="po-sheet-rows">
               {rows.map((s) => {
                 const raw = entries[s.id] || '';
@@ -253,103 +284,80 @@ export default function SizeGridComposer({
             </ul>
           )}
 
-          <div className="po-sheet-entry" ref={entryRef} role="group" aria-label={`Add ${shape.name} sizes`}>
-            <span className="po-sheet-entry-size">
-              <input
-                ref={sizeInput}
-                className="po-sheet-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                enterKeyHint="next"
-                placeholder={picked.length ? `${picked.length} picked` : 'Size'}
-                aria-label="Size (mm)"
-                aria-expanded={panelOpen}
-                value={sizeText}
-                onFocus={() => setPanelOpen(true)}
-                onClick={() => setPanelOpen(true)}
-                onChange={(e) => { setSizeText(e.target.value); setError(''); setPanelOpen(true); }}
-                onKeyDown={onSizeKey}
-              />
-              {panelOpen && suggestions.length > 0 && (
-                <span className="po-sheet-suggest">
-                  <span className="po-sheet-suggest-head">
-                    <span>{picked.length ? `${picked.length} picked` : 'Pick sizes with the same quantity'}</span>
-                    {picked.length > 0 && (
-                      <button type="button" onClick={() => { setPicked([]); setError(''); }}>Clear</button>
-                    )}
-                    {picked.length > 0 && (
-                      <button type="button" className="po-sheet-suggest-done" onClick={() => { setPanelOpen(false); amountInput.current?.focus(); }}>Done</button>
-                    )}
-                  </span>
-                  <span className="po-sheet-suggest-body">
-                    {/* Round mixes ct sizes and pcs sizes: one group each, so one
-                        amount is never shared across the two units. */}
-                    {(['ct', 'pcs'] as const).map((unit) => {
-                      const group = suggestions.filter((s) => unitOf(s) === unit);
-                      if (!group.length) return null;
-                      const ids = group.map((s) => s.id);
-                      const all = ids.every((id) => picked.includes(id));
-                      const split = suggestions.some((s) => unitOf(s) !== unit);
-                      return (
-                        <span key={unit} className="po-sheet-suggest-group">
-                          <span className="po-sheet-suggest-group-head">
-                            <span>{split ? (unit === 'ct' ? 'Under 3 mm · ct' : '3 mm and above · pcs') : ''}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Ticking one unit's sizes clears the other unit's.
-                                setPicked((cur) => all
-                                  ? cur.filter((id) => !ids.includes(id))
-                                  : [...new Set([...cur.filter((id) => { const s = shapeSizes.find((z) => z.id === id); return s && unitOf(s) === unit; }), ...ids])]);
-                                setSizeText('');
-                                setError('');
-                              }}
-                            >
-                              {all ? 'Unselect all' : sizeText.trim() ? 'Select these' : 'Select all'}
-                            </button>
-                          </span>
-                          <span className="po-sheet-suggest-list" role="listbox" aria-multiselectable="true" aria-label={`${shape.name} sizes${split ? ` in ${unit}` : ''}`}>
-                            {group.map((s) => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                role="option"
-                                aria-selected={picked.includes(s.id)}
-                                className={`${picked.includes(s.id) ? 'is-picked' : ''}${entries[s.id] !== undefined ? ' is-added' : ''}`}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => togglePick(s.id)}
-                              >
-                                {s.size_mm}
-                              </button>
-                            ))}
-                          </span>
-                        </span>
-                      );
-                    })}
-                  </span>
-                </span>
-              )}
-            </span>
-            <span className="po-sheet-amount">
-              <input
-                ref={amountInput}
-                className="po-sheet-input"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                enterKeyHint="done"
-                placeholder={repeat ? String(repeat) : 'Qty'}
-                aria-label={`Amount${draftUnit ? ` (${draftUnit})` : ''}`}
-                value={amountText}
-                onFocus={() => setPanelOpen(false)}
-                onChange={(e) => { setAmountText(e.target.value); setError(''); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraft(); } }}
-              />
-              <span className="po-sheet-unit">{draftUnit || ''}</span>
-            </span>
-            <button type="button" className="po-sheet-add" onClick={addDraft}>Add</button>
+          <div className={`po-sheet-entry${panelOpen ? ' is-open' : ''}`} role="group" aria-label={`Add ${shape.name} sizes`}>
+            <input
+              ref={sizeInput}
+              className="po-sheet-input po-sheet-size-input"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              enterKeyHint="next"
+              placeholder={panelOpen ? 'Find a size' : 'Size'}
+              aria-label={panelOpen ? 'Find a size' : 'Size (mm)'}
+              aria-expanded={panelOpen}
+              value={sizeText}
+              onFocus={() => setPanelOpen(true)}
+              onClick={() => setPanelOpen(true)}
+              onChange={(e) => { setSizeText(e.target.value); setError(''); setPanelOpen(true); }}
+              onKeyDown={onSizeKey}
+            />
+            {!panelOpen && qtyControls}
           </div>
+
+          {panelOpen && (
+            <div className="po-sheet-suggest">
+              <div className="po-sheet-suggest-head">
+                <span>{picked.length ? `${picked.length} picked` : 'Pick sizes with the same quantity'}</span>
+                {!split && (
+                  <button type="button" onClick={() => selectGroup(suggestions)}>
+                    {suggestions.length > 0 && suggestions.every((s) => picked.includes(s.id)) ? 'Unselect all' : 'Select all'}
+                  </button>
+                )}
+                {picked.length > 0 && <button type="button" onClick={() => { setPicked([]); setError(''); }}>Clear</button>}
+                <button type="button" className="po-sheet-suggest-done" onClick={closePanel}>Done</button>
+              </div>
+              <div className="po-sheet-suggest-body">
+                {/* Round mixes ct sizes and pcs sizes: one group each, so one
+                    amount is never shared across the two units. */}
+                {(['ct', 'pcs'] as const).map((unit) => {
+                  const group = suggestions.filter((s) => unitOf(s) === unit);
+                  if (!group.length) return null;
+                  const all = group.every((s) => picked.includes(s.id));
+                  return (
+                    <div key={unit} className="po-sheet-suggest-group">
+                      {split && (
+                        <div className="po-sheet-suggest-group-head">
+                          <span>{unit === 'ct' ? 'Under 3 mm · ct' : '3 mm and above · pcs'}</span>
+                          <button type="button" onClick={() => selectGroup(group)}>{all ? 'Unselect all' : 'Select all'}</button>
+                        </div>
+                      )}
+                      <div className="po-sheet-suggest-list" role="listbox" aria-multiselectable="true" aria-label={`${shape.name} sizes${split ? ` in ${unit}` : ''}`}>
+                        {group.map((s) => {
+                          const has = entries[s.id] !== undefined && entries[s.id] !== '';
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              role="option"
+                              aria-selected={picked.includes(s.id)}
+                              className={`${picked.includes(s.id) ? 'is-picked' : ''}${has ? ' is-added' : ''}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => togglePick(s.id)}
+                            >
+                              {s.size_mm}
+                              {has && <small>{entries[s.id]} {unit}</small>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {suggestions.length === 0 && <p className="po-sheet-suggest-empty">No {shape.name} size starts with &ldquo;{sizeText}&rdquo;</p>}
+              </div>
+              <div className="po-sheet-suggest-foot">{qtyControls}</div>
+            </div>
+          )}
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
             : <p className="po-sheet-help">
