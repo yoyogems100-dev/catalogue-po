@@ -20,7 +20,7 @@ import StoneFinder from './StoneFinder';
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
 import { categoryIconUrl } from '@/lib/category-icons';
 import type { CategoryPricing } from '@/lib/pricing-calc';
-import { loadCart, saveCart, mergeIntoCart, cartPieces, type CartItem, type RequestType } from '@/lib/cart-storage';
+import { loadCart, saveCart, mergeIntoCart, cartPieces, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
 
 type CategoryOption = { id: number; name: string; slug: string };
 type CategoryOptionsData = {
@@ -458,7 +458,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             />
           )}
           <div hidden={!!specialCategory(Number(pickCategoryId))}>
-            <div className="po-type-toggle" role="group" aria-label="Request type">
+            <div className="po-type-toggle" role="group" aria-label="Request type" hidden={!QUOTATIONS_ENABLED}>
               <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>Purchase</button>
               <button type="button" aria-pressed={pickRequestType === 'Request Quotation'} className={pickRequestType === 'Request Quotation' ? 'active' : ''} onClick={() => setPickRequestType('Request Quotation')}>Request Quotation</button>
             </div>

@@ -151,8 +151,10 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <Link href="/po" className="back-link">&larr; All categories</Link>
-        <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
-        {data.category.id === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
+        <div className="category-title-row">
+          <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
+          {data.category.id === 34 && <a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a>}
+        </div>
         <CategoryTabs
           categoryId={data.category.id}
           categoryName={data.category.name}

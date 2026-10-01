@@ -15,8 +15,8 @@ import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
-import { loadCart, saveCart, mergeIntoCart as mergeCartLines, type CartItem, type RequestType } from '@/lib/cart-storage';
-import SizeGridComposer, { gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
+import { loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
+import SizeGridComposer, { countLabel, gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
@@ -39,8 +39,8 @@ type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
 
-// "3 sizes · 120 ct (~13,450 pcs) + 50 pcs to add"
-function gridSummary(lines: { size: { pcs_per_ct?: number | null }; amount: number; pcs: number }[]) {
+// "2 shapes · 7 sizes · 500 ct (~59,200 pcs) + 300 pcs"
+function gridSummary(lines: { shape: { id: number }; size: { pcs_per_ct?: number | null }; amount: number; pcs: number }[]) {
   const ct = lines.filter((l) => l.size.pcs_per_ct);
   const ctTotal = ct.reduce((n, l) => n + l.amount, 0);
   const ctPcs = ct.reduce((n, l) => n + l.pcs, 0);
@@ -48,7 +48,9 @@ function gridSummary(lines: { size: { pcs_per_ct?: number | null }; amount: numb
   const parts: string[] = [];
   if (ct.length) parts.push(`${ctTotal.toLocaleString('en-IN')} ct (~${ctPcs.toLocaleString('en-IN')} pcs)`);
   if (pcs) parts.push(`${pcs.toLocaleString('en-IN')} pcs`);
-  return `${lines.length} ${lines.length === 1 ? 'size' : 'sizes'} · ${parts.join(' + ')} to add`;
+  const shapes = new Set(lines.map((l) => l.shape.id)).size;
+  const count = shapes > 1 ? `${shapes} shapes · ${lines.length} sizes` : countLabel(lines);
+  return `${count} · ${parts.join(' + ')}`;
 }
 
 export default function POSelector({
@@ -125,7 +127,6 @@ export default function POSelector({
   const sizeGrid = categoryId === SIZE_GRID_CATEGORY_ID;
   const [gridShapeId, setGridShapeId] = useState<number | null>(null);
   const [gridEntries, setGridEntries] = useState<GridEntries>({});
-  const [gridPicked, setGridPicked] = useState<number[]>([]);
 
   // POSelector isn't remounted when a customer client-side-navigates from one
   // category page to another (same component, new categoryId prop) -- without
@@ -148,7 +149,6 @@ export default function POSelector({
     setPickRequestType('Place Order');
     setGridShapeId(null);
     setGridEntries({});
-    setGridPicked([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, adminDefaultQty]);
 
@@ -543,7 +543,6 @@ export default function POSelector({
     }
     if (!commitAdd(next, added)) return;
     setGridEntries({});
-    setGridPicked([]);
     setPickRequestType('Place Order');
   }
 
@@ -617,7 +616,7 @@ export default function POSelector({
     <div className="po-wrap">
       <section className="po-card po-compose-card">
         <h2 className="po-heading">Add to Order</h2>
-        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridPicked.includes(z.id)).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
+        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridEntries[z.id] !== undefined).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {!specialCategory(categoryId) && shapes.length === 0 ? (
           <div className="po-no-options">
@@ -737,9 +736,6 @@ export default function POSelector({
         </div>
         {sizeGrid && (
           <SizeGridComposer
-            categoryId={categoryId}
-            picked={gridPicked}
-            onPicked={setGridPicked}
             shapes={gridShapes}
             sizes={sizes}
             entries={gridEntries}
@@ -749,6 +745,7 @@ export default function POSelector({
           />
         )}
 
+        {QUOTATIONS_ENABLED && <>
         <div className="po-type-toggle" role="group" aria-label="Request type">
           <button
             type="button"
@@ -772,6 +769,7 @@ export default function POSelector({
         {isQuotation && !sizeGrid && <p className="po-type-hint">Quantity is optional for a quotation — we&rsquo;ll send prices, then you decide.</p>}
         {/* A tooltip never shows on a phone, so the reason is printed. */}
         {!selectionHasUnpriced && <p className="po-type-hint" id="po-type-priced-note">Price already listed — no quotation needed.</p>}
+        </>}
         {!sizeGrid && selectionPrice && (
           <p className="po-price-preview" role="status">
             <strong>₹{formatRupees(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatRupees(selectionPrice.max)}</>}</strong>
@@ -782,10 +780,13 @@ export default function POSelector({
 
         {sizeGrid ? <>
           <button type="button" className="po-add-line-btn" onClick={addGridLines} disabled={!gridLineList.length || gridInvalid}>
-            {gridLineList.length > 1 ? `+ Add ${gridLineList.length} sizes to order` : '+ Add to order'}
+            {gridLineList.length > 1 ? `+ Add ${countLabel(gridLineList)} to order` : '+ Add to order'}
           </button>
           {gridLineList.length > 0 && !gridInvalid && (
             <p className="po-selection-summary" role="status">{gridSummary(gridLineList)}</p>
+          )}
+          {Object.keys(gridEntries).length > 0 && (
+            <button type="button" className="po-clear-selection" onClick={() => setGridEntries({})}>Clear all</button>
           )}
         </> : <>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>

@@ -1,4 +1,5 @@
 'use client';
+import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import {useEffect,useState} from 'react';
 import IconSelect from './IconSelect';
 import {specialCategory,specText,validSpecQuantity,type OrderSpecs} from '@/lib/order-specs';
@@ -27,7 +28,7 @@ export default function SpecialOrderComposer({categoryId,categoryName,shapes,col
    {kind==='rainbow'?<div><label className="po-label">Stones per strip</label><select aria-label="Stones per strip" value={count} onChange={e=>setCount(e.target.value==='all'?'all':Number(e.target.value))}><option value="all">{sizeId==='all'?'Choose size first':allowed.length?'Choose stone count':'No strip counts configured'}</option>{allowed.map(n=><option key={n} value={n}>{n} stones / strip</option>)}</select></div>:<div><label className="po-label">Color</label><IconSelect categoryId={categoryId} options={colors} value={colorIds[0]??'all'} onChange={id=>setColors(id==='all'?[]:[id])} leading="swatch" allLabel="Choose color"/></div>}
    <div><label className="po-label">{kind==='rainbow'?'Number of strips':'Quantity (pcs)'}</label><input aria-label={kind==='rainbow'?'Number of strips':'Drilled stone quantity'} inputMode="numeric" value={quantity} onChange={e=>setQuantity(e.target.value.replace(/\D/g,''))}/></div>
   </div>
-  <div hidden={!showRequestType} className="po-type-toggle" role="group" aria-label="Special order request type"><button type="button" className={requestType==='Place Order'?'active':''} aria-pressed={requestType==='Place Order'} onClick={()=>setRequestType('Place Order')}>Purchase</button><button type="button" className={requestType==='Request Quotation'?'active':''} aria-pressed={requestType==='Request Quotation'} onClick={()=>setRequestType('Request Quotation')}>Request Quotation</button></div>
+  <div hidden={!showRequestType||!QUOTATIONS_ENABLED} className="po-type-toggle" role="group" aria-label="Special order request type"><button type="button" className={requestType==='Place Order'?'active':''} aria-pressed={requestType==='Place Order'} onClick={()=>setRequestType('Place Order')}>Purchase</button><button type="button" className={requestType==='Request Quotation'?'active':''} aria-pressed={requestType==='Request Quotation'} onClick={()=>setRequestType('Request Quotation')}>Request Quotation</button></div>
   {valid&&<p role="status">{specText(spec,qty)} · {qty.toLocaleString('en-IN')} stones total</p>}
   <button type="button" className="po-add-line-btn" disabled={!valid} onClick={add}>+ Add line to order</button>
   {error&&<p role="status">{error}</p>}

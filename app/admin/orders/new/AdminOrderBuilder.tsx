@@ -1,4 +1,5 @@
 'use client';
+import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
 
@@ -424,7 +425,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         )}
 
         <div className="po-send-box">
-          <div className="po-send-row">
+          <div className="po-send-row" hidden={!QUOTATIONS_ENABLED && requestType === 'Place Order'}>
             <label>
               Request type
               <select value={requestType} onChange={(e) => setRequestType(e.target.value)}>

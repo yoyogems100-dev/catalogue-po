@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
-import { loadCart, saveCart, mergeIntoCart, type CartItem, type RequestType } from '@/lib/cart-storage';
+import { loadCart, saveCart, mergeIntoCart, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
 import { lineInrPrice, type CategoryPricing } from '@/lib/pricing-calc';
 import { specialCategory } from '@/lib/order-specs';
 import { priceUnitLabel } from '@/lib/price-unit';
@@ -357,7 +357,7 @@ export default function ProductSheet({
                 />
               </div>
 
-              <div className="ps-field">
+              <div className="ps-field" hidden={!QUOTATIONS_ENABLED}>
                 <label>Type</label>
                 <div className="ps-type-toggle">
                   {(['Place Order', 'Request Quotation'] as RequestType[]).map((type) => (

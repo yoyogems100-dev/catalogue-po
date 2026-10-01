@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
-import IconSelect from './IconSelect';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import ShapeReferenceImage from './ShapeReferenceImage';
+import { parseOrderText, resolveSizes, sortSizes, suggestSizes } from '@/lib/quick-order';
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
-/** pcs_per_ct: set on sizes sold by carat (Moissanite melee) -- pieces in 1 ct. */
+/** pcs_per_ct: set on sizes sold by carat (Moissanite Round under 3 mm) -- pieces in 1 ct. */
 export type GridSize = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
 /** What the buyer typed per size id: carats for sizes sold by weight, else pieces. */
 export type GridEntries = Record<number, string>;
@@ -15,27 +15,17 @@ export type GridLine = { size: GridSize; shape: ShapeRef; amount: number; pcs: n
 
 const WHOLE = /^\d*$/;
 
-// "0.7" < "1" < "3x5" < "10": by the first number, then the second.
-function sizeOrder(a: string, b: string) {
-  const pa = a.split(/[x×*]/i).map(parseFloat);
-  const pb = b.split(/[x×*]/i).map(parseFloat);
-  return (pa[0] || 0) - (pb[0] || 0) || (pa[1] || 0) - (pb[1] || 0) || a.localeCompare(b);
-}
-
 /** Entries that are filled in with a whole number above zero, in shape then size order. */
 export function gridLines(shapes: ShapeRef[], sizes: GridSize[], entries: GridEntries): GridLine[] {
   const lines: GridLine[] = [];
   for (const shape of shapes) {
-    sizes
-      .filter((s) => s.shape_id === shape.id)
-      .sort((a, b) => sizeOrder(a.size_mm, b.size_mm))
-      .forEach((size) => {
-        const raw = (entries[size.id] || '').trim();
-        if (!raw || !WHOLE.test(raw)) return;
-        const amount = Number(raw);
-        if (!Number.isSafeInteger(amount) || amount <= 0) return;
-        lines.push({ size, shape, amount, pcs: size.pcs_per_ct ? amount * size.pcs_per_ct : amount });
-      });
+    sortSizes(sizes.filter((s) => s.shape_id === shape.id)).forEach((size) => {
+      const raw = (entries[size.id] || '').trim();
+      if (!raw || !WHOLE.test(raw)) return;
+      const amount = Number(raw);
+      if (!Number.isSafeInteger(amount) || amount <= 0) return;
+      lines.push({ size, shape, amount, pcs: size.pcs_per_ct ? amount * size.pcs_per_ct : amount });
+    });
   }
   return lines;
 }
@@ -46,35 +36,50 @@ export function gridHasError(entries: GridEntries) {
 
 const fmt = (n: number) => n.toLocaleString('en-IN');
 
+/** "3 sizes" while every line is one shape; mixed shapes read "30 items". */
+export function countLabel(lines: { shape: { id: number } }[]) {
+  const n = lines.length;
+  const oneShape = new Set(lines.map((l) => l.shape.id)).size <= 1;
+  return `${n} ${oneShape ? (n === 1 ? 'size' : 'sizes') : 'items'}`;
+}
+
+const unitOf = (s: GridSize) => (s.pcs_per_ct ? 'ct' : 'pcs');
+
 /**
- * Moissanite ordering: choose a shape from its photo, pick the sizes wanted
- * from its size dropdown, and each picked size opens as a card taking its own
- * weight (ct, melee under 3 mm) or pieces. Picks survive switching shape, so
- * one requirement can carry Round 0.7 mm 20 ct, Round 1 mm 100 ct and Oval
- * 4x6 50 pcs, all listed under the cards and added in one go.
+ * Moissanite quick order sheet. Buyers write orders in a notebook -- a shape,
+ * then "size -> amount" lines -- so the sheet works the same way: type a size
+ * (110 = 1.10 mm, ranges like 1.2-1.8), the amount, Enter, next line. An
+ * empty amount repeats the last one. Round under 3 mm is in ct, everything
+ * else in pcs. A whole order can also be pasted as text. Lines stay put when
+ * switching shape (the shape tiles count them) and are added in one go.
  */
 export default function SizeGridComposer({
-  categoryId,
   shapes,
   sizes,
-  picked,
-  onPicked,
   entries,
   onEntries,
   shapeId,
   onShape,
 }: {
-  categoryId: number;
   shapes: ShapeRef[];
   sizes: GridSize[];
-  /** Size ids opened as cards, across every shape. */
-  picked: number[];
-  onPicked: (next: number[]) => void;
   entries: GridEntries;
   onEntries: (next: GridEntries) => void;
   shapeId: number | null;
   onShape: (id: number) => void;
 }) {
+  const [sizeText, setSizeText] = useState('');
+  const [amountText, setAmountText] = useState('');
+  const [error, setError] = useState('');
+  const [sizeFocused, setSizeFocused] = useState(false);
+  // The last amount entered per unit, repeated when the amount is left empty.
+  const [last, setLast] = useState<{ ct?: number; pcs?: number }>({});
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteNote, setPasteNote] = useState<{ added: number; problems: string[] } | null>(null);
+  const sizeInput = useRef<HTMLInputElement>(null);
+  const amountInput = useRef<HTMLInputElement>(null);
+
   // Keep the chosen shape in view in the strip, e.g. after tapping a line
   // of another shape in the selection list.
   const strip = useRef<HTMLDivElement>(null);
@@ -88,80 +93,79 @@ export default function SizeGridComposer({
     }
   }, [shapeId]);
 
-  const shapeSizes = useMemo(
-    () => sizes.filter((s) => s.shape_id === shapeId).sort((a, b) => sizeOrder(a.size_mm, b.size_mm)),
-    [sizes, shapeId]
-  );
-  const sizeOptions = useMemo(() => shapeSizes.map((s) => ({ id: s.id, name: `${s.size_mm} mm` })), [shapeSizes]);
-  const shown = shapeSizes.filter((s) => picked.includes(s.id));
-  const byWeight = shown.filter((s) => s.pcs_per_ct);
-  const byPieces = shown.filter((s) => !s.pcs_per_ct);
+  useEffect(() => { setSizeText(''); setAmountText(''); setError(''); }, [shapeId]);
 
-  // Unpicking a size drops what was typed against it.
-  function pickSizes(ids: number[]) {
-    const mine = new Set(shapeSizes.map((s) => s.id));
-    const next = [...picked.filter((id) => !mine.has(id)), ...ids];
-    onPicked(next);
-    const keep = new Set(next);
-    if (Object.keys(entries).some((id) => !keep.has(Number(id)))) {
-      onEntries(Object.fromEntries(Object.entries(entries).filter(([id]) => keep.has(Number(id)))));
-    }
-  }
-  function remove(id: number) {
-    onPicked(picked.filter((p) => p !== id));
-    set(id, '');
-  }
-
-  const lines = useMemo(() => gridLines(shapes, sizes, entries), [shapes, sizes, entries]);
+  const shapeSizes = useMemo(() => sortSizes(sizes.filter((s) => s.shape_id === shapeId)), [sizes, shapeId]);
+  const rows = shapeSizes.filter((s) => entries[s.id] !== undefined);
   const countByShape = useMemo(() => {
     const m = new Map<number, number>();
-    sizes.forEach((s) => { if (picked.includes(s.id)) m.set(s.shape_id, (m.get(s.shape_id) || 0) + 1); });
+    sizes.forEach((s) => { if (entries[s.id] !== undefined) m.set(s.shape_id, (m.get(s.shape_id) || 0) + 1); });
     return m;
-  }, [sizes, picked]);
+  }, [sizes, entries]);
   const shape = shapes.find((s) => s.id === shapeId) || null;
 
+  // What the size box currently stands for, to label the amount's unit.
+  const draft = useMemo(() => (sizeText.trim() ? resolveSizes(shapeSizes, sizeText) : null), [shapeSizes, sizeText]);
+  const draftSizes = draft && 'sizes' in draft ? draft.sizes : [];
+  const draftUnit = draftSizes.length && draftSizes.every((s) => unitOf(s) === unitOf(draftSizes[0])) ? unitOf(draftSizes[0]) : null;
+  const repeat = draftUnit ? last[draftUnit] : undefined;
+  const suggestions = useMemo(() => {
+    if (!sizeFocused) return [];
+    if (!sizeText.trim()) return shapeSizes;
+    const hits = suggestSizes(shapeSizes, sizeText, 12);
+    // Nothing to offer once the box already holds exactly that one size.
+    return hits.length === 1 && draftSizes.length === 1 && hits[0].id === draftSizes[0].id ? [] : hits;
+  }, [sizeFocused, sizeText, shapeSizes, draftSizes]);
+
   function set(id: number, value: string) {
+    onEntries({ ...entries, [id]: value });
+  }
+  function remove(id: number) {
     const next = { ...entries };
-    if (value.trim()) next[id] = value; else delete next[id];
+    delete next[id];
     onEntries(next);
   }
 
-  function cell(size: GridSize) {
-    const raw = entries[size.id] || '';
-    const bad = !WHOLE.test(raw.trim());
-    const n = bad ? 0 : Number(raw.trim()) || 0;
-    const rate = size.pcs_per_ct || null;
-    const id = `po-grid-${size.id}`;
-    return (
-      <div key={size.id} className={`po-grid-cell${n > 0 ? ' is-filled' : ''}${bad ? ' is-invalid' : ''}`}>
-        <div className="po-grid-cell-head">
-          <label htmlFor={id} className="po-grid-size">
-            {size.size_mm}<span> mm</span>
-          </label>
-          <button type="button" className="po-grid-cell-remove" aria-label={`Remove ${size.size_mm} mm`} onClick={() => remove(size.id)}>×</button>
-        </div>
-        <div className="po-grid-input">
-          <input
-            id={id}
-            className="po-grid-qty"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="0"
-            value={raw}
-            aria-invalid={bad || undefined}
-            aria-describedby={bad || rate ? `${id}-hint` : undefined}
-            onChange={(e) => set(size.id, e.target.value)}
-          />
-          <span className="po-grid-unit">{rate ? 'ct' : 'pcs'}</span>
-        </div>
-        {(bad || rate) && (
-          <span className="po-grid-hint" id={`${id}-hint`}>
-            {bad ? 'Whole number' : n > 0 ? `~${fmt(n * rate!)} pcs` : `1ct = ~${rate} pcs`}
-          </span>
-        )}
-      </div>
-    );
+  function addDraft() {
+    if (!sizeText.trim()) { sizeInput.current?.focus(); return; }
+    if (!draft || 'error' in draft) { setError(draft && 'error' in draft ? draft.error : 'Type a size'); sizeInput.current?.focus(); return; }
+    const typed = amountText.trim();
+    if (typed && !/^\d+$/.test(typed)) { setError('Whole numbers only'); amountInput.current?.focus(); return; }
+    const amount = typed ? Number(typed) : repeat;
+    if (!amount) { setError(`Type the ${draftUnit || 'amount'} for ${sizeText.trim()} mm`); amountInput.current?.focus(); return; }
+    const next = { ...entries };
+    draftSizes.forEach((s) => { next[s.id] = String(amount); });
+    onEntries(next);
+    const units = new Set(draftSizes.map(unitOf));
+    setLast((cur) => ({ ...cur, ...(units.has('ct') ? { ct: amount } : {}), ...(units.has('pcs') ? { pcs: amount } : {}) }));
+    setSizeText('');
+    setAmountText('');
+    setError('');
+    sizeInput.current?.focus();
+  }
+
+  function onSizeKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    // A partly typed size with one match takes it, like picking from a list.
+    if (draftSizes.length === 0 && suggestions.length === 1) setSizeText(suggestions[0].size_mm);
+    else if (!draft || 'error' in draft) { if (draft && 'error' in draft) setError(draft.error); return; }
+    setError('');
+    amountInput.current?.focus();
+  }
+
+  function readPaste() {
+    const r = parseOrderText(pasteText, shapes, sizes, shapeId);
+    if (r.lines.length) {
+      const next = { ...entries };
+      r.lines.forEach((l) => { next[l.sizeId] = String(l.amount); });
+      onEntries(next);
+      const lastShape = r.lines[r.lines.length - 1].shapeId;
+      if (lastShape !== shapeId) onShape(lastShape);
+    }
+    setPasteNote({ added: r.lines.length, problems: r.problems });
+    if (!r.problems.length && r.lines.length) { setPasteText(''); setPasteOpen(false); }
+    else if (r.lines.length) setPasteText(r.rejected.join('\n'));
   }
 
   return (
@@ -180,63 +184,141 @@ export default function SizeGridComposer({
             >
               <ShapeReferenceImage className="po-grid-shape-img" name={s.name} src={s.refPhotoUrl} iconKey={s.iconKey} fallbackSize={26} />
               <span className="po-grid-shape-name">{s.name}</span>
-              {count > 0 && <span className="po-grid-shape-count" aria-label={`${count} sizes picked`}>{count}</span>}
+              {count > 0 && <span className="po-grid-shape-count" aria-label={`${count} sizes`}>{count}</span>}
             </button>
           );
         })}
       </div>
 
-      {!shape ? (
-        <p className="po-grid-empty">Choose a shape to see its sizes.</p>
-      ) : (
+      {shape && (
         <div className="po-grid-sheet">
-          <label className="po-label" id="po-grid-sizes-label">{shape.name} sizes (mm)</label>
-          <IconSelect
-            categoryId={categoryId}
-            multiple
-            optionKind="size"
-            options={sizeOptions}
-            values={shown.map((s) => s.id)}
-            onChange={pickSizes}
-            placeholder={`Choose ${shape.name} size(s)`}
-          />
-          {byWeight.length > 0 && (
-            <>
-              <p className="po-grid-group">Under 3 mm · weight (ct)</p>
-              <div className="po-grid-cells">{byWeight.map(cell)}</div>
-            </>
+          <div className="po-grid-sheet-head">
+            <strong>Pick the sizes you need for {shape.name} shape</strong>
+            <span>{shapeSizes.some((s) => s.pcs_per_ct) ? 'Under 3 mm in ct · 3 mm and above in pcs' : 'Quantity in pcs'}</span>
+          </div>
+
+          {rows.length > 0 && (
+            <ul className="po-sheet-rows">
+              {rows.map((s) => {
+                const raw = entries[s.id] || '';
+                const bad = !WHOLE.test(raw.trim());
+                const n = bad ? 0 : Number(raw) || 0;
+                return (
+                  <li key={s.id} className={`po-sheet-row${bad ? ' is-invalid' : ''}`}>
+                    <label className="po-sheet-size" htmlFor={`po-sheet-${s.id}`}>{s.size_mm}<span> mm</span></label>
+                    <span className="po-sheet-amount">
+                      <input
+                        id={`po-sheet-${s.id}`}
+                        className="po-sheet-input"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={raw}
+                        aria-invalid={bad || undefined}
+                        onChange={(e) => set(s.id, e.target.value)}
+                      />
+                      <span className="po-sheet-unit">{unitOf(s)}</span>
+                    </span>
+                    <span className="po-sheet-pcs">{bad ? 'Whole number' : s.pcs_per_ct && n > 0 ? `~${fmt(n * s.pcs_per_ct)} pcs` : ''}</span>
+                    <button type="button" className="po-sheet-remove" aria-label={`Remove ${shape.name} ${s.size_mm} mm`} onClick={() => remove(s.id)}>×</button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          {byPieces.length > 0 && (
-            <>
-              <p className="po-grid-group">{byWeight.length > 0 ? '3 mm and above · pieces' : 'Pieces'}</p>
-              <div className="po-grid-cells">{byPieces.map(cell)}</div>
-            </>
+
+          <div className="po-sheet-entry" role="group" aria-label={`Add a ${shape.name} size`}>
+            <span className="po-sheet-entry-size">
+              <input
+                ref={sizeInput}
+                className="po-sheet-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                enterKeyHint="next"
+                placeholder="Size"
+                aria-label="Size (mm)"
+                value={sizeText}
+                onFocus={() => setSizeFocused(true)}
+                onBlur={() => setTimeout(() => setSizeFocused(false), 150)}
+                onChange={(e) => { setSizeText(e.target.value); setError(''); }}
+                onKeyDown={onSizeKey}
+              />
+              {suggestions.length > 0 && (
+                <span className="po-sheet-suggest" role="listbox" aria-label="Sizes">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="option"
+                      aria-selected={entries[s.id] !== undefined}
+                      className={entries[s.id] !== undefined ? 'is-added' : ''}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setSizeText(s.size_mm); setError(''); amountInput.current?.focus(); }}
+                    >
+                      {s.size_mm}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+            <span className="po-sheet-amount">
+              <input
+                ref={amountInput}
+                className="po-sheet-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                enterKeyHint="done"
+                placeholder={repeat ? String(repeat) : draftUnit || 'Qty'}
+                aria-label={`Amount${draftUnit ? ` (${draftUnit})` : ''}`}
+                value={amountText}
+                onChange={(e) => { setAmountText(e.target.value); setError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraft(); } }}
+              />
+              <span className="po-sheet-unit">{draftUnit || ''}</span>
+            </span>
+            <button type="button" className="po-sheet-add" onClick={addDraft}>Add</button>
+          </div>
+          {error
+            ? <p className="po-sheet-error" role="alert">{error}</p>
+            : <p className="po-sheet-help">
+                {draftSizes.length > 1
+                  ? `${draftSizes.length} sizes: ${draftSizes[0].size_mm} to ${draftSizes[draftSizes.length - 1].size_mm} mm`
+                  : repeat
+                  ? `Enter adds the line · empty amount = ${repeat} ${draftUnit} again`
+                  : 'Size, amount, Enter · 110 = 1.10 mm · 1.2-1.8 adds a range'}
+              </p>}
+
+          <button type="button" className="po-sheet-paste-toggle" aria-expanded={pasteOpen} onClick={() => { setPasteOpen((o) => !o); setPasteNote(null); }}>
+            {pasteOpen ? 'Close list' : 'Paste or type a whole list'}
+          </button>
+          {pasteOpen && (
+            <div className="po-sheet-paste">
+              <textarea
+                rows={6}
+                aria-label="Order list"
+                placeholder={'Round\n1.00 30\n1.10 70\n1.2-1.8 100\nPear\n2.5x4 300'}
+                value={pasteText}
+                onChange={(e) => { setPasteText(e.target.value); setPasteNote(null); }}
+              />
+              <button type="button" className="po-sheet-add" onClick={readPaste} disabled={!pasteText.trim()}>Read list</button>
+            </div>
           )}
-          {shown.length === 0 && <p className="po-grid-empty">Pick the sizes you need — each opens here for its own ct or pcs.</p>}
+          {pasteNote && (
+            <div className="po-sheet-paste-note" role="status">
+              {pasteNote.added > 0 && <p>Added {pasteNote.added} {pasteNote.added === 1 ? 'line' : 'lines'} from your list.</p>}
+              {pasteNote.problems.length > 0 && (
+                <>
+                  <p>Not added — please check:</p>
+                  <ul>{pasteNote.problems.map((p, i) => <li key={i}>{p}</li>)}</ul>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {lines.length > 0 && (
-        <div className="po-grid-picks" aria-live="polite">
-          <div className="po-grid-picks-head">
-            <span>Your selection · {lines.length} {lines.length === 1 ? 'size' : 'sizes'}</span>
-            <button type="button" onClick={() => { onEntries({}); onPicked([]); }}>Clear all</button>
-          </div>
-          <ul>
-            {lines.map((l) => (
-              <li key={l.size.id}>
-                <button type="button" className="po-grid-pick-name" onClick={() => onShape(l.shape.id)}>
-                  {l.shape.name} {l.size.size_mm} mm
-                </button>
-                <span className="po-grid-pick-qty">
-                  {l.size.pcs_per_ct ? <>{fmt(l.amount)} ct <small>~{fmt(l.pcs)} pcs</small></> : <>{fmt(l.amount)} pcs</>}
-                </span>
-                <button type="button" className="po-grid-pick-remove" aria-label={`Remove ${l.shape.name} ${l.size.size_mm} mm`} onClick={() => remove(l.size.id)}>×</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
