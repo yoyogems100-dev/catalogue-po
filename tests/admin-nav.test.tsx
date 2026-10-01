@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync } from 'node:fs';
-import { BIN, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
+import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
 
-const links = [OVERVIEW, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
+const links = [OVERVIEW, NOTIFICATIONS, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
 
 test('every admin section is in the side pane, and every link has a page', () => {
   const hrefs = links.map((l) => l.href);

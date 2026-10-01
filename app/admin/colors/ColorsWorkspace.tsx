@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import ColorsClient from './ColorsClient';
 
-export async function ColorsWorkspace({ initialCategoryId, embedded = false }: { initialCategoryId?: number; embedded?: boolean }) {
+export async function ColorsWorkspace({ initialCategoryId, initialSearch, embedded = false }: { initialCategoryId?: number; initialSearch?: string; embedded?: boolean }) {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
     supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order').is('owner_category_id', null).order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
@@ -30,7 +30,7 @@ export async function ColorsWorkspace({ initialCategoryId, embedded = false }: {
       <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Manage color names and reference photos. Filter by category to see its linked colors. Editing a shared color changes it in every category using that color.
       </p>
-      <ColorsClient key={`${embedded}-${initialCategoryId || 0}`} colors={colors || []} categories={categories || []} catColors={catColors || []} palettes={palettes} initialCategoryId={initialCategoryId} lockedCategory={embedded} />
+      <ColorsClient key={`${embedded}-${initialCategoryId || 0}-${initialSearch || ''}`} initialSearch={initialSearch} colors={colors || []} categories={categories || []} catColors={catColors || []} palettes={palettes} initialCategoryId={initialCategoryId} lockedCategory={embedded} />
     </>
   );
 }

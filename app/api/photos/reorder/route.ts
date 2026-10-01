@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { refreshCatalogue } from '@/lib/refresh-catalogue';
 
 // Swaps a photo's sort_order with its immediate neighbor in the given direction.
 // Body: { category_id: number, photo_id: number, direction: 'left' | 'right' }
@@ -39,5 +40,6 @@ export async function POST(req: NextRequest) {
     normalized.map((p) => supabaseAdmin.from('photos').update({ sort_order: p.sort_order }).eq('id', p.id))
   );
 
+  refreshCatalogue();
   return NextResponse.json({ ok: true });
 }

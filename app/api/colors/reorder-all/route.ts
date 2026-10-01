@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { refreshCatalogue } from '@/lib/refresh-catalogue';
 
 // Same batch-reorder pattern as /api/shapes/reorder-all.
 // Body: { orderedIds: number[] }
@@ -17,5 +18,6 @@ export async function POST(req: NextRequest) {
   const failed = results.find((r) => r.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 400 });
 
+  refreshCatalogue();
   return NextResponse.json({ ok: true });
 }

@@ -14,6 +14,7 @@ export type NavGroup = { title: string; links: NavLink[]; list?: 'po-categories'
 export type Workspace = { key: 'site' | 'po'; label: string; viewHref: string; viewLabel: string; groups: NavGroup[] };
 
 export const OVERVIEW: NavLink = { href: '/admin', label: 'Overview' };
+export const NOTIFICATIONS: NavLink = { href: '/admin/notifications', label: 'Notifications', detail: 'New orders, order changes, sign-up requests and catalogue requests.' };
 export const BIN: NavLink = { href: '/admin/bin', label: 'Bin', detail: 'Deleted orders, buyers and suppliers. Restore or delete for good.' };
 
 export const WORKSPACES: Workspace[] = [
@@ -133,7 +134,7 @@ export function poCategoryPages(id: number): NavLink[] {
   ];
 }
 
-const ALL: NavLink[] = [OVERVIEW, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
+const ALL: NavLink[] = [OVERVIEW, NOTIFICATIONS, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
 
 /** The most specific link for a path, so /admin/site/leads highlights "Catalogue requests", not "Website home". */
 export function currentHref(pathname: string | null): string | undefined {
@@ -143,7 +144,7 @@ export function currentHref(pathname: string | null): string | undefined {
     .sort((a, b) => b.length - a.length)[0];
 }
 
-/** Which workspace a page belongs to (the Overview and Bin belong to the PO portal). */
+/** Which workspace a page belongs to (the Overview, Notifications and Bin belong to the PO portal). */
 export function workspaceOf(pathname: string | null): Workspace['key'] {
   return pathname?.startsWith('/admin/site') ? 'site' : 'po';
 }

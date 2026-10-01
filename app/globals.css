@@ -2848,3 +2848,68 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .interests-label { display: block; font-size: 12.5px; margin-bottom: 4px; }
 .admin-profile-field { display: grid; gap: 5px; font-size: 12px; font-weight: 650; color: #5f594b; min-width: 0; }
 .admin-profile-field .interests-field { font-weight: 400; }
+
+/* Admin search: the Overview's search field, the top bar's icon and the window both open. */
+.admin-search-bar { display: flex; align-items: center; gap: 10px; width: 100%; margin: 18px 0 14px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; color: var(--text-dim); font: inherit; font-size: 14px; text-align: left; cursor: text; box-shadow: 0 1px 2px rgba(18,35,63,0.04); }
+.admin-search-bar:hover { border-color: rgba(27,58,107,0.35); }
+.admin-search-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-search-bar svg { color: var(--navy); flex-shrink: 0; }
+.admin-search-bar kbd, .admin-search-close { font: inherit; font-size: 11px; color: var(--text-dim); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; background: var(--ivory); }
+.admin-search-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(18,35,63,0.45); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
+.admin-search { width: min(620px, 100%); max-height: min(560px, 80vh); display: flex; flex-direction: column; background: #fff; border-radius: 12px; box-shadow: 0 24px 60px rgba(18,35,63,0.35); overflow: hidden; }
+.admin-search-field { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--navy); }
+.admin-search-field input { flex: 1; min-width: 0; border: none !important; outline: none; box-shadow: none !important; padding: 4px 0 !important; font-size: 16px; background: transparent; }
+.admin-search-close { cursor: pointer; }
+.admin-search-hint, .admin-search-empty { margin: 0; padding: 10px 16px; font-size: 12px; color: var(--text-dim); }
+.admin-search-hint { padding-bottom: 2px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; font-weight: 600; }
+.admin-search-results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.admin-search-results li { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 8px; cursor: pointer; min-height: 44px; }
+.admin-search-results li[aria-selected="true"] { background: #eef2f8; }
+.admin-search-kind { flex: 0 0 auto; min-width: 74px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
+.admin-search-kind-action { color: var(--gold); }
+.admin-search-kind-category, .admin-search-kind-site-category { color: var(--navy); }
+.admin-search-text { display: flex; flex-direction: column; min-width: 0; }
+.admin-search-label { font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-search-detail { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .admin-search-backdrop { padding: 0; }
+  .admin-search { width: 100%; max-height: 100dvh; height: 100dvh; border-radius: 0; }
+  .admin-search-kind { min-width: 62px; }
+}
+.admin-overview-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+/* Notifications: the Overview section and the full page. */
+.notif-section { padding: 6px 0; margin-bottom: 20px; }
+.notif-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.notif-head h2 { font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px; }
+.notif-head-actions { display: flex; gap: 6px; }
+.notif-head-actions .btn-ghost, .notif-filters .btn-ghost { padding: 6px 12px; font-size: 12.5px; }
+.notif-count { font-family: inherit; font-size: 11.5px; font-weight: 600; color: #fff; background: #a3341f; border-radius: 999px; padding: 1px 8px; }
+.notif-list { list-style: none; margin: 0; padding: 0; }
+.notif-row + .notif-row { border-top: 1px solid var(--line); }
+.notif-row a { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 4px 12px; padding: 11px 16px; color: var(--ink); text-decoration: none; }
+.notif-row a:hover { background: #f7f5ef; }
+.notif-unread a { background: #fbf3e4; }
+.notif-unread .notif-message { font-weight: 600; }
+.notif-kind { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.notif-kind-new_order { color: #1f6b3a; }
+.notif-kind-access_request, .notif-kind-catalogue_request { color: var(--gold); }
+.notif-message { font-size: 13.5px; min-width: 0; overflow-wrap: anywhere; }
+.notif-time { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+@media (max-width: 600px) {
+  .notif-row a { grid-template-columns: 1fr auto; }
+  .notif-message { grid-column: 1 / -1; grid-row: 2; }
+}
+.notif-empty { margin: 0; padding: 16px; font-size: 13px; color: var(--text-dim); }
+.notif-more { padding: 10px 16px; border-top: 1px solid var(--line); text-align: center; }
+.notif-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 12px; }
+.notif-filters select { width: auto; }
+.notif-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.notif-toggle button { border: none; background: #fff; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer; color: var(--ink); }
+.notif-toggle button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+
+/* Admin › Categories: which categories a /po home shelf places on its own. */
+.admin-shelf-note { margin: 0 0 10px; padding: 10px 14px; font-size: 12.5px; line-height: 1.5; color: var(--charcoal); background: #f6f1e4; border-left: 3px solid var(--gold); border-radius: 6px; }
+.admin-shelf-note a { color: var(--navy); font-weight: 600; }
+.admin-shelf-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.admin-shelf-tag { font-size: 10.5px; font-weight: 600; color: var(--gold); background: #f6f1e4; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }

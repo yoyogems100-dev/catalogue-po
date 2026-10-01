@@ -1,6 +1,6 @@
 import { ColorsWorkspace } from './ColorsWorkspace';
 export const dynamic = 'force-dynamic';
-export default async function ColorsPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+export default async function ColorsPage({ searchParams }: { searchParams: Promise<{ category?: string; q?: string }> }) {
   const query = await searchParams;
-  return <ColorsWorkspace initialCategoryId={Number(query.category) || undefined} />;
+  return <ColorsWorkspace initialCategoryId={Number(query.category) || undefined} initialSearch={query.q} />;
 }

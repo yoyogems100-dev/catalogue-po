@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoriesClient from './CategoriesClient';
+import { HOME_SECTIONS_SETTING_KEY, parseHomeSections } from '@/lib/home-sections';
+import { MOST_ORDERED_SETTING_KEY } from '@/lib/most-ordered';
 
 // Admin pages never call a dynamic API (cookies()/headers()) themselves --
 // auth happens purely in middleware -- so without this, Next can statically
@@ -14,12 +16,13 @@ export default async function CategoriesListPage() {
   // here -- this page computes the counts for every category at once), so each
   // must page past the project's 1000-row response cap or silently undercount
   // whichever categories' rows land past the first page.
-  const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }] = await Promise.all([
+  const [{ data: categories }, { data: photos }, { data: catShapes }, { data: catColors }, { data: catSizes }, { data: settings }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, archived_at').order('num'),
     fetchAllRows<any>((from, to) => supabaseAdmin.from('photos').select('*', { count: 'exact' }).order('sort_order', { ascending: true }).order('id', { ascending: true }).range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shapes').select('category_id', { count: 'exact' }).range(from, to)),
     fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_colors').select('category_id', { count: 'exact' }).range(from, to)),
-    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to))
+    fetchAllRows<{ category_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id', { count: 'exact' }).range(from, to)),
+    supabaseAdmin.from('settings').select('key, value').in('key', [HOME_SECTIONS_SETTING_KEY, MOST_ORDERED_SETTING_KEY])
   ]);
 
   function countBy(rows: { category_id: number }[] | null) {
@@ -66,10 +69,20 @@ export default async function CategoriesListPage() {
     colorCount: colorCounts[c.id] || 0
   }));
 
+  // The /po home shows its shelves ("Most ordered", ...) first, in their own
+  // order; this page's order only decides everything after them. Say so here,
+  // so dragging a shelved category and seeing nothing move isn't a mystery.
+  const setting = (key: string) => (settings || []).find((s) => s.key === key)?.value ?? null;
+  const live = new Set(rows.filter((r) => !r.archivedAt).map((r) => r.id));
+  const shelves = parseHomeSections(setting(HOME_SECTIONS_SETTING_KEY), setting(MOST_ORDERED_SETTING_KEY)).sections
+    .filter((s) => s.visible)
+    .map((s) => ({ title: s.title, ids: s.categoryIds.filter((id) => live.has(id)) }))
+    .filter((s) => s.ids.length > 0);
+
   return (
     <>
       <h1>Categories</h1>
-      <CategoriesClient rows={rows} />
+      <CategoriesClient rows={rows} shelves={shelves} />
     </>
   );
 }

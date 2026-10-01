@@ -131,13 +131,13 @@ export async function POST(req: NextRequest) {
 
   await supabaseAdmin.from('order_status_history').insert({ order_id: order.id, status: 'placed' });
 
-  // Best-effort by design (see lib/notify-admin.ts) -- fire-and-forget so a slow
-  // or failed notification insert never delays the customer's confirmation.
-  notifyAdmin(
-    'new_order',
-    order.id,
-    `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${formatQtyTotals(cartWithPrices.map((i) => ({ qty: i.qty, unit: i.qtyUnit })))}`
-  ).catch(() => {});
+  // Best-effort by design (see lib/notify-admin.ts): written after the reply,
+  // so a slow or failed notification insert never delays the confirmation.
+  notifyAdmin({
+    type: 'new_order',
+    orderId: order.id,
+    message: `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${formatQtyTotals(cartWithPrices.map((i) => ({ qty: i.qty, unit: i.qtyUnit })))}`
+  });
 
   return NextResponse.json({ orderId: order.id, message });
 }

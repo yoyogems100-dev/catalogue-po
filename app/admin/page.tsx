@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
-import DashboardNotificationBar from '@/components/admin/DashboardNotificationBar';
+import { NotificationsPreview } from '@/components/admin/NotificationsFeed';
+import { AdminSearchBar } from '@/components/admin/AdminSearch';
 import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
 import AccessRequests from '@/components/admin/AccessRequests';
 import { ACCESS_REQUEST_TAG } from '@/lib/access-requests';
@@ -61,12 +62,20 @@ export default async function AdminDashboard() {
   };
   return <>
     <h1>Admin overview</h1><p>Orders needing attention and shortcuts for today’s work.</p>
-    <DashboardNotificationBar />
+    <AdminSearchBar />
+    <nav className="admin-overview-actions" aria-label="Quick actions">
+      <Link className="btn" href="/admin/customers?new=1">+ New customer</Link>
+      <Link className="btn" href="/admin/orders/new">+ Create order</Link>
+      <Link className="btn-ghost" href="/admin/categories">Categories</Link>
+      <Link className="btn-ghost" href="/admin/customers">Customers</Link>
+      <Link className="btn-ghost" href="/admin/suppliers">Suppliers</Link>
+    </nav>
+    <NotificationsPreview />
     <AccessRequests initial={(accessRows || []).map(r => ({id: r.id, name: r.name, company: r.company, phone: r.phone, createdAt: r.created_at}))} />
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>
-    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn" href="/admin/orders/new">Create order</Link><Link className="btn-ghost" href="/admin/orders#request-quotations">Review quotations</Link><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
+    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
     <DashboardQuickActions categories={qaCategories || []} tags={qaTags || []} />
     <h2>Recent orders</h2>
     {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}

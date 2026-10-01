@@ -9,9 +9,10 @@ import CustomerInterestsField from '@/components/admin/CustomerInterestsField';
 // arrives by phone before the buyer has signed in themselves. Mirrors the
 // supplier create form; name OR company satisfies the requirement, matching
 // the rule the customer-facing profile form already uses.
-export default function CustomerCreateForm({ placeSuggestions, categories }: { placeSuggestions: string[]; categories: { id: number; name: string; slug: string | null }[] }) {
+// `startOpen` (from ?new=1, the Overview's "New customer" button) opens the form straight away.
+export default function CustomerCreateForm({ placeSuggestions, categories, startOpen = false }: { placeSuggestions: string[]; categories: { id: number; name: string; slug: string | null }[]; startOpen?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState('');

@@ -1,25 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-type Notification = {
-  id: number;
-  type: 'new_order' | 'order_modified';
-  order_id: number;
-  message: string;
-  is_read: boolean;
-  created_at: string;
-};
-
-function timeAgo(iso: string) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+import { notificationHref, notificationLabel, timeAgo, type AdminNotification as Notification } from '@/lib/notifications';
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -56,7 +39,7 @@ export default function NotificationBell() {
     }
     // New tab -- clicking a notification shouldn't lose whatever admin page
     // was already open.
-    window.open(`/admin/orders/${n.order_id}`, '_blank', 'noopener,noreferrer');
+    window.open(notificationHref(n), '_blank', 'noopener,noreferrer');
   }
 
   async function markAllRead() {
@@ -124,10 +107,14 @@ export default function NotificationBell() {
                   background: n.is_read ? '#fff' : '#f4e6d0'
                 }}
               >
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 2 }}>{notificationLabel(n.type)}</div>
                 <div style={{ color: 'var(--ink)' }}>{n.message}</div>
                 <div style={{ fontSize: 10.5, color: '#756e5c', marginTop: 3 }}>{timeAgo(n.created_at)}</div>
               </div>
             ))}
+            <Link href="/admin/notifications" onClick={() => setOpen(false)} style={{ display: 'block', padding: '10px 14px', fontSize: 12.5, fontWeight: 600, color: 'var(--navy)', textAlign: 'center' }}>
+              See all notifications
+            </Link>
           </div>
         </>
       )}
