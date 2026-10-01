@@ -36,7 +36,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const workStreams = parseMulti(params.workStream, WORK_STREAMS);
   const categoryIds = (params.category || '').split(',').map((v) => v.trim()).filter((v) => /^\d+$/.test(v)).map(Number);
   const safeQ = q.replace(/[,()%]/g, '');
-  const { data: allCategories } = await supabaseAdmin.from('categories').select('id,name,slug').order('name');
+  const { data: allCategories } = await supabaseAdmin.from('categories').select('id,name,slug,archived_at').order('name');
 
   let categoryCustomerIds: number[] = [];
   if (safeQ) {
@@ -78,7 +78,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} /></div></div>
+    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} categories={(allCategories || []).filter((c: any) => !c.archived_at)} /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />

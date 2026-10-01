@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PlaceInput from '@/components/admin/PlaceInput';
 import type { OrderPreference } from '@/lib/customer-preferences';
+import CustomerInterestsField from '@/components/admin/CustomerInterestsField';
+import { sanitizeInterestIds } from '@/lib/customer-interests';
 
-type Customer = { id: number; name: string | null; company: string | null; phone: string | null; email: string | null; work_stream?: string | null; go_to_requirements?: string | null; place?: string | null; order_preferences?: OrderPreference[] | null };
+type Customer = { id: number; name: string | null; company: string | null; phone: string | null; email: string | null; work_stream?: string | null; go_to_requirements?: string | null; place?: string | null; order_preferences?: OrderPreference[] | null; interest_category_ids?: number[] | null; show_interests?: boolean | null };
 
-export default function CustomerProfileEditor({ customer, placeSuggestions }: { customer: Customer; placeSuggestions: string[] }) {
+export default function CustomerProfileEditor({ customer, placeSuggestions, categories }: { customer: Customer; placeSuggestions: string[]; categories: { id: number; name: string; slug: string | null }[] }) {
   const router = useRouter();
-  const [form, setForm] = useState({ name: customer.name || '', company: customer.company || '', phone: customer.phone || '', email: customer.email || '', workStream: customer.work_stream || '', goToRequirements: customer.go_to_requirements || '', place: customer.place || '' });
+  const [form, setForm] = useState({ name: customer.name || '', company: customer.company || '', phone: customer.phone || '', email: customer.email || '', workStream: customer.work_stream || '', goToRequirements: customer.go_to_requirements || '', place: customer.place || '', interestCategoryIds: sanitizeInterestIds(customer.interest_category_ids), showInterests: customer.show_interests !== false });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   async function save() {
@@ -29,7 +31,11 @@ export default function CustomerProfileEditor({ customer, placeSuggestions }: { 
       <label>Email<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
       <label>Work stream<select value={form.workStream} onChange={(event) => setForm({ ...form, workStream: event.target.value })}><option value="">Choose work stream</option><option>Silver jewellery</option><option>Gold jewellery</option><option>Commercial jewellery</option><option>Fashion jewellery</option><option>Gemstone trader</option><option>Manufacturer</option><option>Retailer</option><option>Other</option></select></label>
       <label>Place<PlaceInput value={form.place} onChange={(place) => setForm({ ...form, place })} suggestions={placeSuggestions} /></label>
-      <label className="admin-profile-wide">Go-to requirements<textarea rows={3} value={form.goToRequirements} onChange={(event) => setForm({ ...form, goToRequirements: event.target.value })} placeholder="Frequent stones, cuts, sizes, colors, quantities or delivery preferences" /></label>
+      <div className="admin-profile-wide admin-profile-field">
+        <span>Go-to requirements</span>
+        <CustomerInterestsField categories={categories} ids={form.interestCategoryIds} show={form.showInterests} onChange={({ ids, show }) => setForm({ ...form, interestCategoryIds: ids, showInterests: show })} />
+      </div>
+      <label className="admin-profile-wide">Requirement notes<textarea rows={2} value={form.goToRequirements} onChange={(event) => setForm({ ...form, goToRequirements: event.target.value })} placeholder="Sizes, colours, quantities or delivery preferences" /></label>
     </div>
     <div className="admin-form-actions"><button className="btn" type="button" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save customer'}</button>{message && <span role="status">{message}</span>}</div>
   </section>;

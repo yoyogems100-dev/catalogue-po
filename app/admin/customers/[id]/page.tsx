@@ -31,7 +31,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const orderIds = (orders || []).map((order: any) => order.id);
   const [{ data: items }, { data: categories }, { data: settings }] = await Promise.all([
     orderIds.length ? supabaseAdmin.from('order_items').select('order_id,quantity,category_id').in('order_id', orderIds) : Promise.resolve({ data: [] as any[] }),
-    supabaseAdmin.from('categories').select('id,name,slug').order('num'),
+    supabaseAdmin.from('categories').select('id,name,slug,archived_at').order('num'),
     supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY])
   ]);
   const setting = (key: string) => (settings || []).find((s: { key: string }) => s.key === key)?.value as string | undefined;
@@ -55,7 +55,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     </nav>
     {tab === 'details' ? (
       <>
-        <CustomerProfileEditor customer={customer} placeSuggestions={placeSuggestions(usedPlaces)} />
+        <CustomerProfileEditor customer={customer} placeSuggestions={placeSuggestions(usedPlaces)} categories={(categories || []).filter((c: any) => !c.archived_at)} />
         <CustomerPasswordPanel customerId={customer.id} phone={customer.phone} status={passwordStatus} />
       </>
     ) : tab === 'colours' ? (
