@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import ShapeReferenceImage from './ShapeReferenceImage';
-import { parseOrderText, resolveSizes, sortSizes, suggestSizes } from '@/lib/quick-order';
+import { resolveSizes, sortSizes, suggestSizes } from '@/lib/quick-order';
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 /** pcs_per_ct: set on sizes sold by carat (Moissanite Round under 3 mm) -- pieces in 1 ct. */
@@ -50,8 +50,8 @@ const unitOf = (s: GridSize) => (s.pcs_per_ct ? 'ct' : 'pcs');
  * then "size -> amount" lines -- so the sheet works the same way: type a size
  * (110 = 1.10 mm, ranges like 1.2-1.8), the amount, Enter, next line. An
  * empty amount repeats the last one. Round under 3 mm is in ct, everything
- * else in pcs. A whole order can also be pasted as text. Lines stay put when
- * switching shape (the shape tiles count them) and are added in one go.
+ * else in pcs. Lines stay put when switching shape (the shape tiles count
+ * them) and are added in one go.
  */
 export default function SizeGridComposer({
   shapes,
@@ -85,9 +85,6 @@ export default function SizeGridComposer({
   const [picked, setPicked] = useState<number[]>([]);
   // The last amount entered per unit, repeated when the amount is left empty.
   const [last, setLast] = useState<{ ct?: number; pcs?: number }>({});
-  const [pasteOpen, setPasteOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
-  const [pasteNote, setPasteNote] = useState<{ added: number; problems: string[] } | null>(null);
   const sizeInput = useRef<HTMLInputElement>(null);
   const amountInput = useRef<HTMLInputElement>(null);
 
@@ -197,20 +194,6 @@ export default function SizeGridComposer({
     amountInput.current?.focus();
   }
 
-  function readPaste() {
-    const r = parseOrderText(pasteText, shapes, sizes, shapeId);
-    if (r.lines.length) {
-      const next = { ...entries };
-      r.lines.forEach((l) => { next[l.sizeId] = String(l.amount); });
-      onEntries(next);
-      const lastShape = r.lines[r.lines.length - 1].shapeId;
-      if (lastShape !== shapeId) onShape(lastShape);
-    }
-    setPasteNote({ added: r.lines.length, problems: r.problems });
-    if (!r.problems.length && r.lines.length) { setPasteText(''); setPasteOpen(false); }
-    else if (r.lines.length) setPasteText(r.rejected.join('\n'));
-  }
-
   return (
     <div className="po-grid">
       <div className="po-label" id="po-grid-shapes">Shape</div>
@@ -291,7 +274,7 @@ export default function SizeGridComposer({
               {panelOpen && suggestions.length > 0 && (
                 <span className="po-sheet-suggest">
                   <span className="po-sheet-suggest-head">
-                    <span>Tap sizes{picked.length ? ` · ${picked.length} picked` : ''}</span>
+                    <span>{picked.length ? `${picked.length} picked` : 'Pick sizes with the same quantity'}</span>
                     {picked.length > 0 && (
                       <button type="button" onClick={() => { setPicked([]); setError(''); }}>Clear</button>
                     )}
@@ -373,38 +356,9 @@ export default function SizeGridComposer({
                 {mixedUnits
                   ? 'Sizes under 3 mm are in ct and the rest in pcs — add them separately'
                   : draftSizes.length > 1
-                  ? `${draftSizes.length} sizes picked — one ${draftUnit} amount for all; change any line after`
-                  : repeat
-                  ? `Enter adds the line · empty amount = ${repeat} ${draftUnit} again`
-                  : 'Tap Size to pick one or many sizes, then one amount for all'}
+                  ? 'Add one common quantity — change any size later.'
+                  : 'Pick sizes with the same quantity — change any later.'}
               </p>}
-
-          <button type="button" className="po-sheet-paste-toggle" aria-expanded={pasteOpen} onClick={() => { setPasteOpen((o) => !o); setPasteNote(null); }}>
-            {pasteOpen ? 'Close list' : 'Paste or type a whole list'}
-          </button>
-          {pasteOpen && (
-            <div className="po-sheet-paste">
-              <textarea
-                rows={6}
-                aria-label="Order list"
-                placeholder={'Round\n1.00 30\n1.10 70\n1.2-1.8 100\nPear\n2.5x4 300'}
-                value={pasteText}
-                onChange={(e) => { setPasteText(e.target.value); setPasteNote(null); }}
-              />
-              <button type="button" className="po-sheet-add" onClick={readPaste} disabled={!pasteText.trim()}>Read list</button>
-            </div>
-          )}
-          {pasteNote && (
-            <div className="po-sheet-paste-note" role="status">
-              {pasteNote.added > 0 && <p>Added {pasteNote.added} {pasteNote.added === 1 ? 'line' : 'lines'} from your list.</p>}
-              {pasteNote.problems.length > 0 && (
-                <>
-                  <p>Not added — please check:</p>
-                  <ul>{pasteNote.problems.map((p, i) => <li key={i}>{p}</li>)}</ul>
-                </>
-              )}
-            </div>
-          )}
         </div>
       )}
 

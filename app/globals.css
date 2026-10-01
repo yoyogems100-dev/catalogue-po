@@ -2775,14 +2775,8 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-add { min-height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--navy); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .po-sheet-add:disabled { opacity: .5; cursor: default; }
 .po-sheet-help, .po-sheet-error { margin: 6px 2px 0; font-size: 11.5px; color: var(--text-dim); }
+.po-sheet-help { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .po-sheet-error { color: #b3261e; font-weight: 600; }
-.po-sheet-paste-toggle { margin-top: 8px; padding: 6px 0; background: none; border: 0; font: inherit; font-size: 12.5px; color: var(--navy); text-decoration: underline; cursor: pointer; }
-.po-sheet-paste { display: grid; gap: 8px; margin-top: 4px; }
-.po-sheet-paste textarea { font-size: 15px; line-height: 1.5; min-height: 140px; }
-.po-sheet-paste .po-sheet-add { justify-self: start; }
-.po-sheet-paste-note { margin-top: 8px; font-size: 12.5px; color: var(--ink); }
-.po-sheet-paste-note p { margin: 0 0 4px; }
-.po-sheet-paste-note ul { margin: 0; padding-left: 18px; color: #b3261e; }
 
 .category-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .category-title-row .size-chart-download { margin: 10px 0 4px; }

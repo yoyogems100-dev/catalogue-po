@@ -1,8 +1,7 @@
-// Reading sizes and quantities the way buyers write them in a notebook:
-// "110 -> 70 ct", "2.00 - 50ct", "1.2-1.8 100", "1x1.5x2 50". Used by the
-// Moissanite quick order sheet (components/SizeGridComposer).
+// Reading sizes the way buyers write them in a notebook: "110" (1.10 mm),
+// "2.00", "1.2-1.8", "3, 3.5, 4", "1x1.5x2". Used by the Moissanite quick
+// order sheet (components/SizeGridComposer).
 
-export type QuickShape = { id: number; name: string };
 export type QuickSize = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
 
 const EPS = 1e-6;
@@ -114,93 +113,4 @@ export function suggestSizes<S extends QuickSize>(shapeSizes: S[], text: string,
       return name.startsWith(t) || (digits !== null && /^\d(\.|$)/.test(name) && (name.replace('.', '') + '00').startsWith(digits));
     })
     .slice(0, limit);
-}
-
-/** A shape named the way buyers spell it: "MARQUISS", "Bagutte", "round:". */
-export function matchShape<S extends QuickShape>(shapes: S[], text: string): S | null {
-  const t = text.toLowerCase().replace(/[^a-z ]/g, '').trim();
-  if (t.length < 3) return null;
-  const exact = shapes.find((s) => s.name.toLowerCase() === t);
-  if (exact) return exact;
-  const head = t.slice(0, 4);
-  const hits = shapes.filter((s) => s.name.toLowerCase().startsWith(head) || s.name.toLowerCase().split(' ').some((w) => w.startsWith(head) && t.length >= 4));
-  // "Baguette" also starts "Tapered Baguette"'s last word: prefer the name that starts with it.
-  return hits.sort((a, b) => Number(b.name.toLowerCase().startsWith(head)) - Number(a.name.toLowerCase().startsWith(head)) || a.name.length - b.name.length)[0] || null;
-}
-
-export type ParsedLine = { shapeId: number; sizeId: number; amount: number };
-/** problems: why each line was not added; rejected: those lines as written, to correct and read again. */
-export type ParseResult = { lines: ParsedLine[]; problems: string[]; rejected: string[] };
-
-/**
- * A whole order typed or pasted as text, one shape heading then its sizes:
- *
- *   Round
- *   1.00 -> 30 ct
- *   1.2-1.8 100
- *   Pear: 7x9 20
- *
- * Lines before any heading belong to `currentShapeId`. A size the heading's
- * shape lacks is looked up in shapes whose name contains it (a 1x1.5x2 under
- * "Baguette" is a Tapered Baguette). Weight is only for sizes sold by carat;
- * "ct" written against a size sold by pieces is reported, not converted.
- */
-export function parseOrderText<S extends QuickSize>(text: string, shapes: QuickShape[], sizes: S[], currentShapeId: number | null): ParseResult {
-  const lines: ParsedLine[] = [];
-  const problems: string[] = [];
-  const rejected: string[] = [];
-  let shapeId = currentShapeId;
-  const segments = text
-    .replace(/→|->|=>|—|–(?=\s)/g, ' ')
-    .split(/\n|;|,(?!\d)/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  let heading = '';
-  const reject = (seg: string, why: string) => {
-    problems.push(`${seg} — ${why}`);
-    // Keep the shape heading with a rejected line, so reading it again lands in the same shape.
-    if (heading && !rejected.includes(heading)) rejected.push(heading);
-    rejected.push(seg);
-  };
-  for (let seg of segments) {
-    // "Round:" or "Round: 1 30" -- a heading, optionally with the first item.
-    const head = seg.match(/^([a-z][a-z ]*?)\s*[:\-]?\s*(?=\d|$)/i);
-    if (head && head[1].trim()) {
-      const shape = matchShape(shapes, head[1]);
-      if (!shape) { reject(seg, `shape not recognised`); continue; }
-      shapeId = shape.id;
-      heading = shape.name;
-      seg = seg.slice(head[0].length).trim();
-      if (!seg) continue;
-    }
-    if (shapeId === null) { reject(seg, `say which shape first`); continue; }
-    // Size, then amount with an optional unit; a spaced dash is only a separator.
-    const m = seg.replace(/\s+-\s+/g, ' ').match(/^(.+?)\s+(\d+)\s*(ct|cts|carat|carats|pcs|pc|pieces)?\.?$/i);
-    if (!m) { reject(seg, `write the size then the amount, e.g. 1.1 70`); continue; }
-    const [, sizeText, amountText, unit] = m;
-    const amount = Number(amountText);
-    if (!Number.isSafeInteger(amount) || amount <= 0) { reject(seg, `amount must be a whole number`); continue; }
-
-    const own = sizes.filter((s) => s.shape_id === shapeId);
-    let found = resolveSizes(own, sizeText);
-    let foundShapeId = shapeId;
-    if ('error' in found) {
-      const name = shapes.find((s) => s.id === shapeId)?.name.toLowerCase() || '';
-      for (const other of shapes) {
-        if (other.id === shapeId || !name || !other.name.toLowerCase().includes(name)) continue;
-        const alt = resolveSizes(sizes.filter((s) => s.shape_id === other.id), sizeText);
-        if ('sizes' in alt) { found = alt; foundShapeId = other.id; break; }
-      }
-    }
-    if ('error' in found) { reject(seg, `${found.error}`); continue; }
-    const byWeight = /^c/i.test(unit || '');
-    const wrongUnit = found.sizes.find((s) => byWeight && !s.pcs_per_ct);
-    if (wrongUnit) { reject(seg, `${wrongUnit.size_mm} mm is ordered in pcs, not ct`); continue; }
-    const byPcs = /^p/i.test(unit || '');
-    const wrongPcs = found.sizes.find((s) => byPcs && s.pcs_per_ct);
-    if (wrongPcs) { reject(seg, `${wrongPcs.size_mm} mm is ordered in ct`); continue; }
-    for (const s of found.sizes) lines.push({ shapeId: foundShapeId, sizeId: s.id, amount });
-  }
-  return { lines, problems, rejected };
 }
