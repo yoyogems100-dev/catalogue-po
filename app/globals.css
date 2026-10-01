@@ -2768,6 +2768,8 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-suggest-body { max-height: min(46vh, 340px); overflow-y: auto; }
 .po-sheet-suggest-group { padding: 4px 8px 8px; }
 .po-sheet-suggest-group + .po-sheet-suggest-group { border-top: 1px solid var(--line); }
+.po-sheet-suggest-group.is-folded { padding-bottom: 2px; background: var(--ivory); }
+.po-sheet-suggest-group.is-folded .po-sheet-suggest-group-head { color: var(--text-dim); }
 .po-sheet-suggest-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; font-size: 11px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: var(--gold); }
 .po-sheet-suggest-group-head button { letter-spacing: 0; text-transform: none; }
 .po-sheet-suggest-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; }

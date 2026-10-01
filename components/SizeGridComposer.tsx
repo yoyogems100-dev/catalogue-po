@@ -123,6 +123,11 @@ export default function SizeGridComposer({
     [sizeText, shapeSizes]
   );
   const split = new Set(shapeSizes.map(unitOf)).size > 1;
+  // With sizes ticked in one unit, the other unit's group folds to its
+  // heading -- they can't share the quantity anyway. "Show" opens it again.
+  const pickedUnit = pickedSizes[0] ? unitOf(pickedSizes[0]) : null;
+  const [shownUnit, setShownUnit] = useState<'ct' | 'pcs' | null>(null);
+  useEffect(() => { if (!pickedUnit) setShownUnit(null); }, [pickedUnit]);
 
   // Select all / Unselect all for one group (one unit), leaving other units' picks off.
   function selectGroup(group: GridSize[]) {
@@ -323,14 +328,18 @@ export default function SizeGridComposer({
                   const group = suggestions.filter((s) => unitOf(s) === unit);
                   if (!group.length) return null;
                   const all = group.every((s) => picked.includes(s.id));
+                  const folded = split && !!pickedUnit && pickedUnit !== unit && shownUnit !== unit;
                   return (
-                    <div key={unit} className="po-sheet-suggest-group">
+                    <div key={unit} className={`po-sheet-suggest-group${folded ? ' is-folded' : ''}`}>
                       {split && (
                         <div className="po-sheet-suggest-group-head">
                           <span>{unit === 'ct' ? 'Under 3 mm · ct' : '3 mm and above · pcs'}</span>
-                          <button type="button" onClick={() => selectGroup(group)}>{all ? 'Unselect all' : 'Select all'}</button>
+                          {folded
+                            ? <button type="button" aria-expanded="false" onClick={() => setShownUnit(unit)}>Show {group.length}</button>
+                            : <button type="button" onClick={() => selectGroup(group)}>{all ? 'Unselect all' : 'Select all'}</button>}
                         </div>
                       )}
+                      {!folded && <>
                       <div className="po-sheet-suggest-list" role="listbox" aria-multiselectable="true" aria-label={`${shape.name} sizes${split ? ` in ${unit}` : ''}`}>
                         {group.map((s) => {
                           const has = entries[s.id] !== undefined && entries[s.id] !== '';
@@ -350,6 +359,7 @@ export default function SizeGridComposer({
                           );
                         })}
                       </div>
+                      </>}
                     </div>
                   );
                 })}
