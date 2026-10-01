@@ -205,17 +205,18 @@ export default function POSelector({
 
   const pickedRows = useMemo(() => pickedSizeRows(sizeGroups, pickSizeIdxs, pickShapeIds), [sizeGroups, pickSizeIdxs, pickShapeIds]);
 
-  // Sizes sold by carat are picked one at a time -- the weight and its pieces
-  // belong to that one size. Picking one replaces the other sizes; picking
-  // another size replaces it.
-  const isCaratSize = (idx: number) => !!sizeGroups[idx]?.rows.some((r) => r.pcs_per_ct && (!pickShapeIds.length || pickShapeIds.includes(r.shape_id)));
-  function pickSizes(next: number[]) {
-    const added = next.filter((i) => !pickSizeIdxs.includes(i));
-    if (added.length && (added.some(isCaratSize) || pickSizeIdxs.some(isCaratSize))) setPickSizeIdxs([added[added.length - 1]]);
-    else setPickSizeIdxs(next);
-  }
-  // Pieces in one carat for the one size being added, else null (pieces only).
+  // Sizes sold by carat (Moissanite melee) take a weight. With one such size
+  // picked, weight and pieces are linked both ways; with several, the weight
+  // applies to each of them and any other sizes take pieces.
+  const caratRows = pickedRows.filter((r) => r.pcs_per_ct);
+  const plainRowCount = pickedRows.length - caratRows.length;
+  // Pieces in one carat when exactly one size by carat is being added -- the
+  // linked mode -- else null.
   const caratRate = pickedRows.length === 1 ? pickedRows[0].pcs_per_ct ?? null : null;
+  const multiCarat = caratRows.length > 0 && !caratRate;
+  const ctNum = parseQuantity(pickCt) || 0;
+  // The pieces box: linked to the weight, for the other sizes, or not needed.
+  const showPieces = !!caratRate || plainRowCount > 0 || caratRows.length === 0;
   // Carats are whole: pieces round up to the next full carat, and the pieces
   // box then shows that carat's pieces (130 at 62/ct -> 3 ct, 186 pcs).
   function settlePieces(pcs: number, rate: number) {
@@ -225,8 +226,12 @@ export default function POSelector({
     setPickQty(ct ? String(ct * rate) : '');
   }
   // A new carat size keeps the weight already entered and re-derives pieces.
+  const wasLinked = useRef(false);
   useEffect(() => {
-    if (!caratRate) return;
+    // Leaving the linked mode: the pieces shown were the weight's, not a
+    // number anyone typed for the other sizes.
+    if (!caratRate) { if (wasLinked.current) setPickQty(startQty); wasLinked.current = false; return; }
+    wasLinked.current = true;
     const ct = parseQuantity(pickCt);
     if (ct) setPickQty(String(ct * caratRate));
     else { const pcs = parseQuantity(pickQty); if (pcs) settlePieces(pcs, caratRate); }
@@ -246,8 +251,9 @@ export default function POSelector({
   const isQuotation = pickRequestType === 'Request Quotation';
   // A quotation is asking what something would cost, so a quantity is not
   // required to send one. A purchase still needs one.
+  const quantitiesOk = multiCarat ? ctNum > 0 && (plainRowCount === 0 || qtyNum > 0) : qtyNum > 0;
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
-    && (isQuotation || qtyNum > 0) && (grades.length === 0 || grades.includes(pickGrade));
+    && (isQuotation || quantitiesOk) && (grades.length === 0 || grades.includes(pickGrade));
   const comboCount = useMemo(() => {
     if (!allowedBySize) return pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
     let n = 0;
@@ -378,7 +384,8 @@ export default function POSelector({
     categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && 'shape',
     pickSizeIdxs.length === 0 && 'size',
     pickColorIds.length === 0 && lowerLabel,
-    !isQuotation && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
+    !isQuotation && multiCarat && ctNum <= 0 && 'weight',
+    !isQuotation && showPieces && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
   ].filter(Boolean) as string[];
 
   function clearSelection() {
@@ -401,7 +408,9 @@ export default function POSelector({
     let next = cart;
     let added = 0;
     // By carat: always a whole number of carats' worth of pieces.
-    const lineQty = caratRate ? caratsFor(qtyNum, caratRate) * caratRate : qtyNum;
+    // Linked mode settles pieces to whole carats; several sizes by carat each
+    // get the weight's pieces at their own rate; other sizes take the pieces.
+    const qtyFor = (rate: number | null | undefined) => !rate ? qtyNum : caratRate ? caratsFor(qtyNum, rate) * rate : ctNum * rate;
 
     for (const shapeId of pickShapeIds) {
       const shape = shapes.find((s) => s.id === shapeId);
@@ -427,11 +436,11 @@ export default function POSelector({
             colorName: color.name,
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
-            qty: lineQty,
+            qty: qtyFor(match.pcs_per_ct),
             qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
             ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {}),
-            ...(caratRate && lineQty > 0 ? { orderSpecs: caratSpec(caratRate) } : {})
+            ...(match.pcs_per_ct && qtyFor(match.pcs_per_ct) > 0 ? { orderSpecs: caratSpec(match.pcs_per_ct) } : {})
           };
           next = mergeIntoCart(next, item);
           added++;
@@ -573,7 +582,7 @@ export default function POSelector({
               optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
-              onChange={pickSizes}
+              onChange={setPickSizeIdxs}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
               locked={pickShapeIds.length > 0 && sizeOptions.length === 1}
@@ -587,9 +596,9 @@ export default function POSelector({
             />
                       </div>
           {allowedBySize && colorField}
-          {caratRate && (
+          {caratRows.length > 0 && (
             <div>
-              <label className="po-label" htmlFor="po-new-carats">Weight (ct)</label>
+              <label className="po-label" htmlFor="po-new-carats">Weight (ct){multiCarat ? ' per size' : ''}</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -605,17 +614,19 @@ export default function POSelector({
                   const bad = !/^\d*$/.test(v.trim());
                   setCtError(bad);
                   const ct = parseQuantity(v);
-                  if (!bad) setPickQty(ct ? String(ct * caratRate) : '');
+                  if (!bad && caratRate) setPickQty(ct ? String(ct * caratRate) : '');
                   setQtyError(false);
                 }}
               />
               {ctError
                 ? <p className="po-field-error" id="po-new-carats-error" role="alert">Whole carats only — e.g. 2.</p>
-                : <p className="po-carat-rate" id="po-new-carats-rate">1ct = ~{caratRate} pcs</p>}
+                : <p className="po-carat-rate" id="po-new-carats-rate">{caratRate
+                    ? `1ct = ~${caratRate} pcs`
+                    : caratRows.map((r) => `${r.size_mm} mm: 1ct = ~${r.pcs_per_ct} pcs`).join(' · ')}</p>}
             </div>
           )}
-          <div>
-            <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty per line (pcs)'}</label>
+          {showPieces && <div>
+            <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty (pcs)'}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -637,7 +648,8 @@ export default function POSelector({
               onBlur={() => { if (caratRate && qtyNum > 0) settlePieces(qtyNum, caratRate); }}
             />
             {qtyError && <p className="po-field-error" id="po-new-quantity-error" role="alert">{quantityField?.label ? `Whole numbers only — e.g. ${adminDefaultQty || 5}.` : 'Whole pieces only — enter a number like 500.'}</p>}
-          </div>
+            {multiCarat && <p className="po-carat-rate">For {plainRowCount === 1 ? 'the size' : 'the sizes'} not sold by weight</p>}
+          </div>}
         </div>
 
         <div className="po-type-toggle" role="group" aria-label="Request type">
@@ -667,7 +679,7 @@ export default function POSelector({
           <p className="po-price-preview" role="status">
             <strong>₹{formatRupees(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatRupees(selectionPrice.max)}</>}</strong>
             {' '}per {priceUnitLabel(priceUnit)}
-            {qtyNum > 0 && <> · est. ₹{formatRupees(selectionPrice.sum * qtyNum)}</>}
+            {qtyNum > 0 && !multiCarat && <> · est. ₹{formatRupees(selectionPrice.sum * qtyNum)}</>}
           </p>
         )}
 
@@ -680,7 +692,9 @@ export default function POSelector({
         {!canAdd && hasSelection && missingFields.length > 0 && (
           <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
         )}
-        {canAdd && (quantityField?.unit
+        {canAdd && multiCarat
+          ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} lines · ~{(pickedRows.reduce((sum, r) => sum + (r.pcs_per_ct ? ctNum * r.pcs_per_ct : qtyNum), 0) * Math.max(1, pickColorIds.length)).toLocaleString('en-IN')} pcs to add</p>
+          : canAdd && (quantityField?.unit
           ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} × {formatQty(qtyNum, quantityField.unit)} = {formatQty(comboCount * qtyNum, quantityField.unit)} to add</p>
           : <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'line' : 'lines'} × {caratRate ? '~' : ''}{qtyNum.toLocaleString('en-IN')} pcs = {caratRate ? '~' : ''}{(comboCount * qtyNum).toLocaleString('en-IN')} pcs to add</p>)}
         {/* Adding a line deliberately keeps the shape and colour so several

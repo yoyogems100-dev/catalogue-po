@@ -260,7 +260,7 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         <label htmlFor="qty-field-label">Quantity field</label>
         <input
           id="qty-field-label"
-          placeholder="Qty per line (pcs)"
+          placeholder="Qty (pcs)"
           maxLength={QUANTITY_LABEL_MAX}
           value={qtyLabel}
           disabled={!categoryId || loading || savingQty}

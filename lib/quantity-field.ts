@@ -1,5 +1,5 @@
 // How a category's order form asks for quantity: what the field is called
-// and what it starts on. Most categories ask "Qty per line (pcs)" and start
+// and what it starts on. Most categories ask "Qty (pcs)" and start
 // empty; Semi Precious Beads are bought by the line (strand), so there it is
 // "No. of Lines" starting on 5, counted in lines and weighed in carats.
 // Edited in Admin > category > Pricing and stored as one JSON map in
