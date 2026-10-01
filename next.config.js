@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingIncludes: {
-    '/api/categories/*/size-chart': ['./public/moissanite-shapes/*.png'],
+    // The shared shape photos too: a shape with no category-specific photo
+    // falls back to its own reference photo (e.g. Moissanite Tapered Baguette).
+    '/api/categories/*/size-chart': ['./public/moissanite-shapes/*.png', './public/reference/stones/*'],
     // assets/fonts is the watermark typeface. It is read from disk at
     // request time by every route that stores a photo, so without this trace they get ENOENT in
     // production while working perfectly here -- the same failure the PDFKit
