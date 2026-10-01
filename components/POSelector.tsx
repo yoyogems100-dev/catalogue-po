@@ -16,7 +16,7 @@ import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import { loadCart, saveCart, mergeIntoCart as mergeCartLines, type CartItem, type RequestType } from '@/lib/cart-storage';
-import QuantityInput from './QuantityInput';
+import SizeGridComposer, { gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
@@ -27,6 +27,10 @@ import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityFi
 // shown as a fixed/disabled field (contrast with Moissanite's locked color, which
 // customers do still need to see spelled out).
 const GLASS_PEARLS_CATEGORY_ID = 16;
+// Moissanite is ordered size by size from a grid (components/SizeGridComposer):
+// buyers send lists like 0.7 mm 20 ct, 1 mm 100 ct, so each size takes its own
+// amount instead of one quantity shared by every picked size.
+const SIZE_GRID_CATEGORY_ID = 34;
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
@@ -34,6 +38,18 @@ type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: s
 type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
+
+// "3 sizes · 120 ct (~13,450 pcs) + 50 pcs to add"
+function gridSummary(lines: { size: { pcs_per_ct?: number | null }; amount: number; pcs: number }[]) {
+  const ct = lines.filter((l) => l.size.pcs_per_ct);
+  const ctTotal = ct.reduce((n, l) => n + l.amount, 0);
+  const ctPcs = ct.reduce((n, l) => n + l.pcs, 0);
+  const pcs = lines.filter((l) => !l.size.pcs_per_ct).reduce((n, l) => n + l.pcs, 0);
+  const parts: string[] = [];
+  if (ct.length) parts.push(`${ctTotal.toLocaleString('en-IN')} ct (~${ctPcs.toLocaleString('en-IN')} pcs)`);
+  if (pcs) parts.push(`${pcs.toLocaleString('en-IN')} pcs`);
+  return `${lines.length} ${lines.length === 1 ? 'size' : 'sizes'} · ${parts.join(' + ')} to add`;
+}
 
 export default function POSelector({
   categoryId,
@@ -106,6 +122,10 @@ export default function POSelector({
   // Weight in whole carats, for sizes sold by carat; pieces follow from it.
   const [pickCt, setPickCt] = useState('');
   const [ctError, setCtError] = useState(false);
+  const sizeGrid = categoryId === SIZE_GRID_CATEGORY_ID;
+  const [gridShapeId, setGridShapeId] = useState<number | null>(null);
+  const [gridEntries, setGridEntries] = useState<GridEntries>({});
+  const [gridPicked, setGridPicked] = useState<number[]>([]);
 
   // POSelector isn't remounted when a customer client-side-navigates from one
   // category page to another (same component, new categoryId prop) -- without
@@ -126,8 +146,21 @@ export default function POSelector({
     setPickQty(start);
     setQtyError(false);
     setPickRequestType('Place Order');
+    setGridShapeId(null);
+    setGridEntries({});
+    setGridPicked([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, adminDefaultQty]);
+
+  // The grid opens on Round -- most melee orders are Round -- so sizes are on
+  // screen straight away.
+  useEffect(() => {
+    if (!sizeGrid) return;
+    if (gridShapeId === null || !shapes.some((s) => s.id === gridShapeId)) setGridShapeId((shapes.find((s) => s.name === 'Round') || shapes[0])?.id ?? null);
+  }, [sizeGrid, shapes, gridShapeId]);
+  const gridShapes = useMemo(() => [...shapes].sort((a, b) => Number(b.name === 'Round') - Number(a.name === 'Round')), [shapes]);
+  const gridLineList = useMemo(() => (sizeGrid ? gridLines(gridShapes, sizes, gridEntries) : []), [sizeGrid, gridShapes, sizes, gridEntries]);
+  const gridInvalid = sizeGrid && gridHasError(gridEntries);
 
   // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
   // above), so silently keep the selection pinned to Round instead of leaving it
@@ -275,6 +308,11 @@ export default function POSelector({
   // has no price yet -- there is nothing to quote on an item whose price is
   // already published. Purchase stays available either way.
   const selectionHasUnpriced = useMemo(() => {
+    if (sizeGrid) {
+      if (!gridLineList.length || !pickColorIds.length) return true;
+      return gridLineList.some((l) => pickColorIds.some((colorId) =>
+        cartLinePrice(pricingByCategory, { categoryId, shapeId: l.shape.id, sizeId: l.size.id, colorId }) === null));
+    }
     if (!pickShapeIds.length || !pickColorIds.length || !pickSizeIdxs.length) return true;
     for (const shapeId of pickShapeIds) {
       for (const sizeIdx of pickSizeIdxs) {
@@ -287,7 +325,7 @@ export default function POSelector({
       }
     }
     return false;
-  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups, pricingByCategory, categoryId]);
+  }, [sizeGrid, gridLineList, pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups, pricingByCategory, categoryId]);
 
   // The price of what is picked, shown before it is added -- a buyer used to
   // only learn it from the running total after adding. Only when every picked
@@ -448,44 +486,7 @@ export default function POSelector({
       }
     }
 
-    // Quotation lines may carry no quantity at all (0 = "not specified"), so
-    // only purchase lines are held to a positive whole quantity.
-    if (next.some((item) => item.requestType !== 'Request Quotation' && parseQuantity(String(item.qty)) === null)) {
-      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
-      return;
-    }
-    if (next.some((item) => item.requestType === 'Request Quotation' && item.qty > 0 && parseQuantity(String(item.qty)) === null)) {
-      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
-      return;
-    }
-    // Every shape/color/size combo was skipped (e.g. a stale selection left over
-    // from switching categories no longer matches this category's options) --
-    // never claim success when nothing was actually added.
-    if (added === 0) {
-      setToast('Those selections are no longer valid for this category. Please pick again.');
-      return;
-    }
-    // A combination already in the requirement is merged into that line rather
-    // than added twice -- say so, with the new total, since "Added 4 lines"
-    // while two existing lines quietly grew read as an over-order.
-    const grown = next.filter((item) => {
-      const before = cart.find((c) => c.id === item.id);
-      return before && before.qty !== item.qty;
-    });
-    const fresh = added - grown.length;
-    const parts: string[] = [];
-    if (fresh > 0) parts.push(fresh > 1 ? `Added ${fresh} lines` : 'Added 1 line');
-    if (grown.length === 1) {
-      const g = grown[0];
-      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${formatQty(g.qty, g.qtyUnit)}`);
-    } else if (grown.length > 1) {
-      parts.push(`${grown.length} lines were already in your order — quantities added to them`);
-    }
-    const message = parts.join(' · ');
-    setUndo({ cart, message });
-    setCart(next);
-    setJustAdded((n) => n + 1);
-    setToast(message);
+    if (!commitAdd(next, added)) return;
     // Reset only size + qty so the same shape/color picks can be reused for the
     // next size quickly. Request type always returns to Purchase -- it is the
     // primary action, and a quotation is a deliberate per-line choice rather
@@ -505,6 +506,89 @@ export default function POSelector({
     }
     setQtyError(false);
     setPickRequestType('Place Order');
+  }
+
+  // Grid mode: one line per filled size, each with its own amount -- whole
+  // carats for melee (stored as that many carats' pieces), else pieces.
+  function addGridLines() {
+    if (!gridLineList.length || gridInvalid || !pickColorIds.length) {
+      setToast(gridInvalid ? 'Whole numbers only — fix the highlighted size.' : 'Type a weight or quantity against at least one size first.');
+      return;
+    }
+    let next = cart;
+    let added = 0;
+    for (const l of gridLineList) {
+      for (const colorId of pickColorIds) {
+        const color = colors.find((c) => c.id === colorId);
+        if (!color) continue;
+        next = mergeIntoCart(next, {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          categoryId,
+          categoryName,
+          shapeId: l.shape.id,
+          shapeName: l.shape.name,
+          sizeId: l.size.id,
+          sizeMm: l.size.size_mm,
+          colorId: color.id,
+          colorName: color.name,
+          colorHex: color.hex || '#ccc',
+          colorRefPhotoUrl: color.refPhotoUrl || null,
+          qty: l.pcs,
+          qtyUnit: quantityField?.unit ?? null,
+          requestType: pickRequestType,
+          ...(l.size.pcs_per_ct ? { orderSpecs: caratSpec(l.size.pcs_per_ct) } : {})
+        });
+        added++;
+      }
+    }
+    if (!commitAdd(next, added)) return;
+    setGridEntries({});
+    setGridPicked([]);
+    setPickRequestType('Place Order');
+  }
+
+  // Shared by both composers: checks the new cart, then saves it with an Undo
+  // and a toast that says what was added and what was merged.
+  function commitAdd(next: CartItem[], added: number): boolean {
+    // Quotation lines may carry no quantity at all (0 = "not specified"), so
+    // only purchase lines are held to a positive whole quantity.
+    if (next.some((item) => item.requestType !== 'Request Quotation' && parseQuantity(String(item.qty)) === null)) {
+      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
+      return false;
+    }
+    if (next.some((item) => item.requestType === 'Request Quotation' && item.qty > 0 && parseQuantity(String(item.qty)) === null)) {
+      setToast('This would exceed the supported quantity for a line. Reduce the quantity and try again.');
+      return false;
+    }
+    // Every shape/color/size combo was skipped (e.g. a stale selection left over
+    // from switching categories no longer matches this category's options) --
+    // never claim success when nothing was actually added.
+    if (added === 0) {
+      setToast('Those selections are no longer valid for this category. Please pick again.');
+      return false;
+    }
+    // A combination already in the requirement is merged into that line rather
+    // than added twice -- say so, with the new total, since "Added 4 lines"
+    // while two existing lines quietly grew read as an over-order.
+    const grown = next.filter((item) => {
+      const before = cart.find((c) => c.id === item.id);
+      return before && before.qty !== item.qty;
+    });
+    const fresh = added - grown.length;
+    const parts: string[] = [];
+    if (fresh > 0) parts.push(fresh > 1 ? `Added ${fresh} lines` : 'Added 1 line');
+    if (grown.length === 1) {
+      const g = grown[0];
+      parts.push(`${g.shapeName} ${g.sizeMm} mm ${g.colorName} was already in your order — now ${g.orderSpecs?.kind === 'carat' ? `${(g.qty / g.orderSpecs.pcsPerCt).toLocaleString('en-IN')} ct` : formatQty(g.qty, g.qtyUnit)}`);
+    } else if (grown.length > 1) {
+      parts.push(`${grown.length} lines were already in your order — quantities added to them`);
+    }
+    const message = parts.join(' · ');
+    setUndo({ cart, message });
+    setCart(next);
+    setJustAdded((n) => n + 1);
+    setToast(message);
+    return true;
   }
 
 
@@ -533,7 +617,7 @@ export default function POSelector({
     <div className="po-wrap">
       <section className="po-card po-compose-card">
         <h2 className="po-heading">Add to Order</h2>
-        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={pickShapeIds} colorIds={pickColorIds} sizeIds={pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
+        <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridPicked.includes(z.id)).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {!specialCategory(categoryId) && shapes.length === 0 ? (
           <div className="po-no-options">
@@ -558,7 +642,7 @@ export default function POSelector({
             </div>
           )}
           {!allowedBySize && colorField}
-          {categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
+          {!sizeGrid && categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
             <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
             <IconSelect
               categoryId={categoryId}
@@ -574,7 +658,7 @@ export default function POSelector({
               disabledNote={NO_SHARED_SIZE_NOTE}
             />
           </div>}
-          <div>
+          {!sizeGrid && <div>
             <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
             <IconSelect
               categoryId={categoryId}
@@ -594,9 +678,9 @@ export default function POSelector({
                   : 'Choose size(s)'
               }
             />
-                      </div>
+          </div>}
           {allowedBySize && colorField}
-          {caratRows.length > 0 && (
+          {!sizeGrid && caratRows.length > 0 && (
             <div>
               <label className="po-label" htmlFor="po-new-carats">Weight (ct){multiCarat ? ' per size' : ''}</label>
               <input
@@ -625,7 +709,7 @@ export default function POSelector({
                     : caratRows.map((r) => `${r.size_mm} mm: 1ct = ~${r.pcs_per_ct} pcs`).join(' · ')}</p>}
             </div>
           )}
-          {showPieces && <div>
+          {!sizeGrid && showPieces && <div>
             <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty (pcs)'}</label>
             <input
               type="text"
@@ -651,6 +735,19 @@ export default function POSelector({
             {multiCarat && <p className="po-carat-rate">For {plainRowCount === 1 ? 'the size' : 'the sizes'} not sold by weight</p>}
           </div>}
         </div>
+        {sizeGrid && (
+          <SizeGridComposer
+            categoryId={categoryId}
+            picked={gridPicked}
+            onPicked={setGridPicked}
+            shapes={gridShapes}
+            sizes={sizes}
+            entries={gridEntries}
+            onEntries={setGridEntries}
+            shapeId={gridShapeId}
+            onShape={setGridShapeId}
+          />
+        )}
 
         <div className="po-type-toggle" role="group" aria-label="Request type">
           <button
@@ -672,10 +769,10 @@ export default function POSelector({
             Request Quotation
           </button>
         </div>
-        {isQuotation && <p className="po-type-hint">Quantity is optional for a quotation — we&rsquo;ll send prices, then you decide.</p>}
+        {isQuotation && !sizeGrid && <p className="po-type-hint">Quantity is optional for a quotation — we&rsquo;ll send prices, then you decide.</p>}
         {/* A tooltip never shows on a phone, so the reason is printed. */}
         {!selectionHasUnpriced && <p className="po-type-hint" id="po-type-priced-note">Price already listed — no quotation needed.</p>}
-        {selectionPrice && (
+        {!sizeGrid && selectionPrice && (
           <p className="po-price-preview" role="status">
             <strong>₹{formatRupees(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatRupees(selectionPrice.max)}</>}</strong>
             {' '}per {priceUnitLabel(priceUnit)}
@@ -683,6 +780,14 @@ export default function POSelector({
           </p>
         )}
 
+        {sizeGrid ? <>
+          <button type="button" className="po-add-line-btn" onClick={addGridLines} disabled={!gridLineList.length || gridInvalid}>
+            {gridLineList.length > 1 ? `+ Add ${gridLineList.length} sizes to order` : '+ Add to order'}
+          </button>
+          {gridLineList.length > 0 && !gridInvalid && (
+            <p className="po-selection-summary" role="status">{gridSummary(gridLineList)}</p>
+          )}
+        </> : <>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
@@ -704,6 +809,7 @@ export default function POSelector({
         {hasSelection && (
           <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>
         )}
+        </>}
         </>}
         </div>
       </section>
