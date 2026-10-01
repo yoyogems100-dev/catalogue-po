@@ -54,6 +54,16 @@ export function sortSizes<S extends QuickSize>(list: S[]): S[] {
  * range ("1.2-1.8", "1.2 to 1.8"), or an error saying what is offered nearby.
  */
 export function resolveSizes<S extends QuickSize>(shapeSizes: S[], text: string): { sizes: S[] } | { error: string } {
+  // "3, 3.5, 4-5": each part on its own, in size order, once each.
+  if (text.includes(',')) {
+    const found = new Map<number, S>();
+    for (const part of text.split(',').map((p) => p.trim()).filter(Boolean)) {
+      const r = resolveSizes(shapeSizes, part);
+      if ('error' in r) return r;
+      r.sizes.forEach((s) => found.set(s.id, s));
+    }
+    return found.size ? { sizes: sortSizes([...found.values()]) } : { error: 'Type a size' };
+  }
   const t = text.trim().toLowerCase().replace(/\s*mm\b/g, '');
   if (!t) return { error: 'Type a size' };
   const range = t.match(/^(\S+?)\s*(?:-|–|to)\s*(\S+)$/);

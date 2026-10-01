@@ -2754,13 +2754,24 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-remove { width: 28px; height: 28px; border: 0; border-radius: 50%; background: none; color: var(--text-dim); font-size: 17px; line-height: 1; cursor: pointer; }
 .po-sheet-remove:hover { background: #f1ece0; color: var(--ink); }
 
-.po-sheet-entry { padding: 8px; border: 1px dashed var(--navy); border-radius: 8px; background: #f7f9fc; }
-.po-sheet-entry-size { position: relative; min-width: 0; }
+.po-sheet-entry { position: relative; padding: 8px; border: 1px dashed var(--navy); border-radius: 8px; background: #f7f9fc; }
+.po-sheet-entry-size { min-width: 0; }
 .po-grid .po-sheet-entry-size input.po-sheet-input[type="text"] { width: 100%; min-height: 36px; padding: 6px 10px; font-size: 16px; font-weight: 600; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-.po-sheet-suggest { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(320px, 78vw); max-height: 188px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(18 35 63 / 14%); }
-.po-sheet-suggest button { min-width: 52px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--ivory); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
-.po-sheet-suggest button:hover { border-color: var(--navy); }
-.po-sheet-suggest button.is-added { background: #fbf6e9; border-color: var(--gold-soft); }
+.po-sheet-suggest { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(18 35 63 / 16%); overflow: hidden; }
+.po-sheet-suggest-head { display: flex; align-items: center; gap: 4px; padding: 6px 8px 6px 10px; border-bottom: 1px solid var(--line); background: var(--ivory); font-size: 11.5px; color: var(--text-dim); }
+.po-sheet-suggest-head > span { flex: 1; min-width: 0; }
+.po-sheet-suggest-head button { min-height: 30px; padding: 0 8px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--navy); text-decoration: underline; cursor: pointer; }
+.po-sheet-suggest-head .po-sheet-suggest-done { text-decoration: none; background: var(--navy); color: #fff; border-radius: 6px; padding: 0 12px; }
+.po-sheet-suggest-body { max-height: 260px; overflow-y: auto; }
+.po-sheet-suggest-group { display: block; padding: 2px 8px 8px; }
+.po-sheet-suggest-group + .po-sheet-suggest-group { border-top: 1px solid var(--line); }
+.po-sheet-suggest-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; font-size: 11px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: var(--gold); }
+.po-sheet-suggest-group-head button { min-height: 30px; padding: 0 2px 0 8px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--navy); text-decoration: underline; cursor: pointer; }
+.po-sheet-suggest-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 5px; }
+.po-sheet-suggest-list button { min-height: 34px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+.po-sheet-suggest-list button:hover { border-color: var(--navy); }
+.po-sheet-suggest-list button.is-added { background: #fbf6e9; border-color: var(--gold-soft); }
+.po-sheet-suggest-list button.is-picked { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
 .po-sheet-add { min-height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--navy); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .po-sheet-add:disabled { opacity: .5; cursor: default; }
 .po-sheet-help, .po-sheet-error { margin: 6px 2px 0; font-size: 11.5px; color: var(--text-dim); }

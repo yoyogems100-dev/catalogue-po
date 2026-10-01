@@ -71,7 +71,18 @@ export default function SizeGridComposer({
   const [sizeText, setSizeText] = useState('');
   const [amountText, setAmountText] = useState('');
   const [error, setError] = useState('');
-  const [sizeFocused, setSizeFocused] = useState(false);
+  // The size panel: opens from the size box and stays open while sizes are
+  // ticked (a tap on a phone blurs the box), closing on a tap elsewhere.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const entryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!panelOpen) return;
+    const close = (e: PointerEvent) => { if (!entryRef.current?.contains(e.target as Node)) setPanelOpen(false); };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [panelOpen]);
+  // Sizes ticked in the size panel, to take one quantity together.
+  const [picked, setPicked] = useState<number[]>([]);
   // The last amount entered per unit, repeated when the amount is left empty.
   const [last, setLast] = useState<{ ct?: number; pcs?: number }>({});
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -93,7 +104,7 @@ export default function SizeGridComposer({
     }
   }, [shapeId]);
 
-  useEffect(() => { setSizeText(''); setAmountText(''); setError(''); }, [shapeId]);
+  useEffect(() => { setSizeText(''); setAmountText(''); setError(''); setPicked([]); }, [shapeId]);
 
   const shapeSizes = useMemo(() => sortSizes(sizes.filter((s) => s.shape_id === shapeId)), [sizes, shapeId]);
   const rows = shapeSizes.filter((s) => entries[s.id] !== undefined);
@@ -104,18 +115,35 @@ export default function SizeGridComposer({
   }, [sizes, entries]);
   const shape = shapes.find((s) => s.id === shapeId) || null;
 
-  // What the size box currently stands for, to label the amount's unit.
-  const draft = useMemo(() => (sizeText.trim() ? resolveSizes(shapeSizes, sizeText) : null), [shapeSizes, sizeText]);
-  const draftSizes = draft && 'sizes' in draft ? draft.sizes : [];
-  const draftUnit = draftSizes.length && draftSizes.every((s) => unitOf(s) === unitOf(draftSizes[0])) ? unitOf(draftSizes[0]) : null;
+  // What the entry line stands for: the ticked sizes, else what is typed
+  // ("1.1", "3, 3.5, 4", "1.2-1.8"). With sizes ticked, typing only filters
+  // the panel.
+  const pickedSizes = shapeSizes.filter((s) => picked.includes(s.id));
+  const draft = useMemo(
+    () => (picked.length || !sizeText.trim() ? null : resolveSizes(shapeSizes, sizeText)),
+    [shapeSizes, sizeText, picked.length]
+  );
+  const draftSizes = picked.length ? pickedSizes : draft && 'sizes' in draft ? draft.sizes : [];
+  const mixedUnits = draftSizes.length > 0 && !draftSizes.every((s) => unitOf(s) === unitOf(draftSizes[0]));
+  const draftUnit = draftSizes.length && !mixedUnits ? unitOf(draftSizes[0]) : null;
   const repeat = draftUnit ? last[draftUnit] : undefined;
   const suggestions = useMemo(() => {
-    if (!sizeFocused) return [];
+    if (!panelOpen) return [];
     if (!sizeText.trim()) return shapeSizes;
-    const hits = suggestSizes(shapeSizes, sizeText, 12);
+    if (picked.length) return suggestSizes(shapeSizes, sizeText, 200);
+    const hits = suggestSizes(shapeSizes, sizeText, 200);
     // Nothing to offer once the box already holds exactly that one size.
     return hits.length === 1 && draftSizes.length === 1 && hits[0].id === draftSizes[0].id ? [] : hits;
-  }, [sizeFocused, sizeText, shapeSizes, draftSizes]);
+  }, [panelOpen, sizeText, shapeSizes, draftSizes, picked.length]);
+
+  function togglePick(id: number) {
+    const unit = unitOf(shapeSizes.find((s) => s.id === id)!);
+    // A size in the other unit starts a new pick: ct and pcs never share an amount.
+    setPicked((cur) => (cur.includes(id) ? cur.filter((p) => p !== id)
+      : [...cur.filter((p) => { const s = shapeSizes.find((z) => z.id === p); return s && unitOf(s) === unit; }), id]));
+    setSizeText('');
+    setError('');
+  }
 
   function set(id: number, value: string) {
     onEntries({ ...entries, [id]: value });
@@ -127,12 +155,15 @@ export default function SizeGridComposer({
   }
 
   function addDraft() {
-    if (!sizeText.trim()) { sizeInput.current?.focus(); return; }
-    if (!draft || 'error' in draft) { setError(draft && 'error' in draft ? draft.error : 'Type a size'); sizeInput.current?.focus(); return; }
+    if (!picked.length) {
+      if (!sizeText.trim()) { sizeInput.current?.focus(); return; }
+      if (!draft || 'error' in draft) { setError(draft && 'error' in draft ? draft.error : 'Type a size'); sizeInput.current?.focus(); return; }
+    }
+    if (mixedUnits) { setError('Sizes under 3 mm are in ct and the rest in pcs — add them separately'); return; }
     const typed = amountText.trim();
     if (typed && !/^\d+$/.test(typed)) { setError('Whole numbers only'); amountInput.current?.focus(); return; }
     const amount = typed ? Number(typed) : repeat;
-    if (!amount) { setError(`Type the ${draftUnit || 'amount'} for ${sizeText.trim()} mm`); amountInput.current?.focus(); return; }
+    if (!amount) { setError(`Type the ${draftUnit || 'amount'}${draftSizes.length > 1 ? ` for all ${draftSizes.length} sizes` : ''}`); amountInput.current?.focus(); return; }
     const next = { ...entries };
     draftSizes.forEach((s) => { next[s.id] = String(amount); });
     onEntries(next);
@@ -140,17 +171,29 @@ export default function SizeGridComposer({
     setLast((cur) => ({ ...cur, ...(units.has('ct') ? { ct: amount } : {}), ...(units.has('pcs') ? { pcs: amount } : {}) }));
     setSizeText('');
     setAmountText('');
+    setPicked([]);
     setError('');
+    // Ready for the next line, without the size panel covering the page.
     sizeInput.current?.focus();
+    setPanelOpen(false);
   }
 
   function onSizeKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') { setPanelOpen(false); return; }
     if (e.key !== 'Enter') return;
     e.preventDefault();
+    if (picked.length) {
+      // Filtering the ticked list: Enter ticks the one match, else moves on.
+      if (sizeText.trim() && suggestions.length === 1) { togglePick(suggestions[0].id); return; }
+      setPanelOpen(false);
+      amountInput.current?.focus();
+      return;
+    }
     // A partly typed size with one match takes it, like picking from a list.
     if (draftSizes.length === 0 && suggestions.length === 1) setSizeText(suggestions[0].size_mm);
     else if (!draft || 'error' in draft) { if (draft && 'error' in draft) setError(draft.error); return; }
     setError('');
+    setPanelOpen(false);
     amountInput.current?.focus();
   }
 
@@ -227,7 +270,7 @@ export default function SizeGridComposer({
             </ul>
           )}
 
-          <div className="po-sheet-entry" role="group" aria-label={`Add a ${shape.name} size`}>
+          <div className="po-sheet-entry" ref={entryRef} role="group" aria-label={`Add ${shape.name} sizes`}>
             <span className="po-sheet-entry-size">
               <input
                 ref={sizeInput}
@@ -236,29 +279,72 @@ export default function SizeGridComposer({
                 inputMode="decimal"
                 autoComplete="off"
                 enterKeyHint="next"
-                placeholder="Size"
+                placeholder={picked.length ? `${picked.length} picked` : 'Size'}
                 aria-label="Size (mm)"
+                aria-expanded={panelOpen}
                 value={sizeText}
-                onFocus={() => setSizeFocused(true)}
-                onBlur={() => setTimeout(() => setSizeFocused(false), 150)}
-                onChange={(e) => { setSizeText(e.target.value); setError(''); }}
+                onFocus={() => setPanelOpen(true)}
+                onClick={() => setPanelOpen(true)}
+                onChange={(e) => { setSizeText(e.target.value); setError(''); setPanelOpen(true); }}
                 onKeyDown={onSizeKey}
               />
-              {suggestions.length > 0 && (
-                <span className="po-sheet-suggest" role="listbox" aria-label="Sizes">
-                  {suggestions.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      role="option"
-                      aria-selected={entries[s.id] !== undefined}
-                      className={entries[s.id] !== undefined ? 'is-added' : ''}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { setSizeText(s.size_mm); setError(''); amountInput.current?.focus(); }}
-                    >
-                      {s.size_mm}
-                    </button>
-                  ))}
+              {panelOpen && suggestions.length > 0 && (
+                <span className="po-sheet-suggest">
+                  <span className="po-sheet-suggest-head">
+                    <span>Tap sizes{picked.length ? ` · ${picked.length} picked` : ''}</span>
+                    {picked.length > 0 && (
+                      <button type="button" onClick={() => { setPicked([]); setError(''); }}>Clear</button>
+                    )}
+                    {picked.length > 0 && (
+                      <button type="button" className="po-sheet-suggest-done" onClick={() => { setPanelOpen(false); amountInput.current?.focus(); }}>Done</button>
+                    )}
+                  </span>
+                  <span className="po-sheet-suggest-body">
+                    {/* Round mixes ct sizes and pcs sizes: one group each, so one
+                        amount is never shared across the two units. */}
+                    {(['ct', 'pcs'] as const).map((unit) => {
+                      const group = suggestions.filter((s) => unitOf(s) === unit);
+                      if (!group.length) return null;
+                      const ids = group.map((s) => s.id);
+                      const all = ids.every((id) => picked.includes(id));
+                      const split = suggestions.some((s) => unitOf(s) !== unit);
+                      return (
+                        <span key={unit} className="po-sheet-suggest-group">
+                          <span className="po-sheet-suggest-group-head">
+                            <span>{split ? (unit === 'ct' ? 'Under 3 mm · ct' : '3 mm and above · pcs') : ''}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Ticking one unit's sizes clears the other unit's.
+                                setPicked((cur) => all
+                                  ? cur.filter((id) => !ids.includes(id))
+                                  : [...new Set([...cur.filter((id) => { const s = shapeSizes.find((z) => z.id === id); return s && unitOf(s) === unit; }), ...ids])]);
+                                setSizeText('');
+                                setError('');
+                              }}
+                            >
+                              {all ? 'Unselect all' : sizeText.trim() ? 'Select these' : 'Select all'}
+                            </button>
+                          </span>
+                          <span className="po-sheet-suggest-list" role="listbox" aria-multiselectable="true" aria-label={`${shape.name} sizes${split ? ` in ${unit}` : ''}`}>
+                            {group.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                role="option"
+                                aria-selected={picked.includes(s.id)}
+                                className={`${picked.includes(s.id) ? 'is-picked' : ''}${entries[s.id] !== undefined ? ' is-added' : ''}`}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => togglePick(s.id)}
+                              >
+                                {s.size_mm}
+                              </button>
+                            ))}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </span>
                 </span>
               )}
             </span>
@@ -270,9 +356,10 @@ export default function SizeGridComposer({
                 inputMode="numeric"
                 autoComplete="off"
                 enterKeyHint="done"
-                placeholder={repeat ? String(repeat) : draftUnit || 'Qty'}
+                placeholder={repeat ? String(repeat) : 'Qty'}
                 aria-label={`Amount${draftUnit ? ` (${draftUnit})` : ''}`}
                 value={amountText}
+                onFocus={() => setPanelOpen(false)}
                 onChange={(e) => { setAmountText(e.target.value); setError(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraft(); } }}
               />
@@ -283,11 +370,13 @@ export default function SizeGridComposer({
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
             : <p className="po-sheet-help">
-                {draftSizes.length > 1
-                  ? `${draftSizes.length} sizes: ${draftSizes[0].size_mm} to ${draftSizes[draftSizes.length - 1].size_mm} mm`
+                {mixedUnits
+                  ? 'Sizes under 3 mm are in ct and the rest in pcs — add them separately'
+                  : draftSizes.length > 1
+                  ? `${draftSizes.length} sizes picked — one ${draftUnit} amount for all; change any line after`
                   : repeat
                   ? `Enter adds the line · empty amount = ${repeat} ${draftUnit} again`
-                  : 'Size, amount, Enter · 110 = 1.10 mm · 1.2-1.8 adds a range'}
+                  : 'Tap Size to pick one or many sizes, then one amount for all'}
               </p>}
 
           <button type="button" className="po-sheet-paste-toggle" aria-expanded={pasteOpen} onClick={() => { setPasteOpen((o) => !o); setPasteNote(null); }}>

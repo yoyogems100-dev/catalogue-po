@@ -33,6 +33,7 @@ test('sizes are read as buyers write them', () => {
   assert.deepEqual(ok(82, '1x1.5x2'), ['2x1.5x1']);
   assert.deepEqual(ok(1, '1.2-1.4'), ['1.2', '1.25', '1.3', '1.4']);
   assert.deepEqual(ok(1, '140 to 120'), ['1.2', '1.25', '1.3', '1.4']);
+  assert.deepEqual(ok(1, '1.5, 1.1, 1.2-1.25, 1.1'), ['1.1', '1.2', '1.25', '1.5']);
   const miss = resolveSizes(sizes.filter((s) => s.shape_id === 1), '2.15');
   assert.ok('error' in miss && /nearest: 2.1, 2.2/.test(miss.error));
 });
