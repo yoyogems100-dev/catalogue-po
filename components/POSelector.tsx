@@ -154,6 +154,35 @@ export default function POSelector({
   const gridShapes = useMemo(() => [...shapes].sort((a, b) => Number(b.name === 'Round') - Number(a.name === 'Round')), [shapes]);
   const gridLineList = useMemo(() => (sizeGrid ? gridLines(gridShapes, sizes, gridEntries) : []), [sizeGrid, gridShapes, sizes, gridEntries]);
   const gridInvalid = sizeGrid && gridHasError(gridEntries);
+  // The sheet is kept in this browser until it is added to the order, so a
+  // reload or a look at another page doesn't lose a long list.
+  const gridDraftKey = `yoyo-size-sheet-${categoryId}`;
+  const gridRestored = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sizeGrid) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(gridDraftKey) || 'null');
+      if (saved && typeof saved === 'object') setGridEntries(saved);
+    } catch { /* no saved sheet */ }
+    gridRestored.current = categoryId;
+  }, [sizeGrid, gridDraftKey, categoryId]);
+  useEffect(() => {
+    if (!sizeGrid || gridRestored.current !== categoryId) return;
+    try {
+      if (Object.keys(gridEntries).length) localStorage.setItem(gridDraftKey, JSON.stringify(gridEntries));
+      else localStorage.removeItem(gridDraftKey);
+    } catch { /* storage unavailable: the sheet just isn't kept */ }
+  }, [sizeGrid, gridEntries, gridDraftKey, categoryId]);
+  // While the size panel is open its own Add and Done finish the job; the
+  // order button waits below until Done, so nothing typed there is skipped.
+  const [gridPanelOpen, setGridPanelOpen] = useState(false);
+  // "Clear all" asks for a second tap before wiping a long sheet.
+  const [confirmGridClear, setConfirmGridClear] = useState(false);
+  useEffect(() => {
+    if (!confirmGridClear) return;
+    const t = setTimeout(() => setConfirmGridClear(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmGridClear]);
 
   // Glass Pearls: the shape field isn't shown at all (see GLASS_PEARLS_CATEGORY_ID
   // above), so silently keep the selection pinned to Round instead of leaving it
@@ -735,6 +764,7 @@ export default function POSelector({
             onEntries={setGridEntries}
             shapeId={gridShapeId}
             onShape={setGridShapeId}
+            onPanelChange={setGridPanelOpen}
           />
         )}
 
@@ -771,17 +801,23 @@ export default function POSelector({
           </p>
         )}
 
-        {sizeGrid ? <>
+        {sizeGrid ? (gridPanelOpen ? null : <>
           <button type="button" className="po-add-line-btn" onClick={addGridLines} disabled={!gridLineList.length || gridInvalid}>
             {gridLineList.length > 1 ? `+ Add ${countLabel(gridLineList)} to order` : '+ Add to order'}
           </button>
           {!gridInvalid && gridSummary(gridLineList) && (
             <p className="po-selection-summary" role="status">{gridSummary(gridLineList)}</p>
           )}
-          {Object.keys(gridEntries).length > 0 && (
-            <button type="button" className="po-clear-selection" onClick={() => setGridEntries({})}>Clear all</button>
+          {gridLineList.length > 0 && (
+            <button
+              type="button"
+              className="po-clear-selection"
+              onClick={() => { if (confirmGridClear) { setGridEntries({}); setConfirmGridClear(false); } else setConfirmGridClear(true); }}
+            >
+              {confirmGridClear ? `Tap again to clear ${countLabel(gridLineList)}` : 'Clear all'}
+            </button>
           )}
-        </> : <>
+        </>) : <>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>

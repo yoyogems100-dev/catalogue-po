@@ -46,12 +46,12 @@ export function countLabel(lines: { shape: { id: number } }[]) {
 const unitOf = (s: GridSize) => (s.pcs_per_ct ? 'ct' : 'pcs');
 
 /**
- * Moissanite quick order sheet. Buyers write orders in a notebook -- a shape,
- * then "size -> amount" lines -- so the sheet works the same way: type a size
- * (110 = 1.10 mm, ranges like 1.2-1.8), the amount, Enter, next line. An
- * empty amount repeats the last one. Round under 3 mm is in ct, everything
- * else in pcs. Lines stay put when switching shape (the shape tiles count
- * them) and are added in one go.
+ * Moissanite quick order sheet. "Pick sizes" opens a panel of every size of
+ * the shape: tick sizes, type one quantity, Add -- the panel stays open for
+ * the next set until Done (which also keeps anything ticked and typed). Each
+ * size then has its own row to change. Round under 3 mm is in ct, everything
+ * else in pcs, and the two are never ticked together. Lines stay put when
+ * switching shape (the shape tiles count them) and are added in one go.
  */
 export default function SizeGridComposer({
   shapes,
@@ -60,6 +60,7 @@ export default function SizeGridComposer({
   onEntries,
   shapeId,
   onShape,
+  onPanelChange,
 }: {
   shapes: ShapeRef[];
   sizes: GridSize[];
@@ -67,6 +68,8 @@ export default function SizeGridComposer({
   onEntries: (next: GridEntries) => void;
   shapeId: number | null;
   onShape: (id: number) => void;
+  /** Told when the size panel opens and closes. */
+  onPanelChange?: (open: boolean) => void;
 }) {
   const [sizeText, setSizeText] = useState('');
   const [amountText, setAmountText] = useState('');
@@ -74,6 +77,7 @@ export default function SizeGridComposer({
   // The size panel opens from the size box and stays open -- tick sizes, type
   // one quantity, Add, tick the next set -- until Done.
   const [panelOpen, setPanelOpen] = useState(false);
+  useEffect(() => { onPanelChange?.(panelOpen); }, [panelOpen, onPanelChange]);
   // Sizes ticked in the size panel, to take one quantity together.
   const [picked, setPicked] = useState<number[]>([]);
   // The last amount entered per unit, repeated when the amount is left empty.
@@ -98,24 +102,17 @@ export default function SizeGridComposer({
 
   const shapeSizes = useMemo(() => sortSizes(sizes.filter((s) => s.shape_id === shapeId)), [sizes, shapeId]);
   const rows = shapeSizes.filter((s) => entries[s.id] !== undefined);
+  // Only sizes that will actually be added count on the shape tiles.
   const countByShape = useMemo(() => {
     const m = new Map<number, number>();
-    sizes.forEach((s) => { if (entries[s.id] !== undefined) m.set(s.shape_id, (m.get(s.shape_id) || 0) + 1); });
+    sizes.forEach((s) => { if (/^\d+$/.test((entries[s.id] || '').trim()) && Number(entries[s.id]) > 0) m.set(s.shape_id, (m.get(s.shape_id) || 0) + 1); });
     return m;
   }, [sizes, entries]);
   const shape = shapes.find((s) => s.id === shapeId) || null;
 
-  // What the entry line stands for: the ticked sizes, else what is typed
-  // ("1.1", "3, 3.5, 4", "1.2-1.8"). With sizes ticked, typing only filters
-  // the panel.
+  // The ticked sizes take the quantity together; they are always one unit.
   const pickedSizes = shapeSizes.filter((s) => picked.includes(s.id));
-  const draft = useMemo(
-    () => (picked.length || panelOpen || !sizeText.trim() ? null : resolveSizes(shapeSizes, sizeText)),
-    [shapeSizes, sizeText, picked.length, panelOpen]
-  );
-  const draftSizes = picked.length ? pickedSizes : draft && 'sizes' in draft ? draft.sizes : [];
-  const mixedUnits = draftSizes.length > 0 && !draftSizes.every((s) => unitOf(s) === unitOf(draftSizes[0]));
-  const draftUnit = draftSizes.length && !mixedUnits ? unitOf(draftSizes[0]) : null;
+  const draftUnit = pickedSizes.length ? unitOf(pickedSizes[0]) : null;
   const repeat = draftUnit ? last[draftUnit] : undefined;
   // The panel's sizes, narrowed by whatever is typed in the size box.
   const suggestions = useMemo(
@@ -143,7 +140,14 @@ export default function SizeGridComposer({
     setPanelOpen(false);
     setPicked([]);
     setSizeText('');
+    setAmountText('');
     setError('');
+  }
+  // Done keeps anything ticked with a quantity typed, so nothing is lost.
+  function done() {
+    if (picked.length && amountText.trim()) { if (!addDraft()) return; }
+    else if (picked.length) { setError(`Type a quantity for the ${picked.length === 1 ? 'picked size' : `${picked.length} picked sizes`}, or Clear`); amountInput.current?.focus(); return; }
+    closePanel();
   }
 
   function togglePick(id: number) {
@@ -163,33 +167,28 @@ export default function SizeGridComposer({
     onEntries(next);
   }
 
-  function addDraft() {
-    if (!picked.length) {
-      if (panelOpen) { setError('Pick sizes first'); return; }
-      if (!sizeText.trim()) { sizeInput.current?.focus(); return; }
-      if (!draft || 'error' in draft) { setError(draft && 'error' in draft ? draft.error : 'Type a size'); sizeInput.current?.focus(); return; }
-    }
-    if (mixedUnits) { setError('Sizes under 3 mm are in ct and the rest in pcs — add them separately'); return; }
+  /** Gives the ticked sizes the typed quantity (or the last one again). */
+  function addDraft(): boolean {
+    if (!picked.length) { setError('Pick sizes first'); return false; }
     const typed = amountText.trim();
-    if (typed && !/^\d+$/.test(typed)) { setError('Whole numbers only'); amountInput.current?.focus(); return; }
+    if (typed && !/^\d+$/.test(typed)) { setError('Whole numbers only'); amountInput.current?.focus(); return false; }
     const amount = typed ? Number(typed) : repeat;
-    if (!amount) { setError(`Type the ${draftUnit || 'amount'}${draftSizes.length > 1 ? ` for all ${draftSizes.length} sizes` : ''}`); amountInput.current?.focus(); return; }
+    if (!amount) { setError(`Type the ${draftUnit}${pickedSizes.length > 1 ? ` for all ${pickedSizes.length} sizes` : ''}`); amountInput.current?.focus(); return false; }
     const next = { ...entries };
-    draftSizes.forEach((s) => { next[s.id] = String(amount); });
+    pickedSizes.forEach((s) => { next[s.id] = String(amount); });
     onEntries(next);
-    const units = new Set(draftSizes.map(unitOf));
-    setLast((cur) => ({ ...cur, ...(units.has('ct') ? { ct: amount } : {}), ...(units.has('pcs') ? { pcs: amount } : {}) }));
+    if (draftUnit) setLast((cur) => ({ ...cur, [draftUnit]: amount }));
     setSizeText('');
     setAmountText('');
     setPicked([]);
     setError('');
-    // In the panel the next set of sizes is a tap away; typing goes back to the size box.
-    if (panelOpen) amountInput.current?.blur();
-    else sizeInput.current?.focus();
+    // The next set of sizes is a tap away; drop the keyboard.
+    amountInput.current?.blur();
+    return true;
   }
 
   function onSizeKey(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Escape') { closePanel(); return; }
+    if (e.key === 'Escape') { done(); return; }
     if (e.key !== 'Enter') return;
     e.preventDefault();
     // In the panel, typing finds sizes: Enter ticks the one match (or each
@@ -222,8 +221,8 @@ export default function SizeGridComposer({
         />
         <span className="po-sheet-unit">{draftUnit || ''}</span>
       </span>
-      <button type="button" className="po-sheet-add" onClick={addDraft} disabled={panelOpen && !picked.length}>
-        {panelOpen && picked.length > 1 ? `Add ${picked.length}` : 'Add'}
+      <button type="button" className="po-sheet-add" onClick={addDraft} disabled={!picked.length}>
+        {picked.length > 1 ? `Add ${picked.length}` : 'Add'}
       </button>
     </>
   );
@@ -277,6 +276,7 @@ export default function SizeGridComposer({
                         value={raw}
                         aria-invalid={bad || undefined}
                         onChange={(e) => set(s.id, e.target.value)}
+                        onBlur={(e) => { const v = e.target.value.trim(); if (!v || /^0+$/.test(v)) remove(s.id); }}
                       />
                       <span className="po-sheet-unit">{unitOf(s)}</span>
                     </span>
@@ -288,25 +288,30 @@ export default function SizeGridComposer({
             </ul>
           )}
 
-          <div className={`po-sheet-entry${panelOpen ? ' is-open' : ''}`} role="group" aria-label={`Add ${shape.name} sizes`}>
-            <input
-              ref={sizeInput}
-              className="po-sheet-input po-sheet-size-input"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              enterKeyHint="next"
-              placeholder={panelOpen ? 'Find a size' : 'Size'}
-              aria-label={panelOpen ? 'Find a size' : 'Size (mm)'}
-              aria-expanded={panelOpen}
-              value={sizeText}
-              onFocus={() => setPanelOpen(true)}
-              onClick={() => setPanelOpen(true)}
-              onChange={(e) => { setSizeText(e.target.value); setError(''); setPanelOpen(true); }}
-              onKeyDown={onSizeKey}
-            />
-            {!panelOpen && qtyControls}
-          </div>
+          {/* A button, not a text box: on a phone a text box brings up the
+              keyboard over the very sizes the buyer wants to tap. */}
+          {!panelOpen ? (
+            <button type="button" className="po-sheet-open" aria-expanded="false" onClick={() => setPanelOpen(true)}>
+              <span>{rows.length ? `+ Add more ${shape.name} sizes` : `Pick ${shape.name} sizes`}</span>
+              <span aria-hidden="true">▾</span>
+            </button>
+          ) : (
+            <div className="po-sheet-entry is-open" role="group" aria-label={`Find a ${shape.name} size`}>
+              <input
+                ref={sizeInput}
+                className="po-sheet-input po-sheet-size-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                enterKeyHint="next"
+                placeholder="Find a size, e.g. 1.5 or 1.2-1.8"
+                aria-label="Find a size"
+                value={sizeText}
+                onChange={(e) => { setSizeText(e.target.value); setError(''); }}
+                onKeyDown={onSizeKey}
+              />
+            </div>
+          )}
 
           {panelOpen && (
             <div className="po-sheet-suggest">
@@ -318,7 +323,7 @@ export default function SizeGridComposer({
                   </button>
                 )}
                 {picked.length > 0 && <button type="button" onClick={() => { setPicked([]); setError(''); }}>Clear</button>}
-                <button type="button" className="po-sheet-suggest-done" onClick={closePanel}>Done</button>
+                <button type="button" className="po-sheet-suggest-done" onClick={done}>Done</button>
               </div>
               <div className="po-sheet-suggest-body">
                 {/* Round mixes ct sizes and pcs sizes: one group each, so one
@@ -371,11 +376,9 @@ export default function SizeGridComposer({
               picked -- what the one quantity will do. */}
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
-            : mixedUnits
-            ? <p className="po-sheet-help">Sizes under 3 mm are in ct and the rest in pcs — add them separately</p>
-            : draftSizes.length > 1
-            ? <p className="po-sheet-help">A common quantity will be added to {draftSizes.length} sizes. You can add or update size or quantity later.</p>
-            : draftSizes.length === 0 && !rows.length
+            : pickedSizes.length > 1
+            ? <p className="po-sheet-help">A common quantity will be added to {pickedSizes.length} sizes. You can add or update size or quantity later.</p>
+            : !pickedSizes.length && !rows.length
             ? <p className="po-sheet-help">Pick sizes with the same quantity — change any later.</p>
             : null}
         </div>

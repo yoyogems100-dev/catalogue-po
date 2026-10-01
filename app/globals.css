@@ -2755,6 +2755,9 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-remove:hover { background: #f1ece0; color: var(--ink); }
 
 .po-sheet-entry { display: grid; grid-template-columns: minmax(0, 1fr) 96px auto; align-items: center; gap: 6px; padding: 8px; border: 1px dashed var(--navy); border-radius: 8px; background: #f7f9fc; }
+.po-sheet-open { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px dashed var(--navy); border-radius: 8px; background: #f7f9fc; font: inherit; font-size: 14px; font-weight: 600; color: var(--navy); cursor: pointer; }
+.po-sheet-open:hover { background: #eef2f8; }
+.po-sheet-open:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .po-sheet-entry.is-open { grid-template-columns: 1fr; border-style: solid; border-radius: 8px 8px 0 0; border-bottom: 0; }
 .po-grid .po-sheet-entry input.po-sheet-size-input[type="text"] { width: 100%; min-height: 36px; padding: 6px 10px; font-size: 16px; font-weight: 600; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: #fff; }
 .po-grid .po-sheet-entry input.po-sheet-size-input[type="text"]:focus { border-color: var(--navy); }
