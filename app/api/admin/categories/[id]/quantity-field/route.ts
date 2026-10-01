@@ -7,7 +7,7 @@ import { normalizeQuantityField, parseQuantityFields, QUANTITY_FIELDS_SETTING_KE
 type Context = { params: Promise<{ id: string }> };
 
 /** Saves what this category's quantity field is called and starts on.
- *  POST { label, defaultQty } -- blanks mean "Qty per line (pcs)", empty. */
+ *  POST { label, defaultQty } -- blanks mean "Qty (pcs)", empty. */
 export async function POST(request: NextRequest, context: Context) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = Number((await context.params).id);
