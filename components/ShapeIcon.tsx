@@ -48,7 +48,16 @@ const PATHS: Record<string, JSX.Element> = {
   baguette: <><rect x="3" y="7" width="18" height="10" rx=".5"/><rect x="6" y="9" width="12" height="6"/><path d="m3 7 3 2m15-2-3 2m3 8-3-2M3 17l3-2m0-6 12 6m0-6L6 15"/></>,
   fan: <><path d="M4 9a6 6 0 0 1 6-6l11 12-9 6Z"/><path d="M6.5 5.5 12 12l9 3M10 3l1 8 6 3.5"/></>,
   whistle: <><path d="M5 21V9l9-6.5 5 3V21Z"/><path d="M5 9h14M9 6l3 3v12m6-14-3 2v10"/></>,
-  bullet: <><path d="M5 3h14v12l-7 6-7-6Z"/><path d="M5 9h14m-11 0 4 12 4-12"/></>
+  bullet: <><path d="M5 3h14v12l-7 6-7-6Z"/><path d="M5 9h14m-11 0 4 12 4-12"/></>,
+  // Step cuts: long rectangle with clipped corners, rows of parallel steps
+  // around a flat table.
+  emerald: <><path d="M8.6 2.5h6.8L18 5.1v13.8l-2.6 2.6H8.6L6 18.9V5.1Z"/><path d="M9.6 5h4.8l1.4 1.4v11.2L14.4 19H9.6l-1.4-1.4V6.4Z"/><path d="M10.4 7.5h3.2v9h-3.2Z"/><path d="m8.6 2.5 1 2.5m5.8-2.5-1 2.5M18 5.1l-2.2 1.3M18 18.9l-2.2-1.3M15.4 21.5l-1-2.5m-5.8 2.5 1-2.5M6 18.9l2.2-1.3M6 5.1l2.2 1.3"/></>,
+  asscher: <><path d="M7.4 3h9.2L21 7.4v9.2L16.6 21H7.4L3 16.6V7.4Z"/><path d="M8.6 6h6.8L18 8.6v6.8L15.4 18H8.6L6 15.4V8.6Z"/><path d="M9.5 9.5h5v5h-5Z"/><path d="M5.2 5.2 9.5 9.5m9.3-4.3-4.3 4.3m4.3 9.3-4.3-4.3m-9.3 4.3 4.3-4.3"/></>,
+  // Brilliant cuts: same family of outlines, but criss-cross facets.
+  radiant: <><path d="M8.4 2.5h7.2L18.5 5.4v13.2l-2.9 2.9H8.4l-2.9-2.9V5.4Z"/><path d="M10 7h4l1.6 2.2v5.6L14 17h-4l-1.6-2.2V9.2Z"/><path d="M8.4 2.5 12 7l3.6-4.5M18.5 5.4l-2.9 3.8M18.5 18.6l-2.9-3.8M15.6 21.5 12 17l-3.6 4.5M5.5 18.6l2.9-3.8M5.5 5.4l2.9 3.8M5.5 12h2.9m7.2 0h2.9M10 7l-1.6 5 1.6 5m4-10 1.6 5-1.6 5"/></>,
+  trillion: <><path d="M12 3.2c2.9 4.4 5.9 9.8 9 16.3-6 1.6-12 1.6-18 0 3.1-6.5 6.1-11.9 9-16.3Z"/><path d="m12 8.3 4.6 8.4H7.4Z"/><path d="M12 3.2v5.1m9 11.2-4.4-2.8M3 19.5l4.4-2.8M12 8.3 6.6 12m5.4-3.7 5.4 3.7M7.4 16.7l4.6 3.9 4.6-3.9"/></>,
+  pear: <><path d="M12 2.5c3.3 3.6 7 7.9 7 12.5a7 7 0 0 1-14 0c0-4.6 3.7-8.9 7-12.5Z"/><path d="M12 7.5c1.9 2.3 3.5 4.7 3.5 7.5a3.5 3.5 0 0 1-7 0c0-2.8 1.6-5.2 3.5-7.5Z"/><path d="M12 2.5v5M5 15h3.5m7 0H19m-7 7v-3.5M7.4 8.6l2 3.3m7.2-3.3-2 3.3m-7.4 8.1 2.3-2.5m7.1 2.5-2.3-2.5"/></>,
+  taperedbaguette: <><path d="M3 6.5 21 9.2v5.6L3 17.5Z"/><path d="m6 8.6 12 1.8v3.2L6 15.4Z"/><path d="m3 6.5 3 2.1m15 .6-3 1.2m3 4.4-3-1.2M3 17.5l3-2.1M6 12h12"/></>
 };
 
 export default function ShapeIcon({ iconKey, size = 16 }: { iconKey: string | null | undefined; size?: number }) {
