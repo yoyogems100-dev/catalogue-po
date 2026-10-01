@@ -5,6 +5,10 @@ import { specKey, type OrderSpecs } from './order-specs';
 // the rules for storing/merging one live here rather than inside either screen.
 
 export type RequestType = 'Place Order' | 'Request Quotation';
+// Owner, 2026-10-01: every new line is a purchase for now -- no Request
+// Quotation choice anywhere. Lines and orders that are already quotations
+// still display and can be moved to purchase. Flip to bring the choice back.
+export const QUOTATIONS_ENABLED = false;
 
 export type CartItem = {
   orderSpecs?: OrderSpecs;

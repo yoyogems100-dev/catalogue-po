@@ -5,6 +5,8 @@ import { getSettings } from '@/lib/settings';
 import { getAccountState } from '@/lib/account-state';
 import { getCategoryPricing } from '@/lib/pricing';
 import CategoryTabs from './CategoryTabs';
+import SizeChartPreview from '@/components/SizeChartPreview';
+import { sizeChartSections } from '@/lib/size-chart';
 import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
@@ -36,7 +38,7 @@ async function getCategoryData(slug: string) {
     supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', category.id),
     supabasePublic.from('category_tags').select('tag_id').eq('category_id', category.id),
-    supabasePublic.from('category_shape_sizes').select('shape_size_id, pcs_per_ct').eq('category_id', category.id),
+    supabasePublic.from('category_shape_sizes').select('shape_size_id, pcs_per_ct, diamond_equivalent_ct').eq('category_id', category.id),
     // Which colours/materials each shape+size carries -- only set for
     // categories like Semi Precious Beads; empty means any with any.
     fetchAllRows<{ shape_size_id: number; color_id: number }>((from, to) =>
@@ -49,6 +51,8 @@ async function getCategoryData(slug: string) {
   const sizeIds = (linkedSizeIds || []).map((r: any) => r.shape_size_id);
   // Sizes sold by carat (Moissanite melee): pieces in one carat.
   const pcsPerCt = new Map<number, number>((linkedSizeIds || []).filter((r: any) => r.pcs_per_ct).map((r: any) => [r.shape_size_id, r.pcs_per_ct]));
+  // Diamond-equivalent weight per size, for the on-page shape & size chart.
+  const dewBySize = new Map<number, number>((linkedSizeIds || []).filter((r: any) => r.diamond_equivalent_ct !== null && r.diamond_equivalent_ct !== undefined).map((r: any) => [r.shape_size_id, Number(r.diamond_equivalent_ct)]));
 
   const [{ data: shapes }, { data: colors }, { data: tags }, { data: sizes }] = await Promise.all([
     shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name') : { data: [] },
@@ -120,6 +124,8 @@ async function getCategoryData(slug: string) {
     colors: colorsFormatted,
     tags: tags || [],
     sizes: (sizes || []).map((z: any) => ({ ...z, pcs_per_ct: pcsPerCt.get(z.id) ?? null })),
+    // The shape & size chart shown on the page (Moissanite): same content as the PDF.
+    sizeChart: category.id === 34 ? sizeChartSections(shapesFormatted, sizes || [], pcsPerCt, dewBySize) : null,
     photos: photosWithUrl,
     colorPalettes,
     pricing,
@@ -151,8 +157,10 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         <Link href="/po" className="back-link">&larr; All categories</Link>
-        <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
-        {data.category.id === 34 && <div className="category-downloads"><a className="btn-ghost size-chart-download" href="/api/categories/34/size-chart">Shape &amp; size chart</a></div>}
+        <div className="category-title-row">
+          <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
+          {data.sizeChart && <SizeChartPreview categoryName={data.category.name} sections={data.sizeChart} pdfUrl={`/api/categories/${data.category.id}/size-chart`} />}
+        </div>
         <CategoryTabs
           categoryId={data.category.id}
           categoryName={data.category.name}

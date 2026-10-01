@@ -1,4 +1,5 @@
 'use client';
+import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import { formatQty } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
@@ -463,7 +464,7 @@ export default function OrderDetailClient({
               {loadingOptions && <p style={{ fontSize: 12, color: '#756e5c' }}>Loading category options...</p>}
 
               {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setPendingLines(current=>[...current,{...line,tempId:line.id,quantity:line.qty}])} />}
-<div hidden={!!specialCategory(Number(pickCategoryId))}><div className="po-type-toggle" role="group" aria-label="Request type">
+<div hidden={!!specialCategory(Number(pickCategoryId))}><div className="po-type-toggle" role="group" aria-label="Request type" hidden={!QUOTATIONS_ENABLED}>
                 <button type="button" aria-pressed={pickRequestType === 'Place Order'} className={pickRequestType === 'Place Order' ? 'active' : ''} onClick={() => setPickRequestType('Place Order')}>
                   Purchase
                 </button>
