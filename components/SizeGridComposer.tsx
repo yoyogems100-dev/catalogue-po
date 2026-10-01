@@ -337,7 +337,11 @@ export default function SizeGridComposer({
                     <div key={unit} className={`po-sheet-suggest-group${folded ? ' is-folded' : ''}`}>
                       {split && (
                         <div className="po-sheet-suggest-group-head">
-                          <span>{unit === 'ct' ? 'Under 3 mm · ct' : '3 mm and above · pcs'}</span>
+                          {/* Once a ct size has a quantity its button shows "40ct (~2,560)":
+                              the heading says the bracket is pieces, not a price. */}
+                          <span>{unit === 'ct'
+                            ? `Under 3 mm · ct${group.some((z) => (entries[z.id] || '').trim()) ? ' (~pcs)' : ''}`
+                            : '3 mm and above · pcs'}</span>
                           {folded
                             ? <button type="button" aria-expanded="false" onClick={() => setShownUnit(unit)}>Show {group.length}</button>
                             : <button type="button" onClick={() => selectGroup(group)}>{all ? 'Unselect all' : 'Select all'}</button>}
