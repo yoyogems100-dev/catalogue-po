@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import { getUsedPlaces } from '@/lib/customer-places-server';
 
 const WORK_STREAMS = ['Silver jewellery', 'Gold jewellery', 'Commercial jewellery', 'Fashion jewellery', 'Gemstone trader', 'Manufacturer', 'Retailer', 'Other'];
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const q = (req.nextUrl.searchParams.get('q') || '').trim().slice(0, 80);
   const safeQ = q.replace(/[,()%]/g, '');
-  const places = parseMulti(req.nextUrl.searchParams.get('place') || '', CUSTOMER_PLACES);
+  const places = parseMulti(req.nextUrl.searchParams.get('place') || '', await getUsedPlaces());
   const workStreams = parseMulti(req.nextUrl.searchParams.get('workStream') || '', WORK_STREAMS);
   const categoryIds = (req.nextUrl.searchParams.get('category') || '').split(',').map((v) => v.trim()).filter((v) => /^\d+$/.test(v)).map(Number);
 

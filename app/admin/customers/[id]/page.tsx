@@ -4,6 +4,8 @@ import CustomerProfileEditor from './CustomerProfileEditor';
 import CustomerColourSetup from './CustomerColourSetup';
 import CustomerPasswordPanel from './CustomerPasswordPanel';
 import { getCredentials } from '@/lib/customer-credentials';
+import { placeSuggestions } from '@/lib/customer-places';
+import { getUsedPlaces } from '@/lib/customer-places-server';
 import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons, sanitizeColorButtons } from '@/lib/color-family';
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences, sanitizePreferences } from '@/lib/customer-preferences';
 import CategoryChips from '@/components/admin/CategoryChips';
@@ -15,10 +17,11 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const customerId = Number((await params).id);
   const requested = (await searchParams).tab;
   const tab = requested === 'orders' || requested === 'colours' ? requested : 'details';
-  const [{ data: customer }, { data: orders }, creds] = await Promise.all([
+  const [{ data: customer }, { data: orders }, creds, usedPlaces] = await Promise.all([
     supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle(),
     supabaseAdmin.from('orders').select('id,status,payment_status,request_type,created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
     getCredentials(customerId),
+    getUsedPlaces(),
   ]);
   // Only whether a password exists and when -- the password itself is fetched
   // by the panel's Show button, so it is never part of this page.
@@ -52,7 +55,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     </nav>
     {tab === 'details' ? (
       <>
-        <CustomerProfileEditor customer={customer} />
+        <CustomerProfileEditor customer={customer} placeSuggestions={placeSuggestions(usedPlaces)} />
         <CustomerPasswordPanel customerId={customer.id} phone={customer.phone} status={passwordStatus} />
       </>
     ) : tab === 'colours' ? (

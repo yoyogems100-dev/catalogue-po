@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import PlaceInput from '@/components/admin/PlaceInput';
 
 // Adding a customer from the directory, for the common case where an enquiry
 // arrives by phone before the buyer has signed in themselves. Mirrors the
 // supplier create form; name OR company satisfies the requirement, matching
 // the rule the customer-facing profile form already uses.
-export default function CustomerCreateForm() {
+export default function CustomerCreateForm({ placeSuggestions }: { placeSuggestions: string[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -45,10 +45,7 @@ export default function CustomerCreateForm() {
       <input placeholder="WhatsApp number (optional)" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
       <div>
         <label style={{ display: 'block', fontSize: 12.5, marginBottom: 4 }}>Place</label>
-        <select value={place} onChange={(e) => setPlace(e.target.value)}>
-          <option value="">Not set</option>
-          {CUSTOMER_PLACES.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        <PlaceInput value={place} onChange={setPlace} suggestions={placeSuggestions} />
       </div>
       <input placeholder="Work stream, e.g. Silver Jewellery Manufacturer" value={workStream} onChange={(e) => setWorkStream(e.target.value)} />
       <textarea rows={2} placeholder="Go-to requirements (optional)" value={goToRequirements} onChange={(e) => setGoToRequirements(e.target.value)} />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { canonicalPlace } from '@/lib/customer-places';
 
 type ImportRow = { name?: string; company?: string; phone?: string; email?: string; address?: string; place?: string; workStream?: string; goToRequirements?: string };
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     phone: normalizePhone(row.phone) || null,
     email: (row.email || '').trim().toLowerCase() || null,
     address: (row.address || '').trim() || null,
-    place: (row.place || '').trim() || null,
+    place: canonicalPlace(row.place),
     work_stream: (row.workStream || '').trim() || null,
     go_to_requirements: (row.goToRequirements || '').trim() || null
   }));

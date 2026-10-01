@@ -3,6 +3,7 @@ import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { preferencesFromBody } from '@/lib/customer-preferences';
+import { canonicalPlace } from '@/lib/customer-places';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     email: String(body.email || '').trim().toLowerCase() || null,
     work_stream: String(body.workStream || '').trim() || null,
     go_to_requirements: String(body.goToRequirements || '').trim() || null,
-    place: String(body.place || '').trim() || null,
+    place: canonicalPlace(body.place),
   };
   if (prefs) values.order_preferences = prefs;
   const { data, error } = await supabaseAdmin.from('customers').update(values).eq('id', id).select('id').maybeSingle();

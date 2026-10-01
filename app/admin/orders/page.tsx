@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
-import { CUSTOMER_PLACES } from '@/lib/customer-places';
+import { getUsedPlaces } from '@/lib/customer-places-server';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
 import Link from 'next/link';
@@ -25,7 +25,8 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
   const search = (searchParams.q || '').replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 80);
-  const places = (searchParams.place || '').split(',').map((v) => v.trim()).filter((v) => (CUSTOMER_PLACES as readonly string[]).includes(v));
+  const usedPlaces = await getUsedPlaces();
+  const places = (searchParams.place || '').split(',').map((v) => v.trim()).filter((v) => usedPlaces.includes(v));
   const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value ? value : undefined;
   const from = validDate(searchParams.from), to = validDate(searchParams.to);
   const filtersActive = Boolean(statusFilter || search || places.length || from || to);
@@ -200,7 +201,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
             </span>
           </label>
         </AutoSubmitField>
-        <MultiSelectFilter name="place" label="Place" options={[...CUSTOMER_PLACES]} selected={places} />
+        <MultiSelectFilter name="place" label="Place" options={usedPlaces} selected={places} />
         {filtersActive && <Link href="/admin/orders" style={{ fontSize: 12.5, color: '#756e5c', textDecoration: 'underline', alignSelf: 'center', marginLeft: 'auto' }}>Clear filters</Link>}
       </form>
       {/* Eight statuses wrap to three rows on a phone, pushing the first order
