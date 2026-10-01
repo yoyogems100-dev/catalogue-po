@@ -358,7 +358,9 @@ export default function SizeGridComposer({
                               onClick={() => togglePick(s.id)}
                             >
                               {s.size_mm}
-                              {has && <small>{entries[s.id]} {unit}</small>}
+                              {has && <small>{s.pcs_per_ct && /^\d+$/.test(entries[s.id].trim())
+                                ? `${entries[s.id]}ct (~${fmt(Number(entries[s.id]) * s.pcs_per_ct)})`
+                                : `${entries[s.id]} ${unit}`}</small>}
                             </button>
                           );
                         })}

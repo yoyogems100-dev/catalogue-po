@@ -2777,7 +2777,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-sheet-suggest-group-head button { letter-spacing: 0; text-transform: none; }
 .po-sheet-suggest-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; }
 .po-sheet-suggest-list button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; padding: 3px 4px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; font-size: 13px; line-height: 1.15; color: var(--ink); cursor: pointer; }
-.po-sheet-suggest-list button small { font-size: 10px; font-weight: 600; color: var(--gold); }
+.po-sheet-suggest-list button small { max-width: 100%; font-size: 9.5px; font-weight: 600; letter-spacing: -.1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--gold); }
 .po-sheet-suggest-list button:hover { border-color: var(--navy); }
 .po-sheet-suggest-list button.is-added { background: #fbf6e9; border-color: var(--gold-soft); }
 .po-sheet-suggest-list button.is-picked { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
