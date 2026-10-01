@@ -9,6 +9,9 @@ import HomeHero from '@/components/HomeHero';
 import { MOST_ORDERED_SETTING_KEY } from '@/lib/most-ordered';
 import { HOME_SECTIONS_SETTING_KEY, parseHomeSections } from '@/lib/home-sections';
 import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons } from '@/lib/color-family';
+import { getCustomerId } from '@/lib/customer-auth';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sanitizeInterestIds, withInterests } from '@/lib/customer-interests';
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
@@ -101,8 +104,22 @@ async function getData() {
   return { categories: categoriesFormatted, allShapes: shapesFormatted, allColors: colorsFormatted };
 }
 
+// The signed-in buyer's "Curated for you" shelf, set by the team on their
+// customer page. Never blocks the page: any failure just means no shelf.
+async function getInterests(): Promise<{ ids: number[]; show: boolean } | null> {
+  try {
+    const customerId = await getCustomerId();
+    if (!customerId) return null;
+    const { data, error } = await supabaseAdmin.from('customers').select('interest_category_ids, show_interests').eq('id', customerId).maybeSingle();
+    if (error || !data) return null;
+    return { ids: sanitizeInterestIds(data.interest_category_ids), show: data.show_interests !== false };
+  } catch {
+    return null;
+  }
+}
+
 export default async function HomePage() {
-  const [{ categories, allShapes, allColors }, settings, account] = await Promise.all([getData(), getSettings(), getAccountState()]);
+  const [{ categories, allShapes, allColors }, settings, account, interests] = await Promise.all([getData(), getSettings(), getAccountState(), getInterests()]);
 
   return (
     <>
@@ -112,7 +129,7 @@ export default async function HomePage() {
             text -- a true H1 keeps the page's heading structure sound for
             screen readers without changing what's shown on screen. */}
         <h1 className="visually-hidden">YOYO GEMS — Collection Catalogue</h1>
-        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} sections={parseHomeSections(settings[HOME_SECTIONS_SETTING_KEY], settings[MOST_ORDERED_SETTING_KEY])} colorButtonIds={parseColorButtons(settings[COLOR_BUTTONS_SETTING_KEY])} />
+        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} sections={withInterests(parseHomeSections(settings[HOME_SECTIONS_SETTING_KEY], settings[MOST_ORDERED_SETTING_KEY]), interests)} colorButtonIds={parseColorButtons(settings[COLOR_BUTTONS_SETTING_KEY])} />
       </div>
       <Footer settings={settings} />
     </>

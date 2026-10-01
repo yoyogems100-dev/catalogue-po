@@ -5,6 +5,7 @@ import { normalizePhone } from '@/lib/phone';
 import { canonicalPlace } from '@/lib/customer-places';
 import { passwordProblem } from '@/lib/customer-password';
 import { savePassword } from '@/lib/customer-credentials';
+import { sanitizeInterestIds } from '@/lib/customer-interests';
 
 // Create a customer from the admin directory, for the common case where the
 // team takes an enquiry on the phone before the buyer has ever signed in.
@@ -45,7 +46,9 @@ export async function POST(request: NextRequest) {
     phone: phone || null,
     place,
     work_stream: String(body.workStream || '').trim() || null,
-    go_to_requirements: String(body.goToRequirements || '').trim().slice(0, 500) || null
+    go_to_requirements: String(body.goToRequirements || '').trim().slice(0, 500) || null,
+    interest_category_ids: sanitizeInterestIds(body.interestCategoryIds),
+    show_interests: body.showInterests !== false
   }).select('id').single();
 
   if (error || !data) {
