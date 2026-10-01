@@ -367,15 +367,17 @@ export default function SizeGridComposer({
               <div className="po-sheet-suggest-foot">{qtyControls}</div>
             </div>
           )}
+          {/* One line at most: the starting tip, or -- only with several sizes
+              picked -- what the one quantity will do. */}
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
-            : <p className="po-sheet-help">
-                {mixedUnits
-                  ? 'Sizes under 3 mm are in ct and the rest in pcs — add them separately'
-                  : draftSizes.length > 1
-                  ? 'Add a common qty — you can also add/update size/qty later.'
-                  : 'Pick sizes with the same quantity — change any later.'}
-              </p>}
+            : mixedUnits
+            ? <p className="po-sheet-help">Sizes under 3 mm are in ct and the rest in pcs — add them separately</p>
+            : draftSizes.length > 1
+            ? <p className="po-sheet-help">A common quantity will be added to {draftSizes.length} sizes. You can add or update size or quantity later.</p>
+            : draftSizes.length === 0 && !rows.length
+            ? <p className="po-sheet-help">Pick sizes with the same quantity — change any later.</p>
+            : null}
         </div>
       )}
 
