@@ -316,7 +316,7 @@ export default function SizeGridComposer({
           {panelOpen && (
             <div className="po-sheet-suggest">
               <div className="po-sheet-suggest-head">
-                <span>{picked.length ? `${picked.length} picked` : 'Pick sizes with the same quantity'}</span>
+                <span>{picked.length ? `${picked.length} picked` : 'Tap the sizes you need'}</span>
                 {!split && (
                   <button type="button" onClick={() => selectGroup(suggestions)}>
                     {suggestions.length > 0 && suggestions.every((s) => picked.includes(s.id)) ? 'Unselect all' : 'Select all'}
@@ -372,14 +372,12 @@ export default function SizeGridComposer({
               <div className="po-sheet-suggest-foot">{qtyControls}</div>
             </div>
           )}
-          {/* One line at most: the starting tip, or -- only with several sizes
-              picked -- what the one quantity will do. */}
+          {/* Sizes can be added one at a time or several together; only when
+              several are ticked is there something to explain. */}
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
             : pickedSizes.length > 1
-            ? <p className="po-sheet-help">A common quantity will be added to {pickedSizes.length} sizes. You can add or update size or quantity later.</p>
-            : !pickedSizes.length && !rows.length
-            ? <p className="po-sheet-help">Pick sizes with the same quantity — change any later.</p>
+            ? <p className="po-sheet-help">This quantity will apply to all {pickedSizes.length} sizes — you can change each one later.</p>
             : null}
         </div>
       )}
