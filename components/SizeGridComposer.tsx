@@ -377,7 +377,7 @@ export default function SizeGridComposer({
           {error
             ? <p className="po-sheet-error" role="alert">{error}</p>
             : pickedSizes.length > 1
-            ? <p className="po-sheet-help">This quantity will apply to all {pickedSizes.length} sizes — you can change each one later.</p>
+            ? <p className="po-sheet-help">Apply this qty to all {pickedSizes.length} sizes selected — you can update this later.</p>
             : null}
         </div>
       )}
