@@ -39,18 +39,11 @@ type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number
 
 type ColorPalette = { id: number; name: string; memberIds: number[] };
 
-// "2 shapes · 7 sizes · 500 ct (~59,200 pcs) + 300 pcs"
-function gridSummary(lines: { shape: { id: number }; size: { pcs_per_ct?: number | null }; amount: number; pcs: number }[]) {
-  const ct = lines.filter((l) => l.size.pcs_per_ct);
-  const ctTotal = ct.reduce((n, l) => n + l.amount, 0);
-  const ctPcs = ct.reduce((n, l) => n + l.pcs, 0);
-  const pcs = lines.filter((l) => !l.size.pcs_per_ct).reduce((n, l) => n + l.pcs, 0);
-  const parts: string[] = [];
-  if (ct.length) parts.push(`${ctTotal.toLocaleString('en-IN')} ct (~${ctPcs.toLocaleString('en-IN')} pcs)`);
-  if (pcs) parts.push(`${pcs.toLocaleString('en-IN')} pcs`);
+// "2 shapes · 7 sizes" when the lines span shapes; null for one shape, where
+// the button's own count says it all.
+function gridSummary(lines: { shape: { id: number } }[]) {
   const shapes = new Set(lines.map((l) => l.shape.id)).size;
-  const count = shapes > 1 ? `${shapes} shapes · ${lines.length} sizes` : countLabel(lines);
-  return `${count} · ${parts.join(' + ')}`;
+  return shapes > 1 ? `${shapes} shapes · ${lines.length} sizes` : null;
 }
 
 export default function POSelector({
@@ -782,7 +775,7 @@ export default function POSelector({
           <button type="button" className="po-add-line-btn" onClick={addGridLines} disabled={!gridLineList.length || gridInvalid}>
             {gridLineList.length > 1 ? `+ Add ${countLabel(gridLineList)} to order` : '+ Add to order'}
           </button>
-          {gridLineList.length > 0 && !gridInvalid && (
+          {!gridInvalid && gridSummary(gridLineList) && (
             <p className="po-selection-summary" role="status">{gridSummary(gridLineList)}</p>
           )}
           {Object.keys(gridEntries).length > 0 && (
