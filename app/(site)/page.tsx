@@ -8,6 +8,8 @@ import HideOnError from '@/components/site/HideOnError';
 import s from '@/components/site/site.module.css';
 import { pic } from '@/lib/site/optimize';
 import CountUp from '@/components/site/CountUp';
+import HeroStones from '@/components/site/HeroStones';
+import { splitHeadline } from '@/lib/site/headline';
 
 export const revalidate = 3600;
 
@@ -36,6 +38,7 @@ export default async function HomePage() {
   const numbers = (home.numbers?.items || []).filter((n: any) => n.value || n.label);
   const columns = (home.story?.columns || []).filter((col: any) => col.title || col.text);
   const blocks = (home.why?.blocks || []).filter((b: any) => b.title);
+  const [headLead, headAccent] = splitHeadline(home.hero?.heading || '');
 
   return (
     <>
@@ -45,13 +48,26 @@ export default async function HomePage() {
             <img {...pic(hero)} sizes="100vw" alt={hero.alt} fetchPriority="high" />
           </div>
         )}
-        <div className={`${s.wrap} ${s.heroInner}`}>
-          <h1 className={s.heroTitle}>{home.hero?.heading}</h1>
-          {home.hero?.subline && <p className={s.heroSub}>{home.hero.subline}</p>}
-          <div className={s.heroActions}>
-            <Link href="/request-catalogue" className={s.btn}>{home.hero?.primary_label || 'Request Catalogue'}</Link>
-            <Link href="/products" className={s.btnGhost}>{home.hero?.secondary_label || 'Browse Categories'}</Link>
+        <div className={`${s.wrap} ${s.heroInner} ${hero ? '' : s.heroSplit}`}>
+          <div>
+            {home.hero?.eyebrow && (
+              <span className={`${s.eyebrow} ${s.heroEyebrow}`}>
+                {String(home.hero.eyebrow).split(' · ').map((part: string, i: number) => (
+                  <span key={i}>{i > 0 && <span className={s.heroDot}> · </span>}{part}</span>
+                ))}
+              </span>
+            )}
+            <h1 className={s.heroTitle}>
+              {headLead}
+              {headAccent && <>{headLead && ' '}<span className={s.heroAccent}>{headAccent}</span></>}
+            </h1>
+            {home.hero?.subline && <p className={s.heroSub}>{home.hero.subline}</p>}
+            <div className={s.heroActions}>
+              <Link href="/request-catalogue" className={s.btn}>{home.hero?.primary_label || 'Request Catalogue'}</Link>
+              <Link href="/products" className={s.btnGhost}>{home.hero?.secondary_label || 'Browse Categories'}</Link>
+            </div>
           </div>
+          {!hero && <HeroStones />}
         </div>
       </section>
 
