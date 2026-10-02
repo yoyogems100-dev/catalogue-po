@@ -50,11 +50,12 @@ export const pageSchemas: Record<string, ContentSchema> = {
   home: {
     sections: [
       { key: 'hero', title: '1 · Hero', fields: [
-        { type: 'text', key: 'heading', label: 'Headline', max: 90 },
+        { type: 'text', key: 'eyebrow', label: 'Small line above', max: 40 },
+        { type: 'text', key: 'heading', label: 'Headline', max: 90, help: 'Keep it short. The last sentence is shown in gold, e.g. “Every stone. One trusted source.”' },
         { type: 'textarea', key: 'subline', label: 'Sub-line', max: 220 },
         { type: 'text', key: 'primary_label', label: 'Main button', max: 30 },
         { type: 'text', key: 'secondary_label', label: 'Second button', max: 30 },
-        { type: 'image', key: 'image', label: 'Background image', help: 'A stone macro on black. Text sits on the left, so keep the stones to the right.' }
+        { type: 'image', key: 'image', label: 'Background image', help: 'Optional. Leave empty to show the stone cut-outs beside the headline. If set, it fills the background instead: a stone macro on black, stones to the right.' }
       ] },
       { key: 'numbers', title: '2 · Numbers strip', fields: [
         { type: 'list', key: 'items', label: 'Numbers', itemLabel: 'Number', max: 6, fields: [
