@@ -204,6 +204,9 @@
 .heroAccent { display: block; background: linear-gradient(110deg, var(--gold) 0%, var(--gold-text) 55%, var(--gold) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .heroSplit { display: grid; gap: 28px; padding-top: 48px; padding-bottom: 40px; }
 .heroSplit .heroTitle { max-width: 13ch; }
+/* On phones each “·” part of the small line starts its own line, so a word never splits. */
+.heroEyebrow > span:not(:first-child) { display: block; }
+.heroDot { display: none; }
 .heroSplit .heroActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 420px; }
 .heroSplit .heroActions > a { padding: 0 10px; }
 .heroStones { position: relative; width: min(72%, 260px); aspect-ratio: 1; margin: 0 auto; }
@@ -331,6 +334,8 @@ a.contactItem:hover { border-color: rgba(var(--accent-rgb), 0.45); }
   .heroStones { width: min(100%, 500px); }
   .heroSplit .heroTitle { max-width: none; font-size: clamp(44px, 5vw, 68px); }
   .heroSplit .heroActions { display: flex; max-width: none; }
+  .heroEyebrow > span:not(:first-child) { display: inline; }
+  .heroDot { display: inline; }
   .heroSplit .heroActions > a { padding: 0 22px; }
   .heroImage::after { background: linear-gradient(90deg, var(--bg) 0%, rgba(var(--bg-rgb), 0.75) 45%, rgba(var(--bg-rgb), 0.15) 100%), linear-gradient(180deg, transparent 70%, var(--bg) 100%); }
   .heroImage img { opacity: 0.9; }

@@ -50,7 +50,7 @@ export const pageSchemas: Record<string, ContentSchema> = {
   home: {
     sections: [
       { key: 'hero', title: '1 · Hero', fields: [
-        { type: 'text', key: 'eyebrow', label: 'Small line above', max: 40 },
+        { type: 'text', key: 'eyebrow', label: 'Small line above', max: 70 },
         { type: 'text', key: 'heading', label: 'Headline', max: 90, help: 'Keep it short. The last sentence is shown in gold, e.g. “Every stone. One trusted source.”' },
         { type: 'textarea', key: 'subline', label: 'Sub-line', max: 220 },
         { type: 'text', key: 'primary_label', label: 'Main button', max: 30 },

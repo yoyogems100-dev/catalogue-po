@@ -50,7 +50,13 @@ export default async function HomePage() {
         )}
         <div className={`${s.wrap} ${s.heroInner} ${hero ? '' : s.heroSplit}`}>
           <div>
-            {home.hero?.eyebrow && <span className={s.eyebrow}>{home.hero.eyebrow}</span>}
+            {home.hero?.eyebrow && (
+              <span className={`${s.eyebrow} ${s.heroEyebrow}`}>
+                {String(home.hero.eyebrow).split(' · ').map((part: string, i: number) => (
+                  <span key={i}>{i > 0 && <span className={s.heroDot}> · </span>}{part}</span>
+                ))}
+              </span>
+            )}
             <h1 className={s.heroTitle}>
               {headLead}
               {headAccent && <>{headLead && ' '}<span className={s.heroAccent}>{headAccent}</span></>}

@@ -40,7 +40,7 @@ export const pageDefaults: Record<string, ContentValue> = {
   },
   home: {
     hero: {
-      eyebrow: 'Synthetic gemstones · Jaipur',
+      eyebrow: 'Premium Gemstones · Precious, Semi‑Precious, Synthetic',
       heading: 'Every stone. One trusted source.',
       subline: '40+ categories. 35+ shapes & colours. Factory-direct from China, stocked in India.',
       primary_label: 'Request Catalogue',
