@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { readJson } from '@/lib/site/api';
 import { checkLead, rateAllows, RATE } from '@/lib/site/leads';
 import { flattenChoices, leadCategoryGroups } from '@/lib/site/lead-choices';
+import { notifyAdmin } from '@/lib/notify-admin';
 
 // Public endpoint behind the Request Catalogue form. Stores the request for
 // the owner to answer by hand from Admin → Website → Leads. It never sends an
@@ -54,6 +55,11 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error('Lead save failed:', error.message);
     return NextResponse.json({ error: 'We could not save your request just now. Please message us on WhatsApp instead.' }, { status: 503 });
+  }
+  // A repeat from the same number within a day only updates the open request.
+  if (!open) {
+    const wants = lead.category_names.slice(0, 3).join(', ');
+    notifyAdmin({ type: 'catalogue_request', message: `Catalogue request from ${lead.name}${lead.business_city ? `, ${lead.business_city}` : ''}${wants ? ` -- ${wants}${lead.category_names.length > 3 ? '…' : ''}` : ''}`, link: '/admin/site/leads' });
   }
   return thanks();
 }

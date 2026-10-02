@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { refreshCatalogue } from '@/lib/refresh-catalogue';
 
 // Swaps a shape's sort_order with its immediate neighbor in the master list --
 // same pattern as /api/photos/reorder.
@@ -37,5 +38,6 @@ export async function POST(req: NextRequest) {
     normalized.map((s) => supabaseAdmin.from('shapes').update({ sort_order: s.sort_order }).eq('id', s.id))
   );
 
+  refreshCatalogue();
   return NextResponse.json({ ok: true });
 }

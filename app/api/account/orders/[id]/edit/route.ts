@@ -78,9 +78,9 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     Array.isArray(removedIds) && removedIds.length > 0 ? `${removedIds.length} line${removedIds.length > 1 ? 's' : ''} removed` : null,
     validNewItems.length > 0 ? `${validNewItems.length} line${validNewItems.length > 1 ? 's' : ''} added` : null
   ].filter(Boolean);
-  // Best-effort by design (see lib/notify-admin.ts) -- fire-and-forget so a slow
-  // or failed notification insert never delays the customer's save confirmation.
-  notifyAdmin('order_modified', orderId, `Order #${orderId} modified by customer (${changeParts.join(', ') || 'changes saved'})`).catch(() => {});
+  // Best-effort by design (see lib/notify-admin.ts): written after the reply,
+  // so it never delays the customer's save confirmation.
+  notifyAdmin({ type: 'order_modified', orderId, message: `Order #${orderId} modified by customer (${changeParts.join(', ') || 'changes saved'})` });
 
   return NextResponse.json({ ok: true });
 }

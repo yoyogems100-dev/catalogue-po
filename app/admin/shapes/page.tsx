@@ -5,7 +5,7 @@ import ShapesClient from './ShapesClient';
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function ShapesPage({ searchParams }: { searchParams: Promise<{category?: string}> }) {
+export default async function ShapesPage({ searchParams }: { searchParams: Promise<{category?: string; q?: string; open?: string}> }) {
   const query = await searchParams;
   const categoryFilter = Number(query.category) || 0;
   // shape_sizes is well past the project's 1000-row response cap; an unpaged
@@ -38,13 +38,15 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
         categories at once, without leaving this page.
       </p>
       <ShapesClient
-        key={query.category || 'all'}
+        key={`${query.category || 'all'}-${query.q || ''}-${query.open || ''}`}
         shapes={shapes || []}
         sizes={sizes || []}
         categories={categories || []}
         catShapes={catShapes || []}
         catSizes={catSizes || []}
         initialCategoryId={categoryFilter}
+        initialSearch={query.q || ''}
+        initialOpenShapeId={Number(query.open) || null}
       />
     </>
   );

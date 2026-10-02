@@ -21,7 +21,9 @@ export default function ShapesClient({
   categories,
   catShapes,
   catSizes,
-  initialCategoryId = 0
+  initialCategoryId = 0,
+  initialSearch = '',
+  initialOpenShapeId = null
 }: {
   shapes: Shape[];
   sizes: Size[];
@@ -29,16 +31,19 @@ export default function ShapesClient({
   catShapes: CatShape[];
   catSizes: {category_id:number;shape_size_id:number}[];
   initialCategoryId?:number;
+  /** From the admin search: ?q= pre-fills the search, ?open= expands that shape's sizes. */
+  initialSearch?: string;
+  initialOpenShapeId?: number | null;
 }) {
   const router = useRouter();
   const [categoryFilter,setCategoryFilter] = useState(initialCategoryId);
   const scoped = categories.some(category => category.id === categoryFilter);
   const [newShape, setNewShape] = useState('');
-  const [expandedSizes, setExpandedSizes] = useState<number | null>(null);
+  const [expandedSizes, setExpandedSizes] = useState<number | null>(initialOpenShapeId);
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newSize, setNewSize] = useState('');
   const [newWeight, setNewWeight] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [toast, setToast] = useState('');
 
   // UI/UX audit ("visible saved-state feedback"): add/rename/delete here

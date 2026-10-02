@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { WordMark } from '@/components/Logo';
 import NotificationBell from '@/components/admin/NotificationBell';
-import { BIN, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf, type NavGroup, type NavLink } from '@/components/admin/nav-config';
+import AdminSearch from '@/components/admin/AdminSearch';
+import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf, type NavGroup, type NavLink } from '@/components/admin/nav-config';
 
 export type NavCategory = { id: number; name: string; parent?: string };
 
@@ -99,6 +100,7 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
   function rootPanel() {
     return <>
       {link(OVERVIEW)}
+      {link(NOTIFICATIONS)}
       <div className="admin-nav-switch" role="tablist" aria-label="Workspace">
         {WORKSPACES.map((w) => (
           <button key={w.key} type="button" role="tab" aria-selected={w.key === ws} onClick={() => setWs(w.key)}>{w.label}</button>
@@ -201,6 +203,7 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
           <a href={here.viewHref} target="_blank" rel="noopener noreferrer" className="admin-mobile-home" aria-label={here.viewLabel} title={here.viewLabel}>
             <ExternalIcon />
           </a>
+          <AdminSearch poCategories={poCategories} siteCategories={siteCategories} />
           <NotificationBell />
         </div>
       </div>

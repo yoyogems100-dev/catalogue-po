@@ -27,7 +27,7 @@ async function customerIdsOrderedFromCategories(categoryIds: number[]) {
   return [...new Set((matchingOrders || []).map((o: any) => o.customer_id).filter(Boolean))];
 }
 
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; place?: string; category?: string; workStream?: string }> }) {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; place?: string; category?: string; workStream?: string; new?: string }> }) {
   const params = await searchParams;
   const q = params.q?.trim().slice(0, 80) || '';
   // Filter by the places customers actually have, not the whole city list.
@@ -78,7 +78,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} categories={(allCategories || []).filter((c: any) => !c.archived_at)} /></div></div>
+    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} categories={(allCategories || []).filter((c: any) => !c.archived_at)} startOpen={params.new === '1'} /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />

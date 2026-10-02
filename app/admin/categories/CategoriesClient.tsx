@@ -57,6 +57,12 @@ const ArchiveIcon = () => (
   </svg>
 );
 
+/** "On Most ordered": this category's place on /po is set by that shelf, not by this list. */
+function ShelfTags({ titles }: { titles: string[] }) {
+  if (!titles.length) return null;
+  return <span className="admin-shelf-tags">{titles.map((t) => <span key={t} className="admin-shelf-tag" title={`Shown on the /po home in the “${t}” shelf, in that shelf’s order`}>On {t}</span>)}</span>;
+}
+
 const archivedDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -86,7 +92,10 @@ function StatsLineFormatted({ c }: { c: Row }) {
   );
 }
 
-export default function CategoriesClient({ rows }: { rows: Row[] }) {
+type Shelf = { title: string; ids: number[] };
+
+export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; shelves?: Shelf[] }) {
+  const shelfOf = (id: number) => shelves.filter((s) => s.ids.includes(id)).map((s) => s.title);
   const router = useRouter();
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -211,6 +220,13 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
           <button className="btn" onClick={addCategory} disabled={adding}>{adding ? 'Adding...' : 'Add category'}</button>
         </div>
       </div>
+      {shelves.length > 0 && (
+        <div className="admin-shelf-note" role="note">
+          <strong>How buyers see this order.</strong>{' '}
+          On the /po home page, {shelves.map((s, i) => <span key={s.title}>{i > 0 ? (i === shelves.length - 1 ? ' and ' : ', ') : ''}<b>{s.title}</b> ({s.ids.length})</span>)} come first, in the order set in{' '}
+          <Link href="/admin/content/home-sections">Home page sections</Link>. The order here decides every other category below them, and changes show on the live site straight away.
+        </div>
+      )}
       <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} active categories{archivedRows.length ? ` (${archivedRows.length} archived below)` : ''}. Missing links are review prompts; they do not change product availability.</p>
       {view === 'list' ? (
         <table>
@@ -239,7 +255,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                       <CoverThumb url={c.coverUrl} />
                     </div>
                   </td>
-                  <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /></td>
+                  <td><NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} /><ShelfTags titles={shelfOf(c.id)} /></td>
                   <td style={{ fontSize: 12.5, color: '#756e5c' }}>{statsLine(c)}<CoverageNote row={c} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <span className="cat-row-actions">
@@ -272,6 +288,7 @@ export default function CategoriesClient({ rows }: { rows: Row[] }) {
                   <div className="admin-cat-card-name">
                     <NameCell value={c.name} onSave={(name) => renameCategory(c.id, name)} />
                   </div>
+                  <ShelfTags titles={shelfOf(c.id)} />
                   <StatsLineFormatted c={c} />
                   <CoverageNote row={c} />
                   <div className="admin-cat-card-actions">

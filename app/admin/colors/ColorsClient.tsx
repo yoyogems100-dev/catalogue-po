@@ -22,6 +22,7 @@ export default function ColorsClient({
   catColors,
   palettes,
   initialCategoryId,
+  initialSearch = '',
   lockedCategory = false
 }: {
   colors: ColorRow[];
@@ -29,6 +30,8 @@ export default function ColorsClient({
   catColors: CatColor[];
   palettes: Palette[];
   initialCategoryId?: number;
+  /** Pre-filled search, e.g. from the admin search (?q=). */
+  initialSearch?: string;
   lockedCategory?: boolean;
 }) {
   const router = useRouter();
@@ -38,7 +41,7 @@ export default function ColorsClient({
   const [newPaletteName, setNewPaletteName] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(initialCategoryId || 0);
   const scoped = categories.some(category => category.id === categoryFilter);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const canReorder = !scoped && !search.trim();
   const [toast, setToast] = useState('');
 

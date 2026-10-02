@@ -17,7 +17,7 @@ export default function AccessRequests({ initial }: { initial: AccessRequest[] }
   }
 
   return (
-    <section className="card access-requests" aria-labelledby="access-requests-heading">
+    <section id="access-requests" className="card access-requests" aria-labelledby="access-requests-heading">
       <h2 id="access-requests-heading">Access requests <span className="access-requests-count">{items.length}</span></h2>
       <ul>
         {items.map((r) => (

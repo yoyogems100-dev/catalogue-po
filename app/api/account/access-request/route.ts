@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { normalizePhone } from '@/lib/phone';
 import { ACCESS_REQUEST_TAG } from '@/lib/access-requests';
 import { getCredentials } from '@/lib/customer-credentials';
+import { notifyAdmin } from '@/lib/notify-admin';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const clip = (value: unknown, max: number) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '');
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
       const { error } = await supabaseAdmin.from('customers').update(update).eq('id', existing.id);
       if (error) return NextResponse.json({ error: 'Could not send your request. Please try again.' }, { status: 500 });
     }
+    // Only a fresh request is news; asking again while one is waiting is not.
+    if (!tags.includes(ACCESS_REQUEST_TAG)) notifyAccess(existing.name || name, existing.company || company, phone);
     return NextResponse.json({ ok: true });
   }
   if (existing?.deleted_at) return NextResponse.json({ error: 'Could not send your request. Please contact us on WhatsApp.' }, { status: 400 });
@@ -54,5 +57,11 @@ export async function POST(req: NextRequest) {
     phone_verified: false
   });
   if (error) return NextResponse.json({ error: 'Could not send your request. Please try again.' }, { status: 500 });
+  notifyAccess(name, company, phone);
   return NextResponse.json({ ok: true });
+}
+
+function notifyAccess(name: string, company: string, phone: string) {
+  const who = [name, company].filter(Boolean).join(', ') || phone;
+  notifyAdmin({ type: 'access_request', message: `Sign-up request from ${who} -- set a PIN to let them in`, link: '/admin#access-requests' });
 }
