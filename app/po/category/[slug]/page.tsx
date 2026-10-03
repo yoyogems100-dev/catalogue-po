@@ -11,6 +11,7 @@ import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
+import HomeButton from '@/components/HomeButton';
 import Link from 'next/link';
 import { parseExploreFilter } from '@/lib/explore-filter';
 import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
@@ -151,6 +152,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
       <div className="topbar">
         <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
+          <HomeButton />
           <CartBag />
           <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
         </div>

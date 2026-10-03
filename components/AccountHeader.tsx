@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import HeaderLogo from '@/components/HeaderLogo';
 import QuickOrderButton from '@/components/QuickOrderButton';
+import HomeButton from '@/components/HomeButton';
 
 export default function AccountHeader() {
   return (
     <div className="topbar">
       <Link href="/po"><HeaderLogo height={28} /></Link>
       <div className="account-header-actions">
+        <HomeButton />
         <QuickOrderButton />
         <Link href="/po/account/orders" style={{ fontSize: 13, color: '#fff' }}>My Orders</Link>
         <Link href="/po/account/profile" style={{ fontSize: 13, color: '#fff' }}>My Info</Link>
