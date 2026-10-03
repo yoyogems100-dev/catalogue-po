@@ -465,7 +465,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
 
         {receipt && <div className="po-card po-receipt" role="status" aria-live="polite">
           <h3>{receipt.quotation ? 'Quotation requested' : 'Order placed'} — #{receipt.id}</h3>
-          <p>Saved to My Orders{whatsappDigits ? ' and opened in WhatsApp — tap Send there so our team sees it straight away' : ''}. We&rsquo;ll confirm pricing and availability.</p>
+          <p>Requirement saved. You can view its status under My Orders.</p>
           {!loggedIn && <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>}
           <div className="po-receipt-actions">
             {whatsappDigits && (
@@ -492,9 +492,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                   : <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>}
                 {sending ? 'Sending…' : 'Send requirement'}
               </button>
-              <p className="po-send-help">
-                {cart.length} {cart.length === 1 ? 'line' : 'lines'} · saved to My Orders. We&rsquo;ll confirm pricing and availability.
-              </p>
             </>
           ) : (
             // A requirement used to be sendable with no name and no number at
