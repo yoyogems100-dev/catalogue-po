@@ -35,13 +35,3 @@ export default function ColorChart({ url, categoryName }: { url: string; categor
     {open && <ColorChartViewer url={url} categoryName={categoryName} onClosed={() => { setOpen(false); opener.current?.focus(); }} />}
   </div>;
 }
-
-/** "Colour chart" beside the category title, like Moissanite's "Shape & size chart": opens the chart full screen. */
-export function ColorChartButton({ url, categoryName }: { url: string; categoryName: string }) {
-  const [open, setOpen] = useState(false);
-  const opener = useRef<HTMLButtonElement>(null);
-  return <>
-    <button ref={opener} type="button" className="btn-ghost size-chart-download" onClick={() => setOpen(true)}>Colour chart</button>
-    {open && <ColorChartViewer url={url} categoryName={categoryName} onClosed={() => { setOpen(false); opener.current?.focus(); }} />}
-  </>;
-}

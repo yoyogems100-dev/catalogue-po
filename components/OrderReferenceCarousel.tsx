@@ -71,11 +71,7 @@ function ReferenceStrip({photos,matching,categoryName,shapes,colors,colorChartUr
 
   return <aside className="po-ref-strip" aria-label={matching ? 'Product photos matching your options' : 'Product reference photos'} aria-roledescription="carousel">
     <div className="po-ref-strip-track" ref={track}>
-      {photos.map((photo,i)=><button key={photo.id} type="button" className="po-ref-strip-tile" aria-label={`Enlarge ${altFor(photo,i)}`}
-        onClick={e=>{opener.current=e.currentTarget;setIndex(i);}}>
-        {failed.includes(photo.id) ? <span className="po-reference-unavailable">Image unavailable</span>
-          : <img src={photo.url!} alt={altFor(photo,i)} loading={i<4?'eager':'lazy'} decoding="async" onError={()=>markFailed(photo.id)} />}
-      </button>)}
+      {/* The chart leads: for a colour-led category it is the first thing worth seeing. */}
       {colorChartUrl && <button type="button" className="po-ref-strip-tile po-ref-strip-chart-tile" aria-label={`Enlarge ${categoryName} color chart`}
         onClick={e=>{chartOpener.current=e.currentTarget;setChartOpen(true);}}>
         {chartFailed ? <span className="po-reference-unavailable">Chart unavailable</span>
@@ -85,6 +81,11 @@ function ReferenceStrip({photos,matching,categoryName,shapes,colors,colorChartUr
             reads as a broken image rather than something you open. */}
         <span className="po-ref-strip-tile-label">Color chart — tap to zoom</span>
       </button>}
+      {photos.map((photo,i)=><button key={photo.id} type="button" className="po-ref-strip-tile" aria-label={`Enlarge ${altFor(photo,i)}`}
+        onClick={e=>{opener.current=e.currentTarget;setIndex(i);}}>
+        {failed.includes(photo.id) ? <span className="po-reference-unavailable">Image unavailable</span>
+          : <img src={photo.url!} alt={altFor(photo,i)} loading={i<4?'eager':'lazy'} decoding="async" onError={()=>markFailed(photo.id)} />}
+      </button>)}
     </div>
     {edges.prev && <button type="button" className="po-ref-strip-nav po-ref-strip-prev" aria-label="Previous reference photos" onClick={()=>scrollPage(-1)}>‹</button>}
     {edges.next && <button type="button" className="po-ref-strip-nav po-ref-strip-next" aria-label="Next reference photos" onClick={()=>scrollPage(1)}>›</button>}
