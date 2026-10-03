@@ -490,7 +490,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                 {whatsappDigits
                   ? <WhatsAppIcon size={18} />
                   : <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>}
-                {sending ? 'Sending…' : whatsappDigits ? 'Send requirement on WhatsApp' : 'Send requirement'}
+                {sending ? 'Sending…' : 'Send requirement'}
               </button>
               <p className="po-send-help">
                 {cart.length} {cart.length === 1 ? 'line' : 'lines'} · saved to My Orders{whatsappDigits ? ' and shared with our team on WhatsApp' : ''}. We&rsquo;ll confirm pricing and availability.
