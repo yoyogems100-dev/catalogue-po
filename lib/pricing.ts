@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabasePublic } from './supabase-public';
-import { type CategoryPricing } from './pricing-calc';
+import { CATALOGUE_PRICES_ENABLED, type CategoryPricing } from './pricing-calc';
 
 export async function getCategoryPricing(categoryId: number, client: SupabaseClient = supabasePublic): Promise<CategoryPricing> {
+  if (!CATALOGUE_PRICES_ENABLED) return { colorToGroup: {}, priceMap: {}, catchAllGroupId: null };
   const [{ data: members }, { data: priceRows }, { data: groups }] = await Promise.all([
     client.from('color_price_group_members').select('color_id, group_id'),
     client.from('shape_size_prices').select('shape_id, shape_size_id, price_group_id, price_inr').eq('category_id', categoryId),

@@ -12,11 +12,11 @@ test('a category name finds the category first, then its pages', () => {
   const top = rankItems(items, 'moiss');
   assert.equal(top[0].href, '/admin/categories/34');
   assert.ok(top.some((r) => r.href === '/admin/site/categories/6'), 'website category too');
-  assert.ok(top.some((r) => r.href === '/admin/categories/34?tab=pricing'));
+  assert.ok(top.some((r) => r.href === '/admin/categories/34?tab=suppliers'));
 });
 
 test('two words go straight to a category tab', () => {
-  assert.equal(rankItems(items, 'moissanite pricing')[0].href, '/admin/categories/34?tab=pricing');
+  assert.equal(rankItems(items, 'moissanite suppliers')[0].href, '/admin/categories/34?tab=suppliers');
 });
 
 test('pages and quick actions are findable by name and by what they do', () => {
@@ -43,4 +43,8 @@ test('each notification opens the right page', () => {
   // Only admin pages: a stored link elsewhere is ignored.
   assert.equal(notificationHref({ type: 'new_order', order_id: 3, link: 'https://example.com' }), '/admin/orders/3');
   assert.equal(notificationLabel('access_request'), 'Sign-up request');
+});
+
+test('catalogue pricing is hidden while prices are switched off', () => {
+  assert.ok(!items.some((r) => r.href === '/admin/pricing' || r.href.endsWith('tab=pricing')));
 });
