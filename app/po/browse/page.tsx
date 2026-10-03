@@ -5,6 +5,7 @@ import { getAccountState } from '@/lib/account-state';
 import HeaderLogo from '@/components/HeaderLogo';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
+import HomeButton from '@/components/HomeButton';
 import Footer from '@/components/Footer';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
@@ -72,6 +73,7 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
       <div className="topbar">
         <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
+          <HomeButton />
           <CartBag />
           <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
         </div>
