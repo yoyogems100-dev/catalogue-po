@@ -1292,6 +1292,14 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-send-help { font-size: 13px; line-height: 1.5; color: var(--ivory-gold); margin: 10px 0 14px; }
 .po-send-btn { border-radius: 6px; min-height: 48px; font-weight: 600; }
 .po-send-btn:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+/* Sending saves the order and opens WhatsApp in one tap, so the button wears
+   WhatsApp's green to say where the requirement is going. */
+.po-send-btn.po-send-btn-wa { background: #1FA855; color: #fff; text-decoration: none; }
+.po-send-btn.po-send-btn-wa:hover { background: #178C46; }
+.po-receipt h3 { margin-top: 0; }
+.po-receipt-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.po-receipt-actions .po-send-btn { flex: 1 1 100%; margin-top: 0; }
+.po-receipt-actions .btn-ghost { flex: 1 1 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
 .po-cart-head > div { flex-wrap: wrap; }
 .po-item-controls select { appearance: none; padding-right: 24px !important; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%233A3F44' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center; }
 .ms-panel, .icon-select-panel { overscroll-behavior: contain; border-radius: 8px; }

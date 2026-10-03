@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { formatQty, formatQtyTotals } from '@/lib/quantity-field';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import IconSelect from './IconSelect';
 import ColorSwatch from './ColorSwatch';
@@ -9,6 +8,7 @@ import ShapeReferenceImage from './ShapeReferenceImage';
 import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
+import WhatsAppIcon from './admin/WhatsAppIcon';
 import { specText, quantityFactor } from '@/lib/order-specs';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
@@ -54,7 +54,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [pricingByCategory, setPricingByCategory] = useState<Record<number, CategoryPricing>>({});
   const [optionsByCategory, setOptionsByCategory] = useState<Record<number, CategoryOptions>>({});
   const [comment, setComment] = useState('');
-  const [reviewing, setReviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
@@ -67,7 +66,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   // categories is unreadable as one long list; folding a category you've
   // already checked keeps the rest on screen.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const reviewDialog = useRef<HTMLDialogElement>(null);
   const submissionPending = useRef(false);
 
   function setCart(next: CartItem[]) {
@@ -83,7 +81,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     window.addEventListener(CART_EVENT, read);
     return () => { window.removeEventListener('storage', read); window.removeEventListener(CART_EVENT, read); };
   }, []);
-  useEffect(() => { if (reviewing) reviewDialog.current?.showModal(); }, [reviewing]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => { setToast(''); setRemoved(null); }, canUndoRemove ? 6000 : 2600);
@@ -181,11 +178,20 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     setEditingOption(null);
   }
 
+  const whatsappDigits = (whatsappNumber || '').replace(/\D/g, '');
+
+  // One tap saves the requirement and hands it to WhatsApp. It used to take
+  // three: Send requirement, the same button again in a confirm popup, then
+  // Share on WhatsApp on the receipt. The cart page already is the review.
   async function sendRequirement() {
     if (submissionPending.current) return;
     if (cart.length === 0) { setToast('Add at least one line to your requirement first.'); return; }
     submissionPending.current = true;
     setSending(true);
+    // Browsers only allow a new tab from the tap itself, not after the save
+    // returns, so open it now and point it at WhatsApp once the order exists.
+    const waTab = whatsappDigits ? window.open('', '_blank') : null;
+    if (waTab) waTab.document.title = 'Opening WhatsApp…';
     try {
       const res = await fetch('/api/orders/create', {
         method: 'POST',
@@ -195,17 +201,17 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save order');
 
-      const number = (whatsappNumber || '').replace(/\D/g, '');
-      const url = number
-        ? `https://wa.me/${number}?text=${encodeURIComponent(data.message)}`
+      const url = whatsappDigits
+        ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent(data.message)}`
         : `https://wa.me/?text=${encodeURIComponent(data.message)}`;
+      if (waTab) waTab.location.href = url;
       setReceipt({ id: data.orderId, whatsappUrl: url, quotation: cart.every((i) => i.requestType === 'Request Quotation') });
 
-      setReviewing(false);
       setCart([]);
       setComment('');
-      setToast(`Order #${data.orderId} saved successfully.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
+      waTab?.close();
       setToast(err.message || 'Something went wrong. Please try again.');
     } finally {
       submissionPending.current = false;
@@ -265,18 +271,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         <p>Select one or more. Clearing all removes this line.</p>
       </div>
     );
-  }
-
-  // The confirm step lists lines in the same order as the page: category, then
-  // the shape or colour they were chosen under.
-  function reviewLines(): { item: CartItem; heading: string }[] {
-    const byCategory = new Map<number, CartItem[]>();
-    for (const item of [...cart].reverse()) byCategory.set(item.categoryId, [...(byCategory.get(item.categoryId) || []), item]);
-    return [...byCategory.values()].flatMap((items) => {
-      const category = categoryLabel(items[0]);
-      if (items[0].categoryId === GLASS_PEARLS_CATEGORY_ID) return items.map((item) => ({ item, heading: category }));
-      return groupLines(items).flatMap((g) => g.items.map((item) => ({ item, heading: `${category} · ${g.name}` })));
-    });
   }
 
   if (!hydrated) return <div className="po-empty po-cart-loading">Loading your requirement…</div>;
@@ -469,12 +463,19 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           </div>
         )}
 
-        {receipt && <div className="po-card" role="status" aria-live="polite">
+        {receipt && <div className="po-card po-receipt" role="status" aria-live="polite">
           <h3>{receipt.quotation ? 'Quotation requested' : 'Order placed'} — #{receipt.id}</h3>
-          <p>Our team will confirm pricing and availability. Your submission has been saved.</p>
-          <p><a href={`/po/account/orders/${receipt.id}`}>View in My Orders (sign in)</a></p>
+          <p>Requirement saved. You can view its status under My Orders.</p>
           {!loggedIn && <p>Guest orders appear in My Orders when you sign in with the WhatsApp number provided. Without a number, keep this reference and contact our team.</p>}
-          <a className="btn-ghost" href={receipt.whatsappUrl} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
+          <div className="po-receipt-actions">
+            {whatsappDigits && (
+              <a className="po-send-btn po-send-btn-wa" href={receipt.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                <WhatsAppIcon size={18} /> WhatsApp didn&rsquo;t open? Tap here
+              </a>
+            )}
+            <Link className="btn-ghost" href={`/po/account/orders/${receipt.id}`}>View in My Orders</Link>
+            <Link className="btn-ghost" href="/po">Continue browsing</Link>
+          </div>
         </div>}
 
         {cart.length > 0 && <div className="po-send-box">
@@ -485,10 +486,11 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
 
           {loggedIn ? (
             <>
-              <p className="po-send-help">Our team will confirm pricing and availability. Your saved details will be used for this requirement.</p>
-              <button type="button" className="po-send-btn" onClick={() => { setToast(''); setReviewing(true); }} disabled={sending || cart.length === 0}>
-                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>
-                {sending ? 'Submitting…' : 'Send requirement'}
+              <button type="button" className={`po-send-btn${whatsappDigits ? ' po-send-btn-wa' : ''}`} onClick={() => { setToast(''); sendRequirement(); }} disabled={sending || cart.length === 0}>
+                {whatsappDigits
+                  ? <WhatsAppIcon size={18} />
+                  : <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" /></svg>}
+                {sending ? 'Sending…' : 'Send requirement'}
               </button>
             </>
           ) : (
@@ -504,25 +506,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         </div>}
       </section>
 
-      {reviewing && <dialog ref={reviewDialog} className="order-review-dialog" aria-labelledby="order-review-title"
-        onClose={() => setReviewing(false)} onCancel={() => setReviewing(false)}>
-        <h2 id="order-review-title">Confirm your requirement</h2>
-        <p>{cart.length} {cart.length === 1 ? 'item' : 'items'} · {formatQtyTotals(cart.map((item) => ({ qty: item.qty, unit: unitOf(item) })))}</p>
-        <ul className="order-review-lines">{reviewLines().map(({ item, heading }) => <li key={item.id}><StoneReference item={item} /><div>
-          <strong>{heading}</strong><br />{item.categoryId !== GLASS_PEARLS_CATEGORY_ID && `${item.shapeName} · `}{item.sizeMm} mm · {item.colorName}{item.orderSpecs && <small style={{ display: 'block' }}>{specText(item.orderSpecs, item.qty)}</small>}<br />
-          {item.qty > 0 ? formatQty(item.qty, unitOf(item) || 'pieces') : 'Quantity not specified'} · {item.requestType === 'Request Quotation' ? 'Request quotation' : 'Purchase'}
-        </div></li>)}</ul>
-        {hasAnyPricedLine && <p>{unpricedLines ? 'Priced lines subtotal' : 'Estimated total'}: ₹{formatRupees(cartTotalInr)}</p>}
-        <p>Your saved account details will be used for this requirement.</p>
-        {comment && <p style={{ whiteSpace: 'pre-wrap' }}><strong>Comment:</strong> {comment}</p>}
-        <p>Our team will confirm pricing and availability before your order is confirmed.</p>
-        <div className="order-review-actions">
-          <button className="btn-ghost" onClick={() => setReviewing(false)} disabled={sending}>Back to edit</button>
-          <button className="btn" onClick={sendRequirement} disabled={sending}>{sending ? 'Submitting…' : 'Send requirement'}</button>
-        </div>
-        {toast && <p role="status">{toast}</p>}
-      </dialog>}
-      {toast && !reviewing && (
+      {toast && (
         <div className="po-toast" role="status" aria-live="polite">
           {toast}
           {canUndoRemove && <button type="button" className="po-toast-undo" onClick={undoRemove}>Undo</button>}
