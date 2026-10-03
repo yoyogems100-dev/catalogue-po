@@ -6,6 +6,7 @@ import { getAccountState } from '@/lib/account-state';
 import { getCategoryPricing } from '@/lib/pricing';
 import CategoryTabs from './CategoryTabs';
 import SizeChartPreview from '@/components/SizeChartPreview';
+import { ColorChartButton } from '@/components/ColorChart';
 import { sizeChartSections } from '@/lib/size-chart';
 import Footer from '@/components/Footer';
 import HeaderLogo from '@/components/HeaderLogo';
@@ -159,7 +160,10 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
         <Link href="/po" className="back-link">&larr; All categories</Link>
         <div className="category-title-row">
           <h1 style={{ fontSize: 28, color: 'var(--ink)', margin: '10px 0 4px' }}>{data.category.name}</h1>
-          {data.sizeChart && <SizeChartPreview categoryName={data.category.name} sections={data.sizeChart} pdfUrl={`/api/categories/${data.category.id}/size-chart`} />}
+          {(data.sizeChart || data.category.color_chart_url) && <div className="category-chart-buttons">
+            {data.sizeChart && <SizeChartPreview categoryName={data.category.name} sections={data.sizeChart} pdfUrl={`/api/categories/${data.category.id}/size-chart`} />}
+            {data.category.color_chart_url && <ColorChartButton url={data.category.color_chart_url} categoryName={data.category.name} />}
+          </div>}
         </div>
         <CategoryTabs
           categoryId={data.category.id}
