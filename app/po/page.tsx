@@ -123,7 +123,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <HomeHero loggedIn={account.loggedIn} customerName={account.customerName} />
+      <HomeHero {...account} />
       <div className="container" style={{ padding: '28px 20px 80px' }}>
         {/* The visible branding in HomeHero is a stylized logo image, not real
             text -- a true H1 keeps the page's heading structure sound for

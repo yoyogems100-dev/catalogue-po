@@ -1,9 +1,14 @@
 import Link from 'next/link';
 import HeaderLogo from '@/components/HeaderLogo';
 import QuickOrderButton from '@/components/QuickOrderButton';
+import ActingBanner from '@/components/ActingBanner';
+import { getAccountState } from '@/lib/account-state';
 
-export default function AccountHeader() {
+export default async function AccountHeader() {
+  const account = await getAccountState();
   return (
+    <>
+    {account.actingAs && <ActingBanner customerName={account.customerName} selfName={account.actingAs.selfName} />}
     <div className="topbar">
       <Link href="/po"><HeaderLogo height={28} /></Link>
       <div className="account-header-actions">
@@ -17,5 +22,6 @@ export default function AccountHeader() {
         </form>
       </div>
     </div>
+    </>
   );
 }

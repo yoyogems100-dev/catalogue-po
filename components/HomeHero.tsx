@@ -5,12 +5,13 @@ import HeaderLogo from './HeaderLogo';
 import AccountMenu from './AccountMenu';
 import CartBag from './CartBag';
 import QuickOrderButton from './QuickOrderButton';
+import type { AccountState } from '@/lib/account-state';
 
 // A single-row, logo-left navbar -- the hero used to center a large logo
 // below the icon row, which forced a tall header just to leave room for it.
 // The slim floating topbar (same layout, smaller logo) stays invisible until
 // this hero scrolls out of view, then fades in.
-export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
+export default function HomeHero(account: AccountState) {
   const heroRef = useRef<HTMLDivElement>(null);
   const [showTopbar, setShowTopbar] = useState(false);
 
@@ -32,7 +33,7 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
         <div className="topbar-actions">
           <QuickOrderButton />
           <CartBag />
-          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+          <AccountMenu {...account} />
         </div>
       </div>
       {/* Quick Order writes straight to the local cart and needs no account,
@@ -45,7 +46,7 @@ export default function HomeHero({ loggedIn, customerName }: { loggedIn: boolean
           {/* This one also answers the home page's colour chips. */}
           <QuickOrderButton listenForColorStart />
           <CartBag />
-          <AccountMenu loggedIn={loggedIn} customerName={customerName} />
+          <AccountMenu {...account} />
         </div>
       </div>
     </>

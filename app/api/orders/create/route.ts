@@ -3,7 +3,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { formatQtyTotals } from '@/lib/quantity-field';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { getCustomerId } from '@/lib/customer-auth';
+import { getCustomerSession } from '@/lib/customer-auth';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
   // they had no way to reply to -- and leaving the buyer no record of it. The
   // cart asks unauthenticated visitors to sign in before it offers Send; this
   // is the matching server-side rule, so the check can't be skipped.
-  const customerId: number | null = await getCustomerId();
+  const session = await getCustomerSession();
+  const customerId: number | null = session?.customerId ?? null;
+  // Set when someone allowed to order for others placed this for the buyer.
+  const placedBy = session && session.actorId !== session.customerId ? session.actorId : null;
   if (!customerId) {
     return NextResponse.json(
       { error: 'Please sign in so we can confirm price and availability with you.' },
@@ -77,6 +80,10 @@ export async function POST(req: NextRequest) {
   const { data: customerRecord } = await supabaseAdmin
     .from('customers').select('name, company').eq('id', customerId).maybeSingle();
   const contactName = (customerRecord?.name || customerRecord?.company || '').trim();
+  const { data: placedByRecord } = placedBy
+    ? await supabaseAdmin.from('customers').select('name, company').eq('id', placedBy).maybeSingle()
+    : { data: null };
+  const placedByName = placedByRecord ? (placedByRecord.name || placedByRecord.company || '').trim() || `customer #${placedBy}` : null;
 
   const message = buildOrderMessage(cartWithPrices, contactName, comment);
 
@@ -94,7 +101,8 @@ export async function POST(req: NextRequest) {
       request_type: orderLevelRequestType,
       contact_name: contactName || null,
       comment: comment || null,
-      whatsapp_message: message
+      whatsapp_message: message,
+      ...(placedBy ? { placed_by_customer_id: placedBy } : {})
     })
     .select('id')
     .single();
@@ -136,7 +144,7 @@ export async function POST(req: NextRequest) {
   notifyAdmin({
     type: 'new_order',
     orderId: order.id,
-    message: `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${formatQtyTotals(cartWithPrices.map((i) => ({ qty: i.qty, unit: i.qtyUnit })))}`
+    message: `New order #${order.id} placed${contactName ? ` by ${contactName}` : ''}${placedByName ? ` (entered by ${placedByName})` : ''} -- ${cart.length} line${cart.length > 1 ? 's' : ''}, ${formatQtyTotals(cartWithPrices.map((i) => ({ qty: i.qty, unit: i.qtyUnit })))}`
   });
 
   return NextResponse.json({ orderId: order.id, message });
