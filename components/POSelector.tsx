@@ -21,6 +21,7 @@ import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
 import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
+import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
 
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
@@ -50,8 +51,8 @@ export default function POSelector({
   categoryId,
   categoryName,
   whatsappNumber,
-  shapes,
-  colors,
+  shapes: allShapes,
+  colors: allColors,
   sizes,
   colorPalettes,
   photos = [],
@@ -85,6 +86,21 @@ export default function POSelector({
   /** What the quantity field is called and starts on ("No. of Lines", 5). */
   quantityField?: QuantityField;
 }) {
+  // Swiss High Density CZ is White Round only: both are shown as fixed,
+  // pre-chosen fields. The category's other colour links stay in the data
+  // (Explore Photos still uses them); only this order form narrows them.
+  const swiss = categoryId === SWISS_CATEGORY_ID;
+  const shapes = useMemo(() => {
+    const round = swiss ? allShapes.filter((s) => s.name === 'Round') : [];
+    return round.length ? round : allShapes;
+  }, [swiss, allShapes]);
+  const colors = useMemo(() => {
+    const white = swiss ? allColors.filter((c) => c.name === 'White') : [];
+    return white.length ? white : allColors;
+  }, [swiss, allColors]);
+  // Picked once and shown read-only: Moissanite's White (DEF), Swiss's White.
+  const colorLocked = categoryId === 34 || (swiss && colors.length === 1);
+  const shapeLocked = swiss && shapes.length === 1;
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   // The server renders this category's price list, so its own lines are priced
@@ -237,9 +253,9 @@ export default function POSelector({
   const colorOptions = useMemo(() => colors.filter((c) => available.colorIds.has(c.id)), [colors, available]);
   const sizeOptions = useMemo(
     () => sizeGroups
-      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shape_id)).map((row) => row.id), name: `${g.sizeMm} mm` }))
+      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shape_id)).map((row) => row.id), name: swiss ? swissSizeLabel(g.sizeMm) : `${g.sizeMm} mm` }))
       .filter((o) => available.sizeIdxs.has(o.id)),
-    [sizeGroups, available, pickShapeIds]
+    [sizeGroups, available, pickShapeIds, swiss]
   );
 
   // Picks only ever narrow the other lists, so this is a safety net for a
@@ -433,12 +449,12 @@ export default function POSelector({
   // own popup (picking an option) never counts as "outside".
 
 
-  // Everything the compose form is currently holding. Moissanite's colour is
-  // locked to White (DEF) by the picker itself, so clearing it would only be
-  // re-applied on the next render -- leave it alone rather than flicker.
+  // Everything the compose form is currently holding. A locked colour or
+  // shape is re-applied by the picker itself, so clearing it would only
+  // flicker -- leave it alone.
   const hasSelection =
-    pickShapeIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== startQty ||
-    (categoryId !== 34 && pickColorIds.length > 0);
+    (!shapeLocked && pickShapeIds.length > 0) || pickSizeIdxs.length > 0 || pickQty !== startQty ||
+    (!colorLocked && pickColorIds.length > 0);
 
   const missingFields = [
     categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && 'shape',
@@ -449,9 +465,9 @@ export default function POSelector({
   ].filter(Boolean) as string[];
 
   function clearSelection() {
-    setPickShapeIds([]);
+    if (!shapeLocked) setPickShapeIds([]);
     setPickSizeIdxs([]);
-    if (categoryId !== 34) setPickColorIds([]);
+    if (!colorLocked) setPickColorIds([]);
     setPickCt('');
     setCtError(false);
     setPickQty(startQty);
@@ -624,7 +640,7 @@ export default function POSelector({
         categoryId={categoryId}
         multiple
         options={colorOptions}
-        locked={categoryId === 34}
+        locked={colorLocked}
         values={pickColorIds}
         onChange={setPickColorIds}
               closeOnFirstPick={pickShapeIds.length === 0}
@@ -669,6 +685,7 @@ export default function POSelector({
               categoryId={categoryId}
               multiple
               options={shapeOptions}
+              locked={shapeLocked}
               values={pickShapeIds}
               onChange={setPickShapeIds}
               closeOnFirstPick={pickColorIds.length === 0}
@@ -680,7 +697,7 @@ export default function POSelector({
             />
           </div>}
           {!sizeGrid && <div>
-            <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
+            <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm){swiss && <span className="po-label-note"> · weight of 1000 pcs</span>}</label>
             <IconSelect
               categoryId={categoryId}
               multiple
