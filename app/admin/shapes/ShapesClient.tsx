@@ -10,7 +10,7 @@ import ShapeIcon from '@/components/ShapeIcon';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import BulkActionBar from '@/components/admin/BulkActionBar';
 
-type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null };
+type Shape = { id: number; name: string; icon_key?: string | null; ref_photo_url?: string | null; short_code?: string | null };
 type Size = { id: number; shape_id: number; size_mm: string; weight_ct: number | null };
 type Category = { id: number; num: number; name: string; slug: string | null };
 type CatShape = { category_id: number; shape_id: number };
@@ -167,6 +167,21 @@ export default function ShapesClient({
     router.refresh();
   }
 
+  async function saveShortCode(id: number, code: string) {
+    const res = await fetch('/api/shapes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, short_code: code })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to save the short code');
+      return;
+    }
+    setToast(code ? `Short code saved: ${code}` : 'Short code cleared.');
+    router.refresh();
+  }
+
   async function uploadPhoto(id: number, file: File | null | undefined) {
     if (!file) return;
     const fd = new FormData();
@@ -266,7 +281,7 @@ export default function ShapesClient({
 
       <table>
         <thead>
-          <tr><th></th><th>Order</th><th>Image</th><th>Shape</th><th>Sizes</th><th>Categories</th><th></th></tr>
+          <tr><th></th><th>Order</th><th>Image</th><th>Shape</th><th title="Printed in WhatsApp order messages instead of the full name">Code</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
           {visibleShapes.map((s) => {
@@ -325,6 +340,7 @@ export default function ShapesClient({
                     </div>
                   </td>
                   <td><HotMark kind="shape" ids={[s.id]} name={s.name} /><ShapeNameCell shape={s} onRename={renameShape} /></td>
+                  <td><ShapeCodeCell shape={s} onSave={saveShortCode} /></td>
                   <td>
                     <button className="btn-ghost" onClick={() => { setExpandedSizes(sizesOpen ? null : s.id); setExpandedCats(null); }}>
                       {shapeSizes.length} sizes {sizesOpen ? '▲' : '▼'}
@@ -339,7 +355,7 @@ export default function ShapesClient({
                 </tr>
                 {sizesOpen && (
                   <tr key={`${s.id}-sizes`}>
-                    <td colSpan={7} style={{ background: '#faf8f3' }}>
+                    <td colSpan={8} style={{ background: '#faf8f3' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                         {shapeSizes.map((sz) => (
                           <span key={sz.id} className="tag-chip">
@@ -373,7 +389,7 @@ export default function ShapesClient({
                 )}
                 {catsOpen && (
                   <tr key={`${s.id}-cats`}>
-                    <td colSpan={7} style={{ background: '#faf8f3' }}>
+                    <td colSpan={8} style={{ background: '#faf8f3' }}>
                       <p style={{ fontSize: 12, color: '#756e5c', marginBottom: 8 }}>
                         Which categories should offer "{s.name}" as a shape option. This is the same link used on each
                         category's own page -- edit from whichever side is more convenient.
@@ -391,12 +407,35 @@ export default function ShapesClient({
             );
           })}
           {visibleShapes.length === 0 && (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No shapes match "{search}".</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#756e5c', fontSize: 13 }}>No shapes match "{search}".</td></tr>
           )}
         </tbody>
       </table>
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
+  );
+}
+
+// Short code for WhatsApp order messages (HS = Heart...). Saves on blur/Enter.
+function ShapeCodeCell({ shape, onSave }: { shape: Shape; onSave: (id: number, code: string) => Promise<void> }) {
+  const saved = shape.short_code || '';
+  const [value, setValue] = useState(saved);
+  return (
+    <input
+      type="text"
+      className="shape-code-input"
+      value={value}
+      maxLength={12}
+      placeholder="—"
+      aria-label={`Short code for ${shape.name}`}
+      title="Shown in WhatsApp order messages instead of the full shape name"
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => { const next = value.trim(); setValue(next); if (next !== saved) onSave(shape.id, next); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') setValue(saved);
+      }}
+    />
   );
 }
 

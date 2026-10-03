@@ -5,6 +5,8 @@ export type OrderCartItem = {
   categoryName: string;
   shapeId: number;
   shapeName: string;
+  /** Admin-set short code (HS, OS...); the full name prints when absent. */
+  shapeCode?: string | null;
   sizeId: number | null;
   sizeMm: string;
   colorId: number;
@@ -18,57 +20,71 @@ export type OrderCartItem = {
   unitPriceInr?: number | null;
 };
 
-function formatTable(rows: { category: string; shape: string; size: string; color: string; qty: string; amount?: string }[]) {
+type Row = { shape: string; size: string; color: string; qty: string; amount?: string };
+
+// Leading number of a size ("4", "4x6", "1.5") so lines run small to large.
+function sizeSortKey(sizeMm: string): number {
+  const n = parseFloat(sizeMm);
+  return Number.isNaN(n) ? Number.POSITIVE_INFINITY : n;
+}
+
+// One table per category. The category is the heading above it rather than a
+// column, and shapes print as their short code (HS, OS...), so a line fits a
+// phone screen instead of wrapping.
+function formatTable(rows: Row[]) {
   const hasAmount = rows.some((r) => r.amount !== undefined);
-  const w = (key: 'category' | 'shape' | 'size' | 'color' | 'qty', label: string) =>
+  const w = (key: 'shape' | 'size' | 'color' | 'qty', label: string) =>
     Math.max(label.length, ...rows.map((r) => r[key].length));
-  const catW = w('category', 'Category');
   const shapeW = w('shape', 'Shape');
   const sizeW = w('size', 'Size');
   const colorW = w('color', 'Color');
   const qtyW = w('qty', 'Qty');
-  const amtW = hasAmount ? Math.max('Amount (INR)'.length, ...rows.map((r) => (r.amount || '').length)) : 0;
+  const amtW = hasAmount ? Math.max('Amount'.length, ...rows.map((r) => (r.amount || '').length)) : 0;
 
   const pad = (s: string, n: number, end = true) => (end ? s.padEnd(n) : s.padStart(n));
+  const line = (shape: string, size: string, color: string, qty: string, amount: string) =>
+    `${pad(shape, shapeW)} ${pad(size, sizeW)} ${pad(color, colorW)} ${pad(qty, qtyW, false)}${hasAmount ? ` ${pad(amount, amtW, false)}` : ''}`.trimEnd();
 
-  const header = `${pad('Category', catW)}  ${pad('Shape', shapeW)}  ${pad('Size', sizeW)}  ${pad('Color', colorW)}  ${pad('Qty', qtyW, false)}${hasAmount ? `  ${pad('Amount (INR)', amtW, false)}` : ''}`;
-  const divider = `${'-'.repeat(catW)}  ${'-'.repeat(shapeW)}  ${'-'.repeat(sizeW)}  ${'-'.repeat(colorW)}  ${'-'.repeat(qtyW)}${hasAmount ? `  ${'-'.repeat(amtW)}` : ''}`;
-  const lines = rows.map(
-    (r) => `${pad(r.category, catW)}  ${pad(r.shape, shapeW)}  ${pad(r.size, sizeW)}  ${pad(r.color, colorW)}  ${pad(r.qty, qtyW, false)}${hasAmount ? `  ${pad(r.amount || '--', amtW, false)}` : ''}`
-  );
-  return ['```', header, divider, ...lines, '```'].join('\n');
+  return ['```', line('Shape', 'Size', 'Color', 'Qty', 'Amount'), ...rows.map((r) => line(r.shape, r.size, r.color, r.qty, r.amount || '--')), '```'].join('\n');
 }
 
-// Groups lines by their own requestType instead of assuming one type for the
-// whole cart -- a single WhatsApp send can now mix Place Order and Request
-// Quotation lines. Place Order is shown first (it's the default and the more
-// actionable of the two), Request Quotation second, and a section header is
-// only added when both types are actually present.
-export function buildOrderMessage(cart: OrderCartItem[], contactName: string, comment: string) {
-  const toRow = (item: OrderCartItem) => ({
-    category: item.categoryName,
-    shape: [item.shapeName,specText(item.orderSpecs,item.qty)].filter(Boolean).join(" / "),
-    size: item.sizeMm,
-    color: item.colorName,
-    qty: item.qtyUnit ? `${item.qty} ${item.qtyUnit}` : String(item.qty),
-    amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined
+function categorySections(items: OrderCartItem[]): string[] {
+  const byCategory = new Map<string, OrderCartItem[]>();
+  for (const item of items) byCategory.set(item.categoryName, [...(byCategory.get(item.categoryName) || []), item]);
+  return [...byCategory].flatMap(([category, lines]) => {
+    const rows = [...lines]
+      .sort((a, b) =>
+        a.shapeName.localeCompare(b.shapeName) ||
+        sizeSortKey(a.sizeMm) - sizeSortKey(b.sizeMm) ||
+        a.sizeMm.localeCompare(b.sizeMm) ||
+        a.colorName.localeCompare(b.colorName))
+      .map((item) => ({
+        shape: [item.shapeCode?.trim() || item.shapeName, specText(item.orderSpecs, item.qty)].filter(Boolean).join(' / '),
+        size: item.sizeMm,
+        color: item.colorName,
+        qty: item.qtyUnit ? `${item.qty} ${item.qtyUnit}` : String(item.qty),
+        amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined
+      }));
+    return ['', `*${category}*`, formatTable(rows)];
   });
+}
 
+// Groups lines by their own requestType -- a single send can mix Place Order
+// and Request Quotation lines. Place Order comes first, and a section header
+// is only added when both types are actually present.
+export function buildOrderMessage(cart: OrderCartItem[], contactName: string, comment: string) {
   const placeOrderItems = cart.filter((i) => i.requestType !== 'Request Quotation');
   const quotationItems = cart.filter((i) => i.requestType === 'Request Quotation');
   const mixed = placeOrderItems.length > 0 && quotationItems.length > 0;
 
-  const uniqueCategories = [...new Set(cart.map((i) => i.categoryName))];
-  const title = uniqueCategories.length === 1 ? uniqueCategories[0] : 'YOYO GEMS Requirement';
-
   const sections: string[] = [];
   if (placeOrderItems.length > 0) {
-    if (mixed) sections.push('*PURCHASE*');
-    sections.push(formatTable(placeOrderItems.map(toRow)));
+    if (mixed) sections.push('', '*PURCHASE*');
+    sections.push(...categorySections(placeOrderItems));
   }
   if (quotationItems.length > 0) {
-    if (mixed) sections.push('*REQUEST QUOTATION*');
-    sections.push(formatTable(quotationItems.map(toRow)));
+    if (mixed) sections.push('', '*REQUEST QUOTATION*');
+    sections.push(...categorySections(quotationItems));
   }
 
   // Only priced lines count toward the total -- a cart mixing priced and
@@ -82,16 +98,12 @@ export function buildOrderMessage(cart: OrderCartItem[], contactName: string, co
 
   return [
     'Hello YOYO GEMS,',
-    '',
-    `*${title}*`,
-    mixed ? '' : `Request Type: ${cart[0]?.requestType === 'Request Quotation' ? 'Request Quotation' : 'Purchase'}`,
     contactName ? `Name / Company: ${contactName}` : '',
-    '',
-    'Requirement:',
+    !mixed && quotationItems.length > 0 ? 'Request Type: Request Quotation' : '',
     ...sections,
     totalLine,
     '',
-    comment ? `Additional Comment: ${comment}` : '',
+    comment ? `Comment: ${comment}` : '',
     '',
     'Thank you.'
   ]

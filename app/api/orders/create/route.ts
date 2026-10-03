@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerSession } from '@/lib/customer-auth';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
+import { withShapeCodes } from '@/lib/shape-codes-server';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
     : { data: null };
   const placedByName = placedByRecord ? (placedByRecord.name || placedByRecord.company || '').trim() || `customer #${placedBy}` : null;
 
-  const message = buildOrderMessage(cartWithPrices, contactName, comment);
+  const message = buildOrderMessage(await withShapeCodes(cartWithPrices), contactName, comment);
 
   // Order-level request_type is a summary for admin filtering/badges -- "Mixed"
   // when the cart has both Place Order and Request Quotation lines, since each

@@ -5,6 +5,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
+import { withShapeCodes } from '@/lib/shape-codes-server';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     return { ...item, unitPriceInr };
   });
 
-  const message = buildOrderMessage(cartWithPrices, contactName || '', comment);
+  const message = buildOrderMessage(await withShapeCodes(cartWithPrices), contactName || '', comment);
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')

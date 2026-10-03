@@ -3042,3 +3042,6 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 .icon-select-done { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); background: #fff; font-size: 12px; color: var(--text-dim); }
 .icon-select-done button { min-height: 40px; padding: 0 18px; border: 0; border-radius: 6px; background: var(--navy); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
 .icon-select-done button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Admin > Shapes: the short code printed in WhatsApp order messages. */
+.shape-code-input { width: 64px; min-height: 36px; padding: 4px 8px; font-size: 13px; text-transform: none; }
