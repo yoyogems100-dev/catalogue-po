@@ -21,7 +21,7 @@ export default async function CartPage() {
         <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
           <CartBag />
-          <AccountMenu loggedIn={account.loggedIn} customerName={account.customerName} />
+          <AccountMenu {...account} />
         </div>
       </div>
       <div className="container" style={{ padding: '28px 20px 80px' }}>

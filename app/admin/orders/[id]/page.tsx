@@ -57,8 +57,13 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   // Read on its own so the page still opens if the column isn't there yet.
   const [fieldOf, { data: packetRow }] = await Promise.all([
     getQuantityFields(),
-    supabaseAdmin.from('orders').select('packet_weights').eq('id', orderId).maybeSingle()
+    supabaseAdmin.from('orders').select('*').eq('id', orderId).maybeSingle()
   ]);
+  // Who entered it, when an account allowed to order for others placed it for this buyer.
+  const placedById = (packetRow as any)?.placed_by_customer_id as number | null | undefined;
+  const { data: placedBy } = placedById
+    ? await supabaseAdmin.from('customers').select('id, name, company').eq('id', placedById).maybeSingle()
+    : { data: null };
   const packetWeights = normalizePacketWeights((packetRow as any)?.packet_weights) || null;
   const weightUnitOf: Record<number, WeightUnit> = Object.fromEntries(categoryIds.map((id: number) => [id, fieldOf(id).weightUnit || 'g']));
   const shapeMap: Record<number, string> = Object.fromEntries((shapesData || []).map((s: any) => [s.id, s.name]));
@@ -153,6 +158,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   return (
     <>
       <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
+      {placedBy && <p className="admin-placed-by">Entered by <Link href={`/admin/customers/${placedBy.id}`}>{placedBy.name || placedBy.company || `customer #${placedBy.id}`}</Link> on the customer&rsquo;s behalf.</p>}
       <OrderAdminClient
         orderId={order.id}
         status={order.status}

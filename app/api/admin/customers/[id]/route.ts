@@ -27,6 +27,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // Only when sent, so an older form that does not know these leaves them alone.
   if ('interestCategoryIds' in body) values.interest_category_ids = sanitizeInterestIds(body.interestCategoryIds);
   if ('showInterests' in body) values.show_interests = body.showInterests !== false;
+  if ('canOrderForOthers' in body) values.can_order_for_others = body.canOrderForOthers === true;
   const { data, error } = await supabaseAdmin.from('customers').update(values).eq('id', id).select('id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data) return NextResponse.json({ error: 'Customer not found.' }, { status: 404 });

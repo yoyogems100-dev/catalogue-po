@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { FullLogo } from './Logo';
 import LoginForm from './LoginForm';
+import CustomerSwitcher, { switchCustomer } from './CustomerSwitcher';
 
 const UserIcon = () => (
   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -12,8 +13,16 @@ const UserIcon = () => (
   </svg>
 );
 
-export default function AccountMenu({ loggedIn, customerName }: { loggedIn: boolean; customerName: string | null }) {
+export default function AccountMenu({ loggedIn, customerName, canSwitch = false, actingAs = null }: {
+  loggedIn: boolean;
+  customerName: string | null;
+  /** May order for other customers -- shows "Switch customer". */
+  canSwitch?: boolean;
+  /** Set while ordering for someone else. */
+  actingAs?: { selfName: string } | null;
+}) {
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   if (loggedIn) {
     // Both destinations (My Orders, My Info) sit behind the one account
@@ -21,14 +30,25 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
     // of a separate always-visible "My Orders" link crowding the row.
     return (
       <div className="account-menu account-menu-loggedin">
-        <button type="button" className="account-menu-trigger" onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
+        <button type="button" className={`account-menu-trigger${actingAs ? ' is-acting' : ''}`} onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
           <UserIcon />
-          <span>{customerName || 'Account'}</span>
+          <span>{actingAs ? `For: ${customerName || 'customer'}` : customerName || 'Account'}</span>
         </button>
         {open && (
           <>
             <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
             <div className="account-menu-popover card">
+              {actingAs && (
+                <div className="account-acting">
+                  <p>Ordering for <strong>{customerName || 'this customer'}</strong>. Orders you send are placed in their name.</p>
+                  <button type="button" className="btn-ghost" onClick={() => switchCustomer(null)}>Back to {actingAs.selfName}</button>
+                </div>
+              )}
+              {canSwitch && (
+                <button type="button" className="account-switch" onClick={() => { setOpen(false); setSwitching(true); }}>
+                  {actingAs ? 'Switch to another customer' : 'Switch customer'}
+                </button>
+              )}
               <div className="account-menu-links">
                 <Link href="/po/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
                 <Link href="/po/account/profile" prefetch={false} onClick={() => setOpen(false)}>My Info</Link>
@@ -39,6 +59,7 @@ export default function AccountMenu({ loggedIn, customerName }: { loggedIn: bool
             </div>
           </>
         )}
+        {switching && <CustomerSwitcher onClose={() => setSwitching(false)} />}
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCustomerId } from '@/lib/customer-auth';
+import { getCustomerId, getCustomerSession } from '@/lib/customer-auth';
 import { checkPassword, passwordProblem } from '@/lib/customer-password';
 import { getCredentials, savePassword } from '@/lib/customer-credentials';
 
@@ -15,8 +15,11 @@ export async function GET() {
 // (the current password is required, so a borrowed signed-in phone can't
 // quietly take over the account).
 export async function POST(req: NextRequest) {
-  const customerId = await getCustomerId();
-  if (!customerId) return NextResponse.json({ error: 'Sign in to continue' }, { status: 401 });
+  const session = await getCustomerSession();
+  if (!session) return NextResponse.json({ error: 'Sign in to continue' }, { status: 401 });
+  // Ordering for a buyer lets you place their orders, not change their password.
+  if (session.actorId !== session.customerId) return NextResponse.json({ error: 'Switch back to your own account to change a password.' }, { status: 403 });
+  const customerId = session.customerId;
   const body = await req.json().catch(() => ({}));
   const problem = passwordProblem(body.password);
   if (problem) return NextResponse.json({ error: problem, field: 'password' }, { status: 400 });

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import CustomerProfileEditor from './CustomerProfileEditor';
 import CustomerColourSetup from './CustomerColourSetup';
 import CustomerPasswordPanel from './CustomerPasswordPanel';
+import CustomerOrderForOthers from './CustomerOrderForOthers';
 import { getCredentials } from '@/lib/customer-credentials';
 import { placeSuggestions } from '@/lib/customer-places';
 import { getUsedPlaces } from '@/lib/customer-places-server';
@@ -57,6 +58,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
       <>
         <CustomerProfileEditor customer={customer} placeSuggestions={placeSuggestions(usedPlaces)} categories={(categories || []).filter((c: any) => !c.archived_at)} />
         <CustomerPasswordPanel customerId={customer.id} phone={customer.phone} status={passwordStatus} />
+        <CustomerOrderForOthers customerId={customer.id} initial={customer.can_order_for_others === true} />
       </>
     ) : tab === 'colours' ? (
       <CustomerColourSetup
