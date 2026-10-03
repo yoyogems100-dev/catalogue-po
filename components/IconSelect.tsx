@@ -236,7 +236,13 @@ export default function IconSelect(props: Props) {
     const firstPick = multi.values.length === 0;
     const next = multi.values.includes(id) ? multi.values.filter((v) => v !== id) : [...multi.values, id];
     multi.onChange(next);
-    if (multi.closeOnFirstPick && firstPick) closeAndRefocus();
+    if (multi.closeOnFirstPick && firstPick) { closeAndRefocus(); return; }
+    // Picking from a search ("30" -> G-30 Shaded) empties the box and keeps
+    // the cursor in it, so the next name can be typed without backspacing.
+    if (search) {
+      setSearch('');
+      searchRef.current?.focus();
+    }
   }
 
   function applyPalette(palette: Palette) {
@@ -271,6 +277,7 @@ export default function IconSelect(props: Props) {
 
   function pickSingle(id: number) {
     single.onChange(id);
+    setSearch('');
     setOpen(false);
   }
 
