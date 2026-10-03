@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync } from 'node:fs';
 import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
+import { CATALOGUE_PRICES_ENABLED } from '../lib/pricing-calc';
 
 const links = [OVERVIEW, NOTIFICATIONS, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
 
@@ -9,7 +10,9 @@ test('every admin section is in the side pane, and every link has a page', () =>
   const hrefs = links.map((l) => l.href);
   assert.equal(new Set(hrefs).size, hrefs.length, 'no duplicates');
   for (const h of hrefs) assert.ok(existsSync(`app${h}/page.tsx`), `${h} has a page`);
-  for (const dir of readdirSync('app/admin', { withFileTypes: true }).filter((d) => d.isDirectory())) {
+  // Pricing is hidden on purpose while catalogue prices are switched off.
+  const hidden = CATALOGUE_PRICES_ENABLED ? [] : ['pricing'];
+  for (const dir of readdirSync('app/admin', { withFileTypes: true }).filter((d) => d.isDirectory() && !hidden.includes(d.name))) {
     assert.ok(hrefs.some((h) => h === `/admin/${dir.name}` || h.startsWith(`/admin/${dir.name}/`)), `/admin/${dir.name} is reachable`);
   }
 });
@@ -43,6 +46,6 @@ test('the side pane stays short: a few entries per workspace, the rest drill dow
     assert.ok(w.groups.length <= 8, `${w.label} shows at most 8 entries`);
     assert.equal(w.groups.filter((g) => g.list).length, 1, `${w.label} has one Categories drill-down`);
   }
-  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes & sizes', 'Colours', 'Pricing', 'Suppliers']);
+  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes & sizes', 'Colours', ...(CATALOGUE_PRICES_ENABLED ? ['Pricing'] : []), 'Suppliers']);
   assert.ok(poCategoryPages(29).some((l) => l.href === '/admin/categories/29?tab=strip-counts'), 'Rainbow Corundum has Strip counts');
 });

@@ -12,6 +12,7 @@ import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManager';
 import { parseExploreFilter } from '@/lib/explore-filter';
+import { CATALOGUE_PRICES_ENABLED } from '@/lib/pricing-calc';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,10 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // shared Shapes & sizes and Colors tabs.
   const { data: head } = await supabaseAdmin.from('categories').select('option_label').eq('id', categoryId).maybeSingle();
   const optionLabel: string | null = head?.option_label ?? null;
-  const TABS = optionLabel
+  const TABS = (optionLabel
     ? ['photos','materials','pricing','suppliers']
-    : ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])];
+    : ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])])
+    .filter((t) => CATALOGUE_PRICES_ENABLED || t !== 'pricing');
   const tab = TABS.includes(raw) ? raw : (optionLabel && ['shapes','colors','color-chart','specifications'].includes(raw) ? 'materials' : (LEGACY_TABS[raw] || 'photos'));
 
   // Only the "Shapes & sizes" tab needs the full, catalogue-wide shape/size
@@ -162,7 +164,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}{category.archived_at && <span className="admin-archived-pill">Archived</span>}</h1>
       {category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={category.archived_at} />}
       <div className="category-downloads">
-        <a className="btn-ghost size-chart-download" href={`/api/admin/pricing/pdf?category_id=${categoryId}`}>Download price list</a>
+        {CATALOGUE_PRICES_ENABLED && <a className="btn-ghost size-chart-download" href={`/api/admin/pricing/pdf?category_id=${categoryId}`}>Download price list</a>}
         {!category.archived_at && <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>}
         {!category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={null} />}
       </div>

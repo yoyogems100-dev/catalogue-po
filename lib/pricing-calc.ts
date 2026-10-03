@@ -2,6 +2,13 @@
 // browser bundle. Prices are stored per shape+size+color-GROUP (matching the
 // supplier sheet's own layout), so pricing an actual line item means first
 // resolving its color to a group, then looking up that group's price.
+// Owner, 2026-10-03: no catalogue prices anywhere for now -- buyers see no
+// prices or totals, new orders carry none, and the catalogue Pricing screens
+// are hidden from the admin. Saved prices stay in the database untouched; flip
+// to bring them all back. Prices the team types on an individual order (admin
+// order page) are unaffected.
+export const CATALOGUE_PRICES_ENABLED = false;
+
 export type CategoryPricing = {
   colorToGroup: Record<number, number>;
   priceMap: Record<string, number>; // `${shapeId}:${shapeSizeId}:${groupId}` -> price in INR

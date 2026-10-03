@@ -6,6 +6,7 @@ import { AdminSearchBar } from '@/components/admin/AdminSearch';
 import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
 import AccessRequests from '@/components/admin/AccessRequests';
 import { ACCESS_REQUEST_TAG } from '@/lib/access-requests';
+import { CATALOGUE_PRICES_ENABLED } from '@/lib/pricing-calc';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
@@ -75,7 +76,7 @@ export default async function AdminDashboard() {
     <div className="admin-work-queues">{queues.map((queue,index) => <Link key={queue.title} className="card" href={queue.href}>
       <span>{queue.title}</span><strong>{counts[index].error ? 'Unavailable' : counts[index].count ?? 0}</strong>
     </Link>)}</div>
-    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link><Link className="btn-ghost" href="/admin/pricing">Manage prices</Link><Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
+    <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link>{CATALOGUE_PRICES_ENABLED && <Link className="btn-ghost" href="/admin/pricing">Manage prices</Link>}<Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
     <DashboardQuickActions categories={qaCategories || []} tags={qaTags || []} />
     <h2>Recent orders</h2>
     {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}
