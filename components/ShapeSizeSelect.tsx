@@ -38,6 +38,7 @@ export default function ShapeSizeSelect({
   const [shapeOrder, setShapeOrder] = useState<number[]>([]);
   const [sizeOrder, setSizeOrder] = useState<number[]>([]);
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const [expandedShapeId, setExpandedShapeId] = useState<number | null>(null);
 
   // Local optimistic copies so clicks reflect instantly instead of waiting on
@@ -99,6 +100,12 @@ export default function ShapeSizeSelect({
 
   async function handleToggleShape(id: number, wasSelected: boolean) {
     setLocalShapeIds((cur) => (wasSelected ? cur.filter((x) => x !== id) : [...cur, id]));
+    // Same as the other dropdowns: a pick made from a search empties the box
+    // and keeps the cursor there, ready for the next shape name.
+    if (query) {
+      setQuery('');
+      searchRef.current?.focus();
+    }
     try {
       await onToggleShape(id, wasSelected);
     } catch {
@@ -147,6 +154,7 @@ export default function ShapeSizeSelect({
             type="text"
             aria-label="Search shapes"
             placeholder="Search shapes..."
+            ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus

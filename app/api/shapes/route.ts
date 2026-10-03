@@ -16,7 +16,15 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id, name } = await req.json();
+  const body = await req.json();
+  const { id, name } = body;
+  // The short code (HS, OS...) printed in WhatsApp order messages; blank clears it.
+  if ('short_code' in body) {
+    const code = typeof body.short_code === 'string' ? body.short_code.trim().slice(0, 12) : '';
+    const { data, error } = await supabaseAdmin.from('shapes').update({ short_code: code || null }).eq('id', id).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(data);
+  }
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
   const { data, error } = await supabaseAdmin.from('shapes').update({ name: name.trim() }).eq('id', id).select().single();
   if (error) {
