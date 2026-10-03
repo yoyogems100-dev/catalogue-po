@@ -493,7 +493,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                 {sending ? 'Sending…' : 'Send requirement'}
               </button>
               <p className="po-send-help">
-                {cart.length} {cart.length === 1 ? 'line' : 'lines'} · saved to My Orders{whatsappDigits ? ' and shared with our team on WhatsApp' : ''}. We&rsquo;ll confirm pricing and availability.
+                {cart.length} {cart.length === 1 ? 'line' : 'lines'} · saved to My Orders. We&rsquo;ll confirm pricing and availability.
               </p>
             </>
           ) : (
