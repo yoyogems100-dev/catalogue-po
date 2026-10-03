@@ -23,6 +23,8 @@ import { formatRupees } from '@/lib/money';
 import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
 import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
 
+const CRUSHED_ICE_CATEGORY_ID = 1;
+
 // Glass Pearls only ever comes in round -- the shape field is redundant noise for
 // customers here, so it's hidden entirely and silently locked to Round rather than
 // shown as a fixed/disabled field (contrast with Moissanite's locked color, which
@@ -643,7 +645,10 @@ export default function POSelector({
         locked={colorLocked}
         values={pickColorIds}
         onChange={setPickColorIds}
-              closeOnFirstPick={pickShapeIds.length === 0}
+        // Crushed Ice Cut is ordered colour by colour from a 60-colour card, so
+        // its list stays open for picking several, with a Done bar to finish.
+        closeOnFirstPick={categoryId !== CRUSHED_ICE_CATEGORY_ID && pickShapeIds.length === 0}
+        doneBar={categoryId === CRUSHED_ICE_CATEGORY_ID}
         placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
       />

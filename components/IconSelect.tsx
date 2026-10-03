@@ -59,6 +59,8 @@ type MultiProps = CommonProps & {
    * then works as a normal multi-select that stays open for more picks.
    */
   closeOnFirstPick?: boolean;
+  /** A "Done" bar at the foot of the open list, for lists meant to take many picks. */
+  doneBar?: boolean;
 };
 
 type Props = SingleProps | MultiProps;
@@ -388,6 +390,12 @@ export default function IconSelect(props: Props) {
 
             {filtered.length === 0 && <div className="icon-select-empty">No matches.</div>}
           </div>
+          {isMulti && multi.doneBar && (
+            <div className="icon-select-done">
+              <span>{multi.values.length ? `${multi.values.length} selected` : 'Pick as many as you need'}</span>
+              <button type="button" onClick={closeAndRefocus}>Done</button>
+            </div>
+          )}
         </div>
       )}
     </div>

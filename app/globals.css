@@ -2982,3 +2982,55 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 .admin-order-for-others input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
 .admin-order-for-others span { display: flex; flex-direction: column; gap: 4px; }
 .admin-order-for-others small { font-size: 12.5px; color: #6b6556; line-height: 1.45; }
+.category-chart-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.color-chart-dialog .color-chart-save { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); }
+.color-chart-dialog .color-chart-save:focus-visible { outline: 2px solid var(--navy); }
+
+/* Customer colour chart (ColorChartPreview): stone photos by colour family */
+.cc-views { display: flex; gap: 4px; padding: 8px 12px 0; background: #fff; }
+.cc-views button { flex: 1; min-height: 40px; border: 0; border-bottom: 2px solid transparent; background: none; font-size: 13.5px; color: var(--text-dim); cursor: pointer; }
+.cc-views button[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+.cc-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+.cc-search { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; background: var(--ivory); }
+.cc-families { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px 2px; }
+.cc-families::-webkit-scrollbar { display: none; }
+.cc-families button { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 12.5px; color: var(--ink); white-space: nowrap; cursor: pointer; }
+.cc-families button span { color: var(--text-dim); font-size: 11px; margin-left: 2px; }
+.cc-families button[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.cc-families button[aria-pressed="true"] span { color: rgb(255 255 255 / 75%); }
+.cc-body { padding: 12px 12px 20px; }
+.cc-group + .cc-group { margin-top: 16px; }
+.cc-group h3 { margin: 0 0 8px; font-family: var(--font-serif), 'Playfair Display', serif; font-size: 15px; font-weight: 600; color: var(--navy); }
+.cc-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.cc-card { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; height: 100%; padding: 6px 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; text-align: center; color: var(--ink); }
+.cc-card:hover { border-color: var(--gold-soft); box-shadow: 0 4px 12px rgb(18 35 63 / 8%); }
+.cc-card:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.cc-photo { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 5 / 4; margin-bottom: 4px; border-radius: 6px; background: var(--ivory); overflow: hidden; }
+.cc-photo img { width: 100%; height: 100%; object-fit: contain; }
+.cc-dot { width: 56%; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line); }
+.cc-code { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; color: var(--gold); }
+.cc-name { font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
+.cc-empty { padding: 24px 8px; text-align: center; color: var(--text-dim); font-size: 13px; }
+.cc-foot { margin: 18px 0 0; font-size: 11.5px; color: var(--text-dim); text-align: center; }
+.cc-photo-view { flex: 1; }
+.cc-zoom { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px max(8px, env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--line); }
+.cc-zoom button { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 20px; cursor: pointer; }
+.cc-zoom button:disabled { opacity: .4; cursor: default; }
+.cc-zoom span { min-width: 36px; text-align: center; font-size: 13px; }
+.cc-lightbox { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgb(12 25 45 / 72%); }
+.cc-lightbox-card { position: relative; width: min(420px, 100%); padding: 16px; border-radius: 14px; background: #fff; text-align: center; }
+.cc-lightbox-close { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; }
+.cc-lightbox-photo { display: flex; align-items: center; justify-content: center; aspect-ratio: 5 / 4; margin: 28px 0 12px; border-radius: 10px; background: var(--ivory); overflow: hidden; }
+.cc-lightbox-photo img { width: 100%; height: 100%; object-fit: contain; }
+.cc-lightbox-text { display: flex; flex-direction: column; gap: 2px; }
+.cc-lightbox-text strong { font-size: 18px; font-family: var(--font-serif), 'Playfair Display', serif; }
+.cc-lightbox-text small { font-size: 12px; color: var(--text-dim); }
+.cc-lightbox-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.cc-lightbox-nav button { width: 48px; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 24px; line-height: 1; cursor: pointer; color: var(--navy); }
+.cc-lightbox-nav button:disabled { opacity: .35; cursor: default; }
+.cc-lightbox-nav span { font-size: 12.5px; color: var(--text-dim); }
+.cc-dialog { position: fixed; }
+@media (max-width: 600px) { .cc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .cc-card { padding: 4px 4px 6px; } .cc-name { font-size: 11.5px; } }
+.icon-select-done { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); background: #fff; font-size: 12px; color: var(--text-dim); }
+.icon-select-done button { min-height: 40px; padding: 0 18px; border: 0; border-radius: 6px; background: var(--navy); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.icon-select-done button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
