@@ -454,8 +454,8 @@ function ButtonsTab({ map, initialButtons, initialPicks }: { map: CatalogueMap; 
   return (
     <>
       <p className="catmap-hint">
-        The colour buttons every buyer sees (home page &ldquo;Order by colour&rdquo; and the top of Quick Order): tick to show, arrows to order,
-        and choose the stone each one opens. To change them for one buyer, open that buyer under Customers.
+        The colour buttons every buyer sees (home page &ldquo;Order by colour&rdquo; and the top of Quick Order): tap a colour to show or hide it,
+        arrows to order, and set the stone, shape, size and quantity each one starts on. To change them for one buyer, open that buyer under Customers.
       </p>
       {status && <p role="status" className={`catmap-status ${status.tone}`}>{status.text}</p>}
       <ColourSetupEditor

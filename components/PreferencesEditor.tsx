@@ -45,6 +45,8 @@ export default function PreferencesEditor({
       const merged = { ...p, ...patch };
       // A new category may not offer the grade that was picked for the old one.
       if (merged.grade && !categoryGrades(merged.categoryId).includes(merged.grade)) delete merged.grade;
+      // A shape and size the team preset belong to the old stone.
+      if (patch.categoryId !== undefined && patch.categoryId !== p.categoryId) { delete merged.shapeId; delete merged.size; }
       return merged;
     }));
   }

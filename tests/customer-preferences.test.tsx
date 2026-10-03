@@ -69,3 +69,15 @@ test('colour buttons: White, Red, Yellow, Green, Blue until the owner saves; the
   assert.deepEqual(parseColorButtons(''), []); // owner hid every button
   assert.deepEqual(colorButtonFamilies([4, 1]).map((f) => f.name), ['Red', 'White']);
 });
+
+test('a colour can preset shape, size and quantity; junk values are dropped', () => {
+  assert.deepEqual(sanitizePreferences([
+    { familyId: 4, categoryId: 2, grade: '5A', shapeId: 3, size: '3', qty: 500 },
+    { familyId: 1, categoryId: 37, shapeId: -1, size: '', qty: 0 },
+    { familyId: 10, categoryId: 3, shapeId: 'x', size: 'x'.repeat(40), qty: 1.5 }
+  ]), [
+    { familyId: 4, categoryId: 2, grade: '5A', shapeId: 3, size: '3', qty: 500 },
+    { familyId: 1, categoryId: 37 },
+    { familyId: 10, categoryId: 3 }
+  ]);
+});
