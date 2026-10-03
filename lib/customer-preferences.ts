@@ -5,8 +5,21 @@ import { categoryGrades } from './order-specs';
 // "White means 5A Quality CZ". Keyed by colour family so a buyer can start an
 // order from the colour alone and land in the right category and grade.
 // Stored on customers.order_preferences (jsonb array); set by the buyer at
-// sign-up or in My Info, and by the team on the admin customer page.
-export type OrderPreference = { familyId: number; categoryId: number; grade?: string | null };
+// sign-up or in My Info, and by the team on the admin customer page. The team
+// can also preset the shape, size and quantity a colour starts on (owner,
+// 2026-10-03): "Red opens Ruby 5A, Round 3 mm, 500 pcs". The buyer can still
+// change any of it before adding the line.
+export type OrderPreference = {
+  familyId: number;
+  categoryId: number;
+  grade?: string | null;
+  shapeId?: number | null;
+  /** As sizeKey() spells it ("3", "6x8"), so it survives 6*8 / 6x8mm spellings. */
+  size?: string | null;
+  qty?: number | null;
+};
+
+export const MAX_PICK_QTY = 10_000_000;
 
 export const MAX_PREFERENCES = COLOR_FAMILIES.length;
 
@@ -49,8 +62,15 @@ export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>
     if (validCategoryIds && !validCategoryIds.has(categoryId)) continue;
     const gradeRaw = (entry as any)?.grade;
     const grade = typeof gradeRaw === 'string' && categoryGrades(categoryId).includes(gradeRaw) ? gradeRaw : null;
+    const pick: OrderPreference = grade ? { familyId, categoryId, grade } : { familyId, categoryId };
+    const shapeId = Number((entry as any)?.shapeId);
+    if (Number.isSafeInteger(shapeId) && shapeId > 0) pick.shapeId = shapeId;
+    const sizeRaw = (entry as any)?.size;
+    if (typeof sizeRaw === 'string' && sizeRaw.trim() && sizeRaw.trim().length <= 24) pick.size = sizeRaw.trim();
+    const qty = Number((entry as any)?.qty);
+    if (Number.isSafeInteger(qty) && qty > 0 && qty <= MAX_PICK_QTY) pick.qty = qty;
     seen.add(familyId);
-    out.push(grade ? { familyId, categoryId, grade } : { familyId, categoryId });
+    out.push(pick);
     if (out.length >= MAX_PREFERENCES) break;
   }
   return out;

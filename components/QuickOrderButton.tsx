@@ -93,7 +93,14 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     if (pendingCategoryId == null || !allCategories) return;
     const id = pendingCategoryId;
     setPendingCategoryId(null);
-    if (allCategories.some((c) => c.id === id)) void handleCategoryChange(String(id), { keepFamily: true });
+    if (!allCategories.some((c) => c.id === id)) return;
+    void handleCategoryChange(String(id), { keepFamily: true });
+    // The shape, size and quantity the team preset for this colour; the
+    // pendingPick effect drops a shape or size this stone no longer carries.
+    const pref = pickFamily ? preferenceForFamily(preferences, pickFamily) : null;
+    if (pref?.categoryId !== id) return;
+    if (pref.shapeId || pref.size) setPendingPick({ shapeId: pref.shapeId ?? null, size: pref.size ?? null });
+    if (pref.qty) setPickQty(String(pref.qty));
   }, [pendingCategoryId, allCategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

@@ -36,8 +36,8 @@ export default function CustomerColourSetup({ customerId, categories, initialBut
   return <section className="card admin-profile-editor">
     <h2>Colour buttons &amp; picks</h2>
     <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 12px' }}>
-      Which colour buttons this buyer sees and the stone each opens for them. Anything left on the shop setting follows
-      Catalogue map → Colour buttons, including later changes there.
+      The colour buttons this buyer sees, and the stone, shape, size and quantity each one starts on. They can still change
+      any of it. Anything on the shop default follows Catalogue map → Colour buttons.
     </p>
     <ColourSetupEditor
       mode="buyer"
