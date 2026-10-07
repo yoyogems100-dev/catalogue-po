@@ -26,12 +26,15 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
   const sizeIds = [...new Set((items || []).map((i: any) => i.shape_size_id).filter(Boolean))];
   const colorIds = [...new Set((items || []).map((i: any) => i.color_id).filter(Boolean))];
 
-  const [{ data: cats }, { data: shapesData }, { data: sizesData }, { data: colorsData }] = await Promise.all([
+  const [{ data: cats }, { data: shapesData }, { data: sizesData }, { data: colorsData }, { data: shapeLinks }] = await Promise.all([
     categoryIds.length ? supabaseAdmin.from('categories').select('id, name').in('id', categoryIds) : Promise.resolve({ data: [] }),
     shapeIds.length ? supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds) : Promise.resolve({ data: [] }),
     sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id, size_mm').in('id', sizeIds) : Promise.resolve({ data: [] }),
-    colorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds) : Promise.resolve({ data: [] })
+    colorIds.length ? supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds) : Promise.resolve({ data: [] }),
+    // A category's own shape photo (e.g. drilled Hole Punched stones) wins over the shared one.
+    shapeIds.length && categoryIds.length ? supabaseAdmin.from('category_shapes').select('category_id, shape_id, ref_photo_url').in('category_id', categoryIds).in('shape_id', shapeIds).not('ref_photo_url', 'is', null) : Promise.resolve({ data: [] })
   ]);
+  const categoryShapePhoto: Record<string, string> = Object.fromEntries((shapeLinks || []).map((l: any) => [`${l.category_id}:${l.shape_id}`, l.ref_photo_url]));
 
   const catMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.name]));
   const shapeMap: Record<number, { name: string; iconKey: string | null; refPhotoUrl: string | null }> = Object.fromEntries(
@@ -49,7 +52,7 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
     shapeId: it.shape_id,
     shapeName: shapeMap[it.shape_id]?.name || '—',
     shapeIconKey: shapeMap[it.shape_id]?.iconKey || null,
-    shapeRefPhotoUrl: shapeMap[it.shape_id]?.refPhotoUrl || null,
+    shapeRefPhotoUrl: categoryShapePhoto[`${it.category_id}:${it.shape_id}`] || shapeMap[it.shape_id]?.refPhotoUrl || null,
     sizeId: it.shape_size_id,
     sizeMm: sizeMap[it.shape_size_id] || it.custom_size || '—',
     colorId: it.color_id,
