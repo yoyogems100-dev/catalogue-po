@@ -1,7 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import sharp from 'sharp';
-import { pixelCrop } from '@/lib/photo-crop';
-import { loadOriginalBytes, uprightOriginal } from '@/lib/photo-files';
+import { croppedOriginal, loadOriginalBytes, uprightOriginal } from '@/lib/photo-files';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { storeImageBytes } from './media';
 
@@ -102,7 +100,7 @@ export async function copyPoPhotos(db: SupabaseClient, siteCategoryId: number, p
       try {
         const upright = await uprightOriginal(await loadOriginalBytes(db, p));
         bytes = p.photo_crop
-          ? await sharp(upright.data).extract(pixelCrop(upright.info.width, upright.info.height, p.photo_crop)).png().toBuffer()
+          ? await croppedOriginal(upright, p.photo_crop)
           : upright.data;
       } catch (e: any) {
         out.errors.push(`Photo ${p.id}: could not download (${e.message}).`);

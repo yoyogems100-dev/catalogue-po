@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { pixelCrop, type SavedCrop } from '@/lib/photo-crop';
+import { isTransformed, pixelCrop, rotatedPixelCrop, type CropSettings, type SavedCrop } from '@/lib/photo-crop';
 import { withWatermark } from '@/lib/watermark-render';
 
 /*
@@ -78,13 +78,24 @@ export async function uprightOriginal(bytes: Buffer) {
   return sharp(bytes, { limitInputPixels: 40_000_000 }).rotate().png().toBuffer({ resolveWithObject: true });
 }
 
+/** The cropped (and flipped/rotated, if set) original as PNG. */
+export async function croppedOriginal(upright: { data: Buffer; info: { width: number; height: number } }, crop: CropSettings): Promise<Buffer> {
+  const { width, height } = upright.info;
+  if (!isTransformed(crop)) return sharp(upright.data).extract(pixelCrop(width, height, crop)).png().toBuffer();
+  let image = upright.data;
+  if (crop.flip) image = await sharp(image).flop().png().toBuffer();
+  // One rotate per pipeline; corners outside the photo are never inside the box.
+  const turned = await sharp(image).rotate((crop.rotate || 0) + (crop.straighten || 0), { background: '#ffffff' }).png().toBuffer({ resolveWithObject: true });
+  return sharp(turned.data).extract(rotatedPixelCrop(width, height, crop, turned.info.width, turned.info.height)).png().toBuffer();
+}
+
 /**
  * What a photo variant shows, watermarked, as WebP: the whole original, or the
  * saved crop of it. `upright` comes from uprightOriginal().
  */
 export async function watermarkedVariant(upright: { data: Buffer; info: { width: number; height: number } }, crop?: SavedCrop | null): Promise<Buffer> {
   let image = upright.data;
-  if (crop) image = await sharp(image).extract(pixelCrop(upright.info.width, upright.info.height, crop)).png().toBuffer();
+  if (crop) image = await croppedOriginal(upright, crop);
   image = await sharp(image).resize({ width: MAX_SIDE, height: MAX_SIDE, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
   return (await withWatermark(image)).webp({ quality: 90 }).toBuffer();
 }
