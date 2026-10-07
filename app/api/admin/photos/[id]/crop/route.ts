@@ -44,7 +44,7 @@ export async function POST(req:NextRequest,context:Context) {
     if(reset!==true){
       const source=await original(photo);
       uploaded=await uploadWatermarked(supabaseAdmin,photo,await watermarkedVariant(source,crop),target==='cover'?'crop-cover':'crop-photo');
-      saved={x:crop.x,y:crop.y,zoom:crop.zoom,aspect:crop.aspect,path:uploaded};
+      saved={x:crop.x,y:crop.y,zoom:crop.zoom,aspect:crop.aspect,rotate:crop.rotate||0,straighten:crop.straighten||0,flip:crop.flip===true,path:uploaded};
     }
     const {data,error}=await supabaseAdmin.from('photos').update({[column]:saved}).eq('id',photo.id).select('id').single();
     if(error||!data)throw new Error('Could not save the crop. The previous image is unchanged.');
