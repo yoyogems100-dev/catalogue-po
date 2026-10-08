@@ -27,12 +27,14 @@ type CategoryOptions = {
 async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: string | null }): Promise<CategoryOptions> {
   const [{ data: category }, { data: shapeLinks }, { data: colorLinks }, { data: sizeLinks }] = await Promise.all([
     supabasePublic.from('categories').select('name').eq('id', categoryId).maybeSingle(),
-    supabasePublic.from('category_shapes').select('shape_id').eq('category_id', categoryId),
+    supabasePublic.from('category_shapes').select('shape_id, ref_photo_url').eq('category_id', categoryId),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', categoryId),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId)
   ]);
 
   const shapeIds = (shapeLinks || []).map((r: any) => r.shape_id);
+  // The category's own shape photo wins over the shared one, as on the category page.
+  const categoryPhoto = new Map((shapeLinks || []).filter((r: any) => r.ref_photo_url).map((r: any) => [r.shape_id, r.ref_photo_url]));
   const colorIds = (colorLinks || []).map((r: any) => r.color_id);
   const sizeIds = (sizeLinks || []).map((r: any) => r.shape_size_id);
 
@@ -51,7 +53,7 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
   return {
     name: (category as any)?.name || undefined,
     qtyUnit: fieldOf(categoryId).unit,
-    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: s.ref_photo_url })),
+    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: categoryPhoto.get(s.id) || s.ref_photo_url })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shape_id: s.shape_id, size_mm: s.size_mm }))
   };

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import ShapeIcon from '@/components/ShapeIcon';
 import ShapeReferenceImage from '@/components/ShapeReferenceImage';
 import { HotMark } from '@/components/HotSelling';
+import DrillHoleEditor, { type DrillState } from '@/components/admin/DrillHoleEditor';
+import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
 
 type ReferenceStyle = 'vector' | 'photo';
 type ShapeReference = {
@@ -13,6 +15,9 @@ type ShapeReference = {
   iconKey?: string | null;
   refPhotoUrl?: string | null;
   referenceStyle: ReferenceStyle;
+  /** Hole Punched only: the clean photo holes are drilled into, and what's drilled. */
+  drillBaseUrl?: string | null;
+  drill?: DrillState;
 };
 
 export default function ShapeReferenceManager({ categoryId, references }: { categoryId: number; references: ShapeReference[] }) {
@@ -90,6 +95,9 @@ export default function ShapeReferenceManager({ categoryId, references }: { cate
                   <button type="button" className={effectiveStyle === 'vector' ? 'active' : ''} aria-pressed={effectiveStyle === 'vector'} disabled={busy === shape.shapeId} onClick={() => setStyle(shape.shapeId, 'vector')}>Vector</button>
                   <button type="button" className={effectiveStyle === 'photo' ? 'active' : ''} aria-pressed={effectiveStyle === 'photo'} disabled={!canUsePhoto || busy === shape.shapeId} onClick={() => setStyle(shape.shapeId, 'photo')} title={canUsePhoto ? 'Show the gemstone photo' : 'Upload a gemstone photo first'}>Gemstone</button>
                 </div>
+                {categoryId === DRILLED_CATEGORY_ID && (
+                  <DrillHoleEditor categoryId={categoryId} shapeId={shape.shapeId} shapeName={shape.name} baseUrl={shape.drillBaseUrl || null} drill={shape.drill || null} />
+                )}
                 <label className="shape-reference-upload">
                   {canUsePhoto ? 'Replace photo' : 'Add photo'}
                   <input type="file" accept="image/png,image/webp,image/jpeg" disabled={busy === shape.shapeId} onChange={(event) => { uploadPhoto(shape.shapeId, event.target.files?.[0]); event.currentTarget.value = ''; }} />

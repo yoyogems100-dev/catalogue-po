@@ -224,7 +224,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     const shape = opts?.shapes.find((s) => s.id === item.shapeId);
     const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
       ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
-      : (item.shapeRefPhotoUrl || shape?.refPhotoUrl || null);
+      // Today's category photo wins over the one saved when the line was added.
+      : (shape?.refPhotoUrl || item.shapeRefPhotoUrl || null);
     return (
       <span className="requirement-stone">
         <ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shape?.iconKey} fallbackSize={36} />
