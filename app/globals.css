@@ -3051,3 +3051,40 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 
 /* Admin > Shapes: the short code printed in WhatsApp order messages. */
 .shape-code-input { width: 64px; min-height: 36px; padding: 4px 8px; font-size: 13px; text-transform: none; }
+
+/* Hole Punched Stones: drill holes into a shape's gemstone photo (admin) */
+button.drill-open { border: 0; background: none; padding: 0; font: inherit; font-size: 10.5px; }
+button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-allowed; }
+.drill-dialog { width: min(860px, 100vw); max-width: 100vw; max-height: 100dvh; margin: auto; padding: 16px; border: 0; border-radius: 12px; background: var(--ivory); color: var(--ink); overflow: auto; }
+.drill-dialog::backdrop { background: rgba(18, 35, 63, 0.55); }
+.drill-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.drill-head h2 { margin: 0; font-family: 'Playfair Display', serif; font-size: 20px; color: var(--ink); }
+.drill-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(27, 58, 107, 0.08); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+.drill-help { margin: 6px 0 12px; color: #5b6470; font-size: 13px; }
+.drill-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.drill-stage-wrap { display: flex; justify-content: center; padding: 14px; border-radius: 10px;
+  background: repeating-conic-gradient(#eceae4 0 25%, #f8f7f3 0 50%) 0 0 / 18px 18px; }
+.drill-stage { position: relative; display: inline-block; max-width: 100%; touch-action: none; cursor: crosshair; user-select: none; }
+.drill-photo { display: block; max-width: 100%; max-height: min(56dvh, 440px); width: auto; height: auto; -webkit-user-drag: none; }
+.drill-hole { position: absolute; transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%; cursor: grab; touch-action: none;
+  background: radial-gradient(circle at 54% 54%, #08080a 0 52%, #3b3226 64%, #8e7a55 76%, #f4f4f4 80%, #d9d9dc 92%, rgba(255, 255, 255, 0) 100%); }
+.drill-hole.selected { outline: 2px solid var(--gold); outline-offset: 3px; }
+.drill-hole:active { cursor: grabbing; }
+.drill-controls { display: grid; gap: 12px; }
+.drill-row { display: grid; gap: 6px; font-size: 13px; color: var(--ink); }
+.drill-row input[type='range'] { width: 100%; accent-color: var(--navy); }
+.drill-row .btn-ghost, .drill-clear { justify-self: start; }
+.drill-note { margin: 0; color: #5b6470; font-size: 12px; }
+.drill-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.drill-preview figure { margin: 0; display: grid; gap: 4px; }
+.drill-preview img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; border: 1px solid rgba(27, 58, 107, 0.12);
+  background: repeating-conic-gradient(#eceae4 0 25%, #fff 0 50%) 0 0 / 14px 14px; }
+.drill-preview figcaption { font-size: 11px; color: #5b6470; text-align: center; }
+.drill-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.drill-actions button { min-height: 40px; padding: 0 18px; }
+@media (max-width: 700px) {
+  .drill-dialog { padding: 14px 16px; border-radius: 0; height: 100dvh; }
+  .drill-body { grid-template-columns: 1fr; }
+  .drill-photo { max-height: 46dvh; }
+  .drill-actions button { flex: 1; }
+}

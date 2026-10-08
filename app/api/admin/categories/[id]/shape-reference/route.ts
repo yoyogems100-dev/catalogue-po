@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { isAdminAuthed } from '@/lib/auth';
 import { PHOTOS_BUCKET, supabaseAdmin } from '@/lib/supabase-admin';
+import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const uploaded = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(storagePath, bytes, { contentType: 'image/webp', upsert: false });
     if (uploaded.error) throw uploaded.error;
     const { data } = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(storagePath);
-    const updated = await supabaseAdmin.from('category_shapes').update({ ref_photo_url: data.publicUrl, reference_style: 'photo' }).eq('category_id', categoryId).eq('shape_id', shapeId);
+    // A new photo for a Hole Punched shape is a fresh, undrilled one to drill into.
+    const updated = await supabaseAdmin.from('category_shapes').update({ ref_photo_url: data.publicUrl, reference_style: 'photo', ...(categoryId === DRILLED_CATEGORY_ID ? { drill: null } : {}) }).eq('category_id', categoryId).eq('shape_id', shapeId);
     if (updated.error) throw updated.error;
     return NextResponse.json({ refPhotoUrl: data.publicUrl });
   } catch (error) {
