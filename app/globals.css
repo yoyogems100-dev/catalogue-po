@@ -3088,3 +3088,31 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
   .drill-photo { max-height: 46dvh; }
   .drill-actions button { flex: 1; }
 }
+
+/* Hole Punched: number of holes, chosen on pictures of the stone */
+.hole-picker { display: grid; gap: 8px; margin-bottom: 4px; }
+.hole-picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hole-picker-head .po-label { margin: 0; }
+.hole-picker-note { font-size: 11.5px; color: #6b7480; }
+.hole-picker-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hole-option { display: grid; justify-items: center; gap: 6px; min-height: 96px; padding: 10px 6px 8px; border: 1.5px solid rgba(27, 58, 107, 0.16); border-radius: 12px;
+  background: #fff; color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s; }
+.hole-option:hover { border-color: rgba(156, 122, 37, 0.55); }
+.hole-option.active { border-color: var(--gold); background: #fffaf0; box-shadow: 0 0 0 3px rgba(156, 122, 37, 0.16); }
+.hole-option:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.hole-option-photo { display: grid; place-items: center; width: 56px; height: 56px; }
+.hole-option-photo img { width: 100%; height: 100%; object-fit: contain; }
+.hole-option-label { font-size: 13px; font-weight: 600; letter-spacing: .01em; }
+.hole-option.active .hole-option-label { color: var(--gold); }
+@media (max-width: 420px) { .hole-option { min-height: 86px; } .hole-option-photo { width: 46px; height: 46px; } }
+
+/* Admin drill tool: the photo for each hole count */
+.drill-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 4px; }
+.drill-slot { display: grid; justify-items: center; gap: 3px; padding: 8px 6px; border: 1.5px dashed rgba(27, 58, 107, 0.25); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; cursor: pointer; }
+.drill-slot.active { border-style: solid; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(156, 122, 37, 0.16); }
+.drill-slot-photo { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 8px; background: repeating-conic-gradient(#eceae4 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+.drill-slot-photo img { width: 100%; height: 100%; object-fit: contain; }
+.drill-slot-label { font-size: 12.5px; font-weight: 600; }
+.drill-slot-state { font-size: 10.5px; color: #6b7480; }
+.drill-target { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(156, 122, 37, 0.1); color: var(--ink); font-size: 13px; }
+.drill-target.empty { background: rgba(27, 58, 107, 0.06); color: #5b6470; }

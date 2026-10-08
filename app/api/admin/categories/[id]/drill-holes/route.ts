@@ -4,10 +4,9 @@ import { PHOTOS_BUCKET, supabaseAdmin } from '@/lib/supabase-admin';
 import { ORIGINALS_BUCKET, uploadWatermarked, uprightOriginal, watermarkedVariant } from '@/lib/photo-files';
 import { BACKDROPS, cleanHoles, drilledCutout, inLightBox, type Backdrop } from '@/lib/drill-hole';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
+import { holesLabel, readDrill, type DrillRecord, type HoleCount } from '@/lib/drill-data';
 
 export const runtime = 'nodejs';
-
-type Drill = { base: string; holes: unknown; backdrop: Backdrop | null; photoId: number | null };
 
 /** The photo to drill into, read only from this site or our own Storage. */
 async function loadBase(base: string, origin: string): Promise<Buffer> {
@@ -26,10 +25,12 @@ async function loadBase(base: string, origin: string): Promise<Buffer> {
  * Drill holes into a Hole Punched shape's gemstone photo.
  * { shape_id, holes, backdrop, preview? }
  *  - preview: renders and returns both pictures, saves nothing.
- *  - otherwise: the drilled cutout becomes the shape's photo in this category
- *    (dropdown, cart, checkout), and the stone in its light box is added to the
- *    category's explore photos, tagged with the shape -- or replaces the one
- *    an earlier save added.
+ *  - otherwise: it's saved as the shape's photo for that many holes (1, 2 or
+ *    3) -- what a customer sees in the dropdown, cart and checkout after
+ *    choosing that many holes; the 1-hole photo is also the shape's usual
+ *    photo here. The stone in its light box is added to the category's explore
+ *    photos, tagged with the shape, or replaces the one an earlier save of the
+ *    same hole count added.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const holes = cleanHoles(body?.holes);
   const backdrop = body?.backdrop as Backdrop;
   if (!Number.isInteger(shapeId) || !holes || !BACKDROPS.includes(backdrop)) {
-    return NextResponse.json({ error: 'Choose a shape, up to 6 holes and a black or white backdrop.' }, { status: 400 });
+    return NextResponse.json({ error: 'Choose a shape, 1 to 3 holes and a black or white backdrop.' }, { status: 400 });
   }
 
   const [{ data: link, error: linkError }, { data: shape }] = await Promise.all([
@@ -55,7 +56,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   ]);
   if (linkError) return NextResponse.json({ error: linkError.message }, { status: 400 });
   if (!link || !shape) return NextResponse.json({ error: 'This shape is not in Hole Punched Stones.' }, { status: 404 });
-  const previous = (link as any).drill as Drill | null;
+  const previous = readDrill((link as any).drill, (link as any).ref_photo_url);
+  const count = holes.length as HoleCount;
   // Holes are always drilled into the clean photo, so moving or erasing one
   // never leaves an old hole behind: the photo of the first drilling, else a
   // photo uploaded for this shape in this category, else the shape's own
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const storagePath = await uploadWatermarked(supabaseAdmin, { category_id: categoryId }, await watermarkedVariant(await uprightOriginal(boxed)), 'photo');
     created.push([PHOTOS_BUCKET, storagePath]);
 
-    let photoId = previous?.photoId ?? null;
+    let photoId = previous?.variants[`${count}`]?.photoId ?? null;
     const existing = photoId
       ? (await supabaseAdmin.from('photos').select('id').eq('id', photoId).eq('category_id', categoryId).maybeSingle()).data
       : null;
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (updated.error) throw updated.error;
     } else {
       const inserted = await supabaseAdmin.from('photos')
-        .insert({ category_id: categoryId, storage_path: storagePath, original_path: originalPath, notes: `${(shape as any).name}, drilled` })
+        .insert({ category_id: categoryId, storage_path: storagePath, original_path: originalPath, notes: `${(shape as any).name}, ${holesLabel(count)} drilled` })
         .select('id').single();
       if (inserted.error) throw inserted.error;
       photoId = inserted.data.id;
@@ -117,9 +119,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { data: pub } = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(cutoutPath);
-    const drill: Drill = { base, holes, backdrop, photoId };
+    const drill: DrillRecord = { base, variants: { ...previous?.variants, [`${count}`]: { holes, backdrop, photoId, url: pub.publicUrl } } };
     const saved = await supabaseAdmin.from('category_shapes')
-      .update({ ref_photo_url: pub.publicUrl, reference_style: 'photo', drill })
+      .update(count === 1 ? { ref_photo_url: pub.publicUrl, reference_style: 'photo', drill } : { drill })
       .eq('category_id', categoryId).eq('shape_id', shapeId);
     if (saved.error) throw saved.error;
     return NextResponse.json({ refPhotoUrl: pub.publicUrl, drill });

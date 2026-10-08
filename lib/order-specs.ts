@@ -2,7 +2,11 @@
 export const RAINBOW_CATEGORY_ID = 29;
 export const DRILLED_CATEGORY_ID = 20;
 export function specialCategory(id:number) { return id===RAINBOW_CATEGORY_ID ? 'rainbow' : id===DRILLED_CATEGORY_ID ? 'drilled' : null; }
-export type OrderSpecs = {kind:'rainbow'; colorMode:'default'|'custom'; stonesPerStrip:number; colors:{id:number;name:string}[]} | {kind:'drilled'; drill:'half'|'full'} | {kind:'grade'; grade:string} | {kind:'carat'; pcsPerCt:number};
+// Hole Punched lines carry how many holes (1-3). Lines from before that carried
+// half/full drill instead; they're still read, never written.
+export type DrilledSpec = {kind:'drilled'; holes:1|2|3} | {kind:'drilled'; drill:'half'|'full'};
+export function drilledHoles(spec?:OrderSpecs|null):1|2|3|null { return spec?.kind==='drilled' && 'holes' in spec ? spec.holes : null; }
+export type OrderSpecs = {kind:'rainbow'; colorMode:'default'|'custom'; stonesPerStrip:number; colors:{id:number;name:string}[]} | DrilledSpec | {kind:'grade'; grade:string} | {kind:'carat'; pcsPerCt:number};
 
 // Moissanite melee is ordered by whole carats: the line's qty stays in pieces,
 // always a whole number of carats times the size's pieces-per-carat.
@@ -20,7 +24,7 @@ export function categoryGrades(categoryId: number): string[] { return CATEGORY_G
 export function gradeSpec(grade: string): OrderSpecs { return { kind: 'grade', grade }; }
 export function specText(spec?:OrderSpecs|null, quantity?:number):string {
  if(!spec) return '';
- if(spec.kind==='drilled') return spec.drill==='half'?'Half drill':'Full drill';
+ if(spec.kind==='drilled') return 'holes' in spec ? (spec.holes===1?'1 hole':`${spec.holes} holes`) : spec.drill==='half'?'Half drill':'Full drill';
  if(spec.kind==='grade') return `Quality ${spec.grade}`;
  if(spec.kind==='carat') return quantity ? `${quantity/spec.pcsPerCt} ct (1ct = ~${spec.pcsPerCt} pcs)` : `1ct = ~${spec.pcsPerCt} pcs`;
  return `${spec.colorMode==='default'?'Default colors':`Custom colors: ${spec.colors.map(c=>c.name).join(', ')}`} · ${quantity ? `${quantity/spec.stonesPerStrip} strips × ` : ''}${spec.stonesPerStrip} stones${quantity?'':' per strip'}`;

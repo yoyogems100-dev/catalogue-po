@@ -8,6 +8,7 @@ import CategoryArchiveToggle from '@/components/admin/CategoryArchiveToggle';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
+import { readDrill } from '@/lib/drill-data';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManager';
@@ -216,7 +217,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
             referenceStyle: refPhotoUrl ? 'photo' as const : 'vector' as const,
             // Same order as the drill-holes route picks the photo to drill into.
             drillBaseUrl: link?.drill?.base || (link?.ref_photo_url?.includes('/shape-references/') ? link.ref_photo_url : null) || shape?.ref_photo_url || link?.ref_photo_url || null,
-            drill: link?.drill ? { holes: link.drill.holes || [], backdrop: link.drill.backdrop || null } : null,
+            drill: readDrill(link?.drill, link?.ref_photo_url || null),
           };
         })}
 /> : null}

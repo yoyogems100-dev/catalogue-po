@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import ShapeIcon from '@/components/ShapeIcon';
 import ShapeReferenceImage from '@/components/ShapeReferenceImage';
 import { HotMark } from '@/components/HotSelling';
-import DrillHoleEditor, { type DrillState } from '@/components/admin/DrillHoleEditor';
+import DrillHoleEditor from '@/components/admin/DrillHoleEditor';
+import type { DrillRecord } from '@/lib/drill-data';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
 
 type ReferenceStyle = 'vector' | 'photo';
@@ -17,7 +18,7 @@ type ShapeReference = {
   referenceStyle: ReferenceStyle;
   /** Hole Punched only: the clean photo holes are drilled into, and what's drilled. */
   drillBaseUrl?: string | null;
-  drill?: DrillState;
+  drill?: DrillRecord | null;
 };
 
 export default function ShapeReferenceManager({ categoryId, references }: { categoryId: number; references: ShapeReference[] }) {

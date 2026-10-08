@@ -9,7 +9,8 @@ import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
 import WhatsAppIcon from './admin/WhatsAppIcon';
-import { specText, quantityFactor } from '@/lib/order-specs';
+import { specText, quantityFactor, drilledHoles } from '@/lib/order-specs';
+import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
   CART_EVENT, loadCart, mergeIntoCart, saveCart,
@@ -22,7 +23,7 @@ import { groupLines, type LineGroupBy } from '@/lib/cart-grouping';
 // the colour -- the thing that actually varies -- is the meaningful image.
 const GLASS_PEARLS_CATEGORY_ID = 16;
 
-type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
+type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type SizeRef = { id: number; shape_id: number; size_mm: string };
 type CategoryOptions = { name?: string; qtyUnit?: string | null; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
@@ -224,8 +225,9 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     const shape = opts?.shapes.find((s) => s.id === item.shapeId);
     const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
       ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
-      // Today's category photo wins over the one saved when the line was added.
-      : (shape?.refPhotoUrl || item.shapeRefPhotoUrl || null);
+      // Today's category photo wins over the one saved when the line was added;
+      // a Hole Punched line shows the stone with its number of holes.
+      : ((shape ? photoForHoles(shape, drilledHoles(item.orderSpecs)) : null) || item.shapeRefPhotoUrl || null);
     return (
       <span className="requirement-stone">
         <ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shape?.iconKey} fallbackSize={36} />
