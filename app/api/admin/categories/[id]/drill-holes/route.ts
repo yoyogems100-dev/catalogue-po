@@ -44,7 +44,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const [{ data: link, error: linkError }, { data: shape }] = await Promise.all([
-    supabaseAdmin.from('category_shapes').select('ref_photo_url, drill').eq('category_id', categoryId).eq('shape_id', shapeId).maybeSingle(),
+    supabaseAdmin.from('category_shapes').select('ref_photo_url, drill').eq('category_id', categoryId).eq('shape_id', shapeId).maybeSingle()
+      .then(async (r) => {
+        if (r.error?.code !== '42703') return r;
+        // Before the drill migration: previews still work, saving waits for it.
+        if (!body?.preview) return { data: null, error: { message: 'Saving needs the database update for drill holes. Preview still works.' } } as unknown as typeof r;
+        return await supabaseAdmin.from('category_shapes').select('ref_photo_url').eq('category_id', categoryId).eq('shape_id', shapeId).maybeSingle() as unknown as typeof r;
+      }),
     supabaseAdmin.from('shapes').select('name, ref_photo_url').eq('id', shapeId).maybeSingle()
   ]);
   if (linkError) return NextResponse.json({ error: linkError.message }, { status: 400 });

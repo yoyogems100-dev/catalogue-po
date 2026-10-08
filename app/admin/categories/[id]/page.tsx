@@ -69,7 +69,12 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     // Shared shapes, plus this category's own -- never another category's.
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').or(`owner_category_id.is.null,owner_category_id.eq.${categoryId}`).order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
-    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, drill, shapes(id, name, icon_key, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
+    // drill (Hole Punched holes) arrived with a migration; until it's applied
+    // the shapes still list, just without saved holes.
+    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, drill, shapes(id, name, icon_key, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId)
+      .then((r) => (r.error?.code === '42703'
+        ? supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, icon_key, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId) as unknown as typeof r
+        : r)),
     supabaseAdmin.from('category_colors').select('color_id, colors(id, name, hex_value, ref_photo_url, owner_category_id, sort_order)').eq('category_id', categoryId),
     supabaseAdmin.from('category_tags').select('tag_id, tags(id, name, is_global)').eq('category_id', categoryId),
     supabaseAdmin.from('category_shape_sizes').select('shape_size_id, shape_sizes(id, shape_id, size_mm, weight_ct)').eq('category_id', categoryId),
