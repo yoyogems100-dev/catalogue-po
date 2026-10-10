@@ -1,5 +1,6 @@
 import { photoUrl } from '@/lib/photos';
 import { supabasePublic } from '@/lib/supabase-public';
+import { holePhotos } from '@/lib/drill-data';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { getSettings } from '@/lib/settings';
 import { getAccountState } from '@/lib/account-state';
@@ -97,7 +98,8 @@ async function getCategoryData(slug: string) {
     // at creation regardless of whether anyone ever chose it, so it's not a signal of
     // deliberate intent and isn't used to suppress an available photo.
     const photoUrl = link?.ref_photo_url || s.ref_photo_url || null;
-    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl };
+    // Hole Punched: the stone drilled with 1, 2 or 3 holes, for the hole count chosen.
+    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl, holePhotos: holePhotos(link?.drill, link?.ref_photo_url || null) };
   });
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 

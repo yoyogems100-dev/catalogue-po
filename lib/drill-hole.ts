@@ -6,19 +6,19 @@
 // velvet like the category's explore photos, or on a white light-box sweep.
 import sharp from 'sharp';
 
-/** x/y: hole centre as a fraction of the photo's width/height. r: radius as a
- *  fraction of the photo's shorter side. */
-export type DrillHole = { x: number; y: number; r: number };
+import { MAX_HOLES, type Backdrop, type DrillHole } from './drill-data';
+export type { Backdrop, DrillHole } from './drill-data';
 
-export type Backdrop = 'black' | 'white';
 export const BACKDROPS: Backdrop[] = ['black', 'white'];
 
 export const MIN_HOLE_R = 0.02;
 export const MAX_HOLE_R = 0.2;
 const OUT = 800;
 
+/** 1 to 3 holes: x/y the centre as a fraction of the photo's width/height,
+ *  r the radius as a fraction of its shorter side. */
 export function cleanHoles(value: unknown): DrillHole[] | null {
-  if (!Array.isArray(value) || value.length > 6) return null;
+  if (!Array.isArray(value) || value.length < 1 || value.length > MAX_HOLES) return null;
   const holes: DrillHole[] = [];
   for (const h of value) {
     const x = Number(h?.x), y = Number(h?.y), r = Number(h?.r);

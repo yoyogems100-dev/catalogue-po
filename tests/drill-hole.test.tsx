@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { cleanHoles, drilledCutout, inLightBox } from '../lib/drill-hole';
 
-test('holes are fractions of the photo, sized within limits, at most six', () => {
+test('1 to 3 holes, as fractions of the photo, sized within limits', () => {
   assert.deepEqual(cleanHoles([{ x: 0.5, y: 0.123456, r: 0.06 }]), [{ x: 0.5, y: 0.1235, r: 0.06 }]);
-  assert.deepEqual(cleanHoles([]), []);
+  assert.equal(cleanHoles([]), null);
+  assert.equal(cleanHoles(Array.from({ length: 4 }, () => ({ x: 0.5, y: 0.5, r: 0.05 }))), null);
   assert.equal(cleanHoles([{ x: 1.2, y: 0.5, r: 0.06 }]), null);
   assert.equal(cleanHoles([{ x: 0.5, y: 0.5, r: 0.5 }]), null);
   assert.equal(cleanHoles([{ x: 0.5, y: 0.5 }]), null);
-  assert.equal(cleanHoles(Array.from({ length: 7 }, () => ({ x: 0.5, y: 0.5, r: 0.05 }))), null);
   assert.equal(cleanHoles('nope'), null);
 });
 

@@ -75,10 +75,11 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
   if(size.error||link.error||shapeLink.error)throw Error('Could not validate category options. Please retry.');
   if(!size.data||size.data.shape_id!==item.shapeId||!link.data||!shapeLink.data)throw Error('Choose a linked shape and size.');
   if(spec.kind==='drilled') {
-   if(!['half','full'].includes(spec.drill))throw Error('Choose Half drill or Full drill.');
+   const holes=(spec as any).holes, drill=(spec as any).drill;
+   if(!(holes===1||holes===2||holes===3)&&!['half','full'].includes(drill))throw Error('Choose 1, 2 or 3 holes.');
    const color=await database.from('category_colors').select('color_id').eq('category_id',item.categoryId).eq('color_id',item.colorId).maybeSingle();
    if(color.error||!color.data)throw Error('Choose a linked color.');
-   result.push({...item,orderSpecs:{kind:'drilled',drill:spec.drill}});continue;
+   result.push({...item,orderSpecs:holes===1||holes===2||holes===3?{kind:'drilled',holes}:{kind:'drilled',drill}});continue;
   }
   if(!['default','custom'].includes(spec.colorMode))throw Error('Choose Default color or Custom colors.');
   const rules=await database.from('rainbow_strip_options').select('allowed_counts').eq('category_id',item.categoryId).eq('shape_size_id',item.sizeId).maybeSingle();

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import OrderReferenceCarousel from './OrderReferenceCarousel';
 import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
-import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,type OrderSpecs} from '@/lib/order-specs';
+import { photoForHoles, type HoleCount } from '@/lib/drill-data';
+import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
 import { useOrderPreferences } from './useOrderPreferences';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -35,7 +36,7 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 // amount instead of one quantity shared by every picked size.
 const SIZE_GRID_CATEGORY_ID = 34;
 
-type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
+type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 /** pcs_per_ct: set on sizes sold by carat (Moissanite melee) -- pieces in 1 ct. */
 type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
@@ -442,7 +443,8 @@ export default function POSelector({
   // the one place that has the category's shape list to hand.
   function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
     const shape = shapes.find((s) => s.id === item.shapeId);
-    return mergeCartLines(current, { ...item, shapeRefPhotoUrl: shape?.refPhotoUrl, shapeIconKey: shape?.iconKey });
+    // A Hole Punched line shows the stone with the number of holes chosen.
+    return mergeCartLines(current, { ...item, shapeRefPhotoUrl: photoForHoles(shape, drilledHoles(item.orderSpecs)), shapeIconKey: shape?.iconKey });
   }
 
   // Clicking away commits whatever's currently checked (like a native <select>
