@@ -1366,10 +1366,10 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 }
 .shape-reference-icon { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .icon-select-trigger .shape-reference-icon { width: 26px; height: 26px; }
-.shape-vector-icon { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 32px; color:var(--navy); padding:0; }
-.shape-vector-icon svg { width:30px; height:30px; }
-.icon-select-trigger .shape-vector-icon { width:25px; height:25px; flex-basis:25px; }
-.icon-select-trigger .shape-vector-icon svg { width:24px; height:24px; }
+.shape-vector-icon { width:auto; min-width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; color:var(--navy); padding:0; }
+.shape-vector-icon svg { width:auto; height:26px; }
+.icon-select-trigger .shape-vector-icon { height:25px; min-width:25px; }
+.icon-select-trigger .shape-vector-icon svg { width:auto; height:20px; }
 
 /* Category rows in a dropdown: a fixed leading box holding a gemstone tile
    from public/reference/categories. The box is 5:4 landscape, not square,
@@ -3116,3 +3116,8 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .drill-slot-state { font-size: 10.5px; color: #6b7480; }
 .drill-target { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(156, 122, 37, 0.1); color: var(--ink); font-size: 13px; }
 .drill-target.empty { background: rgba(27, 58, 107, 0.06); color: #5b6470; }
+
+/* Three-view line drawings (top · side · bottom): about 3x as wide as tall,
+   shrinking to fit a narrower box without distorting. */
+.shape-three-view { max-width: 100%; height: auto; }
+.shape-reference-fallback .shape-three-view { width: 100%; height: auto; max-height: 100%; }
