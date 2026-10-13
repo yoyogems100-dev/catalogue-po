@@ -58,3 +58,45 @@ export function knownQualities(all: CategoryQualities): string[] {
   for (const list of Object.values(all)) for (const q of list) if (!out.some((o) => o.toLowerCase() === q.toLowerCase())) out.push(q);
   return out;
 }
+
+// A shape/cut can carry its own list that replaces its category's -- Nano's
+// "Green OSP HW" offers 3A / AA while other Nano cuts have no Quality field.
+// Stored as { categoryId: { shapeId: ["3A", "AA"] } }; the first quality is
+// the one the order form starts on.
+export const SHAPE_QUALITIES_SETTING_KEY = 'shape_qualities';
+
+export type ShapeQualities = Record<number, Record<number, string[]>>;
+
+export function parseShapeQualities(value: string | null | undefined): ShapeQualities {
+  const out: ShapeQualities = {};
+  if (!value) return out;
+  let raw: unknown;
+  try { raw = JSON.parse(value); } catch { return out; }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [catKey, byShape] of Object.entries(raw as Record<string, unknown>)) {
+    const categoryId = Number(catKey);
+    if (!Number.isSafeInteger(categoryId) || categoryId < 1 || !byShape || typeof byShape !== 'object' || Array.isArray(byShape)) continue;
+    for (const [shapeKey, list] of Object.entries(byShape as Record<string, unknown>)) {
+      const shapeId = Number(shapeKey);
+      const qualities = normalizeQualities(list);
+      if (Number.isSafeInteger(shapeId) && shapeId > 0 && qualities?.length) (out[categoryId] ||= {})[shapeId] = qualities;
+    }
+  }
+  return out;
+}
+
+/** The qualities one order line can carry: its shape/cut's own list, else its category's. */
+export function lineQualities(category: CategoryQualities | null | undefined, shapes: ShapeQualities | null | undefined, categoryId: number, shapeId: number): string[] {
+  return shapes?.[categoryId]?.[shapeId] ?? qualitiesFor(category, categoryId);
+}
+
+/**
+ * What the Quality field offers for the shapes/cuts picked so far: the picked
+ * shapes' own lists when any has one, else the category's. `start` is the
+ * quality to pre-select for a shape's own list (its first).
+ */
+export function pickQualities(category: CategoryQualities | null | undefined, shapes: ShapeQualities | null | undefined, categoryId: number, shapeIds: number[]): { grades: string[]; start: string } {
+  const own: string[] = [];
+  for (const id of shapeIds) for (const q of shapes?.[categoryId]?.[id] || []) if (!own.includes(q)) own.push(q);
+  return own.length ? { grades: own, start: own[0] } : { grades: qualitiesFor(category, categoryId), start: '' };
+}

@@ -281,7 +281,7 @@ export default function ShapesClient({
 
       <table>
         <thead>
-          <tr><th></th><th>Order</th><th>Image</th><th>Shape</th><th title="Printed in WhatsApp order messages instead of the full name">Code</th><th>Sizes</th><th>Categories</th><th></th></tr>
+          <tr><th></th><th>Order</th><th>Image</th><th>Shape/Cut</th><th title="Printed in WhatsApp order messages instead of the full name">Code</th><th>Sizes</th><th>Categories</th><th></th></tr>
         </thead>
         <tbody>
           {visibleShapes.map((s) => {

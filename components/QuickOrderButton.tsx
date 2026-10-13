@@ -12,7 +12,8 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
 import { DEFAULT_COLOR_BUTTONS, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
-import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences } from './useOrderPreferences';
+import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { lineQualities, pickQualities } from '@/lib/qualities';
 import { useCatalogueMap } from './useCatalogueMap';
 import StoneFinder from './StoneFinder';
 
@@ -72,6 +73,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   const preferences = useOrderPreferences();
   const families = useColorFamilies();
   const qualities = useCategoryQualities();
+  const shapeQualities = useShapeQualities();
   const colorButtons = colorButtonFamilies(useColorButtons() ?? DEFAULT_COLOR_BUTTONS, Object.fromEntries(families.map((f) => [f.id, f.name])));
   const [pickFamily, setPickFamily] = useState<number | null>(null);
   const [pickGrade, setPickGrade] = useState('');
@@ -214,7 +216,16 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     setPendingPick(null);
   }, [pendingPick, currentOptions, pickShapeIds, sizeGroups]);
 
-  const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId, qualities) : [];
+  // A picked shape/cut with its own qualities (Green OSP HW: 3A / AA) replaces
+  // the category's, starting on its first.
+  const { grades, start: shapeStart } = typeof pickCategoryId === 'number'
+    ? pickQualities(qualities, shapeQualities, pickCategoryId, pickShapeIds)
+    : { grades: [] as string[], start: '' };
+  const gradesKey = grades.join('|');
+  useEffect(() => {
+    if (pickGrade && !grades.includes(pickGrade)) setPickGrade(shapeStart || (grades.length === 1 ? grades[0] : ''));
+    else if (!pickGrade && shapeStart) setPickGrade(shapeStart);
+  }, [gradesKey, shapeStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // With a colour chosen, only that family's colours are offered -- unless the
   // category has none in it, in which case hiding everything would be a dead end.
@@ -235,7 +246,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
 
   function addLines() {
     if (!canAdd || !currentOptions || !currentCategory) {
-      setMessage(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick a shape, color and size, and enter quantity first.');
+      setMessage(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick a shape/cut, color and size, and enter quantity first.');
       return;
     }
     let cart = loadCart();
@@ -266,7 +277,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             colorRefPhotoUrl: color.refPhotoUrl || null,
             qty: qtyNum,
             requestType: pickRequestType,
-            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {})
+            ...(pickGrade && lineQualities(qualities, shapeQualities, currentCategory.id, shape.id).includes(pickGrade) ? { orderSpecs: gradeSpec(pickGrade) } : {})
           };
           cart = mergeIntoCart(cart, item);
           added++;
@@ -402,7 +413,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
               )}
             </div>
             <div>
-              <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+              <label className="po-label">Shape/Cut</label>
               <IconSelect
                 categoryId={Number(pickCategoryId) || undefined}
                 multiple
@@ -410,7 +421,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 values={pickShapeIds}
                 onChange={setPickShapeIds}
               closeOnFirstPick={pickColorIds.length === 0}
-                placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
+                placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape/cut'}
                 leading="icon"
                 disabledIds={incompatibleShapes}
                 disabledReason={NO_SHARED_SIZE_REASON}

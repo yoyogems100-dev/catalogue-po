@@ -3166,3 +3166,5 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .fd-quality-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
 .fd-quality-pick .po-type-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
 .fd-quality-pick .po-type-toggle button { min-height: 38px; min-width: 44px; }
+.cat-quality-shape-add { margin: -8px 0 16px; font-size: 12.5px; }
+.cat-quality-shape-add select { min-height: 36px; font-size: 13px; }

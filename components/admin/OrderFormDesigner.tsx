@@ -10,7 +10,7 @@ type Shape = { id: number; name: string; refPhotoUrl: string | null };
 type Colour = { id: number; name: string; hex: string | null; refPhotoUrl: string | null };
 type Key = FieldKey | 'qty';
 
-const USUAL: Record<Key, string> = { quality: 'Quality', shape: 'Shape', color: 'Color', size: 'Size', qty: 'Qty (pcs)' };
+const USUAL: Record<Key, string> = { quality: 'Quality', shape: 'Shape/Cut', color: 'Color', size: 'Size', qty: 'Qty (pcs)' };
 
 /**
  * The category's order form as a buyer sees it, editable in place. Double-tap

@@ -7,8 +7,9 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
-import { useCategoryQualities, useOrderPreferences } from './useOrderPreferences';
 import { fieldHidden, type FormFields } from '@/lib/form-fields';
+import { useCategoryQualities, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { pickQualities, lineQualities, type ShapeQualities } from '@/lib/qualities';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
@@ -69,7 +70,8 @@ export default function POSelector({
   sizeColors,
   quantityField,
   qualities,
-  formFields
+  formFields,
+  shapeQualities
 }: {
   categoryId: number;
   categoryName: string;
@@ -95,6 +97,8 @@ export default function POSelector({
   qualities?: string[];
   /** Field names and hidden fields set on the category's admin Overview. */
   formFields?: FormFields;
+  /** Shapes/cuts here with their own qualities (Green OSP HW: 3A / AA). */
+  shapeQualities?: Record<number, string[]>;
 }) {
   // Swiss High Density CZ is White Round only: both are shown as fixed,
   // pre-chosen fields. The category's other colour links stay in the data
@@ -253,7 +257,7 @@ export default function POSelector({
   const label = names.color || optionLabel || 'Color';
   const lowerLabel = label.toLowerCase();
   const plural = (custom: string | undefined, n: number) => (!custom && n > 1 ? 's' : '');
-  const shapeLabel = names.shape || 'Shape';
+  const shapeLabel = names.shape || 'Shape/Cut';
   const sizeLabel = names.size || 'Size';
   const qualityLabel = names.quality || 'Quality';
   // A field the team hid has one option; it's picked without asking.
@@ -339,13 +343,19 @@ export default function POSelector({
   // Corundum 5A / 7A). Starts on the buyer's usual grade for this category,
   // if they have one on file; required before a line can be added.
   const allQualities = useCategoryQualities();
-  const grades = allQualities ? categoryGrades(categoryId, allQualities) : qualities ?? categoryGrades(categoryId);
+  const categoryList = allQualities ? categoryGrades(categoryId, allQualities) : qualities ?? categoryGrades(categoryId);
+  // A shape/cut with its own list (Nano's Green OSP HW: 3A / AA) replaces the
+  // category's while it's picked, and starts on its first quality.
+  const allShapeQualities = useShapeQualities();
+  const shapeLists: ShapeQualities = allShapeQualities ?? (shapeQualities ? { [categoryId]: shapeQualities } : {});
+  const { grades, start: shapeStart } = pickQualities({ [categoryId]: categoryList }, shapeLists, categoryId, pickShapeIds);
+  const gradesKey = grades.join('|');
   const preferences = useOrderPreferences();
   const [pickGrade, setPickGrade] = useState('');
   const preferredGrade = preferences.find((p) => p.categoryId === categoryId && p.grade && grades.includes(p.grade))?.grade || '';
   // The usual quality, else the only one there is.
   const onlyGrade = grades.length === 1 ? grades[0] : '';
-  useEffect(() => { const start = preferredGrade || onlyGrade; if (start) setPickGrade((g) => (g && grades.includes(g) ? g : start)); }, [preferredGrade, onlyGrade]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const start = preferredGrade || onlyGrade || shapeStart; if (start) setPickGrade((g) => (g && grades.includes(g) ? g : start)); }, [preferredGrade, onlyGrade, shapeStart, gradesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const qtyNum = parseQuantity(pickQty) || 0;
   const isQuotation = pickRequestType === 'Request Quotation';
@@ -545,7 +555,8 @@ export default function POSelector({
             qty: qtyFor(match.pcs_per_ct),
             qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
-            ...(grades.length > 0 && pickGrade ? { orderSpecs: gradeSpec(pickGrade) } : {}),
+            // Only lines whose shape/cut (or category) offers the chosen quality carry it.
+            ...(pickGrade && lineQualities({ [categoryId]: categoryList }, shapeLists, categoryId, shape.id).includes(pickGrade) ? { orderSpecs: gradeSpec(pickGrade) } : {}),
             ...(match.pcs_per_ct && qtyFor(match.pcs_per_ct) > 0 ? { orderSpecs: caratSpec(match.pcs_per_ct) } : {})
           };
           next = mergeIntoCart(next, item);
@@ -713,7 +724,7 @@ export default function POSelector({
           )}
           {!allowedBySize && !colorHidden && colorField}
           {!sizeGrid && categoryId !== GLASS_PEARLS_CATEGORY_ID && !shapeHidden && <div>
-            <label className="po-label">{shapeLabel}{plural(names.shape, pickShapeIds.length)}</label>
+            <label className="po-label">{shapeLabel}</label>
             <IconSelect
               categoryId={categoryId}
               multiple
@@ -722,7 +733,7 @@ export default function POSelector({
               values={pickShapeIds}
               onChange={setPickShapeIds}
               closeOnFirstPick={pickColorIds.length === 0}
-              placeholder={`Choose ${shapeLabel.toLowerCase()}${names.shape ? '' : '(s)'}`}
+              placeholder={`Choose ${shapeLabel.toLowerCase()}`}
               leading="icon"
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}

@@ -1,11 +1,12 @@
 import {supabaseAdmin} from './supabase-admin';
-import {specialCategory,validSpecQuantity,categoryGrades,type OrderSpecs} from './order-specs';
-import {parseCategoryQualities,QUALITIES_SETTING_KEY,type CategoryQualities} from './qualities';
+import {specialCategory,validSpecQuantity,type OrderSpecs} from './order-specs';
+import {parseCategoryQualities,parseShapeQualities,lineQualities,QUALITIES_SETTING_KEY,SHAPE_QUALITIES_SETTING_KEY,type CategoryQualities,type ShapeQualities} from './qualities';
 // Canonicalize only the two scoped category configurations before any order writes.
 export async function validateOrderSpecs<T extends {categoryId:number;shapeId:number;sizeId:number|null;colorId:number|null;qty:number;orderSpecs?:OrderSpecs|null}>(items:T[], database:any=supabaseAdmin):Promise<T[]> {
  const result:T[]=[];
  // The qualities each category offers, read once and only if a line has one.
  let qualities:CategoryQualities|null=null;
+ let shapeQualities:ShapeQualities|null=null;
  for(const item of items) {
   if(!item || ![item.categoryId,item.shapeId].every(n=>Number.isSafeInteger(n)&&n>0) || (item.sizeId!==null && (!Number.isSafeInteger(item.sizeId)||item.sizeId<=0)))throw Error('Choose valid category, shape and size options.');
   if(item.categoryId===34) {
@@ -35,11 +36,16 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
      canonical={kind:'carat',pcsPerCt:spec.pcsPerCt};
     } else {
      if(spec?.kind==='grade'&&!qualities) {
-      const row=await database.from('settings').select('value').eq('key',QUALITIES_SETTING_KEY).maybeSingle();
-      if(row.error)throw Error('Could not validate category options. Please retry.');
+      const [row,shapeRow]=await Promise.all([
+       database.from('settings').select('value').eq('key',QUALITIES_SETTING_KEY).maybeSingle(),
+       database.from('settings').select('value').eq('key',SHAPE_QUALITIES_SETTING_KEY).maybeSingle()
+      ]);
+      if(row.error||shapeRow.error)throw Error('Could not validate category options. Please retry.');
       qualities=parseCategoryQualities(row.data?.value);
+      shapeQualities=parseShapeQualities(shapeRow.data?.value);
      }
-     if(spec?.kind!=='grade'||!categoryGrades(item.categoryId,qualities).includes(spec.grade))throw Error('This quality is not offered for this category. Please choose the quality again.');
+     // A shape/cut's own list (Green OSP HW: 3A / AA) replaces its category's.
+     if(spec?.kind!=='grade'||!lineQualities(qualities,shapeQualities,item.categoryId,item.shapeId).includes(spec.grade))throw Error('This quality is not offered for this category. Please choose the quality again.');
      canonical={kind:'grade',grade:spec.grade};
     }
    }

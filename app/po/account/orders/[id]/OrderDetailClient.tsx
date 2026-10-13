@@ -307,7 +307,7 @@ export default function OrderDetailClient({
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
-              <tr><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th>{hasAnyPricedLine && <th>Amount</th>}{editing && <th></th>}</tr>
+              <tr><th>Category</th><th>Shape/Cut</th><th>Size</th><th>Color</th><th>Qty</th>{hasAnyPricedLine && <th>Amount</th>}{editing && <th></th>}</tr>
             </thead>
             <tbody>
               {items.filter((i) => !removedIds.has(i.id)).map((i) => (
@@ -419,7 +419,7 @@ export default function OrderDetailClient({
                   />
                 </div>
                 <div>
-                  <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+                  <label className="po-label">Shape/Cut</label>
                   <IconSelect
                     categoryId={Number(pickCategoryId) || undefined}
                     multiple
@@ -427,7 +427,7 @@ export default function OrderDetailClient({
                     values={pickShapeIds}
                     onChange={setPickShapeIds}
               closeOnFirstPick={pickColorIds.length === 0}
-                    placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape(s)'}
+                    placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape/cut'}
                     leading="icon"
                     disabledIds={incompatibleShapes}
                     disabledReason={NO_SHARED_SIZE_REASON}

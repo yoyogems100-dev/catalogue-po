@@ -605,7 +605,7 @@ export default function OrderAdminClient({
             <div className="admin-order-lines-table" tabIndex={0} role="region" aria-label="Order line items">
               <table>
                 <thead>
-                  <tr><th></th><th>Category</th><th>Shape</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP (₹)</th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
+                  <tr><th></th><th>Category</th><th>Shape/Cut</th><th>Size</th><th>Color</th><th>Qty</th><th>Supplier</th><th>CP (₹)</th><th>SP</th>{hasPricing && <th>Line total</th>}<th></th></tr>
                 </thead>
                 <tbody>
                   {rowItems.map(renderRow)}

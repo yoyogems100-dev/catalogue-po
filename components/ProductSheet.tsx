@@ -288,7 +288,7 @@ export default function ProductSheet({
           ) : (
             <div className="ps-order">
               <div className="ps-field">
-                <label>Shape</label>
+                <label>Shape/Cut</label>
                 {shapeOffer.fixed ? (
                   <span className="ps-fixed">{shapeOffer.fixed.name}</span>
                 ) : (
@@ -388,7 +388,7 @@ export default function ProductSheet({
                 </button>
                 {!canAdd && (
                   <p className="ps-hint">
-                    {!shape ? 'Choose a shape' : !size ? 'Choose a size' : !color ? 'Choose a colour' : 'Enter a quantity'} to add this.
+                    {!shape ? 'Choose a shape/cut' : !size ? 'Choose a size' : !color ? 'Choose a colour' : 'Enter a quantity'} to add this.
                   </p>
                 )}
                 {added && <p className="ps-added" role="status" aria-live="polite">{added}</p>}

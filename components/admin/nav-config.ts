@@ -84,9 +84,9 @@ export const WORKSPACES: Workspace[] = [
         ]
       },
       {
-        title: 'Shapes & sizes',
+        title: 'Shapes/cuts & sizes',
         links: [
-          { href: '/admin/shapes', label: 'Shapes & sizes', detail: 'Shapes and sizes available in the catalogue.' }
+          { href: '/admin/shapes', label: 'Shapes/cuts & sizes', detail: 'Shapes and sizes available in the catalogue.' }
         ]
       },
       {
@@ -127,7 +127,7 @@ export function poCategoryPages(id: number): NavLink[] {
   const base = `/admin/categories/${id}`;
   return [
     { href: `${base}?tab=photos`, label: 'Photos' },
-    { href: `${base}?tab=shapes`, label: 'Shapes & sizes' },
+    { href: `${base}?tab=shapes`, label: 'Shapes/cuts & sizes' },
     { href: `${base}?tab=colors`, label: 'Colours' },
     ...(CATALOGUE_PRICES_ENABLED ? [{ href: `${base}?tab=pricing`, label: 'Pricing' }] : []),
     { href: `${base}?tab=suppliers`, label: 'Suppliers' },
