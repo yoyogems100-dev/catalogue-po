@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { parseExploreFilter } from '@/lib/explore-filter';
 import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
 import { parseCategoryQualities, qualitiesFor, QUALITIES_SETTING_KEY } from '@/lib/qualities';
+import { FORM_FIELDS_SETTING_KEY, formFieldsFor, parseFormFields } from '@/lib/form-fields';
 
 export const revalidate = 30;
 
@@ -186,6 +187,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           sizeColors={data.sizeColors}
           quantityField={quantityFieldFor(parseQuantityFields(settings[QUANTITY_FIELDS_SETTING_KEY]), data.category.id)}
           qualities={qualitiesFor(parseCategoryQualities(settings[QUALITIES_SETTING_KEY]), data.category.id)}
+          formFields={formFieldsFor(parseFormFields(settings[FORM_FIELDS_SETTING_KEY]), data.category.id)}
           exploreDefault={parseExploreFilter((data.category as any).explore_default_filter)}
         />
       </div>

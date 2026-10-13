@@ -3132,3 +3132,37 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
    shrinking to fit a narrower box without distorting. */
 .shape-three-view { max-width: 100%; height: auto; }
 .shape-reference-fallback .shape-three-view { width: 100%; height: auto; max-height: 100%; }
+
+/* Admin > category > Overview: the buyer's order form, editable in place. */
+.fd-wrap { padding: 18px; }
+.fd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.fd-head h2 { margin: 0 0 4px; }
+.fd-note { font-size: 13px; color: #756e5c; margin: 0 0 12px; max-width: 640px; }
+.fd-form { margin-top: 6px; max-width: 920px; }
+.fd-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.fd-field { border: 1px dashed var(--line); padding: 8px 10px 10px; background: #fdfcf9; min-width: 0; }
+.fd-field:hover { border-color: var(--gold); }
+.fd-field-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 30px; }
+.fd-label-row { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.fd-label { margin: 0; cursor: text; user-select: none; touch-action: manipulation; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-icon { width: 30px; height: 30px; padding: 0; flex: none; background: none; border: 1px solid transparent; color: var(--navy); font-size: 14px; cursor: pointer; }
+.fd-icon:hover:not(:disabled) { border-color: var(--line); background: #fff; }
+.fd-remove { font-size: 18px; color: #a3341f; }
+.fd-lock { font-size: 12px; opacity: 0.55; width: 30px; text-align: center; flex: none; }
+.fd-rename { flex: 1; min-width: 0; }
+.fd-rename input { width: 100%; min-height: 34px; padding: 4px 8px; font-size: 13px; }
+.fd-mock { pointer-events: none; }
+.fd-select { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); background: #fff; font-size: 13px; color: var(--text-dim); overflow: hidden; white-space: nowrap; }
+.fd-select img { object-fit: contain; flex: none; }
+.fd-select span { overflow: hidden; text-overflow: ellipsis; }
+.fd-qty { justify-content: center; }
+.fd-chip { display: inline-flex; align-items: center; padding: 6px 10px; border: 1px solid var(--line); font-size: 12.5px; background: #fff; }
+.fd-mock.po-type-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
+.fd-hint { display: block; margin-top: 4px; font-size: 11.5px; color: #8a8474; }
+.fd-hidden-note { font-size: 12.5px; color: #756e5c; margin: 10px 0 0; }
+.fd-add-btn { margin-top: 12px; }
+.fd-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.fd-add-option { cursor: pointer; padding: 6px 12px; background: #fff; }
+.fd-quality-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.fd-quality-pick .po-type-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
+.fd-quality-pick .po-type-toggle button { min-height: 38px; min-width: 44px; }
