@@ -38,3 +38,16 @@ test('qualities: set per category in admin; Ruby keeps 5A / 7A until saved', asy
   assert.equal(normalizeQualities('5A'), undefined);
   assert.ok(knownQualities({ 5: ['Super AAA'] }).includes('Super AAA'));
 });
+
+test('order form fields: names and hidden fields per category', async () => {
+  const { normalizeFormFields, parseFormFields, formFieldsFor, fieldHidden } = await import('../lib/form-fields');
+  assert.deepEqual(normalizeFormFields({ labels: { shape: '  Shape / Cut ', size: '', qty: 'x' }, hidden: ['size', 'qty', 'quality'] }), { labels: { shape: 'Shape / Cut' }, hidden: ['size'] });
+  assert.equal(normalizeFormFields({ labels: { shape: 'x'.repeat(40) } }), undefined);
+  const all = parseFormFields(JSON.stringify({ 3: { labels: { color: 'Shade' }, hidden: ['size'] }, 0: {}, x: 1 }));
+  assert.deepEqual(Object.keys(all), ['3']);
+  assert.deepEqual(formFieldsFor(all, 9), { labels: {}, hidden: [] });
+  // Hidden only while there's a single option to pick for the buyer.
+  assert.equal(fieldHidden(all[3], 'size', 1), true);
+  assert.equal(fieldHidden(all[3], 'size', 4), false);
+  assert.equal(fieldHidden(all[3], 'shape', 1), false);
+});

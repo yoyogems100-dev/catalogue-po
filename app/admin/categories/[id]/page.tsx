@@ -15,6 +15,10 @@ import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManage
 import { parseExploreFilter } from '@/lib/explore-filter';
 import { CATALOGUE_PRICES_ENABLED } from '@/lib/pricing-calc';
 import CategoryQualityBar from '@/components/admin/CategoryQualityBar';
+import OrderFormDesigner from '@/components/admin/OrderFormDesigner';
+import { FORM_FIELDS_SETTING_KEY, formFieldsFor, parseFormFields } from '@/lib/form-fields';
+import { QUANTITY_FIELDS_SETTING_KEY, parseQuantityFields, quantityFieldFor } from '@/lib/quantity-field';
+import { sizeKey } from '@/lib/size-options';
 import { QUALITIES_SETTING_KEY, knownQualities, parseCategoryQualities, qualitiesFor } from '@/lib/qualities';
 import { specialCategory } from '@/lib/order-specs';
 
@@ -30,7 +34,6 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // rather than each being a tab of one control. Photos leads, because that is
   // what the team opens a category to do.
   const LEGACY_TABS: Record<string, string> = {
-    overview: 'photos',
     'color-chart': 'colors',
     specifications: 'shapes'
   };
@@ -40,13 +43,14 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // shared Shapes & sizes and Colors tabs.
   const [{ data: head }, { data: qualityRow }] = await Promise.all([
     supabaseAdmin.from('categories').select('option_label').eq('id', categoryId).maybeSingle(),
-    supabaseAdmin.from('settings').select('value').eq('key', QUALITIES_SETTING_KEY).maybeSingle()
+    supabaseAdmin.from('settings').select('key, value').in('key', [QUALITIES_SETTING_KEY, FORM_FIELDS_SETTING_KEY, QUANTITY_FIELDS_SETTING_KEY])
   ]);
-  const allQualities = parseCategoryQualities(qualityRow?.value);
+  const settingValue = (key: string) => (qualityRow || []).find((row: { key: string }) => row.key === key)?.value as string | undefined;
+  const allQualities = parseCategoryQualities(settingValue(QUALITIES_SETTING_KEY));
   const optionLabel: string | null = head?.option_label ?? null;
   const TABS = (optionLabel
-    ? ['photos','materials','pricing','suppliers']
-    : ['photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])])
+    ? ['overview','photos','materials','pricing','suppliers']
+    : ['overview','photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])])
     .filter((t) => CATALOGUE_PRICES_ENABLED || t !== 'pricing');
   const tab = TABS.includes(raw) ? raw : (optionLabel && ['shapes','colors','color-chart','specifications'].includes(raw) ? 'materials' : (LEGACY_TABS[raw] || 'photos'));
 
@@ -187,8 +191,22 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       </nav>
       <CategoryTagBar categoryId={categoryId} tags={linkedTags.map((t: any) => ({ id: t.id, name: t.name }))} allTags={(allTags || []).map((t: any) => ({ id: t.id, name: t.name }))} />
       {/* Rainbow Corundum and Hole Punched order with their own options. */}
-      {!specialCategory(categoryId) && <CategoryQualityBar key={`q${categoryId}`} categoryId={categoryId} initial={qualitiesFor(allQualities, categoryId)} known={knownQualities(allQualities)} />}
-      {tab === 'materials' ? materialsPanel : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
+      {!specialCategory(categoryId) && <CategoryQualityBar key={`q${categoryId}-${qualitiesFor(allQualities, categoryId).join(',')}`} categoryId={categoryId} initial={qualitiesFor(allQualities, categoryId)} known={knownQualities(allQualities)} />}
+      {tab === 'overview' ? <OrderFormDesigner
+        key={JSON.stringify([settingValue(FORM_FIELDS_SETTING_KEY) ?? '', qualitiesFor(allQualities, categoryId), quantityFieldFor(parseQuantityFields(settingValue(QUANTITY_FIELDS_SETTING_KEY)), categoryId).label])}
+        categoryId={categoryId}
+        categoryName={category.name}
+        slug={category.archived_at ? null : category.slug}
+        special={specialCategory(categoryId)}
+        optionLabel={optionLabel}
+        shapes={(linkedShapesRaw || []).filter((r: any) => r.shapes).map((r: any) => ({ id: r.shapes.id, name: r.shapes.name, refPhotoUrl: r.ref_photo_url || r.shapes.ref_photo_url || null }))}
+        colours={linkedColors.map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }))}
+        sizes={[...new Map(linkedSizes.map((sz: any) => [sizeKey(sz.size_mm), sz.size_mm])).values()] as string[]}
+        fields={formFieldsFor(parseFormFields(settingValue(FORM_FIELDS_SETTING_KEY)), categoryId)}
+        qualities={qualitiesFor(allQualities, categoryId)}
+        knownQualities={knownQualities(allQualities)}
+        quantityField={quantityFieldFor(parseQuantityFields(settingValue(QUANTITY_FIELDS_SETTING_KEY)), categoryId)}
+      /> : tab === 'materials' ? materialsPanel : tab === 'strip-counts' ? <RainbowStripOptions sizes={linkedSizes.filter((size: any) => linkedSizeIds.includes(size.id)).map((size: any) => ({id:size.id,label:`${linkedShapes.find((shape: any) => shape.id === size.shape_id)?.name||'Shape'} · ${size.size_mm} mm`}))} /> : tab === 'colors' ? <><CategoryColorChart key={categoryId} categoryId={categoryId} categoryName={category.name} initialUrl={category.color_chart_url} /><ColorsWorkspace initialCategoryId={categoryId} embedded /></> : tab === 'pricing' ? <PricingClient key={categoryId} categories={[{id:category.id,name:category.name,slug:category.slug}]} initialCategoryId={categoryId} /> : tab === 'suppliers' ? <section className="admin-linked-records"><div className="admin-section-head"><div><h2>Suppliers for {category.name}</h2><p>Supplier profiles and rates linked to this category.</p></div><Link className="btn" href="/admin/suppliers">Manage suppliers</Link></div><div className="admin-record-grid">{categorySuppliers.map((supplier) => <Link className="card admin-supplier-card" href={`/admin/suppliers/${supplier.id}`} key={supplier.id}><strong>{supplier.name}</strong><span>{supplier.contact_name || 'No contact person'} · {supplier.phone || 'No phone'}</span><small>View rates and coverage</small></Link>)}{!categorySuppliers.length && <p>No suppliers linked yet. Add this category from a supplier profile.</p>}</div></section> : <>
 
       <CategoryAdminClient
         key={categoryId}

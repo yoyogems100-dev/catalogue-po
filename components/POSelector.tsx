@@ -8,6 +8,7 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
 import { useCategoryQualities, useOrderPreferences } from './useOrderPreferences';
+import { fieldHidden, type FormFields } from '@/lib/form-fields';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
@@ -67,7 +68,8 @@ export default function POSelector({
   optionLabel,
   sizeColors,
   quantityField,
-  qualities
+  qualities,
+  formFields
 }: {
   categoryId: number;
   categoryName: string;
@@ -91,6 +93,8 @@ export default function POSelector({
   quantityField?: QuantityField;
   /** The qualities this category offers, as the page rendered them. */
   qualities?: string[];
+  /** Field names and hidden fields set on the category's admin Overview. */
+  formFields?: FormFields;
 }) {
   // Swiss High Density CZ is White Round only: both are shown as fixed,
   // pre-chosen fields. The category's other colour links stay in the data
@@ -243,8 +247,24 @@ export default function POSelector({
     [sizes]
   );
 
-  const label = optionLabel || 'Color';
+  // Field names: the admin Overview's, else the usual ones (and a category's
+  // own colour word, "Material"). A name the team typed isn't pluralised.
+  const names = formFields?.labels || {};
+  const label = names.color || optionLabel || 'Color';
   const lowerLabel = label.toLowerCase();
+  const plural = (custom: string | undefined, n: number) => (!custom && n > 1 ? 's' : '');
+  const shapeLabel = names.shape || 'Shape';
+  const sizeLabel = names.size || 'Size';
+  const qualityLabel = names.quality || 'Quality';
+  // A field the team hid has one option; it's picked without asking.
+  const shapeHidden = fieldHidden(formFields, 'shape', shapes.length);
+  const colorHidden = fieldHidden(formFields, 'color', colors.length);
+  const sizeHidden = fieldHidden(formFields, 'size', sizeGroups.length);
+  useEffect(() => {
+    if (shapeHidden && pickShapeIds.length === 0) setPickShapeIds([shapes[0].id]);
+    if (colorHidden && pickColorIds.length === 0) setPickColorIds([colors[0].id]);
+    if (sizeHidden && pickSizeIdxs.length === 0) setPickSizeIdxs([0]);
+  }, [shapeHidden, colorHidden, sizeHidden, pickShapeIds.length, pickColorIds.length, pickSizeIdxs.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // Categories like Semi Precious Beads list which materials each shape+size
   // comes in; there the material list and the shape/size lists narrow each other.
   const allowedBySize = useMemo(() => allowedColorsOf(sizeColors), [sizeColors]);
@@ -467,8 +487,8 @@ export default function POSelector({
     (!colorLocked && pickColorIds.length > 0);
 
   const missingFields = [
-    categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && 'shape',
-    pickSizeIdxs.length === 0 && 'size',
+    categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && shapeLabel.toLowerCase(),
+    pickSizeIdxs.length === 0 && sizeLabel.toLowerCase(),
     pickColorIds.length === 0 && lowerLabel,
     !isQuotation && multiCarat && ctNum <= 0 && 'weight',
     !isQuotation && showPieces && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
@@ -487,7 +507,7 @@ export default function POSelector({
 
   function addLine() {
     if (!canAdd) {
-      setToast(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : `Pick at least one shape, ${lowerLabel} and size, and enter quantity first.`);
+      setToast(grades.length > 0 && !pickGrade ? `Choose a ${qualityLabel.toLowerCase()} (${grades.join(' or ')}) first.` : `Pick at least one ${shapeLabel.toLowerCase()}, ${lowerLabel} and ${sizeLabel.toLowerCase()}, and enter quantity first.`);
       return;
     }
 
@@ -645,7 +665,7 @@ export default function POSelector({
 
   const colorField = (
     <div>
-      <label className="po-label">{label}{pickColorIds.length > 1 ? 's' : ''}</label>
+      <label className="po-label">{label}{plural(names.color, pickColorIds.length)}</label>
       <IconSelect
         categoryId={categoryId}
         multiple
@@ -683,7 +703,7 @@ export default function POSelector({
         <div className="po-add-form">
           {grades.length > 0 && (
             <div>
-              <label className="po-label" id="po-grade-label">Quality</label>
+              <label className="po-label" id="po-grade-label">{qualityLabel}</label>
               <div className="po-type-toggle po-grade-toggle" role="group" aria-labelledby="po-grade-label">
                 {grades.map((g) => (
                   <button key={g} type="button" aria-pressed={pickGrade === g} className={pickGrade === g ? 'active' : ''} onClick={() => setPickGrade(g)}>{g}</button>
@@ -691,9 +711,9 @@ export default function POSelector({
               </div>
             </div>
           )}
-          {!allowedBySize && colorField}
-          {!sizeGrid && categoryId !== GLASS_PEARLS_CATEGORY_ID && <div>
-            <label className="po-label">Shape{pickShapeIds.length > 1 ? 's' : ''}</label>
+          {!allowedBySize && !colorHidden && colorField}
+          {!sizeGrid && categoryId !== GLASS_PEARLS_CATEGORY_ID && !shapeHidden && <div>
+            <label className="po-label">{shapeLabel}{plural(names.shape, pickShapeIds.length)}</label>
             <IconSelect
               categoryId={categoryId}
               multiple
@@ -702,15 +722,15 @@ export default function POSelector({
               values={pickShapeIds}
               onChange={setPickShapeIds}
               closeOnFirstPick={pickColorIds.length === 0}
-              placeholder="Choose shape(s)"
+              placeholder={`Choose ${shapeLabel.toLowerCase()}${names.shape ? '' : '(s)'}`}
               leading="icon"
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
             />
           </div>}
-          {!sizeGrid && <div>
-            <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm){swiss && <span className="po-label-note"> · weight of 1000 pcs</span>}</label>
+          {!sizeGrid && !sizeHidden && <div>
+            <label className="po-label">{sizeLabel}{plural(names.size, pickSizeIdxs.length)}{/mm/i.test(sizeLabel) ? '' : ' (mm)'}{swiss && <span className="po-label-note"> · weight of 1000 pcs</span>}</label>
             <IconSelect
               categoryId={categoryId}
               multiple
@@ -726,11 +746,11 @@ export default function POSelector({
                   ? 'No size matches these picks'
                   : sizeOptions.length === 1
                   ? 'Size'
-                  : 'Choose size(s)'
+                  : `Choose ${sizeLabel.toLowerCase()}${names.size ? '' : '(s)'}`
               }
             />
           </div>}
-          {allowedBySize && colorField}
+          {allowedBySize && !colorHidden && colorField}
           {!sizeGrid && caratRows.length > 0 && (
             <div>
               <label className="po-label" htmlFor="po-new-carats">Weight (ct){multiCarat ? ' per size' : ''}</label>
@@ -851,7 +871,7 @@ export default function POSelector({
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
         </button>
-        {grades.length > 0 && !pickGrade && pickShapeIds.length > 0 && <p className="po-type-hint">Choose a quality ({grades.join(' or ')}) to add this.</p>}
+        {grades.length > 0 && !pickGrade && pickShapeIds.length > 0 && <p className="po-type-hint">Choose a {qualityLabel.toLowerCase()} ({grades.join(' or ')}) to add this.</p>}
         {/* A grey button alone doesn't say what's missing. Only once the buyer
             has started, so an untouched form isn't greeted with a to-do list. */}
         {!canAdd && hasSelection && missingFields.length > 0 && (

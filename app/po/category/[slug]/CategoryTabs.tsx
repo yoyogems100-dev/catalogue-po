@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { QuantityField } from '@/lib/quantity-field';
+import type { FormFields } from '@/lib/form-fields';
 import POSelector from '@/components/POSelector';
 import CategoryClient from './CategoryClient';
 import type { ExploreFilter } from '@/lib/explore-filter';
@@ -42,6 +43,7 @@ export default function CategoryTabs({
   sizeColors,
   quantityField,
   qualities,
+  formFields,
   exploreDefault
 }: {
   categoryId: number;
@@ -66,6 +68,7 @@ export default function CategoryTabs({
   quantityField?: QuantityField;
   /** The qualities this category's order form offers. */
   qualities?: string[];
+  formFields?: FormFields;
   /** The filter Explore Photos opens with, chosen in the admin. */
   exploreDefault?: ExploreFilter;
 }) {
@@ -115,6 +118,7 @@ export default function CategoryTabs({
           sizeColors={sizeColors}
           quantityField={quantityField}
           qualities={qualities}
+          formFields={formFields}
         />
         </div>
       {tab === 'photos' && (
