@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import IconSelect from './IconSelect';
-import { COLOR_FAMILIES } from '@/lib/color-family';
 import { categoryGrades } from '@/lib/order-specs';
 import type { OrderPreference } from '@/lib/customer-preferences';
+import { useColorFamilies } from './useOrderPreferences';
 
 type Category = { id: number; name: string };
 
@@ -36,8 +36,9 @@ export default function PreferencesEditor({
   value: OrderPreference[];
   onChange: (next: OrderPreference[]) => void;
 }) {
+  const families = useColorFamilies();
   const usedFamilies = new Set(value.map((p) => p.familyId));
-  const nextFamily = COLOR_FAMILIES.find((f) => !usedFamilies.has(f.id));
+  const nextFamily = families.find((f) => !usedFamilies.has(f.id));
 
   function update(index: number, patch: Partial<OrderPreference>) {
     onChange(value.map((p, i) => {
@@ -46,7 +47,9 @@ export default function PreferencesEditor({
       // A new category may not offer the grade that was picked for the old one.
       if (merged.grade && !categoryGrades(merged.categoryId).includes(merged.grade)) delete merged.grade;
       // A shape and size the team preset belong to the old stone.
-      if (patch.categoryId !== undefined && patch.categoryId !== p.categoryId) { delete merged.shapeId; delete merged.size; }
+      if (patch.categoryId !== undefined && patch.categoryId !== p.categoryId) { delete merged.shapeId; delete merged.size; delete merged.colorId; }
+      // So does the shade of the old colour.
+      if (patch.familyId !== undefined && patch.familyId !== p.familyId) delete merged.colorId;
       return merged;
     }));
   }
@@ -56,7 +59,7 @@ export default function PreferencesEditor({
       {value.length === 0 && <p className="pref-empty">None yet. Add a colour and the stone you usually mean by it.</p>}
       {value.map((pref, index) => {
         const grades = categoryGrades(pref.categoryId);
-        const familyOptions = COLOR_FAMILIES.filter((f) => f.id === pref.familyId || !usedFamilies.has(f.id));
+        const familyOptions = families.filter((f) => f.id === pref.familyId || !usedFamilies.has(f.id));
         return (
           <div className="pref-row" key={pref.familyId}>
             <div className="pref-row-fields">

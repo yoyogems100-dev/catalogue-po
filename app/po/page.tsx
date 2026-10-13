@@ -8,7 +8,7 @@ import HomeCatalogue from './HomeCatalogue';
 import HomeHero from '@/components/HomeHero';
 import { MOST_ORDERED_SETTING_KEY } from '@/lib/most-ordered';
 import { HOME_SECTIONS_SETTING_KEY, parseHomeSections } from '@/lib/home-sections';
-import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons } from '@/lib/color-family';
+import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, parseColorButtons, parseColorNames } from '@/lib/color-family';
 import { getCustomerId } from '@/lib/customer-auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sanitizeInterestIds, withInterests } from '@/lib/customer-interests';
@@ -129,7 +129,7 @@ export default async function HomePage() {
             text -- a true H1 keeps the page's heading structure sound for
             screen readers without changing what's shown on screen. */}
         <h1 className="visually-hidden">YOYO GEMS — Collection Catalogue</h1>
-        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} sections={withInterests(parseHomeSections(settings[HOME_SECTIONS_SETTING_KEY], settings[MOST_ORDERED_SETTING_KEY]), interests)} colorButtonIds={parseColorButtons(settings[COLOR_BUTTONS_SETTING_KEY])} />
+        <HomeCatalogue categories={categories} allShapes={allShapes} allColors={allColors} sections={withInterests(parseHomeSections(settings[HOME_SECTIONS_SETTING_KEY], settings[MOST_ORDERED_SETTING_KEY]), interests)} colorButtonIds={parseColorButtons(settings[COLOR_BUTTONS_SETTING_KEY])} colorNames={parseColorNames(settings[COLOR_NAMES_SETTING_KEY])} />
       </div>
       <Footer settings={settings} />
     </>

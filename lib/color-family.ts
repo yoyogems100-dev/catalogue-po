@@ -81,10 +81,43 @@ export function colorFamilyId(name: string, hex?: string | null): number | null 
   return hexFamily(hex);
 }
 
-/** Family name first, then the colour's own name -- what a buyer might type. */
-export function colorSearchText(name: string, hex?: string | null): string {
+/** Family name (and the shop's name for it) first, then the colour's own
+ *  name -- what a buyer might type. */
+export function colorSearchText(name: string, hex?: string | null, names: ColorNames = {}): string {
   const family = COLOR_FAMILIES.find((f) => f.id === colorFamilyId(name, hex));
-  return `${family ? family.name.toLowerCase() : ''} ${name.toLowerCase()}`;
+  const own = family && names[family.id] ? ` ${names[family.id].toLowerCase()}` : '';
+  return `${family ? family.name.toLowerCase() : ''}${own} ${name.toLowerCase()}`;
+}
+
+// What the shop calls each colour button ("Yellow" instead of "Yellow &
+// Gold"), edited in Admin > Catalogue map > Colour buttons. Stored in settings
+// as JSON { familyId: name }, holding only the renamed ones; which colours
+// belong to a family doesn't change with its name.
+export const COLOR_NAMES_SETTING_KEY = 'color_button_names';
+export const MAX_COLOR_NAME_LENGTH = 30;
+export type ColorNames = Record<number, string>;
+
+/** Known family IDs with a real new name; anything else is dropped. */
+export function sanitizeColorNames(raw: unknown): ColorNames {
+  const out: ColorNames = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const f of COLOR_FAMILIES) {
+    const value = (raw as Record<string, unknown>)[f.id];
+    if (typeof value !== 'string') continue;
+    const name = value.replace(/\s+/g, ' ').trim().slice(0, MAX_COLOR_NAME_LENGTH);
+    if (name && name !== f.name) out[f.id] = name;
+  }
+  return out;
+}
+
+export function parseColorNames(value: string | null | undefined): ColorNames {
+  if (!value) return {};
+  try { return sanitizeColorNames(JSON.parse(value)); } catch { return {}; }
+}
+
+/** Every family, under the shop's name for it where it has one. */
+export function namedFamilies(names: ColorNames = {}): ColorFamily[] {
+  return COLOR_FAMILIES.map((f) => (names[f.id] ? { ...f, name: names[f.id] } : f));
 }
 
 // Which colour buttons buyers see ("Order by colour" on the home page and the
@@ -107,6 +140,7 @@ export function sanitizeColorButtons(raw: unknown): number[] | null {
   return [...new Set(raw.map(Number).filter((n) => known.has(n)))];
 }
 
-export function colorButtonFamilies(ids: number[]): ColorFamily[] {
-  return ids.map((id) => COLOR_FAMILIES.find((f) => f.id === id)).filter((f): f is ColorFamily => !!f);
+export function colorButtonFamilies(ids: number[], names: ColorNames = {}): ColorFamily[] {
+  const families = namedFamilies(names);
+  return ids.map((id) => families.find((f) => f.id === id)).filter((f): f is ColorFamily => !!f);
 }

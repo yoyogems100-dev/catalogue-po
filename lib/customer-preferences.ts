@@ -8,11 +8,15 @@ import { categoryGrades } from './order-specs';
 // sign-up or in My Info, and by the team on the admin customer page. The team
 // can also preset the shape, size and quantity a colour starts on (owner,
 // 2026-10-03): "Red opens Ruby 5A, Round 3 mm, 500 pcs". The buyer can still
-// change any of it before adding the line.
+// change any of it before adding the line. And the exact colour within the
+// family (owner, 2026-10-13): Blue -> Nano -> Blue Nano #113, so a colour with
+// several shades in that stone opens on one instead of a blank colour list.
 export type OrderPreference = {
   familyId: number;
   categoryId: number;
   grade?: string | null;
+  /** A colour of this stone, in this family. */
+  colorId?: number | null;
   shapeId?: number | null;
   /** As sizeKey() spells it ("3", "6x8"), so it survives 6*8 / 6x8mm spellings. */
   size?: string | null;
@@ -63,6 +67,8 @@ export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>
     const gradeRaw = (entry as any)?.grade;
     const grade = typeof gradeRaw === 'string' && categoryGrades(categoryId).includes(gradeRaw) ? gradeRaw : null;
     const pick: OrderPreference = grade ? { familyId, categoryId, grade } : { familyId, categoryId };
+    const colorId = Number((entry as any)?.colorId);
+    if (Number.isSafeInteger(colorId) && colorId > 0) pick.colorId = colorId;
     const shapeId = Number((entry as any)?.shapeId);
     if (Number.isSafeInteger(shapeId) && shapeId > 0) pick.shapeId = shapeId;
     const sizeRaw = (entry as any)?.size;

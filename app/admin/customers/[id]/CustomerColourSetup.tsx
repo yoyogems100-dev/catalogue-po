@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 import ColourSetupEditor from '@/components/admin/ColourSetupEditor';
 import { completePreferences } from '@/components/PreferencesEditor';
 import type { OrderPreference } from '@/lib/customer-preferences';
+import type { ColorNames } from '@/lib/color-family';
 
-export default function CustomerColourSetup({ customerId, categories, initialButtons, initialPicks, shopButtons, shopPicks }: {
+export default function CustomerColourSetup({ customerId, categories, initialButtons, initialPicks, shopButtons, shopPicks, shopNames }: {
   customerId: number;
   categories: { id: number; name: string; slug: string | null }[];
   initialButtons: number[] | null;
   initialPicks: OrderPreference[];
   shopButtons: number[];
   shopPicks: OrderPreference[];
+  shopNames: ColorNames;
 }) {
   const router = useRouter();
   const [value, setValue] = useState({ buttons: initialButtons, picks: initialPicks });
@@ -46,6 +48,7 @@ export default function CustomerColourSetup({ customerId, categories, initialBut
       picks={value.picks}
       shopButtons={shopButtons}
       shopPicks={shopPicks}
+      names={shopNames}
       onChange={(next) => { setValue(next); setDirty(true); setMessage(''); }}
     />
     <div className="admin-form-actions"><button className="btn" type="button" onClick={save} disabled={saving || !dirty}>{saving ? 'Saving…' : dirty ? 'Save for this buyer' : 'Saved'}</button>{message && <span role="status">{message}</span>}</div>
