@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sanitizePreferences, preferenceForFamily } from '../lib/customer-preferences';
+import { parseCategoryQualities } from '../lib/qualities';
 import { specText, specKey, categoryGrades } from '../lib/order-specs';
 
 test('usual picks: one per colour, real categories only, grade only where the stone has grades', () => {
@@ -12,7 +13,7 @@ test('usual picks: one per colour, real categories only, grade only where the st
     { familyId: 99, categoryId: 2 }, // unknown colour family
     { familyId: 5, categoryId: 2, grade: '9A' }, // grade Ruby doesn't offer
     'junk'
-  ], new Set([2, 12, 37]));
+  ], new Set([2, 12, 37]), parseCategoryQualities(null));
   assert.deepEqual(cleaned, [
     { familyId: 4, categoryId: 2, grade: '5A' },
     { familyId: 1, categoryId: 37 },

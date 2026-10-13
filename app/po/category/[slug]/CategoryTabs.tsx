@@ -41,6 +41,7 @@ export default function CategoryTabs({
   optionLabel,
   sizeColors,
   quantityField,
+  qualities,
   exploreDefault
 }: {
   categoryId: number;
@@ -63,6 +64,8 @@ export default function CategoryTabs({
   /** [shape_size_id, color_id] pairs this category offers; empty = any with any. */
   sizeColors?: [number, number][];
   quantityField?: QuantityField;
+  /** The qualities this category's order form offers. */
+  qualities?: string[];
   /** The filter Explore Photos opens with, chosen in the admin. */
   exploreDefault?: ExploreFilter;
 }) {
@@ -111,6 +114,7 @@ export default function CategoryTabs({
           optionLabel={optionLabel}
           sizeColors={sizeColors}
           quantityField={quantityField}
+          qualities={qualities}
         />
         </div>
       {tab === 'photos' && (

@@ -12,7 +12,7 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
 import { DEFAULT_COLOR_BUTTONS, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
-import { useColorButtons, useColorFamilies, useOrderPreferences } from './useOrderPreferences';
+import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences } from './useOrderPreferences';
 import { useCatalogueMap } from './useCatalogueMap';
 import StoneFinder from './StoneFinder';
 
@@ -71,6 +71,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   // Colour-first ordering: "Red" + the buyer's usual picks -> Ruby Corundum 5A.
   const preferences = useOrderPreferences();
   const families = useColorFamilies();
+  const qualities = useCategoryQualities();
   const colorButtons = colorButtonFamilies(useColorButtons() ?? DEFAULT_COLOR_BUTTONS, Object.fromEntries(families.map((f) => [f.id, f.name])));
   const [pickFamily, setPickFamily] = useState<number | null>(null);
   const [pickGrade, setPickGrade] = useState('');
@@ -152,10 +153,10 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     if (!opts.keepFamily) setPickFamily(null);
     // The buyer's usual grade for this stone -- from the colour they started
     // with if that points here, else any usual pick for this category.
-    const grades = typeof id === 'number' ? categoryGrades(id) : [];
+    const grades = typeof id === 'number' ? categoryGrades(id, qualities) : [];
     const fromFamily = opts.keepFamily && pickFamily ? preferenceForFamily(preferences, pickFamily) : null;
     const usual = (fromFamily?.categoryId === id ? fromFamily : null) || preferences.find((p) => p.categoryId === id && p.grade);
-    setPickGrade(usual?.grade && grades.includes(usual.grade) ? usual.grade : '');
+    setPickGrade(usual?.grade && grades.includes(usual.grade) ? usual.grade : grades.length === 1 ? grades[0] : '');
     if (!id || optionsCache[id]) return;
     const cat = allCategories?.find((c) => c.id === id);
     if (!cat) return;
@@ -213,7 +214,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     setPendingPick(null);
   }, [pendingPick, currentOptions, pickShapeIds, sizeGroups]);
 
-  const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId) : [];
+  const grades = typeof pickCategoryId === 'number' ? categoryGrades(pickCategoryId, qualities) : [];
 
   // With a colour chosen, only that family's colours are offered -- unless the
   // category has none in it, in which case hiding everything would be a dead end.

@@ -9,6 +9,7 @@ import { categoryIconUrl } from '@/lib/category-icons';
 import { sizesFor } from '@/lib/catalogue-map';
 import { MAX_PICK_QTY, preferenceForFamily, type OrderPreference } from '@/lib/customer-preferences';
 import { useCatalogueMap } from '@/components/useCatalogueMap';
+import { useCategoryQualities } from '@/components/useOrderPreferences';
 
 type Category = { id: number; name: string; slug?: string | null };
 
@@ -46,6 +47,7 @@ export default function ColourSetupEditor({
   onRename?: (familyId: number, name: string | null) => void;
 }) {
   const families = namedFamilies(names);
+  const qualities = useCategoryQualities();
   const map = useCatalogueMap(true);
   const [openId, setOpenId] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<number | null>(null);
@@ -82,7 +84,7 @@ export default function ColourSetupEditor({
   function chooseStone(familyId: number, categoryId: number | null) {
     if (!categoryId) return putPick(familyId, null);
     const current = preferenceForFamily(picks, familyId) ?? (mode === 'buyer' ? preferenceForFamily(shopPicks, familyId) : null);
-    const grades = categoryGrades(categoryId);
+    const grades = categoryGrades(categoryId, qualities);
     const sameStone = current?.categoryId === categoryId;
     const grade = (sameStone ? current?.grade : undefined) ?? (grades.includes('5A') ? '5A' : grades[0]);
     const pick: OrderPreference = { familyId, categoryId };
@@ -149,7 +151,7 @@ export default function ColourSetupEditor({
           const shades = pick ? shadesOf(pick.categoryId, id) : [];
           const open = openId === id;
           const category = pick ? map?.categories.find((c) => c.id === pick.categoryId) : null;
-          const grades = pick ? categoryGrades(pick.categoryId) : [];
+          const grades = pick ? categoryGrades(pick.categoryId, qualities) : [];
           const shapes = category ? (map?.shapes || []).filter((s) => category.shapeIds.includes(s.id)) : [];
           const sizes = map && category ? sizesFor(map, [category], pick?.shapeId ?? null) : [];
           const sizeIndex = pick?.size ? sizes.findIndex((s) => s.key === pick.size) : -1;

@@ -7,7 +7,7 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import SpecialOrderComposer from './SpecialOrderComposer';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
-import { useOrderPreferences } from './useOrderPreferences';
+import { useCategoryQualities, useOrderPreferences } from './useOrderPreferences';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
@@ -66,7 +66,8 @@ export default function POSelector({
   priceUnit,
   optionLabel,
   sizeColors,
-  quantityField
+  quantityField,
+  qualities
 }: {
   categoryId: number;
   categoryName: string;
@@ -88,6 +89,8 @@ export default function POSelector({
   sizeColors?: [number, number][];
   /** What the quantity field is called and starts on ("No. of Lines", 5). */
   quantityField?: QuantityField;
+  /** The qualities this category offers, as the page rendered them. */
+  qualities?: string[];
 }) {
   // Swiss High Density CZ is White Round only: both are shown as fixed,
   // pre-chosen fields. The category's other colour links stay in the data
@@ -315,11 +318,14 @@ export default function POSelector({
   // Quality grade, for categories that offer one inside the category (Ruby
   // Corundum 5A / 7A). Starts on the buyer's usual grade for this category,
   // if they have one on file; required before a line can be added.
-  const grades = categoryGrades(categoryId);
+  const allQualities = useCategoryQualities();
+  const grades = allQualities ? categoryGrades(categoryId, allQualities) : qualities ?? categoryGrades(categoryId);
   const preferences = useOrderPreferences();
   const [pickGrade, setPickGrade] = useState('');
   const preferredGrade = preferences.find((p) => p.categoryId === categoryId && p.grade && grades.includes(p.grade))?.grade || '';
-  useEffect(() => { if (preferredGrade) setPickGrade((g) => g || preferredGrade); }, [preferredGrade]);
+  // The usual quality, else the only one there is.
+  const onlyGrade = grades.length === 1 ? grades[0] : '';
+  useEffect(() => { const start = preferredGrade || onlyGrade; if (start) setPickGrade((g) => (g && grades.includes(g) ? g : start)); }, [preferredGrade, onlyGrade]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const qtyNum = parseQuantity(pickQty) || 0;
   const isQuotation = pickRequestType === 'Request Quotation';

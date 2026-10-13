@@ -1,3 +1,4 @@
+import { qualitiesFor, type CategoryQualities } from './qualities';
 // Stable IDs from the existing YOYO catalogue; names may be edited without changing behavior.
 export const RAINBOW_CATEGORY_ID = 29;
 export const DRILLED_CATEGORY_ID = 20;
@@ -17,10 +18,9 @@ export function caratsFor(pcs: number, pcsPerCt: number): number { return pcs > 
 // Quality grades offered inside a category, chosen alongside colour/shape/size
 // rather than as separate categories. (The CZ grades predate this and are
 // their own categories -- 3A/4A/5A Quality CZ, 7A Quality.) Stored on the line
-// as order_specs {kind:'grade', grade}. Ruby Corundum is category 2.
-export const RUBY_CORUNDUM_CATEGORY_ID = 2;
-export const CATEGORY_GRADES: Record<number, string[]> = { [RUBY_CORUNDUM_CATEGORY_ID]: ['5A', '7A'] };
-export function categoryGrades(categoryId: number): string[] { return CATEGORY_GRADES[categoryId] || []; }
+// as order_specs {kind:'grade', grade}. Which categories offer which is set
+// in admin (lib/qualities.ts); without that map, the built-in lists apply.
+export function categoryGrades(categoryId: number, qualities?: CategoryQualities | null): string[] { return qualitiesFor(qualities, categoryId); }
 export function gradeSpec(grade: string): OrderSpecs { return { kind: 'grade', grade }; }
 export function specText(spec?:OrderSpecs|null, quantity?:number):string {
  if(!spec) return '';

@@ -1,5 +1,6 @@
 import { COLOR_FAMILIES } from './color-family';
 import { categoryGrades } from './order-specs';
+import { QUALITIES_SETTING_KEY, QUALITY_MAX_LENGTH, parseCategoryQualities, type CategoryQualities } from './qualities';
 
 // A buyer's standing defaults: "when I say Red I mean Ruby Corundum 5A",
 // "White means 5A Quality CZ". Keyed by colour family so a buyer can start an
@@ -52,8 +53,11 @@ export function mergePreferences(mine: OrderPreference[], defaults: OrderPrefere
   return [...mine, ...defaults.filter((p) => !own.has(p.familyId))];
 }
 
-/** Drops anything malformed, keeps one entry per colour family (first wins). */
-export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>): OrderPreference[] {
+/** Drops anything malformed, keeps one entry per colour family (first wins).
+ *  With the categories' qualities, a grade the stone doesn't offer is dropped
+ *  too; without them, any plausible grade is kept and the order form checks
+ *  it against what the stone offers when it opens. */
+export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>, qualities?: CategoryQualities): OrderPreference[] {
   if (!Array.isArray(raw)) return [];
   const familyIds = new Set(COLOR_FAMILIES.map((f) => f.id));
   const seen = new Set<number>();
@@ -65,7 +69,8 @@ export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>
     if (!Number.isSafeInteger(categoryId) || categoryId < 1) continue;
     if (validCategoryIds && !validCategoryIds.has(categoryId)) continue;
     const gradeRaw = (entry as any)?.grade;
-    const grade = typeof gradeRaw === 'string' && categoryGrades(categoryId).includes(gradeRaw) ? gradeRaw : null;
+    const grade = typeof gradeRaw === 'string' && gradeRaw.trim() && gradeRaw.length <= QUALITY_MAX_LENGTH
+      && (!qualities || categoryGrades(categoryId, qualities).includes(gradeRaw)) ? gradeRaw : null;
     const pick: OrderPreference = grade ? { familyId, categoryId, grade } : { familyId, categoryId };
     const colorId = Number((entry as any)?.colorId);
     if (Number.isSafeInteger(colorId) && colorId > 0) pick.colorId = colorId;
@@ -93,6 +98,9 @@ export function preferenceForFamily(prefs: OrderPreference[] | null | undefined,
  */
 export async function preferencesFromBody(raw: unknown, database: any): Promise<OrderPreference[] | undefined> {
   if (!Array.isArray(raw)) return undefined;
-  const { data } = await database.from('categories').select('id');
-  return sanitizePreferences(raw, new Set(((data || []) as { id: number }[]).map((c) => c.id)));
+  const [{ data }, { data: setting }] = await Promise.all([
+    database.from('categories').select('id'),
+    database.from('settings').select('value').eq('key', QUALITIES_SETTING_KEY).maybeSingle()
+  ]);
+  return sanitizePreferences(raw, new Set(((data || []) as { id: number }[]).map((c) => c.id)), parseCategoryQualities(setting?.value));
 }

@@ -2698,6 +2698,10 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 
 /* Category tag row: tags shown as chips on every tab, + to add one in place. */
 .cat-tag-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 16px; }
+.cat-quality-bar { margin-top: -8px; }
+.cat-quality-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cat-quality-bar .cat-quality-offer { cursor: pointer; padding: 3px 10px; background: #fff; }
+.cat-quality-bar .cat-quality-offer:hover:not(:disabled) { border-color: var(--navy); color: var(--navy); }
 .cat-tag-bar-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #756e5c; margin-right: 2px; }
 .cat-tag-bar .tag-chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px 3px 10px; min-height: 32px; font-size: 12.5px; }
 .cat-tag-bar .hot-toggle { padding: 0; min-width: 24px; min-height: 24px; margin-left: 0; }

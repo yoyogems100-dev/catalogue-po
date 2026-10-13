@@ -25,3 +25,16 @@ test('a colour button can open on one shade of its stone', () => {
     { familyId: 9, categoryId: 3 }
   ]);
 });
+
+test('qualities: set per category in admin; Ruby keeps 5A / 7A until saved', async () => {
+  const { normalizeQualities, parseCategoryQualities, qualitiesFor, knownQualities } = await import('../lib/qualities');
+  const { categoryGrades } = await import('../lib/order-specs');
+  assert.deepEqual(qualitiesFor(parseCategoryQualities(null), 2), ['5A', '7A']);
+  const saved = parseCategoryQualities(JSON.stringify({ 3: ['4A', ' 5A ', '5a', '7A'], 2: [], 9: 'junk' }));
+  assert.deepEqual(saved[3], ['4A', '5A', '7A']);
+  assert.deepEqual(categoryGrades(2, saved), []); // emptied in admin: no Quality field
+  assert.deepEqual(categoryGrades(3, saved), ['4A', '5A', '7A']);
+  assert.equal(normalizeQualities(['x'.repeat(20)]), undefined);
+  assert.equal(normalizeQualities('5A'), undefined);
+  assert.ok(knownQualities({ 5: ['Super AAA'] }).includes('Super AAA'));
+});

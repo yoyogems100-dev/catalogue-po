@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import IconSelect from './IconSelect';
 import { categoryGrades } from '@/lib/order-specs';
 import type { OrderPreference } from '@/lib/customer-preferences';
-import { useColorFamilies } from './useOrderPreferences';
+import { useCategoryQualities, useColorFamilies } from './useOrderPreferences';
 
 type Category = { id: number; name: string };
 
@@ -37,6 +37,7 @@ export default function PreferencesEditor({
   onChange: (next: OrderPreference[]) => void;
 }) {
   const families = useColorFamilies();
+  const qualities = useCategoryQualities();
   const usedFamilies = new Set(value.map((p) => p.familyId));
   const nextFamily = families.find((f) => !usedFamilies.has(f.id));
 
@@ -45,7 +46,7 @@ export default function PreferencesEditor({
       if (i !== index) return p;
       const merged = { ...p, ...patch };
       // A new category may not offer the grade that was picked for the old one.
-      if (merged.grade && !categoryGrades(merged.categoryId).includes(merged.grade)) delete merged.grade;
+      if (merged.grade && !categoryGrades(merged.categoryId, qualities).includes(merged.grade)) delete merged.grade;
       // A shape and size the team preset belong to the old stone.
       if (patch.categoryId !== undefined && patch.categoryId !== p.categoryId) { delete merged.shapeId; delete merged.size; delete merged.colorId; }
       // So does the shade of the old colour.
@@ -58,7 +59,7 @@ export default function PreferencesEditor({
     <div className="pref-editor">
       {value.length === 0 && <p className="pref-empty">None yet. Add a colour and the stone you usually mean by it.</p>}
       {value.map((pref, index) => {
-        const grades = categoryGrades(pref.categoryId);
+        const grades = categoryGrades(pref.categoryId, qualities);
         const familyOptions = families.filter((f) => f.id === pref.familyId || !usedFamilies.has(f.id));
         return (
           <div className="pref-row" key={pref.familyId}>
