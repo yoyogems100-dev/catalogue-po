@@ -35,7 +35,7 @@ function formatTable(rows: Row[]) {
   const hasAmount = rows.some((r) => r.amount !== undefined);
   const w = (key: 'shape' | 'size' | 'color' | 'qty', label: string) =>
     Math.max(label.length, ...rows.map((r) => r[key].length));
-  const shapeW = w('shape', 'Shape');
+  const shapeW = w('shape', 'Shape/Cut');
   const sizeW = w('size', 'Size');
   const colorW = w('color', 'Color');
   const qtyW = w('qty', 'Qty');
@@ -45,7 +45,7 @@ function formatTable(rows: Row[]) {
   const line = (shape: string, size: string, color: string, qty: string, amount: string) =>
     `${pad(shape, shapeW)} ${pad(size, sizeW)} ${pad(color, colorW)} ${pad(qty, qtyW, false)}${hasAmount ? ` ${pad(amount, amtW, false)}` : ''}`.trimEnd();
 
-  return ['```', line('Shape', 'Size', 'Color', 'Qty', 'Amount'), ...rows.map((r) => line(r.shape, r.size, r.color, r.qty, r.amount || '--')), '```'].join('\n');
+  return ['```', line('Shape/Cut', 'Size', 'Color', 'Qty', 'Amount'), ...rows.map((r) => line(r.shape, r.size, r.color, r.qty, r.amount || '--')), '```'].join('\n');
 }
 
 function categorySections(items: OrderCartItem[]): string[] {

@@ -164,7 +164,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.tableHeaderCell, { width: `${cols.type * 100}%` }]}>Type</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.category * 100}%` }]}>Category</Text>
-            <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape / options</Text>
+            <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape/Cut / options</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.size * 100}%` }]}>Size</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.color * 100}%` }]}>Color</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>Qty</Text>

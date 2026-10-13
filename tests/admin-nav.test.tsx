@@ -40,12 +40,12 @@ test('the side pane stays short: a few entries per workspace, the rest drill dow
   // The owner asked for Categories, Photos, Shapes & sizes and Colours as
   // their own entries; tags & specifications live on the Overview instead.
   const po = WORKSPACES.find((w) => w.key === 'po')!;
-  for (const title of ['Categories', 'Photos', 'Shapes & sizes', 'Colours']) assert.ok(po.groups.some((g) => g.title === title), `${title} is in the PO pane`);
+  for (const title of ['Categories', 'Photos', 'Shapes/cuts & sizes', 'Colours']) assert.ok(po.groups.some((g) => g.title === title), `${title} is in the PO pane`);
   assert.ok(!po.groups.some((g) => /tag/i.test(g.title)), 'no Tags page in the pane');
   for (const w of WORKSPACES) {
     assert.ok(w.groups.length <= 8, `${w.label} shows at most 8 entries`);
     assert.equal(w.groups.filter((g) => g.list).length, 1, `${w.label} has one Categories drill-down`);
   }
-  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes & sizes', 'Colours', ...(CATALOGUE_PRICES_ENABLED ? ['Pricing'] : []), 'Suppliers']);
+  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes/cuts & sizes', 'Colours', ...(CATALOGUE_PRICES_ENABLED ? ['Pricing'] : []), 'Suppliers']);
   assert.ok(poCategoryPages(29).some((l) => l.href === '/admin/categories/29?tab=strip-counts'), 'Rainbow Corundum has Strip counts');
 });

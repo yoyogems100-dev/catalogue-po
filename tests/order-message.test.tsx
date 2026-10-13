@@ -16,7 +16,7 @@ test('WhatsApp message: category once on top, shape short codes, no category col
   assert.equal(message.split('Crushed Ice Cut').length - 1, 1);
   assert.ok(!message.includes('Category'));
   assert.ok(!message.includes('Request Type'));
-  assert.match(message, /\*Crushed Ice Cut\*\n```\nShape Size Color +Qty\nHS +4x4 +G-20 D-Green +200\nHS +4x4 +G-34 D-Aquamarine +200\nOS +3x5 +G-20 D-Green +200\n```/);
+  assert.match(message, /\*Crushed Ice Cut\*\n```\nShape\/Cut +Size +Color +Qty\nHS +4x4 +G-20 D-Green +200\nHS +4x4 +G-34 D-Aquamarine +200\nOS +3x5 +G-20 D-Green +200\n```/);
   // A shape without a code keeps its full name.
-  assert.match(message, /\*Glass Pearls\*\n```\nShape Size Color Qty\nPear +4x6 +Red +200\n```/);
+  assert.match(message, /\*Glass Pearls\*\n```\nShape\/Cut +Size +Color +Qty\nPear +4x6 +Red +200\n```/);
 });

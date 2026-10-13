@@ -44,6 +44,7 @@ export default function CategoryTabs({
   quantityField,
   qualities,
   formFields,
+  shapeQualities,
   exploreDefault
 }: {
   categoryId: number;
@@ -69,6 +70,8 @@ export default function CategoryTabs({
   /** The qualities this category's order form offers. */
   qualities?: string[];
   formFields?: FormFields;
+  /** Shapes/cuts with their own qualities, replacing the category's. */
+  shapeQualities?: Record<number, string[]>;
   /** The filter Explore Photos opens with, chosen in the admin. */
   exploreDefault?: ExploreFilter;
 }) {
@@ -119,6 +122,7 @@ export default function CategoryTabs({
           quantityField={quantityField}
           qualities={qualities}
           formFields={formFields}
+          shapeQualities={shapeQualities}
         />
         </div>
       {tab === 'photos' && (

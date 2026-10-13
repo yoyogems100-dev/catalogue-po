@@ -159,7 +159,7 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   }
 
   function exportCsv() {
-    const rows = [['Shape', 'Size (mm)', 'Color', 'Price column', `Price (₹ per ${priceUnit})`]];
+    const rows = [['Shape/Cut', 'Size (mm)', 'Color', 'Price column', `Price (₹ per ${priceUnit})`]];
     for (const shape of shapes) {
       const shapeSizes = sizes.filter((s) => s.shapeId === shape.id);
       for (const size of shapeSizes) {

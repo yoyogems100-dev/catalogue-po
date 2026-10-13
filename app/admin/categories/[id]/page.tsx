@@ -19,7 +19,7 @@ import OrderFormDesigner from '@/components/admin/OrderFormDesigner';
 import { FORM_FIELDS_SETTING_KEY, formFieldsFor, parseFormFields } from '@/lib/form-fields';
 import { QUANTITY_FIELDS_SETTING_KEY, parseQuantityFields, quantityFieldFor } from '@/lib/quantity-field';
 import { sizeKey } from '@/lib/size-options';
-import { QUALITIES_SETTING_KEY, knownQualities, parseCategoryQualities, qualitiesFor } from '@/lib/qualities';
+import { QUALITIES_SETTING_KEY, SHAPE_QUALITIES_SETTING_KEY, knownQualities, parseCategoryQualities, parseShapeQualities, qualitiesFor } from '@/lib/qualities';
 import { specialCategory } from '@/lib/order-specs';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
@@ -43,7 +43,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // shared Shapes & sizes and Colors tabs.
   const [{ data: head }, { data: qualityRow }] = await Promise.all([
     supabaseAdmin.from('categories').select('option_label').eq('id', categoryId).maybeSingle(),
-    supabaseAdmin.from('settings').select('key, value').in('key', [QUALITIES_SETTING_KEY, FORM_FIELDS_SETTING_KEY, QUANTITY_FIELDS_SETTING_KEY])
+    supabaseAdmin.from('settings').select('key, value').in('key', [QUALITIES_SETTING_KEY, SHAPE_QUALITIES_SETTING_KEY, FORM_FIELDS_SETTING_KEY, QUANTITY_FIELDS_SETTING_KEY])
   ]);
   const settingValue = (key: string) => (qualityRow || []).find((row: { key: string }) => row.key === key)?.value as string | undefined;
   const allQualities = parseCategoryQualities(settingValue(QUALITIES_SETTING_KEY));
@@ -191,7 +191,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       </nav>
       <CategoryTagBar categoryId={categoryId} tags={linkedTags.map((t: any) => ({ id: t.id, name: t.name }))} allTags={(allTags || []).map((t: any) => ({ id: t.id, name: t.name }))} />
       {/* Rainbow Corundum and Hole Punched order with their own options. */}
-      {!specialCategory(categoryId) && <CategoryQualityBar key={`q${categoryId}-${qualitiesFor(allQualities, categoryId).join(',')}`} categoryId={categoryId} initial={qualitiesFor(allQualities, categoryId)} known={knownQualities(allQualities)} />}
+      {!specialCategory(categoryId) && <CategoryQualityBar key={`q${categoryId}-${qualitiesFor(allQualities, categoryId).join(',')}`} categoryId={categoryId} initial={qualitiesFor(allQualities, categoryId)} known={knownQualities(allQualities)} shapes={linkedShapes.map((s: any) => ({ id: s.id, name: s.name }))} shapeInitial={parseShapeQualities(settingValue(SHAPE_QUALITIES_SETTING_KEY))[categoryId] || {}} />}
       {tab === 'overview' ? <OrderFormDesigner
         key={JSON.stringify([settingValue(FORM_FIELDS_SETTING_KEY) ?? '', qualitiesFor(allQualities, categoryId), quantityFieldFor(parseQuantityFields(settingValue(QUANTITY_FIELDS_SETTING_KEY)), categoryId).label])}
         categoryId={categoryId}

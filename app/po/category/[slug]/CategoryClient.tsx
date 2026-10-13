@@ -146,7 +146,7 @@ export default function CategoryClient({
               options={shapes}
               value={shapeFilter}
               onChange={(v) => { setShapeFilter(v); setSizeFilter('all'); }}
-              allLabel="All shapes"
+              allLabel="All shapes/cuts"
               leading="icon"
             />
           )}

@@ -36,7 +36,7 @@ export default async function ShapesPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <h1>Shapes</h1>
+      <h1>Shapes / Cuts</h1>
       <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Master list of {shapes?.length || 0} shapes. Add new shapes or sizes here -- they'll then be selectable
         from the dropdown on any category. Expand "Categories" on any shape to link/unlink it from multiple
