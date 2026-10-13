@@ -1,8 +1,11 @@
 import {supabaseAdmin} from './supabase-admin';
 import {specialCategory,validSpecQuantity,categoryGrades,type OrderSpecs} from './order-specs';
+import {parseCategoryQualities,QUALITIES_SETTING_KEY,type CategoryQualities} from './qualities';
 // Canonicalize only the two scoped category configurations before any order writes.
 export async function validateOrderSpecs<T extends {categoryId:number;shapeId:number;sizeId:number|null;colorId:number|null;qty:number;orderSpecs?:OrderSpecs|null}>(items:T[], database:any=supabaseAdmin):Promise<T[]> {
  const result:T[]=[];
+ // The qualities each category offers, read once and only if a line has one.
+ let qualities:CategoryQualities|null=null;
  for(const item of items) {
   if(!item || ![item.categoryId,item.shapeId].every(n=>Number.isSafeInteger(n)&&n>0) || (item.sizeId!==null && (!Number.isSafeInteger(item.sizeId)||item.sizeId<=0)))throw Error('Choose valid category, shape and size options.');
   if(item.categoryId===34) {
@@ -31,7 +34,12 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
      if(!rate?.data?.pcs_per_ct||rate.data.pcs_per_ct!==spec.pcsPerCt)throw Error('The carat conversion for this size has changed. Please add the line again.');
      canonical={kind:'carat',pcsPerCt:spec.pcsPerCt};
     } else {
-     if(spec?.kind!=='grade'||!categoryGrades(item.categoryId).includes(spec.grade))throw Error('Extra specifications are not supported for this category.');
+     if(spec?.kind==='grade'&&!qualities) {
+      const row=await database.from('settings').select('value').eq('key',QUALITIES_SETTING_KEY).maybeSingle();
+      if(row.error)throw Error('Could not validate category options. Please retry.');
+      qualities=parseCategoryQualities(row.data?.value);
+     }
+     if(spec?.kind!=='grade'||!categoryGrades(item.categoryId,qualities).includes(spec.grade))throw Error('This quality is not offered for this category. Please choose the quality again.');
      canonical={kind:'grade',grade:spec.grade};
     }
    }

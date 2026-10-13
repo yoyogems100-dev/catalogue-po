@@ -7,7 +7,7 @@ import CustomerOrderForOthers from './CustomerOrderForOthers';
 import { getCredentials } from '@/lib/customer-credentials';
 import { placeSuggestions } from '@/lib/customer-places';
 import { getUsedPlaces } from '@/lib/customer-places-server';
-import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons, sanitizeColorButtons } from '@/lib/color-family';
+import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, parseColorButtons, parseColorNames, sanitizeColorButtons } from '@/lib/color-family';
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences, sanitizePreferences } from '@/lib/customer-preferences';
 import CategoryChips from '@/components/admin/CategoryChips';
 import StatusTag from '@/components/admin/StatusTag';
@@ -33,7 +33,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const [{ data: items }, { data: categories }, { data: settings }] = await Promise.all([
     orderIds.length ? supabaseAdmin.from('order_items').select('order_id,quantity,category_id').in('order_id', orderIds) : Promise.resolve({ data: [] as any[] }),
     supabaseAdmin.from('categories').select('id,name,slug,archived_at').order('num'),
-    supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY])
+    supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY, COLOR_NAMES_SETTING_KEY])
   ]);
   const setting = (key: string) => (settings || []).find((s: { key: string }) => s.key === key)?.value as string | undefined;
   const categoryNameById: Record<number, string> = Object.fromEntries((categories || []).map((c: any) => [c.id, c.name]));
@@ -68,6 +68,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
         initialPicks={sanitizePreferences(customer.order_preferences)}
         shopButtons={parseColorButtons(setting(COLOR_BUTTONS_SETTING_KEY))}
         shopPicks={parseDefaultPreferences(setting(DEFAULT_PICKS_SETTING_KEY))}
+        shopNames={parseColorNames(setting(COLOR_NAMES_SETTING_KEY))}
       />
     ) : (
       <section className="admin-linked-records">

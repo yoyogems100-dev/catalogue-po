@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { loadCatalogueMap } from '@/lib/catalogue-map';
-import { COLOR_BUTTONS_SETTING_KEY, parseColorButtons } from '@/lib/color-family';
+import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, parseColorButtons, parseColorNames } from '@/lib/color-family';
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences } from '@/lib/customer-preferences';
 import CatalogueMapClient, { type Tab } from './CatalogueMapClient';
 
@@ -14,7 +14,7 @@ export default async function CatalogueMapPage({ searchParams }: { searchParams:
   const [map, { error: materialsError }, { data: settings }] = await Promise.all([
     loadCatalogueMap(supabaseAdmin),
     supabaseAdmin.from('materials').select('id').limit(1),
-    supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY])
+    supabaseAdmin.from('settings').select('key, value').in('key', [COLOR_BUTTONS_SETTING_KEY, DEFAULT_PICKS_SETTING_KEY, COLOR_NAMES_SETTING_KEY])
   ]);
   const setting = (key: string) => (settings || []).find((s: { key: string }) => s.key === key)?.value as string | undefined;
   return (
@@ -30,6 +30,7 @@ export default async function CatalogueMapPage({ searchParams }: { searchParams:
         initialTab={TABS.includes(tab as Tab) ? (tab as Tab) : 'buttons'}
         shopButtons={parseColorButtons(setting(COLOR_BUTTONS_SETTING_KEY))}
         shopPicks={parseDefaultPreferences(setting(DEFAULT_PICKS_SETTING_KEY))}
+        shopNames={parseColorNames(setting(COLOR_NAMES_SETTING_KEY))}
       />
     </>
   );

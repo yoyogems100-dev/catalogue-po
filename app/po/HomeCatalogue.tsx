@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
-import { COLOR_FAMILIES, colorButtonFamilies, colorFamilyId, colorSearchText } from '@/lib/color-family';
+import { colorButtonFamilies, colorFamilyId, colorSearchText, namedFamilies, type ColorNames } from '@/lib/color-family';
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
-import { useColorButtons } from '@/components/useOrderPreferences';
+import { useColorButtons, useColorNames } from '@/components/useOrderPreferences';
 import { layoutHomeSections, type HomeSections } from '@/lib/home-sections';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
@@ -87,14 +87,18 @@ export default function HomeCatalogue({
   allShapes,
   allColors,
   sections,
-  colorButtonIds
+  colorButtonIds,
+  colorNames: shopColorNames = {}
 }: {
   categories: Category[];
   allShapes: Ref[];
   allColors: Ref[];
   sections: HomeSections;
   colorButtonIds: number[];
+  /** The shop's names for colour buttons, as rendered. */
+  colorNames?: ColorNames;
 }) {
+  const colorNames = useColorNames() ?? shopColorNames;
   const [query, setQuery] = useState('');
   const [shapeFilter, setShapeFilter] = useState<number | 'all'>('all');
   const [familyFilter, setFamilyFilter] = useState<number | 'all'>('all');
@@ -109,21 +113,21 @@ export default function HomeCatalogue({
   const familyOptions = useMemo(() => {
     const present = new Set<number>();
     categories.forEach((c) => c.colorIds.forEach((id) => { const f = familyByColorId.get(id); if (f) present.add(f); }));
-    return COLOR_FAMILIES.filter((f) => present.has(f.id));
-  }, [categories, familyByColorId]);
+    return namedFamilies(colorNames).filter((f) => present.has(f.id));
+  }, [categories, familyByColorId, colorNames]);
 
   // "Order by colour" buttons: the shop's list as rendered, swapped for this
   // buyer's own list once it has loaded.
   const buyerButtonIds = useColorButtons();
   const colorButtons = useMemo(() => {
     const present = new Set(familyOptions.map((f) => f.id));
-    return colorButtonFamilies(buyerButtonIds ?? colorButtonIds).filter((f) => present.has(f.id));
-  }, [buyerButtonIds, colorButtonIds, familyOptions]);
+    return colorButtonFamilies(buyerButtonIds ?? colorButtonIds, colorNames).filter((f) => present.has(f.id));
+  }, [buyerButtonIds, colorButtonIds, familyOptions, colorNames]);
 
   // Everything a buyer might type about a category, lower-cased once.
   const searchIndex = useMemo(() => {
     const shapeName = new Map(allShapes.map((s) => [s.id, s.name.toLowerCase()]));
-    const colorText = new Map(allColors.map((c) => [c.id, colorSearchText(c.name, c.hex)]));
+    const colorText = new Map(allColors.map((c) => [c.id, colorSearchText(c.name, c.hex, colorNames)]));
     // Words, not one long string: "red" should match "Ruby Red" but not the
     // middle of "Coloured".
     const words = (text: string) => text.split(/[^a-z0-9]+/).filter(Boolean);
@@ -134,7 +138,7 @@ export default function HomeCatalogue({
       index.set(c.id, { name, all: [...name, ...rest] });
     });
     return index;
-  }, [categories, allShapes, allColors]);
+  }, [categories, allShapes, allColors, colorNames]);
 
   const { shelves, rest: unshelved } = useMemo(() => layoutHomeSections(sections, categories), [sections, categories]);
 

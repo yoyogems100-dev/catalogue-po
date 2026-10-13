@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { OrderPreference } from '@/lib/customer-preferences';
+import { namedFamilies, sanitizeColorNames, type ColorFamily, type ColorNames } from '@/lib/color-family';
+import { parseCategoryQualities, type CategoryQualities } from '@/lib/qualities';
 
 
 // One request per page load, shared by every component that asks: the header's
@@ -10,7 +12,7 @@ import type { OrderPreference } from '@/lib/customer-preferences';
 // -- and the colour buttons the shop has chosen to show.
 // colorButtons is null until loaded (or if loading failed), so a caller can
 // keep showing what the server rendered instead of flashing another list.
-type QuickOrderConfig = { preferences: OrderPreference[]; colorButtons: number[] | null };
+type QuickOrderConfig = { preferences: OrderPreference[]; colorButtons: number[] | null; colorNames: ColorNames | null; qualities: CategoryQualities | null };
 let pending: Promise<QuickOrderConfig> | null = null;
 
 function load(): Promise<QuickOrderConfig> {
@@ -19,15 +21,17 @@ function load(): Promise<QuickOrderConfig> {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => ({
         preferences: Array.isArray(data?.preferences) ? data.preferences : [],
-        colorButtons: Array.isArray(data?.colorButtons) ? data.colorButtons : null
+        colorButtons: Array.isArray(data?.colorButtons) ? data.colorButtons : null,
+        colorNames: data?.colorNames ? sanitizeColorNames(data.colorNames) : null,
+        qualities: data?.qualities ? parseCategoryQualities(JSON.stringify(data.qualities)) : null
       }))
-      .catch(() => ({ preferences: [], colorButtons: null }));
+      .catch(() => ({ preferences: [], colorButtons: null, colorNames: null, qualities: null }));
   }
   return pending;
 }
 
 function useQuickOrderConfig(): QuickOrderConfig {
-  const [config, setConfig] = useState<QuickOrderConfig>({ preferences: [], colorButtons: null });
+  const [config, setConfig] = useState<QuickOrderConfig>({ preferences: [], colorButtons: null, colorNames: null, qualities: null });
   useEffect(() => {
     let live = true;
     load().then((c) => { if (live) setConfig(c); });
@@ -43,4 +47,19 @@ export function useOrderPreferences(): OrderPreference[] {
 /** Colour family IDs to offer as buttons, in order: this buyer's list or the shop's. Null until loaded. */
 export function useColorButtons(): number[] | null {
   return useQuickOrderConfig().colorButtons;
+}
+
+/** What the shop calls each colour button ("Yellow" for Yellow & Gold). Null until loaded. */
+export function useColorNames(): ColorNames | null {
+  return useQuickOrderConfig().colorNames;
+}
+
+/** Every colour family under the shop's name for it. */
+export function useColorFamilies(initialNames: ColorNames = {}): ColorFamily[] {
+  return namedFamilies(useColorNames() ?? initialNames);
+}
+
+/** The qualities each category offers (set in admin). Null until loaded. */
+export function useCategoryQualities(): CategoryQualities | null {
+  return useQuickOrderConfig().qualities;
 }

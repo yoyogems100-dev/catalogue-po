@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
-import { COLOR_FAMILIES } from '@/lib/color-family';
+import { COLOR_FAMILIES, MAX_COLOR_NAME_LENGTH, namedFamilies, type ColorNames } from '@/lib/color-family';
 import { categoryGrades } from '@/lib/order-specs';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { sizesFor } from '@/lib/catalogue-map';
 import { MAX_PICK_QTY, preferenceForFamily, type OrderPreference } from '@/lib/customer-preferences';
 import { useCatalogueMap } from '@/components/useCatalogueMap';
+import { useCategoryQualities } from '@/components/useOrderPreferences';
 
 type Category = { id: number; name: string; slug?: string | null };
 
@@ -16,8 +17,10 @@ type Category = { id: number; name: string; slug?: string | null };
  * Colour buttons in two compact parts: every colour as a chip (tap to show or
  * hide; the number is its place on the row), then one line per shown colour
  * that opens to the stone, quality, shape, size and quantity it starts on.
- * The shop version sets it for everyone; the buyer version starts from the
- * shop's and can override either part.
+ * The shop version sets it for everyone -- and what each button is called;
+ * the buyer version starts from the shop's and can override either part.
+ * Each colour can also open on one shade of its stone (Blue -> Nano -> Blue
+ * Nano #113) so the colour list isn't blank.
  */
 export default function ColourSetupEditor({
   mode,
@@ -26,7 +29,9 @@ export default function ColourSetupEditor({
   picks,
   onChange,
   shopButtons = [],
-  shopPicks = []
+  shopPicks = [],
+  names = {},
+  onRename
 }: {
   mode: 'shop' | 'buyer';
   categories: Category[];
@@ -36,13 +41,26 @@ export default function ColourSetupEditor({
   onChange: (next: { buttons: number[] | null; picks: OrderPreference[] }) => void;
   shopButtons?: number[];
   shopPicks?: OrderPreference[];
+  /** The shop's names for the buttons. */
+  names?: ColorNames;
+  /** Shop mode: rename a button as typed; null puts the usual name back. */
+  onRename?: (familyId: number, name: string | null) => void;
 }) {
+  const families = namedFamilies(names);
+  const qualities = useCategoryQualities();
   const map = useCatalogueMap(true);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [renaming, setRenaming] = useState<number | null>(null);
   const followsShop = mode === 'buyer' && buttons === null;
   const shown = buttons ?? shopButtons;
   const categoryName = (id: number) => categories.find((c) => c.id === id)?.name || 'a stone';
   const shapeName = (id: number) => map?.shapes.find((s) => s.id === id)?.name || 'Shape';
+  const colourName = (id: number) => map?.colors.find((c) => c.id === id)?.name || 'Colour';
+  /** This stone's colours in this family, the shades a button can open on. */
+  const shadesOf = (categoryId: number, familyId: number) => {
+    const category = map?.categories.find((c) => c.id === categoryId);
+    return category ? (map?.colors || []).filter((c) => c.familyId === familyId && category.colorIds.includes(c.id)) : [];
+  };
 
   function setButtons(next: number[] | null) { onChange({ buttons: next, picks }); }
   // Tapping a chip while following the shop starts this buyer's own list.
@@ -66,11 +84,14 @@ export default function ColourSetupEditor({
   function chooseStone(familyId: number, categoryId: number | null) {
     if (!categoryId) return putPick(familyId, null);
     const current = preferenceForFamily(picks, familyId) ?? (mode === 'buyer' ? preferenceForFamily(shopPicks, familyId) : null);
-    const grades = categoryGrades(categoryId);
+    const grades = categoryGrades(categoryId, qualities);
     const sameStone = current?.categoryId === categoryId;
     const grade = (sameStone ? current?.grade : undefined) ?? (grades.includes('5A') ? '5A' : grades[0]);
     const pick: OrderPreference = { familyId, categoryId };
     if (grades.length && grade) pick.grade = grade;
+    // Same stone keeps its shade; a new one opens on its first shade.
+    const shade = sameStone && current?.colorId ? current.colorId : shadesOf(categoryId, familyId)[0]?.id;
+    if (shade) pick.colorId = shade;
     if (sameStone && current?.shapeId) pick.shapeId = current.shapeId;
     if (sameStone && current?.size) pick.size = current.size;
     if (current?.qty) pick.qty = current.qty;
@@ -81,13 +102,14 @@ export default function ColourSetupEditor({
     const base = preferenceForFamily(picks, familyId) ?? (mode === 'buyer' ? preferenceForFamily(shopPicks, familyId) : null);
     if (!base) return;
     const next: OrderPreference = { ...base, ...patch, familyId };
-    for (const key of ['grade', 'shapeId', 'size', 'qty'] as const) if (next[key] == null || next[key] === '') delete next[key];
+    for (const key of ['grade', 'colorId', 'shapeId', 'size', 'qty'] as const) if (next[key] == null || next[key] === '') delete next[key];
     putPick(familyId, next);
   }
 
   function summary(pick: OrderPreference | null) {
     if (!pick) return null;
     const parts = [`${categoryName(pick.categoryId)}${pick.grade ? ` ${pick.grade}` : ''}`];
+    if (pick.colorId) parts.push(colourName(pick.colorId));
     if (pick.shapeId) parts.push(shapeName(pick.shapeId));
     if (pick.size) parts.push(`${pick.size} mm`);
     if (pick.qty) parts.push(`${pick.qty.toLocaleString('en-IN')} pcs`);
@@ -105,7 +127,7 @@ export default function ColourSetupEditor({
 
       <h3 className="colour-setup-label">Buttons shown <small>{shown.length} of {COLOR_FAMILIES.length} · tap to show or hide</small></h3>
       <div className="colour-chip-grid" role="group" aria-label="Colour buttons shown">
-        {COLOR_FAMILIES.map((f) => {
+        {families.map((f) => {
           const index = shown.indexOf(f.id);
           return (
             <button key={f.id} type="button" className={`colour-chip${index >= 0 ? ' on' : ''}`} aria-pressed={index >= 0} onClick={() => toggle(f.id)}>
@@ -121,13 +143,15 @@ export default function ColourSetupEditor({
       {shown.length === 0 && <p className="colour-setup-empty">No colour buttons are shown. Tap a colour above to add one.</p>}
       <ol className="colour-pick-list">
         {shown.map((id, index) => {
-          const family = COLOR_FAMILIES.find((f) => f.id === id)!;
+          const family = families.find((f) => f.id === id)!;
+          const usualName = COLOR_FAMILIES.find((f) => f.id === id)!.name;
           const own = preferenceForFamily(picks, id);
           const shop = mode === 'buyer' ? preferenceForFamily(shopPicks, id) : null;
           const pick = own ?? shop;
+          const shades = pick ? shadesOf(pick.categoryId, id) : [];
           const open = openId === id;
           const category = pick ? map?.categories.find((c) => c.id === pick.categoryId) : null;
-          const grades = pick ? categoryGrades(pick.categoryId) : [];
+          const grades = pick ? categoryGrades(pick.categoryId, qualities) : [];
           const shapes = category ? (map?.shapes || []).filter((s) => category.shapeIds.includes(s.id)) : [];
           const sizes = map && category ? sizesFor(map, [category], pick?.shapeId ?? null) : [];
           const sizeIndex = pick?.size ? sizes.findIndex((s) => s.key === pick.size) : -1;
@@ -146,6 +170,10 @@ export default function ColourSetupEditor({
                   </span>
                   <span className="colour-pick-chevron" aria-hidden>▾</span>
                 </button>
+                {onRename && (
+                  <button type="button" className="colour-pick-rename" aria-label={`Rename ${family.name}`} title="Rename this button"
+                    onClick={() => { setOpenId(id); setRenaming(id); }}>✎</button>
+                )}
                 {!followsShop && (
                   <span className="colour-pick-move">
                     <button type="button" aria-label={`Move ${family.name} up`} disabled={index === 0} onClick={() => move(id, -1)}>↑</button>
@@ -155,6 +183,21 @@ export default function ColourSetupEditor({
               </div>
               {open && (
                 <div className="colour-pick-editor">
+                  {onRename && (
+                    <div className="colour-pick-name">
+                      <label className="po-label" htmlFor={`colour-name-${id}`}>Button name</label>
+                      <input
+                        id={`colour-name-${id}`}
+                        value={names[id] ?? usualName}
+                        maxLength={MAX_COLOR_NAME_LENGTH}
+                        placeholder={usualName}
+                        autoFocus={renaming === id}
+                        onFocus={(e) => { if (renaming === id) { e.currentTarget.select(); setRenaming(null); } }}
+                        onChange={(e) => onRename(id, e.target.value)}
+                      />
+                      {names[id] != null && names[id].trim() !== usualName && <small>Usually &ldquo;{usualName}&rdquo; · <button type="button" onClick={() => onRename(id, null)}>Use that</button></small>}
+                    </div>
+                  )}
                   <div className="colour-pick-stone">
                     <span className="po-label">Stone</span>
                     <IconSelect
@@ -174,6 +217,19 @@ export default function ColourSetupEditor({
                           <button key={g} type="button" aria-pressed={pick?.grade === g} className={pick?.grade === g ? 'active' : ''} onClick={() => patchPick(id, { grade: g })}>{g}</button>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {pick && shades.length > 0 && (
+                    <div className="colour-pick-shade">
+                      <span className="po-label">Colour</span>
+                      <IconSelect
+                        options={shades.map((c) => ({ id: c.id, name: c.name, hex: c.hex, refPhotoUrl: c.refPhotoUrl }))}
+                        value={pick.colorId && shades.some((c) => c.id === pick.colorId) ? pick.colorId : 'all'}
+                        onChange={(v) => patchPick(id, { colorId: v === 'all' ? null : v })}
+                        allLabel="Buyer chooses"
+                        leading="swatch"
+                        searchable={shades.length > 8}
+                      />
                     </div>
                   )}
                   {pick && (

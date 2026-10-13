@@ -5,10 +5,9 @@ import IconSelect from '@/components/IconSelect';
 import ColorSwatch from '@/components/ColorSwatch';
 import StoneFinder from '@/components/StoneFinder';
 import ColourSetupEditor from '@/components/admin/ColourSetupEditor';
-import { COLOR_BUTTONS_SETTING_KEY } from '@/lib/color-family';
+import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, namedFamilies, sanitizeColorNames, type ColorNames } from '@/lib/color-family';
 import { DEFAULT_PICKS_SETTING_KEY, type OrderPreference } from '@/lib/customer-preferences';
 import { categoryIconUrl } from '@/lib/category-icons';
-import { COLOR_FAMILIES } from '@/lib/color-family';
 import { sizeKey } from '@/lib/size-options';
 import { compareSizeKeys, groupByMaterial, type CatalogueMap, type MapCategory } from '@/lib/catalogue-map';
 
@@ -28,12 +27,13 @@ async function send(url: string, method: 'POST' | 'DELETE' | 'PATCH', body: unkn
  * that carry it, pick a size and tick the stones cut in it, or arrange stones
  * under materials. Every tick saves straight away.
  */
-export default function CatalogueMapClient({ initialMap, materialsReady, initialTab = 'buttons', shopButtons, shopPicks }: {
+export default function CatalogueMapClient({ initialMap, materialsReady, initialTab = 'buttons', shopButtons, shopPicks, shopNames }: {
   initialMap: CatalogueMap;
   materialsReady: boolean;
   initialTab?: Tab;
   shopButtons: number[];
   shopPicks: OrderPreference[];
+  shopNames: ColorNames;
 }) {
   const [map, setMap] = useState(initialMap);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -69,11 +69,11 @@ export default function CatalogueMapClient({ initialMap, materialsReady, initial
         ))}
       </div>
       {status && <p role="status" className={`catmap-status ${status.tone}`}>{status.text}</p>}
-      {tab === 'buttons' && <ButtonsTab map={map} initialButtons={shopButtons} initialPicks={shopPicks} />}
-      {tab === 'colour' && <ColourTab map={map} busy={busy} run={run} updateCategory={updateCategory} />}
+      {tab === 'buttons' && <ButtonsTab map={map} initialButtons={shopButtons} initialPicks={shopPicks} initialNames={shopNames} />}
+      {tab === 'colour' && <ColourTab map={map} busy={busy} run={run} updateCategory={updateCategory} names={shopNames} />}
       {tab === 'size' && <SizeTab map={map} busy={busy} run={run} updateCategory={updateCategory} />}
       {tab === 'materials' && <MaterialsTab map={map} setMap={setMap} busy={busy} run={run} ready={materialsReady} />}
-      {tab === 'preview' && <PreviewTab map={map} />}
+      {tab === 'preview' && <PreviewTab map={map} names={shopNames} />}
     </div>
   );
 }
@@ -132,7 +132,7 @@ function StoneChecklist({ map, isOn, onToggle, busyKey, busy }: {
   );
 }
 
-function ColourTab({ map, busy, run, updateCategory }: TabProps) {
+function ColourTab({ map, busy, run, updateCategory, names }: TabProps & { names: ColorNames }) {
   const [familyId, setFamilyId] = useState<number | null>(null);
   const [colorId, setColorId] = useState<number | null>(null);
   const colours = familyId ? map.colors.filter((c) => c.familyId === familyId) : map.colors;
@@ -153,7 +153,7 @@ function ColourTab({ map, busy, run, updateCategory }: TabProps) {
       <p className="catmap-hint">Pick a colour, then tick every stone that comes in it. Untick to take it away.</p>
       <div className="catmap-families" role="group" aria-label="Colour family">
         <button type="button" className={`qo-family-chip${familyId === null ? ' active' : ''}`} onClick={() => setFamilyId(null)}>All colours</button>
-        {COLOR_FAMILIES.map((f) => (
+        {namedFamilies(names).map((f) => (
           <button key={f.id} type="button" className={`qo-family-chip${familyId === f.id ? ' active' : ''}`} onClick={() => { setFamilyId(f.id); setColorId(null); }}>
             <ColorSwatch hex={f.hex} refPhotoUrl={f.refPhotoUrl} size={20} />
             {f.name}
@@ -399,7 +399,7 @@ function MaterialsTab({ map, setMap, busy, run, ready }: {
   );
 }
 
-function PreviewTab({ map }: { map: CatalogueMap }) {
+function PreviewTab({ map, names }: { map: CatalogueMap; names: ColorNames }) {
   const [familyId, setFamilyId] = useState<number | null>(null);
   const [colorId, setColorId] = useState<number | null>(null);
   const colours = familyId ? map.colors.filter((c) => c.familyId === familyId) : map.colors;
@@ -407,7 +407,7 @@ function PreviewTab({ map }: { map: CatalogueMap }) {
     <>
       <p className="catmap-hint">What a buyer sees in Quick Order: choose a colour, shape and size, and these are the stones offered.</p>
       <div className="catmap-families" role="group" aria-label="Colour family">
-        {COLOR_FAMILIES.map((f) => (
+        {namedFamilies(names).map((f) => (
           <button key={f.id} type="button" className={`qo-family-chip${familyId === f.id ? ' active' : ''}`} onClick={() => { setFamilyId(familyId === f.id ? null : f.id); setColorId(null); }}>
             <ColorSwatch hex={f.hex} refPhotoUrl={f.refPhotoUrl} size={20} />
             {f.name}
@@ -430,8 +430,10 @@ function PreviewTab({ map }: { map: CatalogueMap }) {
   );
 }
 
-function ButtonsTab({ map, initialButtons, initialPicks }: { map: CatalogueMap; initialButtons: number[]; initialPicks: OrderPreference[] }) {
+function ButtonsTab({ map, initialButtons, initialPicks, initialNames }: { map: CatalogueMap; initialButtons: number[]; initialPicks: OrderPreference[]; initialNames: ColorNames }) {
   const [value, setValue] = useState<{ buttons: number[] | null; picks: OrderPreference[] }>({ buttons: initialButtons, picks: initialPicks });
+  // As typed; tidied (and blanks dropped) when saved.
+  const [names, setNames] = useState<ColorNames>(initialNames);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -442,6 +444,9 @@ function ButtonsTab({ map, initialButtons, initialPicks }: { map: CatalogueMap; 
     try {
       await send('/api/settings', 'PATCH', { key: COLOR_BUTTONS_SETTING_KEY, value: (value.buttons || []).join(',') });
       await send('/api/settings', 'PATCH', { key: DEFAULT_PICKS_SETTING_KEY, value: JSON.stringify(value.picks) });
+      const clean = sanitizeColorNames(names);
+      await send('/api/settings', 'PATCH', { key: COLOR_NAMES_SETTING_KEY, value: JSON.stringify(clean) });
+      setNames(clean);
       setDirty(false);
       setStatus({ tone: 'ok', text: 'Saved. Buyers see the new colour buttons the next time they open the site.' });
     } catch (e) {
@@ -464,6 +469,11 @@ function ButtonsTab({ map, initialButtons, initialPicks }: { map: CatalogueMap; 
         buttons={value.buttons}
         picks={value.picks}
         onChange={(next) => { setValue(next); setDirty(true); setStatus(null); }}
+        names={names}
+        onRename={(familyId, name) => {
+          setNames((cur) => { const next = { ...cur }; if (name == null) delete next[familyId]; else next[familyId] = name; return next; });
+          setDirty(true); setStatus(null);
+        }}
       />
       <div className="colour-setup-save">
         <button type="button" className="btn" disabled={saving || !dirty} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save colour buttons' : 'Saved'}</button>

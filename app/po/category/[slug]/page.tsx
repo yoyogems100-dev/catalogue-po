@@ -16,6 +16,7 @@ import CartBag from '@/components/CartBag';
 import Link from 'next/link';
 import { parseExploreFilter } from '@/lib/explore-filter';
 import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
+import { parseCategoryQualities, qualitiesFor, QUALITIES_SETTING_KEY } from '@/lib/qualities';
 
 export const revalidate = 30;
 
@@ -184,6 +185,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
           optionLabel={(data.category as any).option_label ?? null}
           sizeColors={data.sizeColors}
           quantityField={quantityFieldFor(parseQuantityFields(settings[QUANTITY_FIELDS_SETTING_KEY]), data.category.id)}
+          qualities={qualitiesFor(parseCategoryQualities(settings[QUALITIES_SETTING_KEY]), data.category.id)}
           exploreDefault={parseExploreFilter((data.category as any).explore_default_filter)}
         />
       </div>

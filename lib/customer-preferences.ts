@@ -1,5 +1,6 @@
 import { COLOR_FAMILIES } from './color-family';
 import { categoryGrades } from './order-specs';
+import { QUALITIES_SETTING_KEY, QUALITY_MAX_LENGTH, parseCategoryQualities, type CategoryQualities } from './qualities';
 
 // A buyer's standing defaults: "when I say Red I mean Ruby Corundum 5A",
 // "White means 5A Quality CZ". Keyed by colour family so a buyer can start an
@@ -8,11 +9,15 @@ import { categoryGrades } from './order-specs';
 // sign-up or in My Info, and by the team on the admin customer page. The team
 // can also preset the shape, size and quantity a colour starts on (owner,
 // 2026-10-03): "Red opens Ruby 5A, Round 3 mm, 500 pcs". The buyer can still
-// change any of it before adding the line.
+// change any of it before adding the line. And the exact colour within the
+// family (owner, 2026-10-13): Blue -> Nano -> Blue Nano #113, so a colour with
+// several shades in that stone opens on one instead of a blank colour list.
 export type OrderPreference = {
   familyId: number;
   categoryId: number;
   grade?: string | null;
+  /** A colour of this stone, in this family. */
+  colorId?: number | null;
   shapeId?: number | null;
   /** As sizeKey() spells it ("3", "6x8"), so it survives 6*8 / 6x8mm spellings. */
   size?: string | null;
@@ -48,8 +53,11 @@ export function mergePreferences(mine: OrderPreference[], defaults: OrderPrefere
   return [...mine, ...defaults.filter((p) => !own.has(p.familyId))];
 }
 
-/** Drops anything malformed, keeps one entry per colour family (first wins). */
-export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>): OrderPreference[] {
+/** Drops anything malformed, keeps one entry per colour family (first wins).
+ *  With the categories' qualities, a grade the stone doesn't offer is dropped
+ *  too; without them, any plausible grade is kept and the order form checks
+ *  it against what the stone offers when it opens. */
+export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>, qualities?: CategoryQualities): OrderPreference[] {
   if (!Array.isArray(raw)) return [];
   const familyIds = new Set(COLOR_FAMILIES.map((f) => f.id));
   const seen = new Set<number>();
@@ -61,8 +69,11 @@ export function sanitizePreferences(raw: unknown, validCategoryIds?: Set<number>
     if (!Number.isSafeInteger(categoryId) || categoryId < 1) continue;
     if (validCategoryIds && !validCategoryIds.has(categoryId)) continue;
     const gradeRaw = (entry as any)?.grade;
-    const grade = typeof gradeRaw === 'string' && categoryGrades(categoryId).includes(gradeRaw) ? gradeRaw : null;
+    const grade = typeof gradeRaw === 'string' && gradeRaw.trim() && gradeRaw.length <= QUALITY_MAX_LENGTH
+      && (!qualities || categoryGrades(categoryId, qualities).includes(gradeRaw)) ? gradeRaw : null;
     const pick: OrderPreference = grade ? { familyId, categoryId, grade } : { familyId, categoryId };
+    const colorId = Number((entry as any)?.colorId);
+    if (Number.isSafeInteger(colorId) && colorId > 0) pick.colorId = colorId;
     const shapeId = Number((entry as any)?.shapeId);
     if (Number.isSafeInteger(shapeId) && shapeId > 0) pick.shapeId = shapeId;
     const sizeRaw = (entry as any)?.size;
@@ -87,6 +98,9 @@ export function preferenceForFamily(prefs: OrderPreference[] | null | undefined,
  */
 export async function preferencesFromBody(raw: unknown, database: any): Promise<OrderPreference[] | undefined> {
   if (!Array.isArray(raw)) return undefined;
-  const { data } = await database.from('categories').select('id');
-  return sanitizePreferences(raw, new Set(((data || []) as { id: number }[]).map((c) => c.id)));
+  const [{ data }, { data: setting }] = await Promise.all([
+    database.from('categories').select('id'),
+    database.from('settings').select('value').eq('key', QUALITIES_SETTING_KEY).maybeSingle()
+  ]);
+  return sanitizePreferences(raw, new Set(((data || []) as { id: number }[]).map((c) => c.id)), parseCategoryQualities(setting?.value));
 }
