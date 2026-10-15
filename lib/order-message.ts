@@ -28,24 +28,21 @@ function sizeSortKey(sizeMm: string): number {
   return Number.isNaN(n) ? Number.POSITIVE_INFINITY : n;
 }
 
-// One table per category. The category is the heading above it rather than a
-// column, and shapes print as their short code (HS, OS...), so a line fits a
-// phone screen instead of wrapping.
-function formatTable(rows: Row[]) {
+// About this many characters fit one line of a WhatsApp bubble on a phone.
+const PHONE_LINE = 34;
+
+// One line per item, fields in a fixed order under a key line, with no column
+// padding -- a padded table was as wide as its longest shape name, which
+// wrapped every row on a phone into two unreadable halves. When any item is
+// still long enough to wrap, a blank line separates the items so each one
+// reads as a unit.
+function formatLines(rows: Row[]) {
   const hasAmount = rows.some((r) => r.amount !== undefined);
-  const w = (key: 'shape' | 'size' | 'color' | 'qty', label: string) =>
-    Math.max(label.length, ...rows.map((r) => r[key].length));
-  const shapeW = w('shape', 'Shape/Cut');
-  const sizeW = w('size', 'Size');
-  const colorW = w('color', 'Color');
-  const qtyW = w('qty', 'Qty');
-  const amtW = hasAmount ? Math.max('Amount'.length, ...rows.map((r) => (r.amount || '').length)) : 0;
-
-  const pad = (s: string, n: number, end = true) => (end ? s.padEnd(n) : s.padStart(n));
-  const line = (shape: string, size: string, color: string, qty: string, amount: string) =>
-    `${pad(shape, shapeW)} ${pad(size, sizeW)} ${pad(color, colorW)} ${pad(qty, qtyW, false)}${hasAmount ? ` ${pad(amount, amtW, false)}` : ''}`.trimEnd();
-
-  return ['```', line('Shape/Cut', 'Size', 'Color', 'Qty', 'Amount'), ...rows.map((r) => line(r.shape, r.size, r.color, r.qty, r.amount || '--')), '```'].join('\n');
+  const join = (parts: string[]) => parts.filter(Boolean).join(' · ');
+  const key = join(['Shape/Cut', 'Size', 'Color', 'Qty', hasAmount ? 'Amount (₹)' : '']);
+  const lines = rows.map((r) => join([r.shape, r.size, r.color, r.qty, hasAmount ? r.amount || '--' : '']));
+  const spaced = lines.some((line) => line.length > PHONE_LINE);
+  return [`_${key}_`, ...(spaced ? lines.flatMap((line, i) => (i ? ['', line] : [line])) : lines)].join('\n');
 }
 
 function categorySections(items: OrderCartItem[]): string[] {
@@ -59,13 +56,13 @@ function categorySections(items: OrderCartItem[]): string[] {
         a.sizeMm.localeCompare(b.sizeMm) ||
         a.colorName.localeCompare(b.colorName))
       .map((item) => ({
-        shape: [item.shapeCode?.trim() || item.shapeName, specText(item.orderSpecs, item.qty)].filter(Boolean).join(' / '),
+        shape: [item.shapeCode?.trim() || item.shapeName, specText(item.orderSpecs, item.qty)].filter(Boolean).join(' – '),
         size: item.sizeMm,
         color: item.colorName,
         qty: item.qtyUnit ? `${item.qty} ${item.qtyUnit}` : String(item.qty),
         amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined
       }));
-    return ['', `*${category}*`, formatTable(rows)];
+    return ['', `*${category}*`, formatLines(rows)];
   });
 }
 
