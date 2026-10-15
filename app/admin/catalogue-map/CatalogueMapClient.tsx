@@ -210,9 +210,11 @@ function SizeTab({ map, busy, run, updateCategory }: TabProps) {
     if (!on && !window.confirm(`Remove ${label} from ${cat.name}? Buyers will no longer be able to pick it there. Past orders are not affected.`)) return;
     void run(`s${cat.id}`, async () => {
       if (on) {
-        // A size only shows once its shape is linked too.
-        if (!cat.shapeIds.includes(shape.id)) await send('/api/category-links/shape', 'POST', { category_id: cat.id, shape_id: shape.id });
+        // A size only shows once its shape is linked too. The size goes in
+        // first: a shape linked with no sizes picks up all of its sizes
+        // (category_shapes trigger), and here just this one was chosen.
         await send('/api/category-links/size', 'POST', { category_id: cat.id, shape_size_id: sizeIds[0] });
+        if (!cat.shapeIds.includes(shape.id)) await send('/api/category-links/shape', 'POST', { category_id: cat.id, shape_id: shape.id });
         updateCategory(cat.id, (c) => ({
           ...c,
           shapeIds: c.shapeIds.includes(shape.id) ? c.shapeIds : [...c.shapeIds, shape.id],
