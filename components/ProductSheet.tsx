@@ -104,26 +104,30 @@ export default function ProductSheet({
   // paint (or a server render), so a sheet whose shape, size and colour were
   // all already decided still opened with a disabled button reading "choose a
   // size" until React came back round.
-  const [sizeId, setSizeId] = useState<number | 'all'>(() => sizeOffer.fixed?.id ?? 'all');
+  // Several sizes can be picked at once; each becomes its own line.
+  const [sizeIds, setSizeIds] = useState<number[]>(() => (sizeOffer.fixed ? [sizeOffer.fixed.id] : []));
   useEffect(() => {
-    // Re-settle the size whenever the shape changes: keep it if it still
-    // belongs to the new shape, take the only option if there is only one, and
-    // otherwise clear it rather than carrying another shape's size forward.
-    setSizeId((current) => {
-      if (current !== 'all' && sizeOffer.options.some((s) => s.id === current)) return current;
-      return sizeOffer.fixed?.id ?? 'all';
+    // Re-settle the sizes whenever the shape changes: keep those that still
+    // belong to the new shape, take the only option if there is only one, and
+    // otherwise clear them rather than carrying another shape's sizes forward.
+    setSizeIds((current) => {
+      const kept = current.filter((id) => sizeOffer.options.some((s) => s.id === id));
+      if (kept.length) return kept;
+      return sizeOffer.fixed ? [sizeOffer.fixed.id] : [];
     });
   }, [sizeOffer.options, sizeOffer.fixed]);
 
   const special = specialCategory(categoryId);
   const shape = shapeId === 'all' ? null : shapes.find((s) => s.id === shapeId) || null;
   const color = colorId === 'all' ? null : colors.find((c) => c.id === colorId) || null;
-  const size = sizeId === 'all' ? null : sizes.find((s) => s.id === sizeId) || null;
+  const pickedSizes = sizeOffer.options.filter((s) => sizeIds.includes(s.id));
+  // One size picked: its price can be shown.
+  const size = pickedSizes.length === 1 ? pickedSizes[0] : null;
   const qtyNum = Number(qty);
   const qtyValid = requestType === 'Request Quotation'
     ? qty === '' || (Number.isSafeInteger(qtyNum) && qtyNum >= 0)
     : Number.isSafeInteger(qtyNum) && qtyNum > 0;
-  const canAdd = !special && !!shape && !!color && !!size && qtyValid;
+  const canAdd = !special && !!shape && !!color && pickedSizes.length > 0 && qtyValid;
   const unitPrice = pricing && shape && size && color ? lineInrPrice(pricing, shape.id, size.id, color.id) : null;
 
   const specChips = useMemo(() => {
@@ -165,30 +169,37 @@ export default function ProductSheet({
   }
 
   function addToRequirement() {
-    if (!shape || !color || !size) return;
+    if (!shape || !color || pickedSizes.length === 0) return;
     const quantity = requestType === 'Request Quotation' && qty === '' ? 0 : qtyNum;
-    const item: CartItem = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      categoryId,
-      categoryName,
-      shapeId: shape.id,
-      shapeName: shape.name,
-      shapeIconKey: shape.iconKey || null,
-      shapeRefPhotoUrl: shape.refPhotoUrl || null,
-      sizeId: size.id,
-      sizeMm: size.size_mm,
-      colorId: color.id,
-      colorName: color.name,
-      colorHex: color.hex || '#ccc',
-      colorRefPhotoUrl: color.refPhotoUrl || null,
-      qty: quantity,
-      requestType
-    };
-    // Written through the shared cart helpers, so this lands as one line in the
-    // same requirement the Raise Purchase Order tab and /po/cart read -- merged
-    // with an identical line rather than added as a duplicate row.
-    saveCart(mergeIntoCart(loadCart(), item));
-    setAdded(`Added ${shape.name} · ${size.size_mm} mm · ${color.name}${quantity ? ` × ${quantity}` : ''} to your requirement.`);
+    let cart = loadCart();
+    for (const size of pickedSizes) {
+      const item: CartItem = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        categoryId,
+        categoryName,
+        shapeId: shape.id,
+        shapeName: shape.name,
+        shapeIconKey: shape.iconKey || null,
+        shapeRefPhotoUrl: shape.refPhotoUrl || null,
+        sizeId: size.id,
+        sizeMm: size.size_mm,
+        colorId: color.id,
+        colorName: color.name,
+        colorHex: color.hex || '#ccc',
+        colorRefPhotoUrl: color.refPhotoUrl || null,
+        qty: quantity,
+        requestType
+      };
+      // Written through the shared cart helpers, so this lands as one line in the
+      // same requirement the Raise Purchase Order tab and /po/cart read -- merged
+      // with an identical line rather than added as a duplicate row.
+      cart = mergeIntoCart(cart, item);
+    }
+    saveCart(cart);
+    const sizeText = pickedSizes.map((s) => `${s.size_mm} mm`).join(', ');
+    setAdded(`Added ${shape.name} · ${sizeText} · ${color.name}${quantity ? ` × ${quantity}` : ''} to your requirement.`);
+    // The quantity stays for the next line; only the sizes clear.
+    if (!sizeOffer.fixed) setSizeIds([]);
   }
 
   const activePhoto = media[active] || lead;
@@ -318,9 +329,10 @@ export default function ProductSheet({
                     categoryId={categoryId}
                     optionKind="size"
                     options={sizeOffer.options.map((s) => ({ id: s.id, name: `${s.size_mm} mm` }))}
-                    value={sizeId}
-                    onChange={setSizeId}
-                    allLabel="Select size"
+                    multiple
+                    values={sizeIds}
+                    onChange={setSizeIds}
+                    placeholder="Select size(s)"
                     leading="none"
                     searchable
                   />
@@ -388,7 +400,7 @@ export default function ProductSheet({
                 </button>
                 {!canAdd && (
                   <p className="ps-hint">
-                    {!shape ? 'Choose a shape/cut' : !size ? 'Choose a size' : !color ? 'Choose a colour' : 'Enter a quantity'} to add this.
+                    {!shape ? 'Choose a shape/cut' : pickedSizes.length === 0 ? 'Choose a size' : !color ? 'Choose a colour' : 'Enter a quantity'} to add this.
                   </p>
                 )}
                 {added && <p className="ps-added" role="status" aria-live="polite">{added}</p>}

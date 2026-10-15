@@ -566,22 +566,19 @@ export default function POSelector({
     }
 
     if (!commitAdd(next, added)) return;
-    // Reset only size + qty so the same shape/color picks can be reused for the
+    // Reset only the size so the same shape/color picks can be reused for the
     // next size quickly. Request type always returns to Purchase -- it is the
     // primary action, and a quotation is a deliberate per-line choice rather
     // than a mode the buyer should stay stuck in.
     setPickSizeIdxs([]);
     setPickCt('');
     setCtError(false);
-    // With a default, the number just used becomes this buyer's starting
-    // point here -- now and on later visits -- and stays in the box for the
-    // next shape. Otherwise the box empties as before.
+    // The quantity just used stays in the box for the next line (owner,
+    // 2026-10-15). With a shop default it also becomes this buyer's starting
+    // point here on later visits.
     if (adminDefaultQty && qtyNum > 0) {
       rememberQty(categoryId, qtyNum);
       setStartQty(String(qtyNum));
-      setPickQty(String(qtyNum));
-    } else {
-      setPickQty(startQty);
     }
     setQtyError(false);
     setPickRequestType('Place Order');
