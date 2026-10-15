@@ -288,8 +288,8 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     setCartCount(cartPieces(cart));
     setAddedCount((n) => n + added);
     setMessage(added > 1 ? `Added ${added} lines to your cart.` : 'Added to your cart.');
+    // The quantity stays for the next line; only the sizes clear.
     setPickSizeIdxs([]);
-    setPickQty('');
   }
 
   function addSpecialLine(line: any) {

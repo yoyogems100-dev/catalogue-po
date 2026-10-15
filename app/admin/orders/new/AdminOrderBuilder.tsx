@@ -171,8 +171,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     }
     if (!added.length) return;
     setCart([...cart, ...added]);
+    // The quantity stays for the next line; only the sizes clear.
     setPickSizeIdxs([]);
-    setPickQty('');
   }
 
   function removeLine(id: string) {
