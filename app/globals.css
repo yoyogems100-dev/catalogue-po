@@ -3186,3 +3186,5 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .reuse-drawing svg { max-width: 100%; height: auto; }
 .shape-reuse-btn { font-size: 10.5px; padding: 2px 6px; }
 .shape-new-drawing { display: inline-flex; align-items: center; gap: 4px; }
+/* Order form: shapes that don't come in the picked size, listed after those that do. */
+.icon-select-divider { padding: 8px 12px 4px; font-size: 11px; letter-spacing: 0.04em; color: #756e5c; border-top: 1px solid var(--line); margin-top: 4px; }
