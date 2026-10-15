@@ -5,10 +5,12 @@
 //  brilliant: star facets on the crown, a pointed pavilion
 //  step:      parallel steps around a flat table, a keel line below
 //  rose:      a faceted dome with a flat back
+//  checker:   a checkerboard of small square facets across the crown, a
+//             brilliant pavilion below
 // ShapeIcon draws these; nothing here touches the DOM.
 
 type Pt = [number, number];
-type Family = 'brilliant' | 'step' | 'rose';
+type Family = 'brilliant' | 'step' | 'rose' | 'checker';
 type Spec = { outline: Pt[]; family: Family; corners?: boolean };
 
 const TAU = Math.PI * 2;
@@ -74,6 +76,11 @@ const SPECS: Record<string, Spec> = {
   halfmoon: { outline: halfMoon(), family: 'step' },
   rose: { outline: ellipse(1, 1, 12), family: 'rose' },
   fan: { outline: poly([0, 0.9], [-0.95, -0.35], [-0.6, -0.8], [0, -1], [0.6, -0.8], [0.95, -0.35]), family: 'brilliant', corners: true },
+  // Checker (checkerboard) cuts: the same outlines, a grid of facets on top.
+  'round-checker': { outline: ellipse(1, 1, 28), family: 'checker' },
+  'oval-checker': { outline: ellipse(0.7, 1, 28), family: 'checker' },
+  'pear-checker': { outline: pear(30), family: 'checker' },
+  'marquise-checker': { outline: marquise(28), family: 'checker' },
 };
 
 const H = 24;      // drawing height in viewBox units
@@ -104,11 +111,49 @@ function facetPoints(spec: Spec, pts: Pt[]): Pt[] {
   return pts.flatMap((p, i) => { const q = pts[(i + 1) % pts.length]; return [p, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] as Pt]; });
 }
 
+/** The parts of a straight line through `o` along `dir` that lie inside the
+ *  outline: where it crosses the edges, taken in pairs. */
+function chordsInside(pts: Pt[], o: Pt, dir: Pt): [Pt, Pt][] {
+  const ts: number[] = [];
+  pts.forEach((a, i) => {
+    const b = pts[(i + 1) % pts.length];
+    const ex = b[0] - a[0], ey = b[1] - a[1];
+    const den = dir[0] * ey - dir[1] * ex;
+    if (Math.abs(den) < 1e-9) return;
+    const t = ((a[0] - o[0]) * ey - (a[1] - o[1]) * ex) / den;
+    const u = ((a[0] - o[0]) * dir[1] - (a[1] - o[1]) * dir[0]) / den;
+    if (u >= 0 && u < 1) ts.push(t);
+  });
+  ts.sort((x, y) => x - y);
+  const out: [Pt, Pt][] = [];
+  for (let i = 0; i + 1 < ts.length; i += 2) {
+    const at = (t: number): Pt => [o[0] + dir[0] * t, o[1] + dir[1] * t];
+    out.push([at(ts[i]), at(ts[i + 1])]);
+  }
+  return out;
+}
+
+/** A diagonal checkerboard of facets filling the outline. */
+function checkerboard(pts: Pt[], c: Pt): string[] {
+  const b = bounds(pts), span = Math.max(b.x1 - b.x0, b.y1 - b.y0);
+  const gap = (b.y1 - b.y0) / 7, parts: string[] = [];
+  for (const dir of [[Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2]] as Pt[]) {
+    const normal: Pt = [-dir[1], dir[0]];
+    for (let k = -Math.ceil(span / gap); k <= Math.ceil(span / gap); k++) {
+      const o: Pt = [c[0] + normal[0] * k * gap, c[1] + normal[1] * k * gap];
+      for (const [a, z] of chordsInside(pts, o, dir)) parts.push(line(a, z));
+    }
+  }
+  return parts;
+}
+
 function crown(spec: Spec, left: number): { d: string; w: number } {
   const placed = place(spec.outline, left, H);
   const { w, c } = placed, pts = facetPoints(spec, placed.pts);
   const parts = [pathOf(pts)];
-  if (spec.family === 'step') {
+  if (spec.family === 'checker') {
+    parts.push(...checkerboard(pts, c));
+  } else if (spec.family === 'step') {
     const mid = scaleAbout(pts, c, 0.78), table = scaleAbout(pts, c, 0.52);
     parts.push(pathOf(mid), pathOf(table));
     pts.forEach((p, i) => parts.push(line(p, table[i])));

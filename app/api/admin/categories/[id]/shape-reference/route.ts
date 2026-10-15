@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { isAdminAuthed } from '@/lib/auth';
 import { PHOTOS_BUCKET, supabaseAdmin } from '@/lib/supabase-admin';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
+import { isExistingPhoto } from '@/lib/reuse-options';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -46,4 +47,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not prepare the image.' }, { status: 400 });
   }
+}
+
+/** Use a photo the catalogue already has for this shape in this category.
+ *  PUT { shape_id, url } */
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const categoryId = Number((await params).id);
+  const body = await request.json().catch(() => null);
+  const shapeId = Number(body?.shape_id);
+  if (!Number.isInteger(categoryId) || !Number.isInteger(shapeId)) return NextResponse.json({ error: 'Category and shape are required.' }, { status: 400 });
+  if (!(await isExistingPhoto(supabaseAdmin, 'shape', body?.url))) return NextResponse.json({ error: 'Choose one of the shape photos already in the catalogue.' }, { status: 400 });
+  // As with an upload, a Hole Punched shape gets a fresh photo to drill into.
+  const updated = await supabaseAdmin.from('category_shapes')
+    .update({ ref_photo_url: body.url, reference_style: 'photo', ...(categoryId === DRILLED_CATEGORY_ID ? { drill: null } : {}) })
+    .eq('category_id', categoryId).eq('shape_id', shapeId).select('shape_id');
+  if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 400 });
+  if (!updated.data?.length) return NextResponse.json({ error: 'This shape is not linked to the category.' }, { status: 404 });
+  return NextResponse.json({ refPhotoUrl: body.url });
 }

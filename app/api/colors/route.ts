@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { isExistingPhoto } from '@/lib/reuse-options';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,9 +21,14 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id, hex_value, name } = await req.json();
+  const { id, hex_value, name, ref_photo_url } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const updates: Record<string, string> = {};
+  // A photo another colour already has ("Choose existing").
+  if (ref_photo_url !== undefined) {
+    if (!(await isExistingPhoto(supabaseAdmin, 'colour', ref_photo_url))) return NextResponse.json({ error: 'Choose one of the colour photos already in the catalogue.' }, { status: 400 });
+    updates.ref_photo_url = ref_photo_url;
+  }
   if (hex_value) updates.hex_value = hex_value;
   if (name !== undefined) {
     if (!name.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });

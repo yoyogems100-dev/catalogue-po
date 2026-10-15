@@ -9,6 +9,7 @@ import MultiSelect from '@/components/MultiSelect';
 import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import BulkActionBar from '@/components/admin/BulkActionBar';
 import ColorSwatch from '@/components/ColorSwatch';
+import ReusePicker from '@/components/admin/ReusePicker';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 
 type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null };
@@ -206,6 +207,22 @@ export default function ColorsClient({
     router.refresh();
   }
 
+  /** A photo another colour already has, with its swatch colour. */
+  async function reusePhoto(id: number, url: string, hex: string | null | undefined, from: string) {
+    const res = await fetch('/api/colors', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ref_photo_url: url, ...(hex ? { hex_value: hex } : {}) })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Could not save -- try again.');
+      return;
+    }
+    setToast(`Now uses the ${from} photo.`);
+    router.refresh();
+  }
+
   async function removePhoto(id: number) {
     if (!confirm('Remove this reference photo? The swatch will fall back to the plain hex color.')) return;
     const res = await fetch(`/api/colors/${id}/photo`, { method: 'DELETE' });
@@ -342,6 +359,8 @@ export default function ColorsClient({
                     onChange={(e) => { uploadPhoto(c.id, e.target.files?.[0]); e.target.value = ''; }}
                   />
                 </label>
+                <ReusePicker kind="colour-photo" label="Use existing" current={c.ref_photo_url} className="btn-ghost shape-reuse-btn"
+                  onPick={(url, photo) => reusePhoto(c.id, url, photo?.hex, photo?.label || 'chosen')} />
                 {c.ref_photo_url && (
                   <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePhoto(c.id)}>Remove photo</button>
                 )}

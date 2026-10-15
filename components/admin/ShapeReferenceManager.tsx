@@ -8,6 +8,7 @@ import { HotMark } from '@/components/HotSelling';
 import DrillHoleEditor from '@/components/admin/DrillHoleEditor';
 import type { DrillRecord } from '@/lib/drill-data';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
+import ReusePicker from '@/components/admin/ReusePicker';
 
 type ReferenceStyle = 'vector' | 'photo';
 type ShapeReference = {
@@ -66,6 +67,19 @@ export default function ShapeReferenceManager({ categoryId, references }: { cate
     router.refresh();
   }
 
+  async function reusePhoto(shapeId: number, url: string) {
+    setBusy(shapeId);
+    const response = await fetch(`/api/admin/categories/${categoryId}/shape-reference`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shape_id: shapeId, url })
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy(null);
+    if (!response.ok) { setMessage(data.error || 'Could not use that photo.'); return; }
+    setLocal((items) => items.map((item) => item.shapeId === shapeId ? { ...item, refPhotoUrl: url, referenceStyle: 'photo' } : item));
+    setMessage('Photo chosen and selected.');
+    router.refresh();
+  }
+
   return (
     <section className="shape-reference-manager" aria-labelledby="shape-reference-title">
       <div className="shape-reference-manager-head">
@@ -99,6 +113,8 @@ export default function ShapeReferenceManager({ categoryId, references }: { cate
                 {categoryId === DRILLED_CATEGORY_ID && (
                   <DrillHoleEditor categoryId={categoryId} shapeId={shape.shapeId} shapeName={shape.name} baseUrl={shape.drillBaseUrl || null} drill={shape.drill || null} />
                 )}
+                <ReusePicker kind="shape-photo" label="Use existing" current={shape.refPhotoUrl} className="shape-reference-upload" disabled={busy === shape.shapeId}
+                  onPick={(url) => reusePhoto(shape.shapeId, url)} />
                 <label className="shape-reference-upload">
                   {canUsePhoto ? 'Replace photo' : 'Add photo'}
                   <input type="file" accept="image/png,image/webp,image/jpeg" disabled={busy === shape.shapeId} onChange={(event) => { uploadPhoto(shape.shapeId, event.target.files?.[0]); event.currentTarget.value = ''; }} />
