@@ -128,6 +128,10 @@ export default function POSelector({
   const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
+  // After a line is added every pick stays, and the first new pick in a field
+  // replaces its old value (Round -> Star) rather than adding to it.
+  const NO_SWAP = { shape: false, size: false, color: false };
+  const [swapNext, setSwapNext] = useState(NO_SWAP);
   // Where the quantity starts: the buyer's own last number for this category,
   // else the shop's default, else empty. Only categories with a default
   // remember -- elsewhere quantities vary too much line to line.
@@ -163,6 +167,7 @@ export default function POSelector({
     setPickShapeIds([]);
     setPickColorIds([]);
     setPickSizeIdxs([]);
+    setSwapNext(NO_SWAP);
     setPickCt('');
     setCtError(false);
     const start = adminDefaultQty ? String(rememberedQty(categoryId) ?? adminDefaultQty) : '';
@@ -279,7 +284,10 @@ export default function POSelector({
       { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
     [shapes, colors, sizeGroups, allowedBySize, pickShapeIds, pickSizeIdxs, pickColorIds]
   );
-  const shapeOptions = useMemo(() => shapes.filter((s) => available.shapeIds.has(s.id)), [shapes, available]);
+  // Every shape is listed; those cut in the picked size(s) and colour(s) come
+  // first. Picking one of the others clears the picks it doesn't come in.
+  const shapeOptions = shapes;
+  const fittingShapeIds = useMemo(() => shapes.filter((s) => available.shapeIds.has(s.id)).map((s) => s.id), [shapes, available]);
   const colorOptions = useMemo(() => colors.filter((c) => available.colorIds.has(c.id)), [colors, available]);
   const sizeOptions = useMemo(
     () => sizeGroups
@@ -291,7 +299,6 @@ export default function POSelector({
   // Picks only ever narrow the other lists, so this is a safety net for a
   // pick left over from data that has since changed, not a normal path.
   useEffect(() => {
-    setPickShapeIds((cur) => keepAvailable(cur, available.shapeIds));
     setPickSizeIdxs((cur) => keepAvailable(cur, available.sizeIdxs));
     setPickColorIds((cur) => keepAvailable(cur, available.colorIds));
   }, [available]);
@@ -504,7 +511,30 @@ export default function POSelector({
     !isQuotation && showPieces && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
   ].filter(Boolean) as string[];
 
+  // A shape that isn't cut in the picked size (Marquise after Round 4 mm)
+  // clears that size -- and, where materials depend on the size, any material
+  // it doesn't come in -- instead of being hidden from the list.
+  function changeShapes(ids: number[]) {
+    setSwapNext((r) => ({ ...r, shape: false }));
+    setPickShapeIds(ids);
+    const keptSizes = pickSizeIdxs.filter((i) => ids.every((sid) => sizeGroups[i]?.rows.some((r) => r.shapeId === sid)));
+    if (keptSizes.length !== pickSizeIdxs.length) setPickSizeIdxs(keptSizes);
+    if (allowedBySize) {
+      const fits = facetAvailability(shapes.map((x) => x.id), colors.map((c) => c.id), sizeGroups, allowedBySize, { shapeIds: ids, sizeIdxs: keptSizes, colorIds: [] });
+      setPickColorIds((cur) => cur.filter((c) => fits.colorIds.has(c)));
+    }
+  }
+  function changeSizes(idxs: number[]) {
+    setSwapNext((r) => ({ ...r, size: false }));
+    setPickSizeIdxs(idxs);
+  }
+  function changeColors(ids: number[]) {
+    setSwapNext((r) => ({ ...r, color: false }));
+    setPickColorIds(ids);
+  }
+
   function clearSelection() {
+    setSwapNext(NO_SWAP);
     if (!shapeLocked) setPickShapeIds([]);
     setPickSizeIdxs([]);
     if (!colorLocked) setPickColorIds([]);
@@ -566,11 +596,10 @@ export default function POSelector({
     }
 
     if (!commitAdd(next, added)) return;
-    // Reset only the size so the same shape/color picks can be reused for the
-    // next size quickly. Request type always returns to Purchase -- it is the
-    // primary action, and a quotation is a deliberate per-line choice rather
-    // than a mode the buyer should stay stuck in.
-    setPickSizeIdxs([]);
+    // Every pick stays for the next line; the first new pick in a field
+    // replaces its old value (owner, 2026-10-15). Request type always returns
+    // to Purchase -- a quotation is a deliberate per-line choice.
+    setSwapNext({ shape: true, size: true, color: true });
     setPickCt('');
     setCtError(false);
     // The quantity just used stays in the box for the next line (owner,
@@ -680,7 +709,8 @@ export default function POSelector({
         options={colorOptions}
         locked={colorLocked}
         values={pickColorIds}
-        onChange={setPickColorIds}
+        onChange={changeColors}
+        replaceOnPick={swapNext.color}
         // Crushed Ice Cut is ordered colour by colour from a 60-colour card, so
         // its list stays open for picking several, with a Done bar to finish.
         closeOnFirstPick={categoryId !== CRUSHED_ICE_CATEGORY_ID && pickShapeIds.length === 0}
@@ -728,11 +758,14 @@ export default function POSelector({
               options={shapeOptions}
               locked={shapeLocked}
               values={pickShapeIds}
-              onChange={setPickShapeIds}
+              onChange={changeShapes}
+              replaceOnPick={swapNext.shape}
               closeOnFirstPick={pickColorIds.length === 0}
               placeholder={`Choose ${shapeLabel.toLowerCase()}`}
               leading="icon"
-              disabledIds={incompatibleShapes}
+              fitIds={fittingShapeIds.length < shapes.length ? fittingShapeIds : undefined}
+              otherLabel={pickSizeIdxs.length ? `Not in ${pickSizeIdxs.length === 1 ? 'this size' : 'these sizes'} — picking one changes the size` : `Not in the chosen ${lowerLabel.toLowerCase()}`}
+              disabledIds={swapNext.shape ? [] : incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
             />
@@ -745,7 +778,8 @@ export default function POSelector({
               optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
-              onChange={setPickSizeIdxs}
+              onChange={changeSizes}
+              replaceOnPick={swapNext.size}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
               locked={pickShapeIds.length > 0 && sizeOptions.length === 1}

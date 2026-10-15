@@ -2,9 +2,10 @@
 
 import { useDropdownBounds } from './useDropdownBounds';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
+import { sizeSearchScore } from '@/lib/size-options';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 import { hasFinePointer } from '@/lib/pointer';
@@ -35,6 +36,13 @@ type CommonProps = {
    * shapes that share no size and only finding out at the size picker.
    */
   disabledNote?: string;
+  /**
+   * Options that go with the buyer's other picks. When given, these are listed
+   * first and the rest follow under `otherLabel` -- still pickable, so a
+   * buyer can switch to a shape that comes in different sizes.
+   */
+  fitIds?: number[];
+  otherLabel?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -61,6 +69,11 @@ type MultiProps = CommonProps & {
   closeOnFirstPick?: boolean;
   /** A "Done" bar at the foot of the open list, for lists meant to take many picks. */
   doneBar?: boolean;
+  /**
+   * The next pick replaces what's selected instead of adding to it, then the
+   * list closes -- after a line is added, picking Star swaps out Round.
+   */
+  replaceOnPick?: boolean;
 };
 
 type Props = SingleProps | MultiProps;
@@ -165,7 +178,11 @@ export default function IconSelect(props: Props) {
     // re-sorting on every click -- otherwise a row jumps to the top the moment
     // you check it, right out from under the cursor mid multi-select.
     const selectedIds = new Set(isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
-    const ranked = rankOptions(options, selectedIds, hot);
+    const fit = props.fitIds ? new Set(props.fitIds) : null;
+    const ranked = rankOptions(options, selectedIds, hot)
+      .map((o, i) => ({ o, i }))
+      .sort((a, b) => (fit ? Number(fit.has(b.o.id)) - Number(fit.has(a.o.id)) : 0) || a.i - b.i)
+      .map(({ o }) => o);
     setOrderSnapshot(ranked.map((o) => o.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ready]);
@@ -205,13 +222,20 @@ export default function IconSelect(props: Props) {
   // 4X6 / 4*6) -- normalize both sides to the same separator so a search
   // for one form still finds options written with another.
   const normalizeSep = (s: string) => s.toLowerCase().replace(/[x*]/g, 'x');
-  const filtered = useMemo(
-    () =>
-      search.trim()
-        ? orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(search.trim())))
-        : orderedOptions,
-    [orderedOptions, search]
-  );
+  // Sizes match by meaning ("5mm" finds 5.0 mm, "5/5" finds 5x5), the same
+  // size first, then sizes that start with what was typed.
+  const filtered = useMemo(() => {
+    const q = search.trim();
+    if (!q) return orderedOptions;
+    if (kind === 'size') {
+      return orderedOptions
+        .map((o, i) => ({ o, i, score: sizeSearchScore(q, o.name) }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score || a.i - b.i)
+        .map((x) => x.o);
+    }
+    return orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(q)));
+  }, [orderedOptions, search, kind]);
 
   // A closed multi-select colour picker shows the stones it holds (up to
   // three), the same gem thumbnails as in its list -- it used to show the
@@ -234,6 +258,12 @@ export default function IconSelect(props: Props) {
   function toggleValue(id: number) {
     if (!isMulti) return;
     const firstPick = multi.values.length === 0;
+    if (multi.replaceOnPick && !multi.values.includes(id)) {
+      multi.onChange([id]);
+      setSearch('');
+      closeAndRefocus();
+      return;
+    }
     const next = multi.values.includes(id) ? multi.values.filter((v) => v !== id) : [...multi.values, id];
     multi.onChange(next);
     if (multi.closeOnFirstPick && firstPick) { closeAndRefocus(); return; }
@@ -366,14 +396,18 @@ export default function IconSelect(props: Props) {
               </div>
             )}
 
-            {filtered.map((o) => {
+            {filtered.map((o, index) => {
               const isActive = isMulti ? multi.values.includes(o.id) : single.value === o.id;
+              // Where the options that go with the other picks end.
+              const fits = (x: Option) => !props.fitIds || props.fitIds.includes(x.id) || (isMulti && multi.values.includes(x.id));
+              const firstOther = !!props.fitIds && !fits(o) && (index === 0 || fits(filtered[index - 1]));
               // A selected option is never disabled -- the buyer must always be
               // able to deselect their way out of a combination.
               const isDisabled = !isActive && (props.disabledIds || []).includes(o.id);
               return (
+                <Fragment key={o.id}>
+                {firstOther && props.otherLabel && <div className="icon-select-divider" role="presentation">{props.otherLabel}</div>}
                 <div
-                  key={o.id}
                   role="option"
                   aria-selected={isActive}
                   aria-disabled={isDisabled || undefined}
@@ -392,6 +426,7 @@ export default function IconSelect(props: Props) {
                   {o.name}<HotMark categoryId={props.categoryId} kind={kind} ids={o.hotIds || [o.id]} name={o.name} />
                   {isDisabled && props.disabledNote && <span className="icon-select-row-note">{props.disabledNote}</span>}
                 </div>
+                </Fragment>
               );
             })}
 
