@@ -7,6 +7,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CategoryLinkList from '@/components/admin/CategoryLinkList';
 import ShapeIcon from '@/components/ShapeIcon';
+import ReusePicker from '@/components/admin/ReusePicker';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import BulkActionBar from '@/components/admin/BulkActionBar';
 
@@ -39,6 +40,8 @@ export default function ShapesClient({
   const [categoryFilter,setCategoryFilter] = useState(initialCategoryId);
   const scoped = categories.some(category => category.id === categoryFilter);
   const [newShape, setNewShape] = useState('');
+  // The drawing a new shape starts with, chosen from the existing ones.
+  const [newIcon, setNewIcon] = useState<string | null>(null);
   const [expandedSizes, setExpandedSizes] = useState<number | null>(initialOpenShapeId);
   const [expandedCats, setExpandedCats] = useState<number | null>(null);
   const [newSize, setNewSize] = useState('');
@@ -119,13 +122,14 @@ export default function ShapesClient({
 
   async function addShape() {
     if (!newShape.trim()) return;
-    const res = await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape }) });
+    const res = await fetch('/api/shapes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newShape, icon_key: newIcon }) });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'Failed to add shape -- a shape with this name may already exist.');
       return;
     }
     setNewShape('');
+    setNewIcon(null);
     setToast('Shape added.');
     router.refresh();
   }
@@ -193,6 +197,18 @@ export default function ShapesClient({
       return;
     }
     setToast('Photo uploaded.');
+    router.refresh();
+  }
+
+  /** A drawing or photo picked from the ones the catalogue already has. */
+  async function reuse(id: number, change: { icon_key: string } | { ref_photo_url: string }, done: string) {
+    const res = await fetch('/api/shapes', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...change }) });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Could not save -- try again.');
+      return;
+    }
+    setToast(done);
     router.refresh();
   }
 
@@ -267,6 +283,10 @@ export default function ShapesClient({
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <input type="text" placeholder="New shape name (e.g. Emerald Cut)" value={newShape} onChange={(e) => setNewShape(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addShape()} />
+          <span className="shape-new-drawing">
+            {newIcon && <span className="shape-vector-icon" aria-hidden="true"><ShapeIcon iconKey={newIcon} size={22} /></span>}
+            <ReusePicker kind="drawing" current={newIcon} label={newIcon ? 'Change drawing' : 'Pick drawing'} onPick={(key) => setNewIcon(key)} />
+          </span>
           <button className="btn" onClick={addShape}>Add shape</button>
         </div>
       </div>
@@ -322,7 +342,7 @@ export default function ShapesClient({
                         <span style={{ fontSize: 10.5, color: '#a3341f' }}>No photo yet</span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                       <label className="btn-ghost" style={{ fontSize: 10.5, cursor: 'pointer', padding: '2px 6px' }}>
                         {s.ref_photo_url ? 'Change' : 'Add'} photo
                         <input
@@ -332,6 +352,10 @@ export default function ShapesClient({
                           onChange={(e) => { uploadPhoto(s.id, e.target.files?.[0]); e.target.value = ''; }}
                         />
                       </label>
+                      <ReusePicker kind="shape-photo" label="Use existing" current={s.ref_photo_url} className="btn-ghost shape-reuse-btn"
+                        onPick={(url) => reuse(s.id, { ref_photo_url: url }, `${s.name} now uses that photo.`)} />
+                      <ReusePicker kind="drawing" label="Drawing" current={s.icon_key} className="btn-ghost shape-reuse-btn"
+                        onPick={(key) => reuse(s.id, { icon_key: key }, `${s.name} now uses that drawing.`)} />
                       {s.ref_photo_url && (
                         <button className="btn-ghost" style={{ fontSize: 10.5, color: '#a3341f', padding: '2px 6px' }} onClick={() => removePhoto(s.id)}>
                           Remove

@@ -16,3 +16,15 @@ test('an unknown or missing key still draws a stone', () => {
   assert.equal(threeView('no-such-cut').d, threeView('diamond').d);
   assert.equal(threeView(null).d, threeView('diamond').d);
 });
+
+test('checker cuts: round, pear, oval and marquise outlines with a checkerboard crown', () => {
+  for (const base of ['round', 'pear', 'oval', 'marquise']) {
+    const key = `${base}-checker`;
+    assert.ok(THREE_VIEW_KEYS.includes(key), key);
+    const checker = threeView(key), plain = threeView(base);
+    assert.notEqual(checker.d, plain.d);
+    assert.equal(checker.height, 24);
+    assert.ok(Math.abs(checker.width - plain.width) < 1.5, `${key} keeps its base proportions`);
+    assert.ok(!/NaN|Infinity/.test(checker.d), `${key} draws cleanly`);
+  }
+});
