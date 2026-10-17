@@ -1,4 +1,5 @@
 'use client';
+import LineFulfilment from '@/components/admin/LineFulfilment';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import PacketWeights from '@/components/admin/PacketWeights';
 import type { PacketWeights as PacketWeightsValue } from '@/lib/packet-weights';
@@ -22,6 +23,10 @@ const INVOICE_BLOCKED_HINT = 'Please enter all the prices to generate the invoic
 
 type Item = {
   orderSpecs?: OrderSpecs;
+  sentQty?: number;
+  needsCheck?: boolean;
+  /** False until the delivery-tracking columns exist in the database. */
+  tracked?: boolean;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -552,7 +557,12 @@ export default function OrderAdminClient({
                       style={{ maxWidth: 70, ...rowInputStyle }}
                     /></label>
                   ) : (
-                    formatQty(i.quantity, i.qtyUnit)
+                    <>
+                      {formatQty(i.quantity, i.qtyUnit)}
+                      {i.tracked && i.requestType !== 'Request Quotation' && (
+                        <LineFulfilment itemId={i.id} quantity={i.quantity} initialSent={i.sentQty || 0} initialCheck={!!i.needsCheck} unit={i.qtyUnit} compact />
+                      )}
+                    </>
                   )}
                 </td>
                 <td>
