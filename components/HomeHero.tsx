@@ -5,6 +5,7 @@ import HeaderLogo from './HeaderLogo';
 import AccountMenu from './AccountMenu';
 import CartBag from './CartBag';
 import QuickOrderButton from './QuickOrderButton';
+import VoiceOrderButton from './VoiceOrderButton';
 import type { AccountState } from '@/lib/account-state';
 
 // A single-row, logo-left navbar -- the hero used to center a large logo
@@ -32,6 +33,7 @@ export default function HomeHero(account: AccountState) {
         <HeaderLogo height={26} />
         <div className="topbar-actions">
           <QuickOrderButton />
+          <VoiceOrderButton />
           <CartBag />
           <AccountMenu {...account} />
         </div>
@@ -45,6 +47,7 @@ export default function HomeHero(account: AccountState) {
         <div className="topbar-actions">
           {/* This one also answers the home page's colour chips. */}
           <QuickOrderButton listenForColorStart />
+          <VoiceOrderButton />
           <CartBag />
           <AccountMenu {...account} />
         </div>
