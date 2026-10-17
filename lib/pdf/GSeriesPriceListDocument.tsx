@@ -1,6 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet, Svg, Path } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
-import { PageWatermark } from './PageWatermark';
 import { displaySize, type GSeriesGrid } from '../g-series-grid';
 import { topView } from '../three-view';
 
@@ -84,6 +83,23 @@ const s = StyleSheet.create({
 
   footer: { position: 'absolute', bottom: 12, left: 22, right: 22, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: '#cfd5de', paddingTop: 4, fontSize: 6, color: '#62666d' }
 });
+
+// Two light diagonal marks, one over the price grid and one over the colour
+// key -- the page is dense, so a single large mark either sat on half of it
+// or had to be dark enough to compete with the prices.
+function Watermarks() {
+  return (
+    <>
+      {['27%', '70%'].map((top) => (
+        <View key={top} fixed style={{ position: 'absolute', top, left: 0, right: 0, alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 62, letterSpacing: 7, color: '#1B3A6B', opacity: 0.035, transform: 'rotate(-28deg)' }}>
+            YOYO GEMS
+          </Text>
+        </View>
+      ))}
+    </>
+  );
+}
 
 // The cut drawn from the top in vector line art (lib/three-view.ts), the same
 // drawings the order form uses, so it stays sharp at any zoom or print size.
@@ -201,7 +217,7 @@ export default function GSeriesPriceListDocument({ data }: { data: GSeriesPriceL
 
         {/* Last, so it lies over the content: this page is all white cells
             and boxes, which hid a watermark drawn underneath them in pieces. */}
-        <PageWatermark />
+        <Watermarks />
         <View style={s.footer} fixed>
           <Text>{hasRound ? 'Round: 4×4 means 4 mm, and so on.   ' : ''}Prices are subject to change; availability is confirmed with your order.</Text>
           <Text>{[data.contactWhatsapp ? `WhatsApp ${data.contactWhatsapp}` : null, data.contactLocation].filter(Boolean).join(' · ')}</Text>
