@@ -8,6 +8,7 @@ import CategoryArchiveToggle from '@/components/admin/CategoryArchiveToggle';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
+import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
 import { readDrill } from '@/lib/drill-data';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
@@ -181,7 +182,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}{category.archived_at && <span className="admin-archived-pill">Archived</span>}</h1>
       {category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={category.archived_at} />}
       <div className="category-downloads">
-        {ADMIN_PRICING_ENABLED && <a className="btn-ghost size-chart-download" href={`/api/admin/pricing/pdf?category_id=${categoryId}`}>Download price list</a>}
+        {ADMIN_PRICING_ENABLED && <PriceListDownloadButton categoryId={categoryId} className="btn-ghost size-chart-download" />}
         {!category.archived_at && <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>}
         {!category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={null} />}
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
+import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { DEFAULT_PRICE_UNIT, PRICE_UNIT_PRESETS, PRICE_UNIT_MAX, priceUnitLabel } from '@/lib/price-unit';
 import { QUANTITY_LABEL_MAX, QUANTITY_UNIT_MAX } from '@/lib/quantity-field';
@@ -207,14 +208,11 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
           </div>
         </div>
         <button className="btn-ghost" onClick={exportCsv} disabled={!shapes.length || loading || savingPrice}>Export CSV (English)</button>
-        <a
-          className="btn"
-          href={categoryId && !savingPrice && !loading ? `/api/admin/pricing/pdf?category_id=${categoryId}` : undefined}
-          aria-disabled={!categoryId || savingPrice || loading}
-          style={!categoryId ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
-        >
-          Download price list
-        </a>
+        {categoryId ? (
+          <PriceListDownloadButton key={categoryId} categoryId={categoryId} className="btn" disabled={savingPrice || loading} />
+        ) : (
+          <button type="button" className="btn" disabled>Download price list</button>
+        )}
         <a
           className="btn-ghost"
           href={categoryId && !savingPrice && !loading ? `/api/categories/${categoryId}/size-chart` : undefined}
