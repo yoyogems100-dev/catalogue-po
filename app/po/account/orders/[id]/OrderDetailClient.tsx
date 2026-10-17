@@ -19,6 +19,7 @@ type RequestType = 'Place Order' | 'Request Quotation';
 
 type Item = {
   orderSpecs?: OrderSpecs;
+  note?: string | null;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -48,6 +49,7 @@ type CategoryOptionsData = {
 
 type PendingLine = {
   orderSpecs?: OrderSpecs;
+  note?: string | null;
   tempId: string;
   categoryId: number;
   categoryName: string;
@@ -318,7 +320,7 @@ export default function OrderDetailClient({
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ColorSwatch hex={i.colorHex} refPhotoUrl={i.colorRefPhotoUrl} name={i.colorName} size={14} />
-                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}{i.note && <small className="po-line-note-text">Note: {i.note}</small>}
                     </span>
                   </td>
                   <td>
@@ -356,7 +358,7 @@ export default function OrderDetailClient({
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ColorSwatch hex={l.colorHex} refPhotoUrl={l.colorRefPhotoUrl} name={l.colorName} size={14} />
-                      {l.colorName}{l.orderSpecs && <small style={{display:"block"}}>{specText(l.orderSpecs,l.quantity)}</small>}
+                      {l.colorName}{l.orderSpecs && <small style={{display:"block"}}>{specText(l.orderSpecs,l.quantity)}</small>}{l.note && <small className="po-line-note-text">Note: {l.note}</small>}
                     </span>
                   </td>
                   <td>

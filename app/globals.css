@@ -2037,10 +2037,14 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-ref-strip-nav:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .po-ref-strip-chart-tile { position: relative; }
 .po-ref-strip-tile-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; font-size: 11px; text-align: center; background: rgb(255 255 255 / 88%); color: var(--navy); border-top: 1px solid var(--line); }
+/* Phones: two photos side by side at a modest height, so the order fields
+   start on the first screen (tap a photo to see it full size). */
 @media (max-width: 640px) {
-  .po-ref-strip-track { grid-auto-columns: 100%; column-gap: 8px; }
-  .po-ref-strip-tile { height: clamp(200px, 62vw, 280px); }
-  .po-ref-strip-nav { width: 44px; height: 44px; }
+  .po-ref-strip { margin-bottom: 12px; }
+  .po-ref-strip-track { grid-auto-columns: calc(50% - 4px); column-gap: 8px; }
+  .po-ref-strip-track > :only-child { grid-column: span 2; }
+  .po-ref-strip-tile { height: clamp(120px, 36vw, 160px); }
+  .po-ref-strip-nav { width: 40px; height: 40px; }
 }
 
 /* Account header (My Orders / My Info / Quick Order / Log out) -- wraps
@@ -3447,3 +3451,24 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
   .pl-dialog { max-width: none; max-height: none; height: 100dvh; border-radius: 0; }
   .pl-picks { margin-left: 0; }
 }
+
+/* A note on one order line. */
+.po-line-note, .po-line-note-add { display: block; background: none; border: 0; padding: 4px 0; margin: 2px 0 0; font: inherit; font-size: 12px; text-align: left; cursor: pointer; min-height: 28px; }
+.po-line-note { color: #7a5f1c; font-style: italic; overflow-wrap: anywhere; }
+.po-line-note-add { color: #1B3A6B; text-decoration: underline; text-underline-offset: 2px; }
+.po-line-note-input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; min-height: 36px; padding: 6px 8px; border: 1px solid #9C7A25; border-radius: 8px; font: inherit; font-size: 13px; }
+.po-line-note-text { display: block; color: #7a5f1c; font-style: italic; font-size: 12px; overflow-wrap: anywhere; }
+
+/* "Next stone?" search at the top of the order form. */
+.po-stone-switch { position: relative; margin: 0 0 12px; }
+.po-stone-switch-input { width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 12px; border: 1px solid #d9d2c1; border-radius: 10px; background: #fff; font: inherit; font-size: 14px; color: #12233F; }
+.po-stone-switch-input:focus { outline: 2px solid #9C7A25; outline-offset: 1px; }
+.po-stone-switch-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); list-style: none; margin: 0; padding: 4px; background: #fff; border: 1px solid #e3ded2; border-radius: 10px; box-shadow: 0 10px 28px rgba(18, 35, 63, 0.16); max-height: min(340px, 60vh); overflow-y: auto; }
+.po-stone-switch-list button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 8px; background: none; font: inherit; text-align: left; cursor: pointer; color: #12233F; }
+.po-stone-switch-list button.active, .po-stone-switch-list button:hover { background: #f6f2e7; }
+.po-stone-switch-list button > span:not(.po-stone-switch-dot) { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.po-stone-switch-list strong { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.po-stone-switch-list small { font-size: 12px; color: #756e5c; }
+.po-stone-switch-list em { font-size: 11px; color: #9C7A25; font-style: normal; white-space: nowrap; }
+.po-stone-switch-dot { width: 18px; height: 18px; border-radius: 50%; background: #1B3A6B; flex: none; }
+.po-stone-switch-empty { padding: 10px 8px; font-size: 13px; color: #5b6168; }

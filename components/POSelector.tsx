@@ -17,9 +17,9 @@ import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
-import { parseQuantity } from '@/lib/quantity';
+import { expandQtyShorthand, parseQuantity } from '@/lib/quantity';
 import { shapeAbbrevs } from '@/lib/shape-abbrev';
-import { appendCartNote, loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
+import { loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
 import SizeGridComposer, { countLabel, gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
@@ -29,7 +29,9 @@ import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
 import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
 import SizeQtyTable from './SizeQtyTable';
 import PasteListDialog from './PasteListDialog';
-import { noteLines, type PastedLine } from '@/lib/paste-order';
+import StoneSwitch, { PICK_COLOR_KEY } from './StoneSwitch';
+import type { PastedLine } from '@/lib/paste-order';
+import { LINE_NOTE_MAX } from '@/lib/line-note';
 import { tableGroups, tableHasError, tableLines, tableSizeCount, type TableEntries } from '@/lib/size-table';
 
 const CRUSHED_ICE_CATEGORY_ID = 1;
@@ -207,6 +209,25 @@ export default function POSelector({
     setGridEntries({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, adminDefaultQty]);
+
+  // Arriving from the stone search ("Yellow CZ") with ?color=: that colour is
+  // picked. Runs after the reset above; the address is then tidied so a
+  // reload doesn't re-pick it.
+  useEffect(() => {
+    let id = Number(new URLSearchParams(window.location.search).get('color')) || 0;
+    try {
+      const handed = JSON.parse(sessionStorage.getItem(PICK_COLOR_KEY) || 'null');
+      if (handed?.categoryId === categoryId) id = Number(handed.colorId) || id;
+      sessionStorage.removeItem(PICK_COLOR_KEY);
+    } catch { /* storage unavailable: the address is enough */ }
+    if (!id) return;
+    if (!colorLocked && colors.some((c) => c.id === id)) setPickColorIds([id]);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('color')) return;
+    url.searchParams.delete('color');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId]);
 
   // The grid opens on Round -- most melee orders are Round -- so sizes are on
   // screen straight away.
@@ -800,10 +821,10 @@ export default function POSelector({
         qty: l.qty,
         qtyUnit: l.qtyUnit ?? null,
         requestType: 'Place Order',
+        ...(l.note.trim() ? { note: l.note.trim().slice(0, LINE_NOTE_MAX) } : {}),
         ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
       });
     }
-    appendCartNote(noteLines(lines));
     commitAdd(next, lines.length);
   }
 
@@ -890,6 +911,7 @@ export default function POSelector({
             <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
           </span>
         </div>
+        <StoneSwitch categoryId={categoryId} onPickColor={(id) => { if (!colorLocked && colors.some((c) => c.id === id)) changeColors([id]); }} />
         <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} ownPageHref={(slug) => `/po/category/${slug}`} />
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridEntries[z.id] !== undefined).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
@@ -1009,7 +1031,7 @@ export default function POSelector({
                 // Keep what was typed and flag it, rather than rewrite it:
                 // stripping the "." turned 12.5 into 125. An invalid entry
                 // parses to nothing, so Add stays off until it is fixed.
-                const v = caratRate ? e.target.value.replace(/^\s*~/, '') : e.target.value;
+                const v = caratRate ? e.target.value.replace(/^\s*~/, '') : expandQtyShorthand(e.target.value);
                 setPickQty(v);
                 setQtyError(!/^\d*$/.test(v.trim()));
               }}
@@ -1078,7 +1100,7 @@ export default function POSelector({
                               aria-invalid={bad || undefined}
                               placeholder="0"
                               value={v}
-                              onChange={(e) => setLineQty((cur) => ({ ...cur, [c.key]: e.target.value }))}
+                              onChange={(e) => setLineQty((cur) => ({ ...cur, [c.key]: expandQtyShorthand(e.target.value) }))}
                             />
                           </label>
                         );

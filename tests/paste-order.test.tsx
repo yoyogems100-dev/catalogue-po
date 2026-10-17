@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { CatalogueMap } from '../lib/catalogue-map';
-import { isReady, normalizeLine, noteLines, parsePastedList, resolveAll, type ResolveContext } from '../lib/paste-order';
+import { isReady, normalizeLine, parsePastedList, resolveAll, type ResolveContext } from '../lib/paste-order';
 import { tableGroups, tableHasError, tableLines } from '../lib/size-table';
 
 // A small catalogue shaped like the live one: Nano, Coloured CZ (and a second
@@ -156,11 +156,42 @@ test('size table: every size of the picked shapes, filled rows become lines', ()
   assert.equal(tableHasError(groups, { 3: 'x' }), false); // a hidden size doesn't block
 });
 
-test('remarks become one message line each, naming the lines they belong to', () => {
-  const base = { categoryId: 12, categoryName: 'Coloured CZ Stones', shapeId: 3, shapeName: 'Octagon', colorId: 30, colorName: 'Yellow', colorHex: null, colorRefPhotoUrl: null, qty: 1, grade: null };
-  assert.deepEqual(noteLines([
-    { ...base, sizeId: 1, sizeMm: '5x7', note: 'Radiant-Cut Required' },
-    { ...base, sizeId: 2, sizeMm: '6x8', note: 'Radiant-Cut Required' },
-    { ...base, sizeId: 3, sizeMm: '4x6', note: '' },
-  ]), ['Yellow Octagon 5x7, 6x8 — Radiant-Cut Required']);
+
+test('line notes: tidied, capped, and kept in the comment when the column is missing', async () => {
+  const { cleanLineNote, commentWithLineNotes, insertOrderItems } = await import('../lib/line-note');
+  assert.equal(cleanLineNote('  Radiant   cut \n required '), 'Radiant cut required');
+  assert.equal(cleanLineNote('   '), null);
+  assert.equal(cleanLineNote('x'.repeat(400))?.length, 300);
+  assert.equal(commentWithLineNotes('Urgent', [{ shapeName: 'Octagon', sizeMm: '5x7', colorName: 'Yellow', note: 'Radiant cut' }, { shapeName: 'Pear', sizeMm: '4x6', colorName: 'Pink' }]),
+    'Urgent\nOctagon 5x7 Yellow: Radiant cut');
+  const inserted: unknown[][] = [];
+  const db = { from: () => ({ insert: async (rows: any[]) => { inserted.push(rows); return rows.some((r) => 'note' in r) ? { error: { code: 'PGRST204', message: "Could not find the 'note' column" } } : { error: null }; } }) };
+  const result = await insertOrderItems(db, [{ quantity: 5, note: 'x' }]);
+  assert.deepEqual(result, { error: null, notesKept: false });
+  assert.deepEqual(inserted[1], [{ quantity: 5 }]);
+});
+
+test('the WhatsApp message shows a line note after its line', async () => {
+  const { buildOrderMessage } = await import('../lib/order-message');
+  const msg = buildOrderMessage([{ categoryId: 12, categoryName: 'Coloured CZ Stones', shapeId: 3, shapeName: 'Octagon', sizeId: 1, sizeMm: '5x7', colorId: 30, colorName: 'Yellow', qty: 175, requestType: 'Place Order', note: 'Radiant cut' }], 'Discovery', '');
+  assert.match(msg, /Octagon · 5x7 · Yellow · 175 _\(Radiant cut\)_/);
+});
+
+test('quantity shorthand: 1k is 1000', async () => {
+  const { expandQtyShorthand } = await import('../lib/quantity');
+  assert.equal(expandQtyShorthand('1k'), '1000');
+  assert.equal(expandQtyShorthand('2.5K'), '2500');
+  assert.equal(expandQtyShorthand('15'), '15');
+  assert.equal(expandQtyShorthand('k'), 'k');
+});
+
+test('stone search: colour + stone words find the pair; a stone word alone finds the stone', async () => {
+  const { searchStones } = await import('../lib/stone-search');
+  const label = (h: { categoryName: string; colorName: string | null }) => `${h.colorName ?? '—'} / ${h.categoryName}`;
+  assert.equal(label(searchStones(map, 'yellow coloured cz')[0]), 'Yellow / Coloured CZ Stones');
+  assert.ok(searchStones(map, 'yellow cz').slice(0, 2).every((h) => h.colorName === 'Yellow'));
+  assert.equal(label(searchStones(map, 'ruby 5')[0]), 'Ruby #5 / Ruby Corundum');
+  assert.equal(label(searchStones(map, 'nano 114')[0]), 'Blue Nano #114 / Nano');
+  assert.equal(label(searchStones(map, 'nano')[0]), '— / Nano');
+  assert.deepEqual(searchStones(map, 'zzz'), []);
 });

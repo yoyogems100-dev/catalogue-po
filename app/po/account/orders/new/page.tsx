@@ -60,6 +60,7 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     orderSpecs: it.order_specs || undefined,
+    ...(it.note ? { note: it.note } : {}),
     qty: it.quantity,
     requestType: it.request_type || 'Place Order'
   }));

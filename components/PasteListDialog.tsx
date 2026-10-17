@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CatalogueMap } from '@/lib/catalogue-map';
 import { specialCategory } from '@/lib/order-specs';
+import { expandQtyShorthand } from '@/lib/quantity';
 import { lineQualities } from '@/lib/qualities';
 import { SWISS_CATEGORY_ID } from '@/lib/swiss-weights';
 import {
@@ -11,21 +11,11 @@ import {
   type PasteField, type PastedLine, type PastePick, type PasteResolved, type PasteRow, type ResolveContext,
 } from '@/lib/paste-order';
 import { useCategoryQualities, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { useCatalogueMap } from './useCatalogueMap';
 
 // Moissanite is ordered by carat from its own size sheet.
 const MOISSANITE_CATEGORY_ID = 34;
 const DRAFT_KEY = 'yoyo-paste-list-draft';
-
-let mapRequest: Promise<CatalogueMap | null> | null = null;
-function loadMap(): Promise<CatalogueMap | null> {
-  if (!mapRequest) {
-    mapRequest = fetch('/api/catalogue-map')
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)
-      .then((m) => { if (!m) mapRequest = null; return m; });
-  }
-  return mapRequest;
-}
 
 const fmt = (n: number) => n.toLocaleString('en-IN');
 const FIELD_WORD: Record<PasteField, string> = { stone: 'stone', colour: 'colour', shape: 'shape', size: 'size', quantity: 'quantity', quality: 'quality' };
@@ -53,8 +43,9 @@ export default function PasteListDialog({
   /** Where a stone ordered on its own page lives (category slug -> URL). */
   ownPageHref?: (slug: string) => string;
 }) {
-  const [map, setMap] = useState<CatalogueMap | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [everOpened, setEverOpened] = useState(false);
+  const map = useCatalogueMap(everOpened);
+  const [slow, setSlow] = useState(false);
   const [text, setText] = useState('');
   const [stage, setStage] = useState<'write' | 'review'>('write');
   const [parsed, setParsed] = useState<{ rows: PasteRow[]; ignored: string[] }>({ rows: [], ignored: [] });
@@ -71,15 +62,15 @@ export default function PasteListDialog({
   useEffect(() => {
     if (!open) return;
     let live = true;
-    setLoadFailed(false);
-    loadMap().then((m) => { if (!live) return; if (m) setMap(m); else setLoadFailed(true); });
+    setEverOpened(true);
+    const wait = setTimeout(() => { if (live) setSlow(true); }, 8000);
     try { const d = localStorage.getItem(DRAFT_KEY); if (d && !text) setText(d); } catch { /* no draft */ }
     const t = setTimeout(() => boxRef.current?.focus(), 50);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { live = false; clearTimeout(t); document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
+    return () => { live = false; clearTimeout(t); clearTimeout(wait); document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -266,7 +257,7 @@ export default function PasteListDialog({
                   inputMode="numeric"
                   value={picks[row.key]?.qty ?? r.qty ?? ''}
                   placeholder="e.g. 500"
-                  onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); choose(index, 'qty', v ? Number(v) : undefined); }}
+                  onChange={(e) => { const v = expandQtyShorthand(e.target.value).replace(/\D/g, ''); choose(index, 'qty', v ? Number(v) : undefined); }}
                 />
               </label>
             )}
@@ -308,7 +299,7 @@ export default function PasteListDialog({
               placeholder={'Blue Nano #114 Pear\n4x6 1000\n5x7 2000\nOval 4x6 1000\n\nYellow CZ Oval 5x7 500'}
               spellCheck={false}
             />
-            {loadFailed && <p className="po-field-error" role="alert">Couldn&rsquo;t load the catalogue. Check your connection and try again.</p>}
+            {slow && !map && <p className="po-field-error" role="alert">Couldn&rsquo;t load the catalogue. Check your connection and try again.</p>}
           </div>
         ) : (
           <div className="pl-body">
@@ -335,7 +326,7 @@ export default function PasteListDialog({
         <footer className="pl-foot">
           {stage === 'write' ? (
             <button type="button" className="po-add-line-btn" onClick={read} disabled={!text.trim() || !map}>
-              {map || loadFailed ? 'Read list' : 'Loading catalogue…'}
+              {map ? 'Read list' : 'Loading catalogue…'}
             </button>
           ) : (
             <>

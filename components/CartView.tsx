@@ -10,13 +10,14 @@ import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
 import VoiceOrderButton from './VoiceOrderButton';
 import PasteListDialog from './PasteListDialog';
-import { noteLines, type PastedLine } from '@/lib/paste-order';
+import type { PastedLine } from '@/lib/paste-order';
+import { cleanLineNote, LINE_NOTE_MAX } from '@/lib/line-note';
 import WhatsAppIcon from './admin/WhatsAppIcon';
 import { specText, quantityFactor, drilledHoles, gradeSpec } from '@/lib/order-specs';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
-  CART_EVENT, loadCart, mergeIntoCart, saveCart, appendCartNote, loadCartNote, saveCartNote,
+  CART_EVENT, loadCart, mergeIntoCart, saveCart, loadCartNote, saveCartNote,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
@@ -59,6 +60,14 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [optionsByCategory, setOptionsByCategory] = useState<Record<number, CategoryOptions>>({});
   const [comment, setCommentState] = useState('');
   const [pasteOpen, setPasteOpen] = useState(false);
+  // The line whose note is being typed, and what has been typed so far.
+  const [noteEdit, setNoteEdit] = useState<{ id: string; text: string } | null>(null);
+  function saveNote() {
+    if (!noteEdit) return;
+    const note = cleanLineNote(noteEdit.text);
+    setCart(cart.map((i) => (i.id === noteEdit.id ? { ...i, note: note || undefined } : i)));
+    setNoteEdit(null);
+  }
   // The message is kept with the draft, so remarks added with a pasted list
   // (or typed here) survive a reload.
   function setComment(next: string) {
@@ -106,12 +115,11 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         qty: l.qty,
         qtyUnit: l.qtyUnit ?? null,
         requestType: 'Place Order',
+        ...(cleanLineNote(l.note) ? { note: cleanLineNote(l.note)! } : {}),
         ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
       });
     }
     setCart(next);
-    appendCartNote(noteLines(lines));
-    setCommentState(loadCartNote());
     setToast(`Added ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} from your list`);
   }
   const pasteDialog = <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} ownPageHref={(slug) => `/po/category/${slug}`} />;
@@ -457,6 +465,24 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                 {group.moveLabel && (
                                   <button type="button" className="po-item-move-btn" onClick={() => updateItemRequestType(item.id, 'Place Order')}>
                                     {group.moveLabel}
+                                  </button>
+                                )}
+                                {noteEdit?.id === item.id ? (
+                                  <input
+                                    className="po-line-note-input"
+                                    autoFocus
+                                    maxLength={LINE_NOTE_MAX}
+                                    value={noteEdit.text}
+                                    placeholder="e.g. Radiant cut, for hand setting"
+                                    aria-label={`Note for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
+                                    enterKeyHint="done"
+                                    onChange={(e) => setNoteEdit({ id: item.id, text: e.target.value })}
+                                    onBlur={saveNote}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNote(); } if (e.key === 'Escape') setNoteEdit(null); }}
+                                  />
+                                ) : (
+                                  <button type="button" className={item.note ? 'po-line-note' : 'po-line-note-add'} onClick={() => setNoteEdit({ id: item.id, text: item.note || '' })}>
+                                    {item.note ? <>Note: {item.note}</> : '+ Note'}
                                   </button>
                                 )}
                               </div>

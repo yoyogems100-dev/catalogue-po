@@ -2,7 +2,8 @@
 import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import PasteListDialog from '@/components/PasteListDialog';
-import { noteLines, type PastedLine } from '@/lib/paste-order';
+import type { PastedLine } from '@/lib/paste-order';
+import { cleanLineNote } from '@/lib/line-note';
 import {specialCategory,specKey,specText,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
@@ -42,6 +43,7 @@ type CartItem = {
   colorId: number;
   colorName: string;
   qty: number;
+  note?: string | null;
 };
 
 export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
@@ -191,10 +193,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
       colorId: l.colorId,
       colorName: l.colorName,
       qty: l.qty,
+      note: cleanLineNote(l.note),
       ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
     }))]);
-    const notes = noteLines(lines).filter((n) => !comment.includes(n));
-    if (notes.length) setComment((c) => [c.trim(), ...notes].filter(Boolean).join('\n'));
   }
 
   function removeLine(id: string) {
@@ -250,7 +251,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           sizeMm: i.sizeMm,
           colorId: i.colorId,
           colorName: i.colorName,
-          qty: i.qty
+          qty: i.qty,
+          note: i.note || null
         }))
       })
     });
@@ -434,6 +436,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
                   <div className="po-item-main">
                     <strong>{item.shapeName} · {item.sizeMm}mm</strong>
                     <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
+                    {item.note && <span className="po-line-note-text">Note: {item.note}</span>}
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     )}

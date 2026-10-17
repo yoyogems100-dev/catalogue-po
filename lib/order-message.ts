@@ -15,12 +15,14 @@ export type OrderCartItem = {
   /** "lines" for Semi Precious Beads; absent means pieces (printed bare). */
   qtyUnit?: string | null;
   requestType: string;
+  /** The buyer's note on this line ("Radiant cut required"). */
+  note?: string | null;
   // Populated server-side (order creation looks this up fresh from the admin-set
   // price/multiplier) -- absent for categories with no pricing set up yet.
   unitPriceInr?: number | null;
 };
 
-type Row = { shape: string; size: string; color: string; qty: string; amount?: string };
+type Row = { shape: string; size: string; color: string; qty: string; amount?: string; note?: string | null };
 
 // Leading number of a size ("4", "4x6", "1.5") so lines run small to large.
 function sizeSortKey(sizeMm: string): number {
@@ -40,7 +42,7 @@ function formatLines(rows: Row[]) {
   const hasAmount = rows.some((r) => r.amount !== undefined);
   const join = (parts: string[]) => parts.filter(Boolean).join(' · ');
   const key = join(['Shape/Cut', 'Size', 'Color', 'Qty', hasAmount ? 'Amount (₹)' : '']);
-  const lines = rows.map((r) => join([r.shape, r.size, r.color, r.qty, hasAmount ? r.amount || '--' : '']));
+  const lines = rows.map((r) => join([r.shape, r.size, r.color, r.qty, hasAmount ? r.amount || '--' : '']) + (r.note ? ` _(${r.note})_` : ''));
   const spaced = lines.some((line) => line.length > PHONE_LINE);
   return [`_${key}_`, ...(spaced ? lines.flatMap((line, i) => (i ? ['', line] : [line])) : lines)].join('\n');
 }
@@ -60,7 +62,8 @@ function categorySections(items: OrderCartItem[]): string[] {
         size: item.sizeMm,
         color: item.colorName,
         qty: item.qtyUnit ? `${item.qty} ${item.qtyUnit}` : String(item.qty),
-        amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined
+        amount: item.unitPriceInr != null ? Math.round(item.unitPriceInr * item.qty).toLocaleString('en-IN') : undefined,
+        note: item.note
       }));
     return ['', `*${category}*`, formatLines(rows)];
   });

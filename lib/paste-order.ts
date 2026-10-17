@@ -544,21 +544,3 @@ export type PastedLine = {
   qty: number; grade: string | null; note: string;
   shapeRefPhotoUrl?: string | null; shapeIconKey?: string | null; qtyUnit?: string | null;
 };
-
-/** Remarks for the order message, one per remark: "Yellow Octagon 5x7, 6x8 — Radiant-Cut Required". */
-export function noteLines(lines: PastedLine[]): string[] {
-  const byNote = new Map<string, PastedLine[]>();
-  for (const l of lines) {
-    const note = l.note.trim();
-    if (!note) continue;
-    byNote.set(note, [...(byNote.get(note) || []), l]);
-  }
-  return [...byNote.entries()].map(([note, ls]) => {
-    const groups = new Map<string, string[]>();
-    for (const l of ls) {
-      const head = `${l.colorName} ${l.shapeName}`;
-      groups.set(head, [...(groups.get(head) || []), l.sizeMm]);
-    }
-    return `${[...groups.entries()].map(([head, sizes]) => `${head} ${sizes.join(', ')}`).join('; ')} — ${note}`;
-  });
-}
