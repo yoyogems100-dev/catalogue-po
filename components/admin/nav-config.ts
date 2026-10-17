@@ -64,7 +64,7 @@ export const WORKSPACES: Workspace[] = [
       {
         title: 'Orders',
         links: [
-          { href: '/admin/orders', label: 'Orders', detail: 'Purchase orders and quotation requests: prices, status, payment, PDFs.' }
+          { href: '/admin/orders', label: 'Orders', detail: 'Orders: prices, status, payment, PDFs.' }
         ]
       },
       // The catalogue masters each get their own entry. Tags & specifications

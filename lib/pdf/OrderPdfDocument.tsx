@@ -119,8 +119,13 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
   const hasPricing = data.items.some((i) => i.unitPrice != null);
   const allPriced = data.items.every(i => i.unitPrice != null);
   const grandTotal = hasPricing ? data.items.reduce((sum, i) => sum + (i.unitPrice || 0) * i.quantity, 0) : null;
-  const cols: Record<string, number> = hasPricing ? COLS_WITH_PRICE : COLS_NO_PRICE;
   const distinctTypes = new Set(data.items.map((i) => i.requestType));
+  // Every line is a purchase now (QUOTATIONS_ENABLED), so a Type column would
+  // only ever say "Order". It appears only on an older order that still has a
+  // quotation line; otherwise its width goes to the category column.
+  const showType = data.items.some((i) => i.requestType === 'Request Quotation');
+  const base: Record<string, number> = hasPricing ? COLS_WITH_PRICE : COLS_NO_PRICE;
+  const cols: Record<string, number> = showType ? base : { ...base, type: 0, category: base.category + base.type };
   const docTitle = data.isInvoice
     ? 'Invoice'
     : distinctTypes.size > 1
@@ -162,7 +167,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
 
         <View style={styles.table}>
           <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableHeaderCell, { width: `${cols.type * 100}%` }]}>Type</Text>
+            {showType && <Text style={[styles.tableHeaderCell, { width: `${cols.type * 100}%` }]}>Type</Text>}
             <Text style={[styles.tableHeaderCell, { width: `${cols.category * 100}%` }]}>Category</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.shape * 100}%` }]}>Shape/Cut / options</Text>
             <Text style={[styles.tableHeaderCell, { width: `${cols.size * 100}%` }]}>Size</Text>
@@ -173,7 +178,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
           </View>
           {data.items.map((item, i) => (
             <View key={i} style={styles.tableRow}>
-              <Text style={[styles.cell, { width: `${cols.type * 100}%` }]}>{item.requestType === 'Request Quotation' ? 'RQ' : 'Order'}</Text>
+              {showType && <Text style={[styles.cell, { width: `${cols.type * 100}%` }]}>{item.requestType === 'Request Quotation' ? 'RQ' : 'Order'}</Text>}
               <Text style={[styles.cell, { width: `${cols.category * 100}%` }]}>{item.categoryName}</Text>
               <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}{item.orderSpecs ? `\n${specText(item.orderSpecs,item.quantity)}` : ""}</Text>
               <Text style={[styles.cell, { width: `${cols.size * 100}%` }]}>{item.sizeMm} mm</Text>

@@ -80,7 +80,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
               <article className="card admin-record-card" key={order.id}>
                 <Link className="admin-record-main" href={`/admin/orders/${order.id}`}>
                   <strong>Order #{order.id}</strong>
-                  <span>{new Date(order.created_at).toLocaleDateString('en-IN')} · {order.request_type === 'Place Order' ? 'Purchase' : order.request_type}</span>
+                  <span>{new Date(order.created_at).toLocaleDateString('en-IN')}{order.request_type && order.request_type !== 'Place Order' ? ` · ${order.request_type}` : ''}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} /> · {order.payment_status || 'pending'}</span>
                 </Link>
                 {/* Outside the record-main link -- CategoryChips' "+N more"

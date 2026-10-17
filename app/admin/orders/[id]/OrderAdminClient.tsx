@@ -419,7 +419,9 @@ export default function OrderAdminClient({
 
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#756e5c' }}>
-          Placed {fmtDate(createdAt)} · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType === 'Place Order' || !requestType ? 'Purchase' : requestType}</strong>
+          Placed {fmtDate(createdAt)}
+          {/* Every order is a purchase now; only an older quotation/mixed order says so. */}
+          {requestType && requestType !== 'Place Order' && <> · <strong style={{ color: isQuotation ? 'var(--gold)' : undefined }}>{requestType}</strong></>}
           {customer && <> · <Link href={`/admin/customers/${customer.id}`} className="admin-table-link"><CustomerNameDisplay name={customer.name} company={customer.company} fallback={contactName || 'No name'} /></Link> · {customer.phone}{customer.phone_verified ? ' ✓' : ''}{customer.place ? ` · ${customer.place}` : ''}</>}
         </p>
         {comment && <p style={{ fontSize: 13, marginTop: 6 }}><strong>Comment:</strong> {comment}</p>}

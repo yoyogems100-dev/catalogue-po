@@ -229,7 +229,8 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
           </div>
         }
       />
-      <OrdersTable orders={rqOrders || []} count={rqCount || 0} currentPage={rqPage} pageParam="rqPage" title="Request quotations" emptyText="No quotation requests match this filter." anchorId="request-quotations" />
+      {/* Older quotation requests only -- new orders are all purchases. */}
+      {(rqCount || 0) > 0 && <OrdersTable orders={rqOrders || []} count={rqCount || 0} currentPage={rqPage} pageParam="rqPage" title="Request quotations" emptyText="No quotation requests match this filter." anchorId="request-quotations" />}
     </>
   );
 }
