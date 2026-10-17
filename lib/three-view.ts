@@ -234,4 +234,11 @@ export function threeView(iconKey: string | null | undefined): ThreeView {
   return view;
 }
 
+/** Just the view from the top, for a compact icon (the G-Series price list). */
+export function topView(iconKey: string | null | undefined): ThreeView {
+  const spec = SPECS[iconKey && SPECS[iconKey] ? iconKey : 'diamond'];
+  const top = crown(spec, 0);
+  return { width: f(top.w), height: H, d: top.d };
+}
+
 export const THREE_VIEW_KEYS = Object.keys(SPECS);

@@ -2,7 +2,7 @@
 //  - Website: the public site at yoyogems.co.in (its own pages, categories and photos)
 //  - PO portal: the /po ordering app for existing buyers (orders, buyers, catalogue)
 // The side pane switches between them; the hub pages list the same groups.
-import { CATALOGUE_PRICES_ENABLED } from '@/lib/pricing-calc';
+import { ADMIN_PRICING_ENABLED } from '@/lib/pricing-calc';
 
 export type NavLink = { href: string; label: string; detail?: string };
 /**
@@ -96,9 +96,9 @@ export const WORKSPACES: Workspace[] = [
         ]
       },
       {
-        title: CATALOGUE_PRICES_ENABLED ? 'Pricing & linking' : 'Linking',
+        title: ADMIN_PRICING_ENABLED ? 'Pricing & linking' : 'Linking',
         links: [
-          ...(CATALOGUE_PRICES_ENABLED ? [{ href: '/admin/pricing', label: 'Pricing', detail: 'Catalogue prices and pricing settings.' }] : []),
+          ...(ADMIN_PRICING_ENABLED ? [{ href: '/admin/pricing', label: 'Pricing', detail: 'Catalogue prices and pricing settings.' }] : []),
           { href: '/admin/bulk-link', label: 'Bulk link', detail: 'Link many shapes, sizes or colours to categories at once.' }
         ]
       },
@@ -129,7 +129,7 @@ export function poCategoryPages(id: number): NavLink[] {
     { href: `${base}?tab=photos`, label: 'Photos' },
     { href: `${base}?tab=shapes`, label: 'Shapes/cuts & sizes' },
     { href: `${base}?tab=colors`, label: 'Colours' },
-    ...(CATALOGUE_PRICES_ENABLED ? [{ href: `${base}?tab=pricing`, label: 'Pricing' }] : []),
+    ...(ADMIN_PRICING_ENABLED ? [{ href: `${base}?tab=pricing`, label: 'Pricing' }] : []),
     { href: `${base}?tab=suppliers`, label: 'Suppliers' },
     ...(id === 29 ? [{ href: `${base}?tab=strip-counts`, label: 'Strip counts' }] : [])
   ];
