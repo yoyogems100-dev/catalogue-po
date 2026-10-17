@@ -8,6 +8,7 @@ import ShapeReferenceImage from './ShapeReferenceImage';
 import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
+import VoiceOrderButton from './VoiceOrderButton';
 import WhatsAppIcon from './admin/WhatsAppIcon';
 import { specText, quantityFactor, drilledHoles } from '@/lib/order-specs';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
@@ -290,6 +291,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
+          <VoiceOrderButton listenForOpen />
         </div>
       </div>
     );
@@ -302,6 +304,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           <h2 className="po-heading">Your Requirement</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <QuickOrderButton label="Add to Order" />
+            <VoiceOrderButton listenForOpen />
             {cart.length > 0 && (
               <button
                 type="button"
