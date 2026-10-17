@@ -122,7 +122,6 @@ export default function GSeriesPriceListDocument({ data }: { data: GSeriesPriceL
   return (
     <Document title={`${data.categoryName} G-Series price list`} author="YOYO GEMS">
       <Page size="A4" style={s.page}>
-        <PageWatermark />
         <View style={s.mast}>
           <View>
             {data.logoUrl ? <Image src={data.logoUrl} style={s.logo} /> : <Text style={s.title}>YOYO GEMS</Text>}
@@ -200,6 +199,9 @@ export default function GSeriesPriceListDocument({ data }: { data: GSeriesPriceL
           </View>
         )}
 
+        {/* Last, so it lies over the content: this page is all white cells
+            and boxes, which hid a watermark drawn underneath them in pieces. */}
+        <PageWatermark />
         <View style={s.footer} fixed>
           <Text>{hasRound ? 'Round: 4×4 means 4 mm, and so on.   ' : ''}Prices are subject to change; availability is confirmed with your order.</Text>
           <Text>{[data.contactWhatsapp ? `WhatsApp ${data.contactWhatsapp}` : null, data.contactLocation].filter(Boolean).join(' · ')}</Text>
