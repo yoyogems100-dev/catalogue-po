@@ -16,6 +16,7 @@ import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPrefer
 import { lineQualities, pickQualities } from '@/lib/qualities';
 import { useCatalogueMap } from './useCatalogueMap';
 import StoneFinder from './StoneFinder';
+import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
 
 /** Home-page colour chips open Quick Order already started on a colour. */
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
@@ -318,7 +319,16 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             <strong>Quick Order</strong>
             <button type="button" autoFocus onClick={close} aria-label="Close quick order">✕</button>
           </div>
-          <p className="quick-order-hint">Start with a colour or a category, then shape, size and quantity.</p>
+          <p className="quick-order-hint">
+            Start with a colour or a category, then shape, size and quantity.{' '}
+            <button
+              type="button"
+              className="po-inline-link qo-speak-link"
+              onClick={() => { close(); window.dispatchEvent(new CustomEvent(VOICE_ORDER_OPEN_EVENT)); }}
+            >
+              <MicIcon size={13} /> Or speak your order
+            </button>
+          </p>
 
           {colorButtons.length > 0 && <div className="qo-family-chips" role="group" aria-label="Start with a colour">
             {colorButtons.map((f) => {

@@ -10,7 +10,7 @@ import { colorFamilyId } from '@/lib/color-family';
 import { sizeKey } from '@/lib/size-options';
 import { compareSizeKeys, type CatalogueMap } from '@/lib/catalogue-map';
 import { gradeSpec } from '@/lib/order-specs';
-import { loadCart, saveCart, mergeIntoCart, cartPieces, type CartItem } from '@/lib/cart-storage';
+import { loadCart, saveCart, mergeIntoCart, type CartItem } from '@/lib/cart-storage';
 import {
   buildVocabulary, parseOrderText, resolveLine, refitLine, missingParts, nearestSizes, gradesFor, needsOwnPage, bestAlternative,
   type ParseContext, type VoiceLine
@@ -23,6 +23,9 @@ import {
 // couldn't be matched stays empty and highlighted, with what was heard beside
 // it, so the buyer picks it rather than us guessing. Like Quick Order, it
 // writes straight into the shared cart (lib/cart-storage.ts).
+
+/** Opens Speak order from elsewhere (Quick Order, the home page prompt). */
+export const VOICE_ORDER_OPEN_EVENT = 'yoyo:voice-order-open';
 
 const DRAFT_KEY = 'yoyo_voice_order_v1';
 const LANG_KEY = 'yoyo_voice_lang';
@@ -48,7 +51,7 @@ function recognitionClass(): any {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
-function MicIcon({ size = 16 }: { size?: number }) {
+export function MicIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -57,7 +60,12 @@ function MicIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export default function VoiceOrderButton({ label = 'Speak order' }: { label?: string }) {
+/**
+ * `categoryId` starts the order on that stone (the category page), so "4mm
+ * 1000, 5mm 500" is enough. `listenForOpen` makes this the copy that answers
+ * VOICE_ORDER_OPEN_EVENT -- one per page, like Quick Order's colour start.
+ */
+export default function VoiceOrderButton({ label = 'Speak order', categoryId, listenForOpen = false }: { label?: string; categoryId?: number; listenForOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -76,7 +84,8 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
   const [supported, setSupported] = useState(true);
   const [lang, setLang] = useState<Lang>('en-IN');
   const [message, setMessage] = useState('');
-  const [cartCount, setCartCount] = useState(0);
+  const [problem, setProblem] = useState(false); // message is a problem (amber), not a success
+  const [cartLines, setCartLines] = useState(0);
   const recognition = useRef<any>(null);
   const finals = useRef<string[][]>([]);
 
@@ -86,11 +95,18 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
   }, []);
   useEffect(() => { if (open && !dialog.current?.open) dialog.current?.showModal(); }, [open]);
   useEffect(() => {
+    if (!listenForOpen) return;
+    const onOpen = () => { opener.current = null; setOpen(true); };
+    window.addEventListener(VOICE_ORDER_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(VOICE_ORDER_OPEN_EVENT, onOpen);
+  }, [listenForOpen]);
+  useEffect(() => {
     if (!open || loaded) return;
     const d = loadDraft();
     setRows(d.rows);
-    setContext(d.context);
-    setCartCount(cartPieces(loadCart()));
+    // On a stone's page, that stone is where a new sentence starts.
+    setContext(categoryId ? { category: { ids: [categoryId], heard: '' } } : d.context);
+    setCartLines(loadCart().length);
     setLoaded(true);
   }, [open, loaded]);
   useEffect(() => { if (loaded) saveDraft({ rows, context }); }, [rows, context, loaded]);
@@ -99,12 +115,14 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
   function close() { stop(); dialog.current?.close(); }
 
   function interpret(text: string) {
-    if (!map || !vocab) { setMessage('Still loading the catalogue — try again in a moment.'); return; }
+    if (!map || !vocab) { setProblem(true); setMessage('Still loading the catalogue — try again in a moment.'); return; }
     const clean = text.trim();
     if (!clean) return;
     const { lines, context: next } = parseOrderText(clean, map, context, vocab);
     setHeard(clean);
+    setProblem(false);
     if (!lines.length) {
+      setProblem(true);
       setMessage(`Couldn't find an order in that. Try: “${EXAMPLE}”.`);
       return;
     }
@@ -119,6 +137,7 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
     const SR = recognitionClass();
     if (!SR) { setSupported(false); return; }
     setMessage('');
+    setProblem(false);
     finals.current = [];
     const rec = new SR();
     rec.lang = lang;
@@ -135,6 +154,7 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
       setHeard([...finals.current.map((a) => a[0]), interim].join(' ').trim());
     };
     rec.onerror = (e: any) => {
+      setProblem(true);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setMessage('Microphone is blocked. Allow the microphone for this site, or type below.');
       else if (e.error === 'no-speech') setMessage('Didn’t hear anything — tap the mic and speak again.');
       else if (e.error !== 'aborted') setMessage('Voice stopped. Tap the mic to try again, or type below.');
@@ -174,8 +194,31 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
     if (!map) return;
     setRows((cur) => cur.map((r) => (r.key === key ? (refit ? refitLine(map, change(r), opts) : change(r)) : r)));
   }
+  // A stone or colour chosen on one line also fills the other lines still
+  // missing it -- an order is usually one stone in one colour, and choosing
+  // the same thing five times over is the tedious part. Lines that already
+  // have a value are left alone.
   function setCategory(key: string, id: number | null) {
-    update(key, (r) => ({ ...r, categoryId: id, guessed: {}, heard: { ...r.heard, category: undefined } }), true);
+    if (!map) return;
+    let others = 0;
+    setRows((cur) => cur.map((r) => {
+      const self = r.key === key;
+      if (!self && (r.categoryId || !id)) return r;
+      if (!self) others++;
+      return refitLine(map, { ...r, categoryId: id, guessed: {}, heard: { ...r.heard, category: undefined } }, opts);
+    }));
+    if (others) setMessage(`Also set on ${others} other line${others === 1 ? '' : 's'} with no stone.`);
+  }
+  function setColor(key: string, id: number | null) {
+    const row = rows.find((r) => r.key === key);
+    let others = 0;
+    setRows((cur) => cur.map((r) => {
+      const self = r.key === key;
+      if (!self && (r.colorId || !id || r.categoryId !== row?.categoryId)) return r;
+      if (!self) others++;
+      return { ...r, colorId: id, heard: { ...r.heard, color: undefined, colorFamily: undefined } };
+    }));
+    if (others) setMessage(`Also set on ${others} other line${others === 1 ? '' : 's'} of this stone.`);
   }
   function setShape(key: string, id: number | null) {
     update(key, (r) => ({ ...r, shapeId: id, heard: { ...r.heard, shape: undefined } }), true);
@@ -217,7 +260,7 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
       cart = mergeIntoCart(cart, item);
     }
     saveCart(cart);
-    setCartCount(cartPieces(cart));
+    setCartLines(cart.length);
     const done = new Set(ready.map((r) => r.key));
     const left = rows.length - done.size;
     setRows((cur) => cur.filter((r) => !done.has(r.key)));
@@ -290,7 +333,7 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
             <button type="submit" className="btn-ghost" disabled={!typed.trim() || !map}>Make list</button>
           </form>
 
-          {message && <p className="quick-order-message" aria-live="polite">{message}</p>}
+          {message && <p className={`quick-order-message${problem ? ' vo-problem' : ''}`} aria-live="polite">{message}</p>}
 
           {map && rows.length > 0 && (
             <div className="vo-grid" role="table" aria-label="Order lines">
@@ -309,7 +352,7 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
                   onCategory={(id) => setCategory(r.key, id)}
                   onShape={(id) => setShape(r.key, id)}
                   onSize={(id) => update(r.key, (x) => ({ ...x, sizeId: id, heard: { ...x.heard, size: undefined } }))}
-                  onColor={(id) => update(r.key, (x) => ({ ...x, colorId: id, heard: { ...x.heard, color: undefined, colorFamily: undefined } }))}
+                  onColor={(id) => setColor(r.key, id)}
                   onGrade={(g) => update(r.key, (x) => ({ ...x, grade: g }))}
                   onQty={(q) => update(r.key, (x) => ({ ...x, qty: q, heard: { ...x.heard, qty: undefined } }))}
                   onRemove={() => setRows((cur) => cur.filter((x) => x.key !== r.key))}
@@ -328,13 +371,13 @@ export default function VoiceOrderButton({ label = 'Speak order' }: { label?: st
 
           {rows.length > 0 && (
             <button type="button" className="po-add-line-btn" onClick={addToCart} disabled={!ready.length}>
-              {ready.length ? `+ Add ${ready.length === rows.length ? '' : `${ready.length} of ${rows.length} `}line${ready.length === 1 ? '' : 's'} to cart` : 'Fill the highlighted boxes to add'}
+              {ready.length ? `+ Add ${ready.length === rows.length ? ready.length : `${ready.length} of ${rows.length}`} line${ready.length === 1 && rows.length === 1 ? '' : 's'} to cart` : 'Fill the highlighted boxes to add'}
             </button>
           )}
 
           <div className="quick-order-footer">
             <span>Price and availability are confirmed by our team.</span>
-            <Link href="/po/cart" className="btn-ghost" onClick={close}>Go to cart{cartCount > 0 ? ` (${cartCount})` : ''}</Link>
+            <Link href="/po/cart" className="btn-ghost" onClick={close}>Go to cart{cartLines > 0 ? ` · ${cartLines} line${cartLines === 1 ? '' : 's'}` : ''}</Link>
           </div>
         </dialog>
       )}
@@ -377,9 +420,9 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
   const has = (part: string) => missing.includes(part);
   const ownPage = needsOwnPage(row.categoryId);
 
-  const heardNote = (part: 'category' | 'shape' | 'size' | 'color' | 'qty', fallback: string) => {
+  const heardNote = (part: 'category' | 'shape' | 'size' | 'color' | 'qty', fallback?: string) => {
     const said = row.heard[part];
-    if (!said) return <small className="vo-cell-note">{fallback}</small>;
+    if (!said) return fallback ? <small className="vo-cell-note">{fallback}</small> : null;
     let extra = '';
     if (part === 'size' && category && row.shapeId) {
       const near = nearestSizes(map, category, row.shapeId, said);
@@ -402,7 +445,7 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
           leading="photo"
           searchable
         />
-        {has('stone') ? heardNote('category', 'Choose the stone') : row.guessed.category && <small className="vo-cell-note is-info">Only stone with this shape &amp; size</small>}
+        {has('stone') ? heardNote('category') : row.guessed.category && <small className="vo-cell-note is-info">Only stone with this shape &amp; size</small>}
       </div>
       <div className={`vo-cell${has('shape') ? ' is-missing' : ''}`} role="cell">
         <span className="vo-cell-label">Shape</span>
@@ -415,7 +458,7 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
           hideAllOption
           leading="icon"
         />
-        {has('shape') && heardNote('shape', category ? 'Choose the shape' : 'Choose the stone first')}
+        {has('shape') && heardNote('shape', category ? undefined : 'Choose the stone first')}
       </div>
       <div className={`vo-cell${has('size') ? ' is-missing' : ''}`} role="cell">
         <span className="vo-cell-label">Size</span>
@@ -428,7 +471,7 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
           allLabel={row.shapeId ? 'Choose size' : '—'}
           hideAllOption
         />
-        {has('size') && heardNote('size', row.shapeId ? 'Choose the size' : 'Choose the shape first')}
+        {has('size') && heardNote('size', row.shapeId || !category ? undefined : 'Choose the shape first')}
       </div>
       <div className={`vo-cell${has('colour') ? ' is-missing' : ''}`} role="cell">
         <span className="vo-cell-label">Colour</span>
@@ -444,7 +487,7 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
           fitIds={familyIds.length > 1 ? familyIds : undefined}
           otherLabel="Other colours"
         />
-        {has('colour') && heardNote('color', category ? 'Choose the colour' : 'Choose the stone first')}
+        {has('colour') && heardNote('color')}
       </div>
       <div className={`vo-cell vo-cell-qty${has('qty') ? ' is-missing' : ''}`} role="cell">
         <span className="vo-cell-label">Qty (pcs)</span>
@@ -457,7 +500,7 @@ function VoiceRow({ index, row, map, grades, missing, onCategory, onShape, onSiz
           aria-label={`Quantity, line ${index}`}
           onChange={(e) => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); onQty(Number.isFinite(n) && n > 0 ? n : null); }}
         />
-        {has('qty') && heardNote('qty', 'Enter pieces')}
+        {has('qty') && heardNote('qty')}
       </div>
       <button type="button" className="vo-remove" onClick={onRemove} aria-label={`Remove line ${index}`}>✕</button>
       {grades.length > 0 && (

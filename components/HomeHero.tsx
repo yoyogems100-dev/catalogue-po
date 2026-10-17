@@ -47,7 +47,7 @@ export default function HomeHero(account: AccountState) {
         <div className="topbar-actions">
           {/* This one also answers the home page's colour chips. */}
           <QuickOrderButton listenForColorStart />
-          <VoiceOrderButton />
+          <VoiceOrderButton listenForOpen />
           <CartBag />
           <AccountMenu {...account} />
         </div>

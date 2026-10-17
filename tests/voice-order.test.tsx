@@ -55,6 +55,8 @@ test('number words in English and Hindi, sizes said as "6 by 8", "1k"', () => {
   assert.deepEqual(normalize('1,00,000 pcs'), ['100000', 'pcs']);
   assert.deepEqual(normalize('6 by 8'), ['6x8']);
   assert.deepEqual(normalize('2k'), ['2000']);
+  assert.deepEqual(normalize('point 8 mm'), ['0.8', 'mm']);
+  assert.deepEqual(normalize('2 point 5 mm'), ['2.5', 'mm']);
   assert.deepEqual(brief('crushed ice oval 6 by 8 do hazaar piece'), [[1, 66, 661, null, 2000]]);
 });
 
@@ -86,6 +88,10 @@ test('the next sentence carries on from the last one', () => {
   const first = parseOrderText('ice crush cushion 4mm 1000', map);
   const second = parseOrderText('5mm 500', map, first.context);
   assert.deepEqual(second.lines.map((l) => resolveLine(map, l)).map((l) => [l.categoryId, l.shapeId, l.sizeId, l.qty]), [[1, 6, 605, 500]]);
+});
+
+test('a colour said after a quantity stays with that stone', () => {
+  assert.deepEqual(brief('nano round 3mm 500 pcs green, moissanite round 2 mm 10 pcs'), [[3, 1, 103, 9, 500], [34, 1, 102, 500, 10]]);
 });
 
 test('"5A" alone is the 5A Quality CZ stone', () => {

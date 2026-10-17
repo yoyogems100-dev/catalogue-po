@@ -291,7 +291,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
-          <VoiceOrderButton />
+          <VoiceOrderButton listenForOpen />
         </div>
       </div>
     );
@@ -304,7 +304,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           <h2 className="po-heading">Your Requirement</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <QuickOrderButton label="Add to Order" />
-            <VoiceOrderButton />
+            <VoiceOrderButton listenForOpen />
             {cart.length > 0 && (
               <button
                 type="button"

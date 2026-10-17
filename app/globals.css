@@ -1214,7 +1214,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 
 /* Keep product references close to the composer without competing with purchase actions. */
 .po-compose-with-reference { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:0 24px; align-items:start; }
-.po-compose-with-reference > .po-heading { grid-column:1; grid-row:1; }
+.po-compose-with-reference > .po-heading, .po-compose-with-reference > .po-compose-head { grid-column:1; grid-row:1; }
 .po-compose-fields { min-width:0; grid-column:1; grid-row:2; }
 .po-compose-with-reference .po-add-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .po-reference { grid-column:2; grid-row:1 / 3; border:1px solid var(--line); background:#faf9f6; border-radius:10px; overflow:hidden; }
@@ -2138,14 +2138,16 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .vo-remove { width: 32px; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; color: var(--text-dim); }
 .vo-remove:hover { color: #a3341f; border-color: #a3341f; }
 .vo-own-page { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: #8a5a00; }
-.vo-grid-actions { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0 12px; font-size: 13px; }
+.vo-grid-actions { display: flex; justify-content: space-between; gap: 12px; margin: 6px 0 10px; }
+.vo-grid-actions .po-inline-link { font-size: 13.5px; padding: 10px 2px; min-height: 40px; }
+.quick-order-message.vo-problem { color: #8a5a00; }
 .voice-order-dialog .po-add-line-btn { width: 100%; }
 
 /* Phones: each line is a card -- stone across the top, then the rest two by two. */
 @media (max-width: 760px) {
   .vo-grid-head { display: none; }
   .vo-row {
-    grid-template-columns: 1fr 1fr; position: relative; gap: 8px 10px; padding: 12px; margin-top: 10px;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); position: relative; gap: 8px 10px; padding: 12px; margin-top: 10px;
     border: 1px solid var(--line); border-radius: 10px; background: #fff;
   }
   .vo-row.is-incomplete { border-color: #e2c27a; }
@@ -2153,6 +2155,9 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
   .vo-cell-stone { grid-column: 1 / -1; padding-right: 40px; }
   .vo-remove { position: absolute; top: 10px; right: 10px; height: 32px; }
   .vo-cell-grade { grid-column: 1 / -1; }
+  /* Half-width boxes: the shape's name matters more than its icon here. */
+  .vo-cell:not(.vo-cell-stone) .icon-select-trigger .shape-vector-icon,
+  .vo-cell:not(.vo-cell-stone) .icon-select-trigger .shape-reference-icon { display: none; }
 }
 
 /* Shared small "create/import in a popup" dialog -- Add supplier, Add
@@ -2607,6 +2612,24 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .qo-family-chip.active { border-color: #1B3A6B; background: #eef1f7; color: var(--ink); font-weight: 500; }
 .qo-family-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); flex: 0 0 auto; }
 .home-color-start { margin: 0 0 22px; }
+/* Home: the way into Speak order for buyers who'd rather talk than tap. */
+.home-voice-start {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 18px; padding: 12px 14px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; text-align: left; color: var(--ink); font: inherit;
+}
+.home-voice-start:hover { border-color: var(--gold-soft); }
+.home-voice-icon { flex: 0 0 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; background: var(--navy); color: #fff; }
+.home-voice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-voice-text strong { font-size: 14.5px; font-weight: 600; }
+.home-voice-text small { font-size: 12px; color: var(--text-dim); }
+.home-voice-go { color: var(--gold); font-size: 18px; }
+.qo-speak-link { font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.po-compose-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.po-compose-head .po-heading { margin-bottom: 0; }
+.po-compose-head { margin-bottom: 14px; }
+.po-speak-btn { color: var(--navy); border-color: var(--gold-soft); min-height: 36px; }
+/* hidden="" must win over the toggle's display:flex (QUOTATIONS_ENABLED off). */
+.po-type-toggle[hidden] { display: none; }
 .home-color-start-label { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
 /* One swipeable row on a phone rather than four wrapped lines of chips. */
 .home-color-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 2px; }

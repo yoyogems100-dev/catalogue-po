@@ -26,6 +26,7 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatRupees } from '@/lib/money';
 import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
 import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
+import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
 
 const CRUSHED_ICE_CATEGORY_ID = 1;
 
@@ -764,7 +765,13 @@ export default function POSelector({
   return (
     <div className="po-wrap">
       <section className="po-card po-compose-card">
-        <h2 className="po-heading">Add to Order</h2>
+        <div className="po-compose-head">
+          <h2 className="po-heading">Add to Order</h2>
+          {/* Opens Speak order already on this stone (the header mic, see category page). */}
+          <button type="button" className="voice-order-btn po-speak-btn" onClick={() => window.dispatchEvent(new CustomEvent(VOICE_ORDER_OPEN_EVENT))}>
+            <MicIcon size={15} /> Speak order
+          </button>
+        </div>
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridEntries[z.id] !== undefined).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {!specialCategory(categoryId) && shapes.length === 0 ? (

@@ -14,7 +14,7 @@ export default async function AccountHeader() {
       <Link href="/po"><HeaderLogo height={28} /></Link>
       <div className="account-header-actions">
         <QuickOrderButton />
-        <VoiceOrderButton />
+        <VoiceOrderButton listenForOpen />
         <Link href="/po/account/orders" style={{ fontSize: 13, color: '#fff' }}>My Orders</Link>
         <Link href="/po/account/profile" style={{ fontSize: 13, color: '#fff' }}>My Info</Link>
         <form action="/api/account/logout" method="post">

@@ -120,6 +120,12 @@ export function normalize(text: string): string[] {
   };
   while (i < raw.length) {
     const w = raw[i];
+    // "point 8 mm" with no number before it is 0.8 mm.
+    if ((w === 'point' || w === 'dot') && /^\d+$/.test(raw[i + 1] || '') && !/^\d/.test(out[out.length - 1] || '')) {
+      raw[i + 1] = `0.${raw[i + 1]}`;
+      i++;
+      continue;
+    }
     let adder = 0;
     let j = i;
     if (w in ADDERS && numAt(i + 1) !== null) { adder = ADDERS[w]; j = i + 1; }
@@ -456,9 +462,12 @@ export function parseOrderText(text: string, map: CatalogueMap, context: ParseCo
       const field: keyof ParseContext = tk.t === 'grade' ? 'grade' : tk.field;
       const value = tk.t === 'grade' ? tk.g : tk.m;
       const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+      let retro = false;
       if (afterQty && lastGroup.length && lastGroup.every((l) => !l[field])) {
-        // Said after the quantity: "cushion 4mm 1000 white" -- the white is for that line.
+        // Said after the quantity: "cushion 4mm 1000 white" -- the white is for
+        // that line. It carries on to the next line, but not to a new stone.
         lastGroup.forEach((l) => { (l as any)[field] = value; });
+        retro = true;
       } else if (pending.length && pending.every((l) => !l[field] || !said.get(l)?.has(field))) {
         // "4mm 5mm white 100": sizes first, then the colour -- also replacing
         // a shape only carried over from the line before ("..., 6x8 oval 200").
@@ -470,7 +479,7 @@ export function parseOrderText(text: string, map: CatalogueMap, context: ParseCo
         for (const f of ['shape', 'color', 'grade'] as const) if (!fresh.has(f)) delete ctx[f];
       }
       (ctx as any)[field] = value;
-      fresh.add(field);
+      if (!retro) fresh.add(field);
       continue;
     }
     let kind: 'size' | 'qty';
