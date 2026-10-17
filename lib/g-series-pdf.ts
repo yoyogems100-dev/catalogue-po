@@ -27,7 +27,7 @@ export async function loadGSeriesPriceList(categoryId: number): Promise<GSeriesP
 
   const [{ data: category }, { data: shapeLinks }, { data: sizeLinks }, { data: prices }, { data: members }, { data: colorLinks }, settings, logoUrl] = await Promise.all([
     supabaseAdmin.from('categories').select('name, price_unit').eq('id', categoryId).single(),
-    supabaseAdmin.from('category_shapes').select('shape_id, ref_photo_url, shapes(id, name, ref_photo_url)').eq('category_id', categoryId),
+    supabaseAdmin.from('category_shapes').select('shape_id, shapes(id, name, icon_key)').eq('category_id', categoryId),
     supabaseAdmin.from('category_shape_sizes').select('shape_sizes(id, shape_id, size_mm)').eq('category_id', categoryId),
     supabaseAdmin.from('shape_size_prices').select('shape_size_id, price_group_id, price_inr').eq('category_id', categoryId).in('price_group_id', groupIds),
     supabaseAdmin.from('color_price_group_members').select('group_id, color_id').in('group_id', groupIds),
@@ -37,10 +37,10 @@ export async function loadGSeriesPriceList(categoryId: number): Promise<GSeriesP
   ]);
   if (!category) return null;
 
-  const shapes = await Promise.all((shapeLinks || []).map(async (l: any) => {
+  const shapes = (shapeLinks || []).map((l: any) => {
     const shape = Array.isArray(l.shapes) ? l.shapes[0] : l.shapes;
-    return { id: l.shape_id, name: shape?.name || `Shape ${l.shape_id}`, image: await publicThumbDataUrl(l.ref_photo_url || shape?.ref_photo_url) };
-  }));
+    return { id: l.shape_id, name: shape?.name || `Shape ${l.shape_id}`, iconKey: shape?.icon_key ?? null };
+  });
   const sizes = (sizeLinks || []).map((l: any) => l.shape_sizes).filter(Boolean)
     .map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }));
   const grid = buildGSeriesGrid(gGroups, shapes, sizes,

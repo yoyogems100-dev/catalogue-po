@@ -11,12 +11,12 @@
  */
 
 export type GSeriesGroupIn = { id: number; name: string };
-export type GSeriesShapeIn = { id: number; name: string; image?: string | null };
+export type GSeriesShapeIn = { id: number; name: string; iconKey?: string | null };
 export type GSeriesSizeIn = { id: number; shapeId: number; sizeMm: string };
 export type GSeriesPriceIn = { shapeSizeId: number; groupId: number; price: number };
 
 export type GSeriesColumn = { id: number; letter: string; title: string | null };
-export type GSeriesFamily = { shapes: { name: string; image: string | null }[] };
+export type GSeriesFamily = { shapes: { name: string; iconKey: string | null }[] };
 export type GSeriesRow = { sizes: string[][]; prices: (number | null)[] };
 export type GSeriesGrid = { columns: GSeriesColumn[]; families: GSeriesFamily[]; rows: GSeriesRow[] };
 
@@ -102,7 +102,7 @@ export function buildGSeriesGrid(groups: GSeriesGroupIn[], shapes: GSeriesShapeI
 
   return {
     columns,
-    families: familyList.map((members) => ({ shapes: members.map((m) => ({ name: m.shape.name, image: m.shape.image ?? null })) })),
+    families: familyList.map((members) => ({ shapes: members.map((m) => ({ name: m.shape.name, iconKey: m.shape.iconKey ?? null })) })),
     rows
   };
 }

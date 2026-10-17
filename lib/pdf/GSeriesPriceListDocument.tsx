@@ -1,7 +1,8 @@
-import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, Image, StyleSheet, Svg, Path } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
 import { PageWatermark } from './PageWatermark';
 import { displaySize, type GSeriesGrid } from '../g-series-grid';
+import { topView } from '../three-view';
 
 export type GSeriesSwatch = { code: string; name: string; image: string | null; hex: string | null };
 export type GSeriesKeyGroup = { letter: string; title: string | null; colors: GSeriesSwatch[] };
@@ -49,10 +50,9 @@ const s = StyleSheet.create({
   table: { borderWidth: 0.6, borderColor: '#cfd5de', borderRadius: 3, overflow: 'hidden' },
   headRow: { flexDirection: 'row', borderBottomWidth: 0.8, borderBottomColor: '#1B3A6B' },
   famHead: { paddingVertical: 4, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', backgroundColor: '#12233F', borderRightWidth: 0.6, borderRightColor: '#2c4570' },
-  famIcons: { flexDirection: 'row', gap: 2, marginBottom: 2 },
-  famIconRing: { width: 13, height: 13, borderRadius: 6.5, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  famIcon: { width: 11, height: 11, objectFit: 'contain' },
-  famName: { color: '#fff', fontSize: 6.3, fontFamily: 'Helvetica-Bold', textAlign: 'center', lineHeight: 1.2 },
+  famShapes: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 5 },
+  famShape: { alignItems: 'center' },
+  famName: { color: '#fff', fontSize: 5.9, fontFamily: 'Helvetica-Bold', marginTop: 2.5 },
   colHead: { flex: 1, paddingVertical: 4, alignItems: 'center', justifyContent: 'center', borderRightWidth: 0.6, borderRightColor: '#fff' },
   letter: { fontFamily: 'Helvetica-Bold', fontSize: 12 },
   colTitle: { fontSize: 6, marginTop: 0.5 },
@@ -82,6 +82,21 @@ const s = StyleSheet.create({
 
   footer: { position: 'absolute', bottom: 12, left: 22, right: 22, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: '#cfd5de', paddingTop: 4, fontSize: 6, color: '#62666d' }
 });
+
+// The cut drawn from the top in vector line art (lib/three-view.ts), the same
+// drawings the order form uses, so it stays sharp at any zoom or print size.
+function ShapeMark({ name, iconKey }: { name: string; iconKey: string | null }) {
+  const view = topView(iconKey);
+  const h = 17;
+  return (
+    <View style={s.famShape}>
+      <Svg width={(h * view.width) / view.height} height={h} viewBox={`0 0 ${view.width} ${view.height}`}>
+        <Path d={view.d} fill="none" stroke="#E9D9A6" strokeWidth={0.75} strokeLinejoin="round" strokeLinecap="round" />
+      </Svg>
+      <Text style={s.famName}>{name}</Text>
+    </View>
+  );
+}
 
 function Swatch({ c }: { c: GSeriesSwatch }) {
   return (
@@ -121,12 +136,9 @@ export default function GSeriesPriceListDocument({ data }: { data: GSeriesPriceL
           <View style={s.headRow}>
             {grid.families.map((f, i) => (
               <View key={i} style={[s.famHead, { width: famW }]}>
-                <View style={s.famIcons}>
-                  {f.shapes.map((sh) => (
-                    <View key={sh.name} style={s.famIconRing}>{sh.image ? <Image src={sh.image} style={s.famIcon} /> : null}</View>
-                  ))}
+                <View style={s.famShapes}>
+                  {f.shapes.map((sh) => <ShapeMark key={sh.name} name={sh.name} iconKey={sh.iconKey} />)}
                 </View>
-                <Text style={s.famName}>{f.shapes.map((sh) => sh.name).join(' · ')}</Text>
               </View>
             ))}
             {grid.columns.map((c, ci) => {
