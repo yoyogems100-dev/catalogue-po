@@ -346,9 +346,13 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
               }
               return (
                 <section className="po-requirement-group" key={group.type} aria-label={group.title}>
-                  <header className="po-requirement-group-head">
-                    <h3>{group.title}</h3>
-                  </header>
+                  {/* Every line is a purchase, so "Purchase" is only worth a
+                      heading beside an older quotation line kept in the cart. */}
+                  {(isQuote || cart.some((i) => i.requestType === 'Request Quotation')) && (
+                    <header className="po-requirement-group-head">
+                      <h3>{group.title}</h3>
+                    </header>
+                  )}
                   {isQuote && <p className="po-type-hint">Quantity is optional here — we&rsquo;ll send prices, then you decide.</p>}
                   {categoryGroups.map((catGroup) => (
                     <div className="po-requirement-category" key={catGroup.categoryId}>

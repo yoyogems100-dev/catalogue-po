@@ -2628,8 +2628,9 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .po-compose-head .po-heading { margin-bottom: 0; }
 .po-compose-head { margin-bottom: 14px; }
 .po-speak-btn { color: var(--navy); border-color: var(--gold-soft); min-height: 36px; }
-/* hidden="" must win over the toggle's display:flex (QUOTATIONS_ENABLED off). */
-.po-type-toggle[hidden] { display: none; }
+/* hidden="" must always win over a class's display (flex/grid) -- the
+   Request type pickers are hidden that way while QUOTATIONS_ENABLED is off. */
+[hidden] { display: none !important; }
 .home-color-start-label { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
 /* One swipeable row on a phone rather than four wrapped lines of chips. */
 .home-color-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 2px; }
