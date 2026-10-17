@@ -3389,6 +3389,8 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
   .gs-savebar { flex-wrap: wrap; }
   .gs-savebar > span { flex-basis: 100%; }
   .gs-savebar button { flex: 1; }
+}
+
 /* Order form size table: every size of the picked shape with its own quantity box. */
 .po-size-table-wrap { margin: 0 0 12px; }
 .po-size-table-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
