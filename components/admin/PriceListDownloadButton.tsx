@@ -1,29 +1,41 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import type { GSeriesGrid } from '@/lib/g-series-grid';
+import { useId, useRef, useState } from 'react';
 import { CUSTOMER_NAME_MAX, todayIso } from '@/lib/price-list-options';
+
+type SavedList = { id: number; customerName: string; priceDate: string };
 
 /**
  * "Download price list". For a category with a customer price list (Crushed
- * Ice G-Series) it first asks who the copy is for, the date to print, and
- * lets the team change any price for that customer -- prices differ by buyer
- * and by day. Nothing typed here is saved; the stored prices stay the
- * starting point every time. Other categories download straight away.
+ * Ice G-Series) it first asks who the copy is for and the date to print, and
+ * can keep those prices as that customer's saved list for next time.
+ *
+ * On the Pricing page it is handed the prices on screen (`current`), edits
+ * and all. Elsewhere it prints the saved prices: the customer's own when
+ * their name matches a saved list, else the defaults. Categories without a
+ * customer price list download the plain list straight away.
  */
-export default function PriceListDownloadButton({ categoryId, className = 'btn-ghost', disabled = false }: { categoryId: number; className?: string; disabled?: boolean }) {
+export default function PriceListDownloadButton({ categoryId, className = 'btn-ghost', disabled = false, current, onSaved }: {
+  categoryId: number;
+  className?: string;
+  disabled?: boolean;
+  /** The grid on screen: which list it came from, its prices and who it's for. */
+  current?: { sourceListId: number | null; prices: (number | null)[][]; customerName: string; date: string };
+  /** Called with the saved list's id after a download that saved the customer's prices. */
+  onSaved?: (listId: number) => void;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [grid, setGrid] = useState<GSeriesGrid | null>(null);
+  const nameListId = useId();
+  const [lists, setLists] = useState<SavedList[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
-  const [cells, setCells] = useState<string[][]>([]);
+  const [save, setSave] = useState(true);
   const [opening, setOpening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const plainUrl = `/api/admin/pricing/pdf?category_id=${categoryId}`;
-  const savedCells = (g: GSeriesGrid) => g.rows.map((r) => r.prices.map((p) => (p === null ? '' : String(p))));
-  const edited = grid !== null && JSON.stringify(cells) !== JSON.stringify(savedCells(grid));
+  const match = lists.find((l) => l.customerName.trim().toLowerCase() === name.trim().toLowerCase()) || null;
 
   async function open() {
     setOpening(true);
@@ -31,11 +43,12 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     try {
       const res = await fetch(`/api/admin/pricing/grid?category_id=${categoryId}`);
       if (!res.ok) throw new Error();
-      const { grid: g } = (await res.json()) as { grid: GSeriesGrid | null };
-      if (!g) { window.location.href = plainUrl; return; }
-      setGrid(g);
-      setCells(savedCells(g));
-      setDate(todayIso());
+      const data = await res.json();
+      if (!data.grid) { window.location.href = plainUrl; return; }
+      setLists(data.lists || []);
+      setName(current?.customerName || '');
+      setDate(current?.date || todayIso());
+      setSave(true);
       dialogRef.current?.showModal();
     } catch {
       // The dialog is a convenience; the saved list must still be one click away.
@@ -45,26 +58,18 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     }
   }
 
-  function setCell(ri: number, ci: number, value: string) {
-    setCells((cur) => cur.map((row, r) => (r !== ri ? row : row.map((v, c) => (c === ci ? value.replace(/[^\d.]/g, '') : v)))));
-  }
-
   async function download() {
-    if (!grid) return;
-    const bad = cells.some((row) => row.some((v) => v !== '' && !Number.isFinite(Number(v))));
-    if (bad) { setError('Check the prices: each one should be a number, or empty for "–".'); return; }
     setBusy(true);
     setError('');
     try {
+      // Off the Pricing page, a known customer's copy prints their own saved prices.
+      const body = current
+        ? { source_list_id: current.sourceListId, prices: current.prices }
+        : { source_list_id: match?.id ?? null };
       const res = await fetch('/api/admin/pricing/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category_id: categoryId,
-          customer_name: name,
-          date,
-          prices: cells.map((row) => row.map((v) => (v === '' ? null : Number(v))))
-        })
+        body: JSON.stringify({ category_id: categoryId, customer_name: name, date, save_for_customer: save && name.trim() !== '', ...body })
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'The price list could not be made. Please retry.');
       const blob = await res.blob();
@@ -77,6 +82,8 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      const savedId = Number(res.headers.get('X-Price-List-Id'));
+      if (savedId) onSaved?.(savedId);
       dialogRef.current?.close();
     } catch (e) {
       setError((e as Error).message);
@@ -90,61 +97,36 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
       <button type="button" className={className} onClick={open} disabled={disabled || opening}>
         {opening ? 'Opening…' : 'Download price list'}
       </button>
-      <dialog ref={dialogRef} className="price-list-dialog" aria-labelledby={`price-list-title-${categoryId}`}>
+      <dialog ref={dialogRef} className="price-list-dialog" aria-labelledby={`${nameListId}-title`}>
         <header className="price-list-dialog-head">
-          <h2 id={`price-list-title-${categoryId}`}>Price list for a customer</h2>
+          <h2 id={`${nameListId}-title`}>Download price list</h2>
           <button type="button" aria-label="Close" onClick={() => dialogRef.current?.close()}>×</button>
         </header>
         <div className="price-list-dialog-body">
           <div className="price-list-fields">
             <label>
               <span>Customer name <em>optional</em></span>
-              <input value={name} maxLength={CUSTOMER_NAME_MAX} placeholder="e.g. Sharma Jewellers" onChange={(e) => setName(e.target.value)} autoComplete="off" />
+              <input value={name} maxLength={CUSTOMER_NAME_MAX} placeholder="e.g. Sharma Jewellers" list={`${nameListId}-names`}
+                onChange={(e) => setName(e.target.value)} autoComplete="off" />
+              <datalist id={`${nameListId}-names`}>{lists.map((l) => <option key={l.id} value={l.customerName} />)}</datalist>
             </label>
             <label>
               <span>Date</span>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </label>
           </div>
-          {grid && (
-            <>
-              <div className="price-list-grid-head">
-                <p>Prices per piece. Change any for this customer — saved prices stay as they are.</p>
-                {edited && <button type="button" className="btn-link" onClick={() => setCells(savedCells(grid))}>Reset to saved prices</button>}
-              </div>
-              <div className="price-list-grid-scroll">
-                <table className="price-list-grid">
-                  <thead>
-                    <tr>
-                      {grid.families.map((f, i) => <th key={i} className="size">{f.shapes.map((s) => s.name).join(' · ')}</th>)}
-                      {grid.columns.map((c) => <th key={c.id} className={`col col-${c.letter}`}><b>{c.letter}</b>{c.title && <small>{c.title}</small>}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grid.rows.map((row, ri) => (
-                      <tr key={ri}>
-                        {row.sizes.map((list, fi) => <td key={fi} className="size">{list.length ? list.map((k) => k.replace(/x/g, '×')).join(', ') : '–'}</td>)}
-                        {grid.columns.map((c, ci) => {
-                          const changed = cells[ri]?.[ci] !== (row.prices[ci] === null ? '' : String(row.prices[ci]));
-                          return (
-                            <td key={c.id}>
-                              <input
-                                inputMode="decimal"
-                                aria-label={`${row.sizes.flat().join(', ')} column ${c.letter} price`}
-                                value={cells[ri]?.[ci] ?? ''}
-                                placeholder="–"
-                                className={changed ? 'changed' : undefined}
-                                onChange={(e) => setCell(ri, ci, e.target.value)}
-                              />
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+          <p className="price-list-note">
+            {current
+              ? 'The PDF uses the prices on screen, including changes you haven’t saved.'
+              : match
+                ? `Uses ${match.customerName}’s saved prices (last updated ${new Date(match.priceDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}).`
+                : 'Uses the default prices. To change prices first, open Pricing.'}
+          </p>
+          {name.trim() !== '' && (
+            <label className="price-list-save">
+              <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} />
+              <span>Save these prices as <b>{name.trim()}</b>’s prices, so they open next time</span>
+            </label>
           )}
           {error && <p className="price-list-error" role="alert">{error}</p>}
         </div>

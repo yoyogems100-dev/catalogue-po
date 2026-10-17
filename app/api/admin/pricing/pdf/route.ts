@@ -8,32 +8,52 @@ import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } 
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 import { priceColumns, groupsInScope, showShapeHeadings } from '@/lib/price-columns';
 import GSeriesPriceListDocument from '@/lib/pdf/GSeriesPriceListDocument';
-import { loadGSeriesGrid, loadGSeriesPriceList } from '@/lib/g-series-pdf';
+import { gridToEntries, loadGSeriesGrid, loadGSeriesPriceList, saveCustomerPrices } from '@/lib/g-series-pdf';
 import { parsePriceListOptions, priceListFileName, type PriceListOptions } from '@/lib/price-list-options';
 
-async function gSeriesPdf(categoryId: number, options?: PriceListOptions) {
+async function gSeriesPdf(categoryId: number, options?: Partial<PriceListOptions> & { listId?: number | null }, extraHeaders: Record<string, string> = {}) {
   const data = await loadGSeriesPriceList(categoryId, options);
   if (!data) return null;
   const buffer = await renderToBuffer(React.createElement(GSeriesPriceListDocument, { data }) as any);
   const fileName = priceListFileName('YOYO-GEMS-Crushed-Ice-G-Series-Price-List', { customerName: data.customerName, date: data.date });
   return new NextResponse(new Uint8Array(buffer), {
-    headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fileName}"`, 'Cache-Control': 'private, no-store' }
+    headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fileName}"`, 'Cache-Control': 'private, no-store', ...extraHeaders }
   });
 }
 
 /**
- * The download dialog's copy: a customer's name, a date and prices changed
- * just for them. Nothing here is saved; the stored prices are untouched.
+ * The download dialog's copy: a customer's name, a date and the prices on
+ * screen (rows of the grid `source_list_id`, or of the defaults). With
+ * `save_for_customer` and a name, those prices also become that customer's
+ * saved list; otherwise nothing is written.
  */
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json().catch(() => null);
   const categoryId = Number(body?.category_id);
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
-  const grid = await loadGSeriesGrid(categoryId);
-  const parsed = parsePriceListOptions(body, grid ? { rows: grid.rows.length, columns: grid.columns.length } : null);
+  const sourceListId = Number(body?.source_list_id) > 0 ? Number(body.source_list_id) : null;
+  const loaded = await loadGSeriesGrid(categoryId, sourceListId);
+  const parsed = parsePriceListOptions(body, loaded ? { rows: loaded.grid.rows.length, columns: loaded.grid.columns.length } : null);
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const pdf = await gSeriesPdf(categoryId, parsed.options);
+  const { options } = parsed;
+
+  const headers: Record<string, string> = {};
+  if (body?.save_for_customer && options.customerName && loaded) {
+    try {
+      const sameCustomer = loaded.list && loaded.list.customerName.trim().toLowerCase() === options.customerName.toLowerCase();
+      const listId = await saveCustomerPrices(categoryId, {
+        listId: sameCustomer ? loaded.list!.id : null,
+        customerName: options.customerName,
+        priceDate: options.date,
+        entries: gridToEntries(loaded.grid, options.prices || loaded.grid.rows.map((r) => r.prices))
+      });
+      headers['X-Price-List-Id'] = String(listId);
+    } catch {
+      return NextResponse.json({ error: 'The customer’s prices could not be saved, so nothing was downloaded. Please retry.' }, { status: 500 });
+    }
+  }
+  const pdf = await gSeriesPdf(categoryId, { ...options, listId: sourceListId }, headers);
   return pdf || NextResponse.json({ error: 'This category has no customer price list.' }, { status: 404 });
 }
 

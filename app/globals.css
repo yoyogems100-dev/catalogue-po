@@ -3300,8 +3300,8 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .po-line-qty-row > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { width: 76px; flex: none; padding: 6px; min-height: 36px; }
 @media (max-width: 480px) { .po-line-qty-grid { grid-template-columns: 1fr 1fr; } .po-line-qty-row > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { width: 62px; } }
 
-/* Admin "Download price list" dialog: who it's for, the date, and prices for this customer only. */
-.price-list-dialog { width: min(760px, calc(100vw - 24px)); max-height: 92dvh; padding: 0; border: 1px solid #d8d5cb; border-radius: 12px; background: #faf8f3; color: var(--ink); box-sizing: border-box; }
+/* Admin "Download price list" dialog: who it's for, the date, save for that customer. */
+.price-list-dialog { width: min(520px, calc(100vw - 24px)); max-height: 92dvh; padding: 0; border: 1px solid #d8d5cb; border-radius: 12px; background: #faf8f3; color: var(--ink); box-sizing: border-box; }
 .price-list-dialog[open] { display: flex; flex-direction: column; }
 .price-list-dialog::backdrop { background: rgb(12 23 42 / 62%); }
 .price-list-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
@@ -3309,35 +3309,80 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .price-list-dialog-head button { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 26px; line-height: 1; color: var(--navy); cursor: pointer; border-radius: 8px; }
 .price-list-dialog-head button:hover { background: #efece3; }
 .price-list-dialog-body { overflow: auto; min-height: 0; padding: 14px 18px; }
-.price-list-fields { display: grid; grid-template-columns: 1fr 180px; gap: 12px; margin-bottom: 14px; }
-.price-list-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: .4px; }
+.price-list-fields { display: grid; grid-template-columns: 1fr 170px; gap: 12px; }
+.price-list-fields label, .gs-customer label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: .4px; }
 .price-list-fields em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--text-dim, #7a7466); font-weight: 400; }
-.price-list-fields input { min-height: 44px; padding: 8px 10px; font-size: 15px; border: 1px solid #d8d5cb; border-radius: 8px; background: #fff; color: var(--ink); box-sizing: border-box; width: 100%; }
-.price-list-grid-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.price-list-grid-head p { margin: 0; font-size: 12.5px; color: var(--text-dim, #6b6658); }
-.price-list-grid-head .btn-link { font-size: 12.5px; white-space: nowrap; }
-.price-list-grid-scroll { overflow-x: auto; border: 1px solid #e2ded4; border-radius: 8px; background: #fff; }
-.price-list-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
-.price-list-grid th, .price-list-grid td { padding: 4px 5px; border-bottom: 1px solid #efebe2; text-align: center; white-space: nowrap; }
-.price-list-grid thead th { position: sticky; top: 0; background: #f6f4ee; font-size: 11px; color: var(--navy); font-weight: 600; }
-.price-list-grid th.size { min-width: 72px; white-space: normal; line-height: 1.25; }
-.price-list-grid td.size { font-weight: 600; color: var(--navy); }
-.price-list-grid th.col b { display: block; font-size: 15px; }
-.price-list-grid th.col small { display: block; font-weight: 400; font-size: 10px; color: #6b6658; }
-.price-list-grid .col-A { box-shadow: inset 0 3px #7D8CA3; } .price-list-grid .col-B { box-shadow: inset 0 3px #C98A78; }
-.price-list-grid .col-C { box-shadow: inset 0 3px #A39E96; } .price-list-grid .col-D { box-shadow: inset 0 3px #C9A646; }
-.price-list-grid .col-E { box-shadow: inset 0 3px #6FA3BF; }
-.price-list-grid input { width: 64px; min-height: 36px; padding: 4px 6px; text-align: center; font: 600 14px/1 var(--font-body, inherit); font-variant-numeric: tabular-nums; border: 1px solid transparent; border-radius: 6px; background: #faf9f6; color: var(--ink); box-sizing: border-box; }
-.price-list-grid input:hover { border-color: #e2ded4; }
-.price-list-grid input:focus { outline: none; border-color: var(--navy); background: #fff; }
-.price-list-grid input.changed { background: #fbf3dc; border-color: #e3c97a; }
+.price-list-fields input, .gs-customer input { min-height: 44px; padding: 8px 10px; font-size: 15px; border: 1px solid #d8d5cb; border-radius: 8px; background: #fff; color: var(--ink); box-sizing: border-box; width: 100%; }
+.price-list-note { margin: 12px 0 0; font-size: 13px; color: var(--text-dim, #6b6658); }
+.price-list-save { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #e8e3d6; font-size: 13.5px; cursor: pointer; }
+.price-list-save input { width: 18px; height: 18px; margin: 1px 0 0; flex-shrink: 0; accent-color: var(--navy); }
 .price-list-error { margin: 10px 0 0; font-size: 13px; color: #a3281c; }
 .price-list-dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); flex-shrink: 0; }
 .price-list-dialog-foot button { min-height: 44px; min-width: 110px; }
+
+/* Crushed Ice G-Series pricing: laid out like the printed price list. */
+.gs-pricing { --gs-line: #ECE8DF; --gs-zebra: #FAF9F6; }
+.gs-dim { font-size: 13px; color: var(--text-dim, #6b6658); margin: 0; }
+.gs-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.gs-toolbar > .btn, .gs-toolbar > .btn-ghost { min-height: 44px; }
+.gs-picker { display: flex; flex-direction: column; gap: 5px; flex: 1 1 260px; max-width: 380px; }
+.gs-picker > label { font-size: 11px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: .5px; }
+.gs-customer { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; gap: 10px 12px; align-items: end; padding: 12px; margin-bottom: 12px; border: 1px solid #e8dfc4; border-radius: 10px; background: #fdf9ee; }
+.gs-customer .gs-dim { grid-column: 1 / -1; }
+.gs-remove { color: #a3281c; min-height: 44px; font-size: 13px; }
+.gs-default-note { margin-bottom: 12px; }
+.gs-scroll { overflow-x: auto; border: 1px solid #E2DED4; border-radius: 8px; background: #fff; }
+.gs-grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.gs-grid th, .gs-grid td { border-bottom: 1px solid var(--gs-line); border-right: 1px solid var(--gs-line); text-align: center; padding: 0; }
+.gs-grid tbody tr:nth-child(even) td { background: var(--gs-zebra); }
+.gs-grid tbody tr:last-child td { border-bottom: 0; }
+.gs-family { background: #12233F; color: #E9D9A6; padding: 8px 6px !important; min-width: 120px; border-right-color: #2c4570 !important; }
+.gs-shapes { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.gs-shape { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.gs-shape > span { color: #fff; font-size: 10.5px; font-weight: 600; }
+.gs-col { padding: 6px 4px 7px !important; min-width: 84px; vertical-align: top; }
+.gs-col b { display: block; font-size: 18px; line-height: 1.1; }
+.gs-col small { display: block; font-size: 10.5px; font-weight: 400; margin-top: 1px; }
+.gs-thumbs { display: flex; justify-content: center; gap: 2px; margin-top: 5px; min-height: 16px; }
+.gs-thumbs img { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; }
+.gs-size { font-weight: 700; color: #12233F; font-size: 14px; padding: 0 8px !important; white-space: nowrap; height: 44px; }
+.gs-cell input { width: 100%; min-width: 64px; height: 44px; border: 0; border-radius: 0; background: transparent; text-align: center; font: 700 16px/1 var(--font-body, inherit); font-variant-numeric: tabular-nums; color: var(--gs-ink, #12233F); box-sizing: border-box; }
+.gs-cell input:hover { background: rgb(27 58 107 / 4%); }
+.gs-cell input:focus { outline: 2px solid var(--navy); outline-offset: -2px; background: #fff; }
+.gs-cell input.changed { background: #fbf0cf; box-shadow: inset 0 -2px #d4ac3c; }
+.gs-cell input.bad { background: #fde8e5; box-shadow: inset 0 -2px #c0392b; }
+.gs-cell input::placeholder { color: #c3c8cf; }
+/* One quiet accent per column, the same as the PDF. */
+.gs-col-A { --gs-accent: #7D8CA3; --gs-wash: #F1F3F7; --gs-ink: #3D4C63; }
+.gs-col-B { --gs-accent: #C98A78; --gs-wash: #FBF2EF; --gs-ink: #9A4A36; }
+.gs-col-C { --gs-accent: #A39E96; --gs-wash: #F4F3F1; --gs-ink: #5C5852; }
+.gs-col-D { --gs-accent: #C9A646; --gs-wash: #FBF6E7; --gs-ink: #8A6A17; }
+.gs-col-E { --gs-accent: #6FA3BF; --gs-wash: #EEF5F9; --gs-ink: #2A6684; }
+.gs-col { background: var(--gs-wash); color: var(--gs-ink); box-shadow: inset 0 3px var(--gs-accent); }
+.gs-key { margin-top: 12px; border: 1px solid #E2DED4; border-radius: 8px; background: #fff; }
+.gs-key summary { padding: 10px 12px; min-height: 44px; box-sizing: border-box; cursor: pointer; font-weight: 600; color: var(--navy); font-size: 14px; display: flex; align-items: center; }
+.gs-key-row { display: flex; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--gs-line); box-shadow: inset 3px 0 var(--gs-accent); }
+.gs-key-row > b { color: var(--gs-ink); font-size: 16px; min-width: 18px; }
+.gs-key-row > span { display: flex; flex-wrap: wrap; gap: 6px; }
+.gs-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 999px; background: var(--gs-wash); font-size: 12px; font-weight: 600; color: #12233F; }
+.gs-chip img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.gs-chip small { font-weight: 400; color: #5b616b; }
+.gs-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border: 1px solid #e3c97a; border-radius: 10px; background: #fffaf0; box-shadow: 0 -6px 18px rgb(18 35 63 / 8%); }
+.gs-savebar > span { flex: 1; font-weight: 600; font-size: 14px; color: #6b5317; }
+.gs-savebar button { min-height: 44px; }
 @media (max-width: 560px) {
   .price-list-dialog-head, .price-list-dialog-body, .price-list-dialog-foot { padding-left: 12px; padding-right: 12px; }
   .price-list-fields { grid-template-columns: 1fr; }
-  .price-list-grid-head { flex-direction: column; gap: 4px; }
-  .price-list-grid input { width: 52px; min-height: 40px; }
   .price-list-dialog-foot button { flex: 1; }
+  .gs-toolbar > .btn, .gs-toolbar > .btn-ghost { flex: 1 1 auto; }
+  .gs-picker { max-width: none; flex-basis: 100%; }
+  .gs-customer { grid-template-columns: 1fr; }
+  .gs-family { min-width: 96px; }
+  .gs-shapes { gap: 6px; }
+  .gs-col { min-width: 62px; }
+  .gs-cell input { min-width: 54px; font-size: 15px; }
+  .gs-size { font-size: 13px; padding: 0 6px !important; }
+  .gs-savebar { flex-wrap: wrap; }
+  .gs-savebar > span { flex-basis: 100%; }
+  .gs-savebar button { flex: 1; }
 }

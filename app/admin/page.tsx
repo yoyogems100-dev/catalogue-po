@@ -67,6 +67,7 @@ export default async function AdminDashboard() {
     <nav className="admin-overview-actions" aria-label="Quick actions">
       <Link className="btn" href="/admin/customers?new=1">+ New customer</Link>
       <Link className="btn" href="/admin/orders/new">+ Create order</Link>
+      {ADMIN_PRICING_ENABLED && <Link className="btn-ghost" href="/admin/pricing">Pricing</Link>}
       <Link className="btn-ghost" href="/admin/categories">Categories</Link>
       <Link className="btn-ghost" href="/admin/customers">Customers</Link>
       <Link className="btn-ghost" href="/admin/suppliers">Suppliers</Link>

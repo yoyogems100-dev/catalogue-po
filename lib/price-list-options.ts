@@ -28,7 +28,7 @@ export function printDate(iso: string): string {
   return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 
-function validDate(v: unknown): v is string {
+export function validDate(v: unknown): v is string {
   if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
   const [y, m, d] = v.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
@@ -43,7 +43,7 @@ function validDate(v: unknown): v is string {
  */
 export function parsePriceListOptions(body: any, gridShape: { rows: number; columns: number } | null, now = new Date()):
   { ok: true; options: PriceListOptions } | { ok: false; error: string } {
-  const rawName = typeof body?.customer_name === 'string' ? body.customer_name.replace(/\s+/g, ' ').trim() : '';
+  const rawName = tidyCustomerName(body?.customer_name);
   if (rawName.length > CUSTOMER_NAME_MAX) return { ok: false, error: `Keep the customer name under ${CUSTOMER_NAME_MAX} characters.` };
 
   const date = body?.date == null || body.date === '' ? todayIso(now) : body.date;
@@ -51,24 +51,42 @@ export function parsePriceListOptions(body: any, gridShape: { rows: number; colu
 
   let prices: (number | null)[][] | null = null;
   if (body?.prices != null) {
-    if (!gridShape) return { ok: false, error: 'This price list has no editable grid.' };
-    const rows = body.prices;
-    if (!Array.isArray(rows) || rows.length !== gridShape.rows || rows.some((r: unknown) => !Array.isArray(r) || r.length !== gridShape.columns)) {
-      return { ok: false, error: 'The prices changed since this dialog opened. Close it and open it again.' };
-    }
-    prices = [];
-    for (const row of rows as unknown[][]) {
-      const out: (number | null)[] = [];
-      for (const cell of row) {
-        if (cell === null || cell === '') { out.push(null); continue; }
-        const n = typeof cell === 'number' ? cell : Number(cell);
-        if (!Number.isFinite(n) || n < 0 || n > 10_000_000) return { ok: false, error: 'Prices must be numbers of 0 or more.' };
-        out.push(Math.round(n * 100) / 100);
-      }
-      prices.push(out);
-    }
+    const parsed = parsePriceMatrix(body.prices, gridShape);
+    if ('error' in parsed) return parsed;
+    prices = parsed.prices;
   }
   return { ok: true, options: { customerName: rawName || null, date, prices } };
+}
+
+/**
+ * A grid of prices typed in the admin -- one row per grid row, one cell per
+ * column, null or '' for "no price" -- checked against the grid it was typed
+ * into. A mismatch means the saved grid changed under the screen, and must
+ * fail rather than put a price beside the wrong size.
+ */
+export function parsePriceMatrix(raw: unknown, gridShape: { rows: number; columns: number } | null):
+  { ok: true; prices: (number | null)[][] } | { ok: false; error: string } {
+  if (!gridShape) return { ok: false, error: 'This price list has no editable grid.' };
+  if (!Array.isArray(raw) || raw.length !== gridShape.rows || raw.some((r: unknown) => !Array.isArray(r) || r.length !== gridShape.columns)) {
+    return { ok: false, error: 'The prices changed since this screen opened. Reload and try again.' };
+  }
+  const prices: (number | null)[][] = [];
+  for (const row of raw as unknown[][]) {
+    const out: (number | null)[] = [];
+    for (const cell of row) {
+      if (cell === null || cell === '') { out.push(null); continue; }
+      const n = typeof cell === 'number' ? cell : Number(cell);
+      if (!Number.isFinite(n) || n < 0 || n > 10_000_000) return { ok: false, error: 'Prices must be numbers of 0 or more.' };
+      out.push(Math.round(n * 100) / 100);
+    }
+    prices.push(out);
+  }
+  return { ok: true, prices };
+}
+
+/** Customer name as stored and printed: single spaces, trimmed; '' when blank. */
+export function tidyCustomerName(raw: unknown): string {
+  return typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
 }
 
 /** A file name a phone or WhatsApp keeps intact: ASCII letters, digits, dashes. */
