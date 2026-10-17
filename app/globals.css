@@ -3202,5 +3202,6 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .po-line-qty-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border: 1px solid #e3ded2; border-radius: 8px; background: #fff; min-width: 0; }
 .po-line-qty-name { flex: 1; min-width: 0; font-size: 13px; color: #3A3F44; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .po-line-qty-name b { color: #1B3A6B; font-weight: 600; }
-.po-line-qty-row .po-qty-input { width: 76px; flex: none; padding: 6px; min-height: 36px; }
-@media (max-width: 480px) { .po-line-qty-grid { grid-template-columns: 1fr 1fr; } .po-line-qty-row .po-qty-input { width: 62px; } }
+/* Beats the site-wide input rule, which makes every input full width. */
+.po-line-qty-row > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { width: 76px; flex: none; padding: 6px; min-height: 36px; }
+@media (max-width: 480px) { .po-line-qty-grid { grid-template-columns: 1fr 1fr; } .po-line-qty-row > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { width: 62px; } }
