@@ -17,7 +17,13 @@ export type GSeriesPriceIn = { shapeSizeId: number; groupId: number; price: numb
 
 export type GSeriesColumn = { id: number; letter: string; title: string | null };
 export type GSeriesFamily = { shapes: { name: string; iconKey: string | null }[] };
-export type GSeriesRow = { sizes: string[][]; prices: (number | null)[] };
+export type GSeriesRow = {
+  sizes: string[][];
+  prices: (number | null)[];
+  /** Every stored size this row prices, across all its shapes: editing the
+      row's price for a column sets that column for each of them. */
+  shapeSizeIds: number[];
+};
 export type GSeriesGrid = { columns: GSeriesColumn[]; families: GSeriesFamily[]; rows: GSeriesRow[] };
 
 export const G_SERIES_PREFIX = 'G-Series ';
@@ -58,18 +64,20 @@ export function buildGSeriesGrid(groups: GSeriesGroupIn[], shapes: GSeriesShapeI
   const vkey = (v: (number | null)[]) => v.map((n) => (n === null ? '-' : n)).join('|');
 
   // Each priced shape's size -> price vector, and a signature of the whole map.
-  type ShapeMap = { shape: GSeriesShapeIn; bySize: Map<string, (number | null)[]>; signature: string };
+  type ShapeMap = { shape: GSeriesShapeIn; bySize: Map<string, (number | null)[]>; idBySize: Map<string, number>; signature: string };
   const shapeMaps: ShapeMap[] = [];
   for (const shape of shapes) {
     const bySize = new Map<string, (number | null)[]>();
+    const idBySize = new Map<string, number>();
     for (const size of sizes.filter((s) => s.shapeId === shape.id)) {
       const v = vectorOf(size.id);
       if (v.every((n) => n === null)) continue;
       bySize.set(sizeKey(size.sizeMm), v);
+      idBySize.set(sizeKey(size.sizeMm), size.id);
     }
     if (!bySize.size) continue;
     const signature = [...bySize.entries()].sort(([a], [b]) => byArea(a, b)).map(([k, v]) => `${k}=${vkey(v)}`).join(';');
-    shapeMaps.push({ shape, bySize, signature });
+    shapeMaps.push({ shape, bySize, idBySize, signature });
   }
 
   // Shapes priced identically, size for size, share one size column.
@@ -85,8 +93,9 @@ export function buildGSeriesGrid(groups: GSeriesGroupIn[], shapes: GSeriesShapeI
     for (const [key, v] of members[0].bySize) {
       const k = vkey(v);
       let row = rowsByVector.get(k);
-      if (!row) { row = { sizes: familyList.map(() => []), prices: v }; rowsByVector.set(k, row); }
+      if (!row) { row = { sizes: familyList.map(() => []), prices: v, shapeSizeIds: [] }; rowsByVector.set(k, row); }
       row.sizes[fi].push(key);
+      for (const m of members) row.shapeSizeIds.push(m.idBySize.get(key)!);
     }
   });
   const rows = [...rowsByVector.values()];

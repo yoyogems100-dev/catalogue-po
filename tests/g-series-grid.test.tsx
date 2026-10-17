@@ -36,10 +36,22 @@ test('G-Series grid pairs shapes and sizes that cost the same, like the sheet', 
     [[['3x5'], ['4x4']], [17, 19]],
     [[[], ['5x5']], [23, 25]]
   ]);
+  // Each row knows every stored size it prices, across its shapes.
+  assert.deepEqual(grid.rows.map((r) => [...r.shapeSizeIds].sort((a, b) => a - b)), [[3, 4], [1, 2, 5, 6], [7, 8]]);
 });
 
 test('a shape priced differently gets its own column instead of being misquoted', () => {
   const grid = fixture(24);
   assert.deepEqual(grid.families.map((f) => f.shapes.map((s) => s.name)), [['Octagon', 'Oval'], ['Square'], ['Round']]);
   assert.ok(grid.rows.some((r) => r.prices[0] === 24 && r.sizes[1].includes('5x5')));
+});
+
+test('grid prices expand to one stored price per size the row covers', async () => {
+  const { gridToEntries } = await import('../lib/g-series-entries');
+  const grid = fixture();
+  const entries = gridToEntries(grid, [[17, null], [20, 21], [30, 31]]);
+  assert.equal(entries.length, 2 + 4 * 2 + 2 * 2);
+  assert.ok(entries.every((e) => e.price !== null));
+  assert.deepEqual(entries.filter((e) => e.shapeSizeId === 6).map((e) => [e.groupId, e.price]).sort(), [[1, 20], [2, 21]]);
+  assert.equal(entries.filter((e) => e.shapeSizeId === 3 && e.groupId === 2).length, 0); // "–" stores nothing
 });

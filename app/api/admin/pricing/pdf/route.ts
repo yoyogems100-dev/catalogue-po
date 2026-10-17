@@ -8,7 +8,54 @@ import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } 
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 import { priceColumns, groupsInScope, showShapeHeadings } from '@/lib/price-columns';
 import GSeriesPriceListDocument from '@/lib/pdf/GSeriesPriceListDocument';
-import { loadGSeriesPriceList } from '@/lib/g-series-pdf';
+import { gridToEntries, loadGSeriesGrid, loadGSeriesPriceList, saveCustomerPrices } from '@/lib/g-series-pdf';
+import { parsePriceListOptions, priceListFileName, type PriceListOptions } from '@/lib/price-list-options';
+
+async function gSeriesPdf(categoryId: number, options?: Partial<PriceListOptions> & { listId?: number | null }, extraHeaders: Record<string, string> = {}) {
+  const data = await loadGSeriesPriceList(categoryId, options);
+  if (!data) return null;
+  const buffer = await renderToBuffer(React.createElement(GSeriesPriceListDocument, { data }) as any);
+  const fileName = priceListFileName('YOYO-GEMS-Crushed-Ice-G-Series-Price-List', { customerName: data.customerName, date: data.date });
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fileName}"`, 'Cache-Control': 'private, no-store', ...extraHeaders }
+  });
+}
+
+/**
+ * The download dialog's copy: a customer's name, a date and the prices on
+ * screen (rows of the grid `source_list_id`, or of the defaults). With
+ * `save_for_customer` and a name, those prices also become that customer's
+ * saved list; otherwise nothing is written.
+ */
+export async function POST(req: NextRequest) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  const categoryId = Number(body?.category_id);
+  if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
+  const sourceListId = Number(body?.source_list_id) > 0 ? Number(body.source_list_id) : null;
+  const loaded = await loadGSeriesGrid(categoryId, sourceListId);
+  const parsed = parsePriceListOptions(body, loaded ? { rows: loaded.grid.rows.length, columns: loaded.grid.columns.length } : null);
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { options } = parsed;
+
+  const headers: Record<string, string> = {};
+  if (body?.save_for_customer && options.customerName && loaded) {
+    try {
+      const sameCustomer = loaded.list && loaded.list.customerName.trim().toLowerCase() === options.customerName.toLowerCase();
+      const listId = await saveCustomerPrices(categoryId, {
+        listId: sameCustomer ? loaded.list!.id : null,
+        customerName: options.customerName,
+        priceDate: options.date,
+        entries: gridToEntries(loaded.grid, options.prices || loaded.grid.rows.map((r) => r.prices))
+      });
+      headers['X-Price-List-Id'] = String(listId);
+    } catch {
+      return NextResponse.json({ error: 'The customer’s prices could not be saved, so nothing was downloaded. Please retry.' }, { status: 500 });
+    }
+  }
+  const pdf = await gSeriesPdf(categoryId, { ...options, listId: sourceListId }, headers);
+  return pdf || NextResponse.json({ error: 'This category has no customer price list.' }, { status: 404 });
+}
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,19 +64,10 @@ export async function GET(req: NextRequest) {
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
 
-  // Crushed Ice Cut prices by G-Series column: one illustrated page laid out
+  // Crushed Ice prices by G-Series column: one illustrated page laid out
   // like the supplier's sheet, instead of a table per shape.
-  const gSeries = await loadGSeriesPriceList(categoryId);
-  if (gSeries) {
-    const buffer = await renderToBuffer(React.createElement(GSeriesPriceListDocument, { data: gSeries }) as any);
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="YOYO-GEMS-Ice-Cut-G-Series-Price-List.pdf"',
-        'Cache-Control': 'private, no-store'
-      }
-    });
-  }
+  const gSeries = await gSeriesPdf(categoryId);
+  if (gSeries) return gSeries;
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name, price_unit').eq('id', categoryId).single(),
