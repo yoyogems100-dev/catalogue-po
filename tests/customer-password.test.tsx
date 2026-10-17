@@ -56,3 +56,10 @@ test('password sign-in and reset are reachable signed out; changing it is not', 
     if (secret === undefined) delete process.env.ADMIN_SESSION_SECRET; else process.env.ADMIN_SESSION_SECRET = secret;
   }
 });
+
+test('bulk login PINs are 4 random digits', async () => {
+  const { generatePin } = await import('../lib/customer-password');
+  const pins = Array.from({ length: 500 }, generatePin);
+  assert.ok(pins.every((p) => /^\d{4}$/.test(p)));
+  assert.ok(new Set(pins).size > 400, 'PINs vary');
+});

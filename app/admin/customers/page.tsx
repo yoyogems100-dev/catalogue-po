@@ -9,6 +9,8 @@ import CategoryFilterField from '@/components/admin/CategoryFilterField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
 import BulkImportButton from '@/components/admin/BulkImportButton';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
+import BulkPinsButton from '@/components/admin/BulkPinsButton';
+import { customerIdsWithCredentials } from '@/lib/customer-credentials';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +47,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     categoryCustomerIds = await customerIdsOrderedFromCategories(matchedCategoryIds);
   }
 
-  let query = supabaseAdmin.from('customers').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(250);
+  let query = supabaseAdmin.from('customers').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(1000);
   if (safeQ) {
     const orClauses = [`name.ilike.%${safeQ}%`, `company.ilike.%${safeQ}%`, `phone.ilike.%${safeQ}%`];
     if (categoryCustomerIds.length) orClauses.push(`id.in.(${categoryCustomerIds.join(',')})`);
@@ -70,6 +72,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     stats.set(order.customer_id, current);
   }
 
+  // Customers who could sign in (they have a number) but have no PIN yet.
+  const [{ data: withPhone }, credentialed] = await Promise.all([
+    supabaseAdmin.from('customers').select('id').is('deleted_at', null).not('phone', 'is', null).limit(5000),
+    customerIdsWithCredentials().catch(() => new Set<number>())
+  ]);
+  const withoutPin = (withPhone || []).filter((c: { id: number }) => !credentialed.has(c.id)).length;
+
   const filtersActive = Boolean(q || places.length || workStreams.length || categoryIds.length);
   const exportParams = new URLSearchParams();
   if (q) exportParams.set('q', q);
@@ -78,7 +87,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (categoryIds.length) exportParams.set('category', categoryIds.join(','));
 
   return <>
-    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} categories={(allCategories || []).filter((c: any) => !c.archived_at)} startOpen={params.new === '1'} /></div></div>
+    <div className="admin-page-head"><div><h1>Customers</h1><p>Customer profiles, buying preferences and complete order history.</p></div><div className="admin-head-actions"><BulkImportButton entity="customers" label="Import from Excel" /><a className="btn-ghost" href={`/api/admin/customers/export${exportParams.size ? `?${exportParams}` : ''}`}>Export to Excel</a><BulkPinsButton withoutPin={withoutPin} /><CustomerCreateForm placeSuggestions={placeSuggestions(usedPlaces)} categories={(allCategories || []).filter((c: any) => !c.archived_at)} startOpen={params.new === '1'} /></div></div>
     <form className="admin-directory-search" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="admin-directory-search-field">Search<DebouncedSearchField name="q" defaultValue={q} placeholder="Search name, company or WhatsApp number" /></label>
       <CategoryFilterField categories={allCategories || []} defaultCategoryIds={categoryIds} />

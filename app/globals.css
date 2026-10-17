@@ -3188,3 +3188,5 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .shape-new-drawing { display: inline-flex; align-items: center; gap: 4px; }
 /* Order form: shapes that don't come in the picked size, listed after those that do. */
 .icon-select-divider { padding: 8px 12px 4px; font-size: 11px; letter-spacing: 0.04em; color: #756e5c; border-top: 1px solid var(--line); margin-top: 4px; }
+.bulk-pins { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bulk-pins-status { font-size: 12.5px; color: #2f7a4a; }

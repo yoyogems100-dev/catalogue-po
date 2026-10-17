@@ -78,3 +78,8 @@ export function generatePassword(length = 8): string {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({ length }, () => chars[crypto.randomInt(chars.length)]).join('');
 }
+
+/** A random 4-digit login PIN ("0427"), the kind the team hands to buyers. */
+export function generatePin(): string {
+  return String(crypto.randomInt(10000)).padStart(4, '0');
+}
