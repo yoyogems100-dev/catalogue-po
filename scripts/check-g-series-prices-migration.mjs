@@ -43,7 +43,7 @@ try {
     INSERT INTO category_shape_sizes SELECT 1, id FROM shape_sizes WHERE shape_id <> 1 OR size_mm LIKE '%.0';
     INSERT INTO shape_size_prices SELECT 1, shape_id, id, 2, 8.8, 0.8 FROM shape_sizes WHERE shape_id = 6;
   `);
-  const sql = readFileSync('supabase/migrations/20261017090000_crushed_ice_g_series_prices.sql', 'utf8');
+  const sql = readFileSync('supabase/migrations/20261021120000_crushed_ice_g_series_prices.sql', 'utf8');
   await db.exec(sql);
   await db.exec(sql); // repeat-safe
   const one = async (q) => Number((await db.query(q)).rows[0].n);
