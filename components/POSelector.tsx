@@ -19,7 +19,7 @@ import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
 import { shapeAbbrevs } from '@/lib/shape-abbrev';
-import { loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
+import { appendCartNote, loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
 import SizeGridComposer, { countLabel, gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
 import { priceUnitLabel } from '@/lib/price-unit';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
@@ -27,6 +27,10 @@ import { formatRupees } from '@/lib/money';
 import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityField } from '@/lib/quantity-field';
 import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
 import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
+import SizeQtyTable from './SizeQtyTable';
+import PasteListDialog from './PasteListDialog';
+import { noteLines, type PastedLine } from '@/lib/paste-order';
+import { tableGroups, tableHasError, tableLines, tableSizeCount, type TableEntries } from '@/lib/size-table';
 
 const CRUSHED_ICE_CATEGORY_ID = 1;
 
@@ -39,6 +43,7 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 // buyers send lists like 0.7 mm 20 ct, 1 mm 100 ct, so each size takes its own
 // amount instead of one quantity shared by every picked size.
 const SIZE_GRID_CATEGORY_ID = 34;
+const SIZE_ENTRY_KEY = 'yoyo-size-entry';
 
 type ShapeRef = { id: number; name: string; iconKey?: string | null; shortCode?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
@@ -155,6 +160,20 @@ export default function POSelector({
   // all-lines box; "Set all to" clears them.
   const [qtyEach, setQtyEach] = useState(false);
   const [lineQty, setLineQty] = useState<Record<string, string>>({});
+  // After shape (and colour), every size is a row with its own quantity box --
+  // a buyer copying a list types the numbers straight in (owner, 2026-10-17).
+  // The table is the default; "Pick sizes from a list" is the old picker, and
+  // the buyer's choice is remembered on this device.
+  const [sizeTable, setSizeTable] = useState(true);
+  const [tableQty, setTableQty] = useState<TableEntries>({});
+  const [pasteOpen, setPasteOpen] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem(SIZE_ENTRY_KEY) === 'list') setSizeTable(false); } catch { /* storage unavailable */ }
+  }, []);
+  function chooseSizeTable(on: boolean) {
+    setSizeTable(on);
+    try { localStorage.setItem(SIZE_ENTRY_KEY, on ? 'table' : 'list'); } catch { /* not remembered */ }
+  }
   // Weight in whole carats, for sizes sold by carat; pieces follow from it.
   const [pickCt, setPickCt] = useState('');
   const [ctError, setCtError] = useState(false);
@@ -183,6 +202,7 @@ export default function POSelector({
     setQtyError(false);
     setPickRequestType('Place Order');
     setLineQty({});
+    setTableQty({});
     setGridShapeId(null);
     setGridEntries({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -407,6 +427,25 @@ export default function POSelector({
   const quantitiesOk = multiCarat ? ctNum > 0 && (plainRowCount === 0 || qtyNum > 0) : perLine ? filledLines > 0 && !lineInvalid : qtyNum > 0;
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
     && (isQuotation ? !lineInvalid : quantitiesOk) && (grades.length === 0 || grades.includes(pickGrade));
+  // The size table: offered once a shape is picked and it has more than one
+  // size to choose from. Sizes sold by carat keep the weight-linked picker.
+  const tableGroupList = useMemo(
+    () => tableGroups(pickShapeIds, sizes, (s) => !allowedBySize || !pickColorIds.length || pickColorIds.some((c) => comboAllowed(s.id, c))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pickShapeIds, sizes, allowedBySize, pickColorIds]
+  );
+  const tableOffered = !sizeGrid && !sizeHidden && tableSizeCount(tableGroupList) > 1
+    && !tableGroupList.some((g) => g.sizes.some((s) => s.pcs_per_ct));
+  const tableMode = tableOffered && sizeTable;
+  // Sizes picked from the list before the shape don't apply to the table, and
+  // left in place they would keep narrowing the colour and shape lists.
+  useEffect(() => { if (tableMode && pickSizeIdxs.length) setPickSizeIdxs([]); }, [tableMode, pickSizeIdxs.length]);
+  const tableLineList = useMemo(() => (tableMode ? tableLines(tableGroupList, tableQty) : []), [tableMode, tableGroupList, tableQty]);
+  const tableInvalid = tableMode && tableHasError(tableGroupList, tableQty);
+  // One line per filled size for each picked colour (that size comes in).
+  const tableAddCount = tableLineList.reduce((n, l) => n + pickColorIds.filter((c) => comboAllowed(l.size.id, c)).length, 0);
+  const tablePieces = tableLineList.reduce((n, l) => n + l.qty * pickColorIds.filter((c) => comboAllowed(l.size.id, c)).length, 0);
+  const tableCanAdd = tableMode && pickColorIds.length > 0 && tableAddCount > 0 && !tableInvalid && (grades.length === 0 || grades.includes(pickGrade));
   const comboCount = useMemo(() => {
     if (!allowedBySize) return pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
     let n = 0;
@@ -536,15 +575,17 @@ export default function POSelector({
   // shape is re-applied by the picker itself, so clearing it would only
   // flicker -- leave it alone.
   const hasSelection =
-    (!shapeLocked && pickShapeIds.length > 0) || pickSizeIdxs.length > 0 || pickQty !== startQty || Object.keys(lineQty).length > 0 ||
+    (!shapeLocked && pickShapeIds.length > 0) || pickSizeIdxs.length > 0 || pickQty !== startQty || Object.keys(lineQty).length > 0 || Object.keys(tableQty).length > 0 ||
     (!colorLocked && pickColorIds.length > 0);
 
   const missingFields = [
     categoryId !== GLASS_PEARLS_CATEGORY_ID && pickShapeIds.length === 0 && shapeLabel.toLowerCase(),
-    pickSizeIdxs.length === 0 && sizeLabel.toLowerCase(),
+    !tableMode && pickSizeIdxs.length === 0 && sizeLabel.toLowerCase(),
     pickColorIds.length === 0 && lowerLabel,
-    !isQuotation && multiCarat && ctNum <= 0 && 'weight',
-    !isQuotation && showPieces && (perLine ? filledLines === 0 : qtyNum <= 0) && (quantityField?.label?.toLowerCase() || 'quantity')
+    !tableMode && !isQuotation && multiCarat && ctNum <= 0 && 'weight',
+    tableMode
+      ? tableLineList.length === 0 && `a ${(quantityField?.label || 'quantity').toLowerCase()} against at least one ${sizeLabel.toLowerCase()}`
+      : !isQuotation && showPieces && (perLine ? filledLines === 0 : qtyNum <= 0) && (quantityField?.label?.toLowerCase() || 'quantity')
   ].filter(Boolean) as string[];
 
   // A shape that isn't cut in the picked size (Marquise after Round 4 mm)
@@ -578,7 +619,53 @@ export default function POSelector({
     setCtError(false);
     setPickQty(startQty);
     setLineQty({});
+    setTableQty({});
     setQtyError(false);
+    setPickRequestType('Place Order');
+  }
+
+  // Table mode: one line per filled size and picked colour, each at the
+  // quantity typed against that size.
+  function addTableLines() {
+    if (!tableCanAdd) {
+      setToast(grades.length > 0 && !grades.includes(pickGrade) ? `Choose a ${qualityLabel.toLowerCase()} (${grades.join(' or ')}) first.`
+        : tableInvalid ? 'Whole numbers only — fix the highlighted size.'
+        : `Choose a ${lowerLabel} and type a quantity against at least one ${sizeLabel.toLowerCase()} first.`);
+      return;
+    }
+    let next = cart;
+    let added = 0;
+    for (const colorId of pickColorIds) {
+      const color = colors.find((c) => c.id === colorId);
+      if (!color) continue;
+      for (const l of tableLineList) {
+        const shape = shapes.find((x) => x.id === l.shapeId);
+        if (!shape || !comboAllowed(l.size.id, color.id)) continue;
+        next = mergeIntoCart(next, {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          categoryId,
+          categoryName,
+          shapeId: shape.id,
+          shapeName: shape.name,
+          sizeId: l.size.id,
+          sizeMm: l.size.size_mm,
+          colorId: color.id,
+          colorName: color.name,
+          colorHex: color.hex || '#ccc',
+          colorRefPhotoUrl: color.refPhotoUrl || null,
+          qty: l.qty,
+          qtyUnit: quantityField?.unit ?? null,
+          requestType: pickRequestType,
+          ...(pickGrade && lineQualities({ [categoryId]: categoryList }, shapeLists, categoryId, shape.id).includes(pickGrade) ? { orderSpecs: gradeSpec(pickGrade) } : {})
+        });
+        added++;
+      }
+    }
+    if (!commitAdd(next, added)) return;
+    // The table empties; shape and colour stay, and the next pick in either
+    // replaces it -- the next block of a list is usually a new shape or colour.
+    setTableQty({});
+    setSwapNext({ shape: true, size: false, color: true });
     setPickRequestType('Place Order');
   }
 
@@ -692,6 +779,34 @@ export default function POSelector({
     setPickRequestType('Place Order');
   }
 
+  // A pasted list: lines from any category, each already matched and checked.
+  function addPasted(lines: PastedLine[]) {
+    let next = cart;
+    for (const l of lines) {
+      next = mergeCartLines(next, {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        categoryId: l.categoryId,
+        categoryName: l.categoryName,
+        shapeId: l.shapeId,
+        shapeName: l.shapeName,
+        shapeRefPhotoUrl: l.shapeRefPhotoUrl ?? null,
+        shapeIconKey: l.shapeIconKey ?? null,
+        sizeId: l.sizeId,
+        sizeMm: l.sizeMm,
+        colorId: l.colorId,
+        colorName: l.colorName,
+        colorHex: l.colorHex || '#ccc',
+        colorRefPhotoUrl: l.colorRefPhotoUrl,
+        qty: l.qty,
+        qtyUnit: l.qtyUnit ?? null,
+        requestType: 'Place Order',
+        ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
+      });
+    }
+    appendCartNote(noteLines(lines));
+    commitAdd(next, lines.length);
+  }
+
   // Shared by both composers: checks the new cart, then saves it with an Undo
   // and a toast that says what was added and what was merged.
   function commitAdd(next: CartItem[], added: number): boolean {
@@ -767,11 +882,15 @@ export default function POSelector({
       <section className="po-card po-compose-card">
         <div className="po-compose-head">
           <h2 className="po-heading">Add to Order</h2>
-          {/* Opens Speak order already on this stone (the header mic, see category page). */}
-          <button type="button" className="voice-order-btn po-speak-btn" onClick={() => window.dispatchEvent(new CustomEvent(VOICE_ORDER_OPEN_EVENT))}>
-            <MicIcon size={15} /> Speak order
-          </button>
+          <span className="po-compose-actions">
+            {/* Opens Speak order already on this stone (the header mic, see category page). */}
+            <button type="button" className="voice-order-btn po-speak-btn" onClick={() => window.dispatchEvent(new CustomEvent(VOICE_ORDER_OPEN_EVENT))}>
+              <MicIcon size={15} /> Speak order
+            </button>
+            <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
+          </span>
         </div>
+        <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} ownPageHref={(slug) => `/po/category/${slug}`} />
         <OrderReferenceCarousel colorChartUrl={colorChartUrl} photos={photos} categoryName={categoryName} shapeIds={sizeGrid ? (gridShapeId ? [gridShapeId] : []) : pickShapeIds} colorIds={pickColorIds} sizeIds={sizeGrid ? sizes.filter(z=>z.shape_id===gridShapeId && gridEntries[z.id] !== undefined).map(z=>z.id) : pickedRows.map(row=>row.id)} shapes={shapes} colors={colors} />
         <div className="po-compose-fields">
         {!specialCategory(categoryId) && shapes.length === 0 ? (
@@ -817,7 +936,7 @@ export default function POSelector({
               disabledNote={NO_SHARED_SIZE_NOTE}
             />
           </div>}
-          {!sizeGrid && !sizeHidden && <div>
+          {!sizeGrid && !sizeHidden && !tableMode && <div>
             <label className="po-label">{sizeLabel}{plural(names.size, pickSizeIdxs.length)}{/mm/i.test(sizeLabel) ? '' : ' (mm)'}{swiss && <span className="po-label-note"> · weight of 1000 pcs</span>}</label>
             <IconSelect
               categoryId={categoryId}
@@ -838,6 +957,11 @@ export default function POSelector({
                   : `Choose ${sizeLabel.toLowerCase()}${names.size ? '' : '(s)'}`
               }
             />
+            {tableOffered && (
+              <button type="button" className="po-size-entry-switch" onClick={() => { chooseSizeTable(true); setPickSizeIdxs([]); }}>
+                Type quantities in a {sizeLabel.toLowerCase()} table
+              </button>
+            )}
           </div>}
           {allowedBySize && !colorHidden && colorField}
           {!sizeGrid && caratRows.length > 0 && (
@@ -869,7 +993,7 @@ export default function POSelector({
                     : caratRows.map((r) => `${r.size_mm} mm: 1ct = ~${r.pcs_per_ct} pcs`).join(' · ')}</p>}
             </div>
           )}
-          {!sizeGrid && showPieces && <div>
+          {!sizeGrid && showPieces && !tableMode && <div>
             <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty (pcs)'}{perLine && <span className="po-label-note"> · all lines</span>}</label>
             <input
               type="text"
@@ -895,7 +1019,28 @@ export default function POSelector({
             {multiCarat && <p className="po-carat-rate">For {plainRowCount === 1 ? 'the size' : 'the sizes'} not sold by weight</p>}
           </div>}
         </div>
-        {perLineOffered && (
+        {tableMode && (
+          <div className="po-size-table-wrap">
+            <div className="po-size-table-head">
+              <label className="po-label">
+                {quantityField?.label || 'Qty (pcs)'} by {sizeLabel.toLowerCase()}{/mm/i.test(sizeLabel) ? '' : ' (mm)'}
+                {pickColorIds.length > 1 && <span className="po-label-note"> · for each {lowerLabel}</span>}
+              </label>
+              <button type="button" className="po-size-entry-switch" onClick={() => chooseSizeTable(false)}>Pick {sizeLabel.toLowerCase()}s from a list</button>
+            </div>
+            <p className="po-size-table-hint">Type a quantity against each {sizeLabel.toLowerCase()} you need; leave the rest empty.</p>
+            <SizeQtyTable
+              groups={tableGroupList}
+              shapeName={(id) => shapes.find((x) => x.id === id)?.name || ''}
+              sizeName={(sz) => (swiss ? swissSizeLabel(sz.size_mm) : `${sz.size_mm} mm`)}
+              entries={tableQty}
+              onEntries={setTableQty}
+              unitLabel={quantityField?.label || 'Quantity'}
+            />
+            {tableInvalid && <p className="po-field-error" role="alert">Whole numbers only — fix the highlighted {sizeLabel.toLowerCase()}.</p>}
+          </div>
+        )}
+        {perLineOffered && !tableMode && (
           <div className="po-qty-mode">
             <div className="po-type-toggle" role="group" aria-label="Quantity for these lines">
               <button type="button" aria-pressed={!qtyEach} className={!qtyEach ? 'active' : ''} onClick={() => setQtyEach(false)}>Same qty for all {combos.length}</button>
@@ -1008,6 +1153,21 @@ export default function POSelector({
             </button>
           )}
         </>) : <>
+        {tableMode ? <>
+          <button type="button" className="po-add-line-btn" onClick={addTableLines} disabled={!tableCanAdd}>
+            + Add {tableAddCount > 1 ? `${tableAddCount} lines` : 'line'} to order
+          </button>
+          {grades.length > 0 && !grades.includes(pickGrade) && <p className="po-type-hint">Choose a {qualityLabel.toLowerCase()} ({grades.join(' or ')}) to add this.</p>}
+          {!tableCanAdd && hasSelection && missingFields.length > 0 && (
+            <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
+          )}
+          {tableCanAdd && (
+            <p className="po-selection-summary" role="status">
+              {tableAddCount.toLocaleString('en-IN')} {tableAddCount === 1 ? 'line' : 'lines'} = {quantityField?.unit ? formatQty(tablePieces, quantityField.unit) : `${tablePieces.toLocaleString('en-IN')} pcs`}
+            </p>
+          )}
+          {hasSelection && <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>}
+        </> : <>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
           + Add {(perLine ? filledLines : comboCount) > 1 ? `${perLine ? filledLines : comboCount} lines` : 'line'} to order
         </button>
@@ -1031,6 +1191,7 @@ export default function POSelector({
         {hasSelection && (
           <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>
         )}
+        </>}
         </>}
         </>}
         </div>

@@ -79,6 +79,28 @@ export function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
   return [...current, item];
 }
 
+// The requirement's message to the team, kept with the draft so remarks that
+// arrive with a pasted list ("Radiant cut required") wait in the message box.
+export const CART_NOTE_KEY = 'yoyo_po_cart_note_v1';
+
+export function loadCartNote(): string {
+  try { return window.localStorage.getItem(CART_NOTE_KEY) || ''; } catch { return ''; }
+}
+
+export function saveCartNote(note: string) {
+  try {
+    if (note.trim()) window.localStorage.setItem(CART_NOTE_KEY, note);
+    else window.localStorage.removeItem(CART_NOTE_KEY);
+  } catch { /* storage unavailable: the note just isn't kept */ }
+}
+
+/** Adds lines to the message, skipping any already in it. */
+export function appendCartNote(lines: string[]) {
+  const current = loadCartNote();
+  const fresh = lines.filter((l) => l.trim() && !current.includes(l));
+  if (fresh.length) saveCartNote([current.trim(), ...fresh].filter(Boolean).join('\n'));
+}
+
 export function cartPieces(cart: CartItem[]): number {
   return cart.reduce((sum, i) => sum + i.qty, 0);
 }

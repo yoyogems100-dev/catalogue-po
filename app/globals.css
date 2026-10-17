@@ -3385,6 +3385,67 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
   .gs-savebar { flex-wrap: wrap; }
   .gs-savebar > span { flex-basis: 100%; }
   .gs-savebar button { flex: 1; }
+/* Order form size table: every size of the picked shape with its own quantity box. */
+.po-size-table-wrap { margin: 0 0 12px; }
+.po-size-table-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.po-size-table-head .po-label { margin-bottom: 2px; }
+.po-size-table-hint { font-size: 12px; color: #5b6168; margin: 0 0 8px; }
+.po-size-entry-switch { background: none; border: 0; padding: 4px 0; margin: 4px 0 0; font: inherit; font-size: 12.5px; color: #1B3A6B; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; min-height: 32px; }
+.po-size-entry-switch:hover { color: var(--gold); }
+.po-line-qty-row--filled { border-color: #9C7A25; background: #fdfaf2; }
+
+/* Paste your list (components/PasteListDialog). Full screen on phones. */
+.pl-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(18, 35, 63, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pl-dialog { background: #FAF8F3; width: 100%; max-width: 640px; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; border-radius: 14px; box-shadow: 0 18px 50px rgba(18, 35, 63, 0.3); overflow: hidden; }
+.pl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid #e6e0d2; background: #fff; }
+.pl-head h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 19px; color: #12233F; margin: 0; }
+.pl-close { width: 40px; height: 40px; border: 0; background: none; font-size: 26px; line-height: 1; color: #3A3F44; cursor: pointer; border-radius: 8px; }
+.pl-close:hover { background: #f1ede2; }
+.pl-body { padding: 12px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+.pl-hint { font-size: 13px; color: #5b6168; margin: 0 0 10px; line-height: 1.45; }
+.pl-text { width: 100%; box-sizing: border-box; min-height: 220px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px 12px; border: 1px solid #d9d2c1; border-radius: 10px; background: #fff; color: #12233F; resize: vertical; }
+.pl-text:focus { outline: 2px solid #9C7A25; outline-offset: 1px; }
+.pl-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #e6e0d2; background: #fff; }
+.pl-foot .po-add-line-btn { flex: 1; margin: 0; }
+.pl-link { background: none; border: 0; padding: 6px 2px; font: inherit; font-size: 13px; color: #1B3A6B; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; white-space: nowrap; min-height: 36px; }
+.pl-summary { font-size: 13.5px; color: #3A3F44; margin: 0 0 8px; }
+.pl-summary-ask { color: #9a5b00; }
+.pl-added { font-size: 13px; color: #1f6b3a; background: #eef7f0; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+.pl-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-row { background: #fff; border: 1px solid #e3ded2; border-radius: 10px; padding: 8px 8px 8px 10px; }
+.pl-row--ask { border-color: #e2b55c; background: #fffaf0; }
+.pl-row--page { background: #f4f2ec; }
+.pl-row-main { display: flex; align-items: flex-start; gap: 8px; }
+.pl-row-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; margin-top: 1px; background: #e7f3ea; color: #1f6b3a; }
+.pl-row--ask .pl-row-mark { background: #fbe6bd; color: #8a5300; }
+.pl-row--page .pl-row-mark { background: #e4e7ee; color: #1B3A6B; }
+.pl-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pl-row-text strong { font-size: 14px; color: #12233F; font-weight: 600; }
+.pl-row-text > span, .pl-row-text em { font-size: 12.5px; color: #5b6168; }
+.pl-row-text em { color: #7a5f1c; }
+.pl-row-why { color: #8a5300 !important; font-weight: 500; }
+.pl-row-raw { font-size: 11px !important; color: #9a9588 !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-row-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.pl-remove { width: 36px; height: 36px; border: 0; background: none; font-size: 20px; color: #8a8478; cursor: pointer; border-radius: 8px; }
+.pl-remove:hover { background: #f1ede2; color: #a3341f; }
+.pl-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 2px 30px; }
+.pl-pick { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pl-pick > span { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #9C7A25; font-weight: 600; }
+.pl-pick select, .pl-pick input { width: 100%; box-sizing: border-box; min-height: 40px; padding: 6px 8px; border: 1px solid #d9d2c1; border-radius: 8px; background: #fff; font: inherit; font-size: 14px; color: #12233F; }
+.pl-grades { display: flex; gap: 6px; }
+.pl-grades button { flex: 1; min-height: 40px; border: 1px solid #d9d2c1; background: #fff; border-radius: 8px; font: inherit; font-size: 14px; color: #12233F; cursor: pointer; }
+.pl-grades button.active { background: #1B3A6B; border-color: #1B3A6B; color: #fff; }
+.pl-ignored { margin-top: 12px; font-size: 12.5px; color: #5b6168; }
+.pl-ignored summary { cursor: pointer; color: #1B3A6B; min-height: 32px; display: flex; align-items: center; }
+.pl-ignored ul { margin: 4px 0 0; padding-left: 18px; }
+.pl-ignored li { overflow-wrap: anywhere; }
+.po-paste-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; border: 1px solid #9C7A25; border-radius: 999px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.po-paste-btn:hover { background: #fdfaf2; }
+.po-compose-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .pl-backdrop { padding: 0; }
+  .pl-dialog { max-width: none; max-height: none; height: 100dvh; border-radius: 0; }
+  .pl-picks { margin-left: 0; }
 }
 
 /* Customer prices on the regular price table, and the customers chip input. */
