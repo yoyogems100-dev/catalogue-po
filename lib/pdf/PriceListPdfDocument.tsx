@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PDF_BRAND_TAGLINE } from './brand';
 import { priceUnitLabel } from '../price-unit';
+import { printDate } from '../price-list-options';
 import { PageWatermark } from './PageWatermark';
 
 export type PriceListGroup = { id: number; name: string; colors?: string[] };
@@ -21,6 +22,10 @@ export type PriceListData = {
   logoUrl: string;
   contactWhatsapp: string | null;
   contactLocation: string | null;
+  /** Who this copy is for, printed as PREPARED FOR. */
+  customerName?: string | null;
+  /** The date to print (YYYY-MM-DD); else the day it was generated. */
+  date?: string | null;
 };
 
 const styles = StyleSheet.create({
@@ -116,7 +121,7 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
           <View>
             <Text style={styles.docType}>Price List</Text>
             <Text style={styles.docMeta}>
-              Generated {new Date(data.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {data.date ? printDate(data.date) : `Generated ${new Date(data.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
             </Text>
           </View>
         </View>
@@ -126,6 +131,12 @@ export default function PriceListPdfDocument({ data }: { data: PriceListData }) 
             <Text style={styles.metaLabel}>CATEGORY</Text>
             <Text style={styles.metaValue}>{data.categoryName}</Text>
           </View>
+          {data.customerName ? (
+            <View>
+              <Text style={styles.metaLabel}>PREPARED FOR</Text>
+              <Text style={styles.metaValue}>{data.customerName}</Text>
+            </View>
+          ) : null}
           <View>
             <Text style={styles.metaLabel}>CURRENCY</Text>
             <Text style={styles.metaValue}>INR (Rs.) per {priceUnitLabel(data.priceUnit)}</Text>

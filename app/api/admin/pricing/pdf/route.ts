@@ -10,6 +10,7 @@ import { priceColumns, groupsInScope, showShapeHeadings } from '@/lib/price-colu
 import GSeriesPriceListDocument from '@/lib/pdf/GSeriesPriceListDocument';
 import { gridToEntries, loadGSeriesGrid, loadGSeriesPriceList, saveCustomerPrices } from '@/lib/g-series-pdf';
 import { parsePriceListOptions, priceListFileName, type PriceListOptions } from '@/lib/price-list-options';
+import { categoryDefaultEntries, customerListEntries } from '@/lib/customer-prices';
 
 async function gSeriesPdf(categoryId: number, options?: Partial<PriceListOptions> & { listId?: number | null }, extraHeaders: Record<string, string> = {}) {
   const data = await loadGSeriesPriceList(categoryId, options);
@@ -53,8 +54,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'The customer’s prices could not be saved, so nothing was downloaded. Please retry.' }, { status: 500 });
     }
   }
-  const pdf = await gSeriesPdf(categoryId, { ...options, listId: sourceListId }, headers);
-  return pdf || NextResponse.json({ error: 'This category has no customer price list.' }, { status: 404 });
+  if (loaded) {
+    const pdf = await gSeriesPdf(categoryId, { ...options, listId: sourceListId }, headers);
+    return pdf || NextResponse.json({ error: 'This category has no customer price list.' }, { status: 404 });
+  }
+
+  // Every other category: the plain price list, for a customer and a date --
+  // their saved prices (source_list_id) or the defaults, and optionally kept
+  // as that customer's copy for next time.
+  let listId = sourceListId;
+  if (body?.save_for_customer && options.customerName) {
+    try {
+      const source = sourceListId ? await customerListEntries(categoryId, sourceListId) : null;
+      const sameCustomer = source && source.list.customerName.trim().toLowerCase() === options.customerName.toLowerCase();
+      listId = await saveCustomerPrices(categoryId, {
+        listId: sameCustomer ? source!.list.id : null,
+        customerName: options.customerName,
+        priceDate: options.date,
+        entries: source ? source.entries : await categoryDefaultEntries(categoryId)
+      });
+      headers['X-Price-List-Id'] = String(listId);
+    } catch {
+      return NextResponse.json({ error: 'The customer’s prices could not be saved, so nothing was downloaded. Please retry.' }, { status: 500 });
+    }
+  }
+  return standardPdf(categoryId, { customerName: options.customerName, date: options.date, listId }, headers);
 }
 
 export async function GET(req: NextRequest) {
@@ -68,6 +92,15 @@ export async function GET(req: NextRequest) {
   // like the supplier's sheet, instead of a table per shape.
   const gSeries = await gSeriesPdf(categoryId);
   if (gSeries) return gSeries;
+  return standardPdf(categoryId);
+}
+
+/**
+ * The plain price list: a table per shape, one column per colour group.
+ * Prints the default prices, or a customer's saved copy (listId), with
+ * their name and the date when given.
+ */
+async function standardPdf(categoryId: number, opts: { customerName?: string | null; date?: string; listId?: number | null } = {}, extraHeaders: Record<string, string> = {}) {
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name, price_unit').eq('id', categoryId).single(),
@@ -97,7 +130,10 @@ export async function GET(req: NextRequest) {
   );
 
   const priceLookup = new Map<string, number>();
-  (prices || []).forEach((p: any) => { if (p.price_inr !== null) priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_inr)); });
+  const customer = opts.listId ? await customerListEntries(categoryId, opts.listId) : null;
+  if (opts.listId && !customer) return NextResponse.json({ error: 'That customer’s prices were not found.' }, { status: 404 });
+  if (customer) customer.entries.forEach((e) => priceLookup.set(`${e.shapeSizeId}:${e.groupId}`, e.price));
+  else (prices || []).forEach((p: any) => { if (p.price_inr !== null) priceLookup.set(`${p.shape_size_id}:${p.price_group_id}`, Number(p.price_inr)); });
 
   const colorsFormatted = (categoryColors || [])
     .map((row: any) => ({ id: row.color_id, name: (Array.isArray(row.colors) ? row.colors[0] : row.colors)?.name }))
@@ -135,15 +171,21 @@ export async function GET(req: NextRequest) {
     priceUnit: (category as any).price_unit ?? null,
     logoUrl: await getPdfLogoDataUrl(),
     contactWhatsapp: settings.whatsapp_number || null,
-    contactLocation: settings.location || null
+    contactLocation: settings.location || null,
+    customerName: opts.customerName || null,
+    date: opts.date || null
   };
 
   const buffer = await renderToBuffer(React.createElement(PriceListPdfDocument, { data }) as any);
 
-  return new NextResponse(buffer, {
+  const base = `price-list-${category.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const fileName = opts.customerName || opts.date ? priceListFileName(base, { customerName: opts.customerName || null, date: opts.date || '' }) : `${base}.pdf`;
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="price-list-${category.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf"`
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Cache-Control': 'private, no-store',
+      ...extraHeaders
     }
   });
 }
