@@ -9,12 +9,14 @@ import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
 import VoiceOrderButton from './VoiceOrderButton';
+import PasteListDialog from './PasteListDialog';
+import { noteLines, type PastedLine } from '@/lib/paste-order';
 import WhatsAppIcon from './admin/WhatsAppIcon';
-import { specText, quantityFactor, drilledHoles } from '@/lib/order-specs';
+import { specText, quantityFactor, drilledHoles, gradeSpec } from '@/lib/order-specs';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
-  CART_EVENT, loadCart, mergeIntoCart, saveCart,
+  CART_EVENT, loadCart, mergeIntoCart, saveCart, appendCartNote, loadCartNote, saveCartNote,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
@@ -55,7 +57,14 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [hydrated, setHydrated] = useState(false);
   const [pricingByCategory, setPricingByCategory] = useState<Record<number, CategoryPricing>>({});
   const [optionsByCategory, setOptionsByCategory] = useState<Record<number, CategoryOptions>>({});
-  const [comment, setComment] = useState('');
+  const [comment, setCommentState] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
+  // The message is kept with the draft, so remarks added with a pasted list
+  // (or typed here) survive a reload.
+  function setComment(next: string) {
+    setCommentState(next);
+    saveCartNote(next);
+  }
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
@@ -75,7 +84,37 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     saveCart(next);
   }
 
-  useEffect(() => { setCartState(loadCart()); setHydrated(true); }, []);
+  useEffect(() => { setCartState(loadCart()); setCommentState(loadCartNote()); setHydrated(true); }, []);
+
+  function addPasted(lines: PastedLine[]) {
+    let next = cart;
+    for (const l of lines) {
+      next = mergeIntoCart(next, {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        categoryId: l.categoryId,
+        categoryName: l.categoryName,
+        shapeId: l.shapeId,
+        shapeName: l.shapeName,
+        shapeRefPhotoUrl: l.shapeRefPhotoUrl ?? null,
+        shapeIconKey: l.shapeIconKey ?? null,
+        sizeId: l.sizeId,
+        sizeMm: l.sizeMm,
+        colorId: l.colorId,
+        colorName: l.colorName,
+        colorHex: l.colorHex || '#ccc',
+        colorRefPhotoUrl: l.colorRefPhotoUrl,
+        qty: l.qty,
+        qtyUnit: l.qtyUnit ?? null,
+        requestType: 'Place Order',
+        ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
+      });
+    }
+    setCart(next);
+    appendCartNote(noteLines(lines));
+    setCommentState(loadCartNote());
+    setToast(`Added ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} from your list`);
+  }
+  const pasteDialog = <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} ownPageHref={(slug) => `/po/category/${slug}`} />;
   useEffect(() => {
     // Another tab editing the same draft.
     const read = () => setCartState(loadCart());
@@ -292,19 +331,23 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
           <VoiceOrderButton listenForOpen />
+          <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
         </div>
+        {pasteDialog}
       </div>
     );
   }
 
   return (
     <div className="cart-page-wrap">
+      {pasteDialog}
       <section className="po-card po-cart-card">
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <QuickOrderButton label="Add to Order" />
             <VoiceOrderButton listenForOpen />
+            <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
             {cart.length > 0 && (
               <button
                 type="button"

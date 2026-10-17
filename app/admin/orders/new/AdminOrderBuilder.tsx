@@ -1,7 +1,9 @@
 'use client';
 import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
-import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
+import PasteListDialog from '@/components/PasteListDialog';
+import { noteLines, type PastedLine } from '@/lib/paste-order';
+import {specialCategory,specKey,specText,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -65,6 +67,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [cart, setCart] = useState<CartItem[]>(repeatItems);
   const [requestType, setRequestType] = useState(initialRequestType);
   const [comment, setComment] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
 
@@ -173,6 +176,25 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setCart([...cart, ...added]);
     // The quantity stays for the next line; only the sizes clear.
     setPickSizeIdxs([]);
+  }
+
+  // A list pasted from WhatsApp or the order sheet, already matched line by line.
+  function addPasted(lines: PastedLine[]) {
+    setCart((current) => [...current, ...lines.map((l, i) => ({
+      id: `${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
+      categoryId: l.categoryId,
+      categoryName: l.categoryName,
+      shapeId: l.shapeId,
+      shapeName: l.shapeName,
+      sizeId: l.sizeId,
+      sizeMm: l.sizeMm,
+      colorId: l.colorId,
+      colorName: l.colorName,
+      qty: l.qty,
+      ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
+    }))]);
+    const notes = noteLines(lines).filter((n) => !comment.includes(n));
+    if (notes.length) setComment((c) => [c.trim(), ...notes].filter(Boolean).join('\n'));
   }
 
   function removeLine(id: string) {
@@ -319,7 +341,11 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
       </section>
 
       <section className="po-card">
-        <h2 className="po-heading">Add to Order</h2>
+        <div className="po-compose-head">
+          <h2 className="po-heading">Add to Order</h2>
+          <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
+        </div>
+        <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} forAdmin />
         <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
