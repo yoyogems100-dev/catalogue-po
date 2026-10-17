@@ -1,7 +1,10 @@
 'use client';
 import { QUOTATIONS_ENABLED } from '@/lib/cart-storage';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
-import {specialCategory,specKey,specText,type OrderSpecs} from '@/lib/order-specs';
+import PasteListDialog from '@/components/PasteListDialog';
+import type { PastedLine } from '@/lib/paste-order';
+import { cleanLineNote } from '@/lib/line-note';
+import {specialCategory,specKey,specText,gradeSpec,type OrderSpecs} from '@/lib/order-specs';
 
 import IconSelect from '@/components/IconSelect';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -40,6 +43,7 @@ type CartItem = {
   colorId: number;
   colorName: string;
   qty: number;
+  note?: string | null;
 };
 
 export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
@@ -65,6 +69,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [cart, setCart] = useState<CartItem[]>(repeatItems);
   const [requestType, setRequestType] = useState(initialRequestType);
   const [comment, setComment] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
 
@@ -175,6 +180,24 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setPickSizeIdxs([]);
   }
 
+  // A list pasted from WhatsApp or the order sheet, already matched line by line.
+  function addPasted(lines: PastedLine[]) {
+    setCart((current) => [...current, ...lines.map((l, i) => ({
+      id: `${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
+      categoryId: l.categoryId,
+      categoryName: l.categoryName,
+      shapeId: l.shapeId,
+      shapeName: l.shapeName,
+      sizeId: l.sizeId,
+      sizeMm: l.sizeMm,
+      colorId: l.colorId,
+      colorName: l.colorName,
+      qty: l.qty,
+      note: cleanLineNote(l.note),
+      ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
+    }))]);
+  }
+
   function removeLine(id: string) {
     setCart(cart.filter((i) => i.id !== id));
   }
@@ -228,7 +251,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           sizeMm: i.sizeMm,
           colorId: i.colorId,
           colorName: i.colorName,
-          qty: i.qty
+          qty: i.qty,
+          note: i.note || null
         }))
       })
     });
@@ -319,7 +343,11 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
       </section>
 
       <section className="po-card">
-        <h2 className="po-heading">Add to Order</h2>
+        <div className="po-compose-head">
+          <h2 className="po-heading">Add to Order</h2>
+          <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
+        </div>
+        <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} forAdmin />
         <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
@@ -408,6 +436,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
                   <div className="po-item-main">
                     <strong>{item.shapeName} · {item.sizeMm}mm</strong>
                     <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
+                    {item.note && <span className="po-line-note-text">Note: {item.note}</span>}
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     )}

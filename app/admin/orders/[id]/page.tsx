@@ -93,6 +93,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     orderSpecs: it.order_specs || null,
+    note: it.note || null,
     quantity: it.quantity,
     qtyUnit: fieldOf(it.category_id).unit,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,

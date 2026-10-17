@@ -22,6 +22,7 @@ const INVOICE_BLOCKED_HINT = 'Please enter all the prices to generate the invoic
 
 type Item = {
   orderSpecs?: OrderSpecs;
+  note?: string | null;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -538,7 +539,7 @@ export default function OrderAdminClient({
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
-                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}{i.note && <small className="po-line-note-text">Note: {i.note}</small>}
                     </span>
                   )}
                 </td>

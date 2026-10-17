@@ -5,6 +5,8 @@ import { PageWatermark } from './PageWatermark';
 
 export type PdfItem = {
   orderSpecs?: OrderSpecs;
+  /** The buyer's note on this line ("Radiant cut required"). */
+  note?: string | null;
   categoryName: string;
   shapeName: string;
   sizeMm: string;
@@ -180,7 +182,7 @@ export default function OrderPdfDocument({ data }: { data: PdfOrderData }) {
             <View key={i} style={styles.tableRow}>
               {showType && <Text style={[styles.cell, { width: `${cols.type * 100}%` }]}>{item.requestType === 'Request Quotation' ? 'RQ' : 'Order'}</Text>}
               <Text style={[styles.cell, { width: `${cols.category * 100}%` }]}>{item.categoryName}</Text>
-              <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}{item.orderSpecs ? `\n${specText(item.orderSpecs,item.quantity)}` : ""}</Text>
+              <Text style={[styles.cell, { width: `${cols.shape * 100}%` }]}>{item.shapeName}{item.orderSpecs ? `\n${specText(item.orderSpecs,item.quantity)}` : ""}{item.note ? `\nNote: ${item.note}` : ""}</Text>
               <Text style={[styles.cell, { width: `${cols.size * 100}%` }]}>{item.sizeMm} mm</Text>
               <Text style={[styles.cell, { width: `${cols.color * 100}%` }]}>{item.colorName}</Text>
               <Text style={[styles.cell, { width: `${cols.qty * 100}%`, textAlign: 'right' }]}>{item.quantity.toLocaleString('en-IN')}{item.qtyUnit ? ` ${item.qtyUnit}` : ''}</Text>

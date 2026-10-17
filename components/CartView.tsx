@@ -9,12 +9,15 @@ import QuantityInput from './QuantityInput';
 import LoginForm from './LoginForm';
 import QuickOrderButton from './QuickOrderButton';
 import VoiceOrderButton from './VoiceOrderButton';
+import PasteListDialog from './PasteListDialog';
+import type { PastedLine } from '@/lib/paste-order';
+import { cleanLineNote, LINE_NOTE_MAX } from '@/lib/line-note';
 import WhatsAppIcon from './admin/WhatsAppIcon';
-import { specText, quantityFactor, drilledHoles } from '@/lib/order-specs';
+import { specText, quantityFactor, drilledHoles, gradeSpec } from '@/lib/order-specs';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
-  CART_EVENT, loadCart, mergeIntoCart, saveCart,
+  CART_EVENT, loadCart, mergeIntoCart, saveCart, loadCartNote, saveCartNote,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
@@ -55,7 +58,22 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   const [hydrated, setHydrated] = useState(false);
   const [pricingByCategory, setPricingByCategory] = useState<Record<number, CategoryPricing>>({});
   const [optionsByCategory, setOptionsByCategory] = useState<Record<number, CategoryOptions>>({});
-  const [comment, setComment] = useState('');
+  const [comment, setCommentState] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
+  // The line whose note is being typed, and what has been typed so far.
+  const [noteEdit, setNoteEdit] = useState<{ id: string; text: string } | null>(null);
+  function saveNote() {
+    if (!noteEdit) return;
+    const note = cleanLineNote(noteEdit.text);
+    setCart(cart.map((i) => (i.id === noteEdit.id ? { ...i, note: note || undefined } : i)));
+    setNoteEdit(null);
+  }
+  // The message is kept with the draft, so remarks added with a pasted list
+  // (or typed here) survive a reload.
+  function setComment(next: string) {
+    setCommentState(next);
+    saveCartNote(next);
+  }
   const [sending, setSending] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; whatsappUrl: string; quotation: boolean } | null>(null);
   const [toast, setToast] = useState('');
@@ -75,7 +93,36 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     saveCart(next);
   }
 
-  useEffect(() => { setCartState(loadCart()); setHydrated(true); }, []);
+  useEffect(() => { setCartState(loadCart()); setCommentState(loadCartNote()); setHydrated(true); }, []);
+
+  function addPasted(lines: PastedLine[]) {
+    let next = cart;
+    for (const l of lines) {
+      next = mergeIntoCart(next, {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        categoryId: l.categoryId,
+        categoryName: l.categoryName,
+        shapeId: l.shapeId,
+        shapeName: l.shapeName,
+        shapeRefPhotoUrl: l.shapeRefPhotoUrl ?? null,
+        shapeIconKey: l.shapeIconKey ?? null,
+        sizeId: l.sizeId,
+        sizeMm: l.sizeMm,
+        colorId: l.colorId,
+        colorName: l.colorName,
+        colorHex: l.colorHex || '#ccc',
+        colorRefPhotoUrl: l.colorRefPhotoUrl,
+        qty: l.qty,
+        qtyUnit: l.qtyUnit ?? null,
+        requestType: 'Place Order',
+        ...(cleanLineNote(l.note) ? { note: cleanLineNote(l.note)! } : {}),
+        ...(l.grade ? { orderSpecs: gradeSpec(l.grade) } : {})
+      });
+    }
+    setCart(next);
+    setToast(`Added ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} from your list`);
+  }
+  const pasteDialog = <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} ownPageHref={(slug) => `/po/category/${slug}`} />;
   useEffect(() => {
     // Another tab editing the same draft.
     const read = () => setCartState(loadCart());
@@ -292,19 +339,23 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
           <Link className="btn" href="/po">Browse the collection</Link>
           <QuickOrderButton />
           <VoiceOrderButton listenForOpen />
+          <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
         </div>
+        {pasteDialog}
       </div>
     );
   }
 
   return (
     <div className="cart-page-wrap">
+      {pasteDialog}
       <section className="po-card po-cart-card">
         <div className="po-cart-head">
           <h2 className="po-heading">Your Requirement</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <QuickOrderButton label="Add to Order" />
             <VoiceOrderButton listenForOpen />
+            <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
             {cart.length > 0 && (
               <button
                 type="button"
@@ -414,6 +465,24 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                 {group.moveLabel && (
                                   <button type="button" className="po-item-move-btn" onClick={() => updateItemRequestType(item.id, 'Place Order')}>
                                     {group.moveLabel}
+                                  </button>
+                                )}
+                                {noteEdit?.id === item.id ? (
+                                  <input
+                                    className="po-line-note-input"
+                                    autoFocus
+                                    maxLength={LINE_NOTE_MAX}
+                                    value={noteEdit.text}
+                                    placeholder="e.g. Radiant cut, for hand setting"
+                                    aria-label={`Note for ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`}
+                                    enterKeyHint="done"
+                                    onChange={(e) => setNoteEdit({ id: item.id, text: e.target.value })}
+                                    onBlur={saveNote}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNote(); } if (e.key === 'Escape') setNoteEdit(null); }}
+                                  />
+                                ) : (
+                                  <button type="button" className={item.note ? 'po-line-note' : 'po-line-note-add'} onClick={() => setNoteEdit({ id: item.id, text: item.note || '' })}>
+                                    {item.note ? <>Note: {item.note}</> : '+ Note'}
                                   </button>
                                 )}
                               </div>

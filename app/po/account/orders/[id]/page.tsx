@@ -67,6 +67,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     orderSpecs: it.order_specs || null,
+    note: it.note || null,
     quantity: it.quantity,
     qtyUnit: fieldOf(it.category_id).unit,
     requestType: it.request_type || 'Place Order',
