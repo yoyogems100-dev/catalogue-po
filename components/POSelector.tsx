@@ -18,6 +18,7 @@ import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { cartLinePrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
+import { shapeAbbrevs } from '@/lib/shape-abbrev';
 import { loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
 import SizeGridComposer, { countLabel, gridLines, gridHasError, type GridEntries } from './SizeGridComposer';
 import { priceUnitLabel } from '@/lib/price-unit';
@@ -38,7 +39,7 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 // amount instead of one quantity shared by every picked size.
 const SIZE_GRID_CATEGORY_ID = 34;
 
-type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
+type ShapeRef = { id: number; name: string; iconKey?: string | null; shortCode?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 /** pcs_per_ct: set on sizes sold by carat (Moissanite melee) -- pieces in 1 ct. */
 type Size = { id: number; shape_id: number; size_mm: string; pcs_per_ct?: number | null };
@@ -148,6 +149,11 @@ export default function POSelector({
   const undoCart = undo && undo.message === toast ? undo.cart : null;
   // Set when the buyer types something that isn't a whole number of pieces.
   const [qtyError, setQtyError] = useState(false);
+  // Several sizes/shapes/colours at once take one quantity for all, or one
+  // each from a grid (owner, 2026-10-17). A line's own number wins over the
+  // all-lines box; "Set all to" clears them.
+  const [qtyEach, setQtyEach] = useState(false);
+  const [lineQty, setLineQty] = useState<Record<string, string>>({});
   // Weight in whole carats, for sizes sold by carat; pieces follow from it.
   const [pickCt, setPickCt] = useState('');
   const [ctError, setCtError] = useState(false);
@@ -175,6 +181,7 @@ export default function POSelector({
     setPickQty(start);
     setQtyError(false);
     setPickRequestType('Place Order');
+    setLineQty({});
     setGridShapeId(null);
     setGridEntries({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -364,13 +371,41 @@ export default function POSelector({
   const onlyGrade = grades.length === 1 ? grades[0] : '';
   useEffect(() => { const start = preferredGrade || onlyGrade || shapeStart; if (start) setPickGrade((g) => (g && grades.includes(g) ? g : start)); }, [preferredGrade, onlyGrade, shapeStart, gradesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Every shape x size x colour line the picks make, in the order they are added.
+  const combos = useMemo(() => {
+    const list: { key: string; shape: ShapeRef; size: Size; color: ColorRef }[] = [];
+    for (const colorId of pickColorIds) {
+      const color = colors.find((c) => c.id === colorId);
+      if (!color) continue;
+      for (const shapeId of pickShapeIds) {
+        const shape = shapes.find((x) => x.id === shapeId);
+        if (!shape) continue;
+        for (const sizeIdx of pickSizeIdxs) {
+          const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shape_id === shapeId);
+          if (!match || !comboAllowed(match.id, colorId)) continue;
+          list.push({ key: `${shapeId}-${match.id}-${colorId}`, shape, size: match, color });
+        }
+      }
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups, shapes, colors, allowedBySize]);
+  // Per-line quantities: only for lines in pieces (not by carat) and when there is more than one.
+  const perLineOffered = !sizeGrid && combos.length > 1 && caratRows.length === 0;
+  const perLine = perLineOffered && qtyEach;
+  const lineText = (key: string) => lineQty[key] ?? pickQty;
+  const lineInvalid = perLine && combos.some((c) => !/^\d*$/.test(lineText(c.key).trim()));
+  const lineTotal = perLine ? combos.reduce((sum, c) => sum + (parseQuantity(lineText(c.key)) || 0), 0) : 0;
+  const filledLines = perLine ? combos.filter((c) => (parseQuantity(lineText(c.key)) || 0) > 0).length : 0;
+  const shortShape = useMemo(() => shapeAbbrevs(shapes.filter((x) => pickShapeIds.includes(x.id))), [shapes, pickShapeIds]);
+
   const qtyNum = parseQuantity(pickQty) || 0;
   const isQuotation = pickRequestType === 'Request Quotation';
   // A quotation is asking what something would cost, so a quantity is not
   // required to send one. A purchase still needs one.
-  const quantitiesOk = multiCarat ? ctNum > 0 && (plainRowCount === 0 || qtyNum > 0) : qtyNum > 0;
+  const quantitiesOk = multiCarat ? ctNum > 0 && (plainRowCount === 0 || qtyNum > 0) : perLine ? filledLines > 0 && !lineInvalid : qtyNum > 0;
   const canAdd = pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0
-    && (isQuotation || quantitiesOk) && (grades.length === 0 || grades.includes(pickGrade));
+    && (isQuotation ? !lineInvalid : quantitiesOk) && (grades.length === 0 || grades.includes(pickGrade));
   const comboCount = useMemo(() => {
     if (!allowedBySize) return pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
     let n = 0;
@@ -500,7 +535,7 @@ export default function POSelector({
   // shape is re-applied by the picker itself, so clearing it would only
   // flicker -- leave it alone.
   const hasSelection =
-    (!shapeLocked && pickShapeIds.length > 0) || pickSizeIdxs.length > 0 || pickQty !== startQty ||
+    (!shapeLocked && pickShapeIds.length > 0) || pickSizeIdxs.length > 0 || pickQty !== startQty || Object.keys(lineQty).length > 0 ||
     (!colorLocked && pickColorIds.length > 0);
 
   const missingFields = [
@@ -508,7 +543,7 @@ export default function POSelector({
     pickSizeIdxs.length === 0 && sizeLabel.toLowerCase(),
     pickColorIds.length === 0 && lowerLabel,
     !isQuotation && multiCarat && ctNum <= 0 && 'weight',
-    !isQuotation && showPieces && qtyNum <= 0 && (quantityField?.label?.toLowerCase() || 'quantity')
+    !isQuotation && showPieces && (perLine ? filledLines === 0 : qtyNum <= 0) && (quantityField?.label?.toLowerCase() || 'quantity')
   ].filter(Boolean) as string[];
 
   // A shape that isn't cut in the picked size (Marquise after Round 4 mm)
@@ -541,6 +576,7 @@ export default function POSelector({
     setPickCt('');
     setCtError(false);
     setPickQty(startQty);
+    setLineQty({});
     setQtyError(false);
     setPickRequestType('Place Order');
   }
@@ -569,6 +605,9 @@ export default function POSelector({
           const match = group?.rows.find((r) => r.shape_id === shapeId);
           if (!match) continue; // shouldn't happen -- only sizes every picked shape has are offered
           if (!comboAllowed(match.id, color.id)) continue; // this shape/size doesn't come in this material
+          // In the per-line grid a line left empty (or 0) is not wanted.
+          const own = perLine ? parseQuantity(lineText(`${shape.id}-${match.id}-${color.id}`)) || 0 : null;
+          if (own === 0 && !isQuotation) continue;
 
           const item: CartItem = {
             id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -582,7 +621,7 @@ export default function POSelector({
             colorName: color.name,
             colorHex: color.hex || '#ccc',
             colorRefPhotoUrl: color.refPhotoUrl || null,
-            qty: qtyFor(match.pcs_per_ct),
+            qty: own ?? qtyFor(match.pcs_per_ct),
             qtyUnit: quantityField?.unit ?? null,
             requestType: pickRequestType,
             // Only lines whose shape/cut (or category) offers the chosen quality carry it.
@@ -609,6 +648,7 @@ export default function POSelector({
       rememberQty(categoryId, qtyNum);
       setStartQty(String(qtyNum));
     }
+    setLineQty({});
     setQtyError(false);
     setPickRequestType('Place Order');
   }
@@ -823,7 +863,7 @@ export default function POSelector({
             </div>
           )}
           {!sizeGrid && showPieces && <div>
-            <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty (pcs)'}</label>
+            <label className="po-label" htmlFor="po-new-quantity">{quantityField?.label || 'Qty (pcs)'}{perLine && <span className="po-label-note"> · all lines</span>}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -848,6 +888,57 @@ export default function POSelector({
             {multiCarat && <p className="po-carat-rate">For {plainRowCount === 1 ? 'the size' : 'the sizes'} not sold by weight</p>}
           </div>}
         </div>
+        {perLineOffered && (
+          <div className="po-qty-mode">
+            <div className="po-type-toggle" role="group" aria-label="Quantity for these lines">
+              <button type="button" aria-pressed={!qtyEach} className={!qtyEach ? 'active' : ''} onClick={() => setQtyEach(false)}>Same qty for all {combos.length}</button>
+              <button type="button" aria-pressed={qtyEach} className={qtyEach ? 'active' : ''} onClick={() => setQtyEach(true)}>Different qty each</button>
+            </div>
+            {perLine && <>
+              <div className="po-line-qty-head">
+                <span>Type a quantity against each line; leave one empty to skip it.</span>
+                {Object.keys(lineQty).length > 0 && (
+                  <button type="button" className="po-clear-selection" onClick={() => setLineQty({})}>
+                    {qtyNum > 0 ? `Set all to ${qtyNum.toLocaleString('en-IN')}` : 'Clear all'}
+                  </button>
+                )}
+              </div>
+              {pickColorIds.map((colorId) => {
+                const rows = combos.filter((c) => c.color.id === colorId);
+                if (!rows.length) return null;
+                return (
+                  <div key={colorId} className="po-line-qty-group">
+                    {pickColorIds.length > 1 && <p className="po-line-qty-colour"><ColorSwatch hex={rows[0].color.hex || '#ccc'} refPhotoUrl={rows[0].color.refPhotoUrl} size={14} /> {rows[0].color.name}</p>}
+                    <div className="po-line-qty-grid">
+                      {rows.map((c) => {
+                        const v = lineText(c.key);
+                        const bad = !/^\d*$/.test(v.trim());
+                        return (
+                          <label key={c.key} className="po-line-qty-row">
+                            <span className="po-line-qty-name" title={`${c.shape.name} ${c.size.size_mm} mm${pickColorIds.length > 1 ? '' : ` · ${c.color.name}`}`}>
+                              <b>{shortShape.get(c.shape.id)}</b> {swiss ? swissSizeLabel(c.size.size_mm) : c.size.size_mm}
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="po-qty-input"
+                              aria-label={`Quantity for ${c.shape.name} ${c.size.size_mm} mm ${c.color.name}`}
+                              aria-invalid={bad || undefined}
+                              placeholder="0"
+                              value={v}
+                              onChange={(e) => setLineQty((cur) => ({ ...cur, [c.key]: e.target.value }))}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {lineInvalid && <p className="po-field-error" role="alert">Whole numbers only — fix the highlighted line.</p>}
+            </>}
+          </div>
+        )}
         {sizeGrid && (
           <SizeGridComposer
             shapes={gridShapes}
@@ -889,7 +980,7 @@ export default function POSelector({
           <p className="po-price-preview" role="status">
             <strong>₹{formatRupees(selectionPrice.min)}{selectionPrice.max !== selectionPrice.min && <>–₹{formatRupees(selectionPrice.max)}</>}</strong>
             {' '}per {priceUnitLabel(priceUnit)}
-            {qtyNum > 0 && !multiCarat && <> · est. ₹{formatRupees(selectionPrice.sum * qtyNum)}</>}
+            {qtyNum > 0 && !multiCarat && !perLine && <> · est. ₹{formatRupees(selectionPrice.sum * qtyNum)}</>}
           </p>
         )}
 
@@ -911,7 +1002,7 @@ export default function POSelector({
           )}
         </>) : <>
         <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>
-          + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to order
+          + Add {(perLine ? filledLines : comboCount) > 1 ? `${perLine ? filledLines : comboCount} lines` : 'line'} to order
         </button>
         {grades.length > 0 && !pickGrade && pickShapeIds.length > 0 && <p className="po-type-hint">Choose a {qualityLabel.toLowerCase()} ({grades.join(' or ')}) to add this.</p>}
         {/* A grey button alone doesn't say what's missing. Only once the buyer
@@ -919,7 +1010,9 @@ export default function POSelector({
         {!canAdd && hasSelection && missingFields.length > 0 && (
           <p className="po-type-hint po-missing-hint">Still needed: {missingFields.join(', ')}</p>
         )}
-        {canAdd && multiCarat
+        {canAdd && perLine
+          ? <p className="po-selection-summary" role="status">{filledLines.toLocaleString('en-IN')} {filledLines === 1 ? 'line' : 'lines'} = {quantityField?.unit ? formatQty(lineTotal, quantityField.unit) : `${lineTotal.toLocaleString('en-IN')} pcs`} to add</p>
+          : canAdd && multiCarat
           ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} lines · ~{(pickedRows.reduce((sum, r) => sum + (r.pcs_per_ct ? ctNum * r.pcs_per_ct : qtyNum), 0) * Math.max(1, pickColorIds.length)).toLocaleString('en-IN')} pcs to add</p>
           : canAdd && (quantityField?.unit
           ? <p className="po-selection-summary" role="status">{comboCount.toLocaleString('en-IN')} {comboCount === 1 ? 'item' : 'items'} × {formatQty(qtyNum, quantityField.unit)} = {formatQty(comboCount * qtyNum, quantityField.unit)} to add</p>
