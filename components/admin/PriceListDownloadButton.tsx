@@ -6,27 +6,29 @@ import { CUSTOMER_NAME_MAX, todayIso } from '@/lib/price-list-options';
 type SavedList = { id: number; customerName: string; priceDate: string };
 
 /**
- * "Download price list". For a category with a customer price list (Crushed
- * Ice G-Series) it first asks who the copy is for and the date to print, and
- * can keep those prices as that customer's saved list for next time.
+ * "Download price list". First asks who the copy is for (a saved customer,
+ * any buyer account, or a typed name; optional) and the date to print, and
+ * can keep those prices as that customer's saved copy for next time.
  *
- * On the Pricing page it is handed the prices on screen (`current`), edits
- * and all. Elsewhere it prints the saved prices: the customer's own when
- * their name matches a saved list, else the defaults. Categories without a
- * customer price list download the plain list straight away.
+ * On the Pricing page it is handed what is on screen (`current`). Elsewhere
+ * it prints the saved prices: the customer's own when their name matches a
+ * saved copy, else the defaults. Moissanite downloads its own chart.
  */
 export default function PriceListDownloadButton({ categoryId, className = 'btn-ghost', disabled = false, current, onSaved }: {
   categoryId: number;
   className?: string;
   disabled?: boolean;
-  /** The grid on screen: which list it came from, its prices and who it's for. */
-  current?: { sourceListId: number | null; prices: (number | null)[][]; customerName: string; date: string };
+  /** What is on screen: which list it came from, the grid's prices (Crushed
+      Ice only) and who it's for. */
+  current?: { sourceListId: number | null; prices?: (number | null)[][]; customerName: string; date: string };
   /** Called with the saved list's id after a download that saved the customer's prices. */
   onSaved?: (listId: number) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameListId = useId();
   const [lists, setLists] = useState<SavedList[]>([]);
+  // Buyer account names, offered alongside the customers with saved prices.
+  const [buyers, setBuyers] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [save, setSave] = useState(true);
@@ -41,11 +43,19 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     setOpening(true);
     setError('');
     try {
+      // Moissanite's price list is its own illustrated chart.
+      if (categoryId === 34) { window.location.href = plainUrl; return; }
       const res = await fetch(`/api/admin/pricing/grid?category_id=${categoryId}`);
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (!data.grid) { window.location.href = plainUrl; return; }
+      let data = await res.json();
+      // Every other category: its saved customers and the buyer accounts.
+      if (!data.grid) {
+        const plain = await fetch(`/api/admin/pricing/customer?category_id=${categoryId}`);
+        if (!plain.ok) throw new Error();
+        data = await plain.json();
+      }
       setLists(data.lists || []);
+      setBuyers(data.buyers || []);
       setName(current?.customerName || '');
       setDate(current?.date || todayIso());
       setSave(true);
@@ -64,7 +74,7 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     try {
       // Off the Pricing page, a known customer's copy prints their own saved prices.
       const body = current
-        ? { source_list_id: current.sourceListId, prices: current.prices }
+        ? { source_list_id: current.sourceListId, ...(current.prices ? { prices: current.prices } : {}) }
         : { source_list_id: match?.id ?? null };
       const res = await fetch('/api/admin/pricing/pdf', {
         method: 'POST',
@@ -108,7 +118,10 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
               <span>Customer name <em>optional</em></span>
               <input value={name} maxLength={CUSTOMER_NAME_MAX} placeholder="e.g. Sharma Jewellers" list={`${nameListId}-names`}
                 onChange={(e) => setName(e.target.value)} autoComplete="off" />
-              <datalist id={`${nameListId}-names`}>{lists.map((l) => <option key={l.id} value={l.customerName} />)}</datalist>
+              <datalist id={`${nameListId}-names`}>
+                {lists.map((l) => <option key={l.id} value={l.customerName} />)}
+                {buyers.filter((b) => !lists.some((l) => l.customerName.trim().toLowerCase() === b.toLowerCase())).map((b) => <option key={`b-${b}`} value={b} />)}
+              </datalist>
             </label>
             <label>
               <span>Date</span>
@@ -116,8 +129,10 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
             </label>
           </div>
           <p className="price-list-note">
-            {current
+            {current?.prices
               ? 'The PDF uses the prices on screen, including changes you haven’t saved.'
+              : current?.sourceListId
+                ? 'The PDF uses the saved prices on screen.'
               : match
                 ? `Uses ${match.customerName}’s saved prices (last updated ${new Date(match.priceDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}).`
                 : 'Uses the default prices. To change prices first, open Pricing.'}

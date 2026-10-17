@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
+import CustomerNamesInput from '@/components/admin/CustomerNamesInput';
+import { todayIso } from '@/lib/price-list-options';
 import GSeriesPricing from '@/components/admin/GSeriesPricing';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { DEFAULT_PRICE_UNIT, PRICE_UNIT_PRESETS, PRICE_UNIT_MAX, priceUnitLabel } from '@/lib/price-unit';
@@ -13,6 +15,8 @@ type Shape = { id: number; name: string };
 type Size = { id: number; shapeId: number; sizeMm: string };
 import type { PriceColumn } from '@/lib/price-columns';
 type Price = { shapeId: number; shapeSizeId: number; groupId: number; priceInr: number };
+type SavedCustomerList = { id: number; customerName: string; priceDate: string; updatedAt: string };
+const shortDate = (iso: string) => new Date(iso.length === 10 ? iso + 'T00:00:00' : iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function PricingClient({ categories, initialCategoryId }: { categories: Category[]; initialCategoryId?: number }) {
   const defaultCat = categories.find(c => c.id === initialCategoryId) || categories.find((c) => c.name.toLowerCase().includes('crushed ice')) || categories[0];
@@ -39,6 +43,18 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   const [savingQty, setSavingQty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
+  // Customer prices (customer_price_lists): a buyer's own copy of this
+  // category's prices. null = the default prices are on screen.
+  const [custLists, setCustLists] = useState<SavedCustomerList[]>([]);
+  const [buyerNames, setBuyerNames] = useState<string[]>([]);
+  const [custListId, setCustListId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [custNames, setCustNames] = useState<string[]>([]);
+  const [custDate, setCustDate] = useState(todayIso());
+  const [custCells, setCustCells] = useState<Record<string, string>>({});
+  const [custSaved, setCustSaved] = useState<{ cells: Record<string, string>; names: string[]; date: string }>({ cells: {}, names: [], date: '' });
+  const [custBusy, setCustBusy] = useState(false);
+  const [custError, setCustError] = useState('');
 
   useEffect(() => {
     if (!toast) return;
@@ -81,6 +97,113 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
   // Crushed Ice prices by G-Series column get the price-list workspace
   // (default and per-customer prices, laid out like the printed list).
   const gSeries = columns.some((c) => c.label.startsWith('G-Series '));
+
+  const isCustomer = custListId !== null || creating;
+  const custChanged = Object.keys({ ...custCells, ...custSaved.cells }).filter((k) => (custCells[k] || '') !== (custSaved.cells[k] || '')).length;
+  const custDirty = isCustomer && (creating || custChanged > 0 || custNames.join('|') !== custSaved.names.join('|') || custDate !== custSaved.date);
+  const custBad = Object.values(custCells).some((v) => v.trim() !== '' && !(Number(v) >= 0));
+
+  const loadCustomerLists = useCallback(async (catId: number) => {
+    const res = await fetch(`/api/admin/pricing/customer?category_id=${catId}`).catch(() => null);
+    const body = res && res.ok ? await res.json() : null;
+    setCustLists(body?.lists || []);
+    setBuyerNames(body?.buyers || []);
+  }, []);
+
+  // A category change goes back to its default prices.
+  useEffect(() => {
+    setCustListId(null); setCreating(false); setCustCells({}); setCustSaved({ cells: {}, names: [], date: '' }); setCustError('');
+    if (categoryId) loadCustomerLists(categoryId);
+  }, [categoryId, loadCustomerLists]);
+
+  const asCells = (entries: { shapeSizeId: number; groupId: number; price: number }[]) =>
+    Object.fromEntries(entries.map((e) => [`${e.shapeSizeId}:${e.groupId}`, String(e.price)]));
+
+  function confirmLeaveCustomer() {
+    return !custDirty || window.confirm('You have unsaved customer prices. Leave without saving?');
+  }
+
+  async function openCustomer(id: number | null) {
+    if (!categoryId || !confirmLeaveCustomer()) return;
+    setCustError('');
+    setCreating(false);
+    if (id === null) { setCustListId(null); setCustCells({}); setCustSaved({ cells: {}, names: [], date: '' }); return; }
+    setCustBusy(true);
+    try {
+      const res = await fetch(`/api/admin/pricing/customer?category_id=${categoryId}&list_id=${id}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Customer prices could not be loaded.');
+      const cells = asCells((body.entries || []).map((e: { s: number; g: number; p: number }) => ({ shapeSizeId: e.s, groupId: e.g, price: e.p })));
+      setCustListId(id);
+      setCustCells(cells);
+      setCustNames([body.list.customerName]);
+      setCustDate(body.list.priceDate);
+      setCustSaved({ cells, names: [body.list.customerName], date: body.list.priceDate });
+    } catch (e) {
+      setCustError((e as Error).message);
+    } finally {
+      setCustBusy(false);
+    }
+  }
+
+  // Starts from the default prices; nothing is stored until Save.
+  function startCustomer() {
+    if (!confirmLeaveCustomer()) return;
+    const cells = asCells(prices.map((p) => ({ shapeSizeId: p.shapeSizeId, groupId: p.groupId, price: p.priceInr })));
+    setCustListId(null);
+    setCreating(true);
+    setCustCells(cells);
+    setCustNames([]);
+    setCustDate(todayIso());
+    setCustSaved({ cells, names: [], date: '' });
+    setCustError('');
+  }
+
+  async function saveCustomer() {
+    if (!categoryId) return;
+    if (custBad) { setCustError('Check the highlighted prices: each should be a number, or empty.'); return; }
+    if (!custNames.length) { setCustError('Choose a buyer or type the customer’s name.'); return; }
+    setCustBusy(true);
+    setCustError('');
+    try {
+      const entries = Object.entries(custCells).filter(([, v]) => v.trim() !== '').map(([k, v]) => { const [s, g] = k.split(':').map(Number); return { s, g, p: Number(v) }; });
+      const res = await fetch('/api/admin/pricing/customer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_id: categoryId, list_id: custListId, customer_names: custNames, date: custDate, entries })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'The prices could not be saved. Please retry.');
+      await loadCustomerLists(categoryId);
+      setToast(custNames.length > 1 ? `Saved for ${custNames.length} customers.` : `Saved ${custNames[0]}’s prices.`);
+      setCreating(false);
+      setCustBusy(false);
+      // Back on the first customer's copy, as saved.
+      const firstId = body.listIds?.[0];
+      if (firstId) { setCustSaved({ cells: custCells, names: [custNames[0]], date: custDate }); setCustNames([custNames[0]]); setCustListId(firstId); }
+    } catch (e) {
+      setCustError((e as Error).message);
+      setCustBusy(false);
+    }
+  }
+
+  async function removeCustomer() {
+    if (!categoryId || !custListId) return;
+    const name = custSaved.names[0] || 'this customer';
+    if (!window.confirm(`Remove ${name}’s saved prices? The default prices stay.`)) return;
+    setCustBusy(true);
+    try {
+      const res = await fetch(`/api/admin/pricing/grid?category_id=${categoryId}&list_id=${custListId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setCustListId(null); setCustCells({}); setCustSaved({ cells: {}, names: [], date: '' });
+      await loadCustomerLists(categoryId);
+      setToast('Customer prices removed.');
+    } catch {
+      setCustError('The customer’s prices could not be removed. Please retry.');
+    } finally {
+      setCustBusy(false);
+    }
+  }
 
   const activeSizes = useMemo(
     () => sizes.filter((s) => s.shapeId === activeShapeId).sort((a, b) => a.sizeMm.localeCompare(b.sizeMm, undefined, { numeric: true })),
@@ -205,7 +328,7 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
             <IconSelect
               options={categories.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
               value={categoryId ?? 'all'}
-              onChange={(v) => { if (v !== 'all') setCategoryId(Number(v)); }}
+              onChange={(v) => { if (v !== 'all' && confirmLeaveCustomer()) setCategoryId(Number(v)); }}
               allLabel="Choose category"
               leading="photo"
               searchable
@@ -214,7 +337,14 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
         </div>
         <button className="btn-ghost" onClick={exportCsv} disabled={!shapes.length || loading || savingPrice}>Export CSV (English)</button>
         {gSeries ? null : categoryId ? (
-          <PriceListDownloadButton key={categoryId} categoryId={categoryId} className="btn" disabled={savingPrice || loading} />
+          <PriceListDownloadButton
+            key={`${categoryId}:${custListId ?? 0}`}
+            categoryId={categoryId}
+            className="btn"
+            disabled={savingPrice || loading || custBusy || custDirty}
+            current={isCustomer ? { sourceListId: custListId, customerName: custNames[0] || '', date: custDate } : undefined}
+            onSaved={() => { if (categoryId) loadCustomerLists(categoryId); setToast('Downloaded, and saved as the customer’s prices.'); }}
+          />
         ) : (
           <button type="button" className="btn" disabled>Download price list</button>
         )}
@@ -227,6 +357,47 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
           Download shape &amp; size chart
         </a>
       </div>
+
+      {!gSeries && categoryId && (
+        <>
+          <div className="gs-toolbar cp-toolbar">
+            <div className="gs-picker">
+              <label>Prices for</label>
+              <IconSelect
+                options={custLists.map((l) => ({ id: l.id, name: `${l.customerName} · ${shortDate(l.priceDate)}` }))}
+                value={creating ? 'all' : custListId ?? 'all'}
+                onChange={(v) => openCustomer(v === 'all' ? null : Number(v))}
+                allLabel="Default prices"
+                leading="none"
+                searchable
+              />
+            </div>
+            <button type="button" className="btn-ghost" onClick={startCustomer} disabled={custBusy || loading || savingPrice}>+ Customer prices</button>
+          </div>
+          {isCustomer ? (
+            <div className="gs-customer">
+              <label>
+                <span>{custNames.length > 1 ? `Customers (${custNames.length})` : 'Customer'}</span>
+                <CustomerNamesInput names={custNames} onChange={setCustNames} suggestions={[...new Set([...buyerNames, ...custLists.map((l) => l.customerName)])]} autoFocus={creating} disabled={custBusy} />
+              </label>
+              <label>
+                <span>Prices dated</span>
+                <input type="date" value={custDate} onChange={(e) => setCustDate(e.target.value)} disabled={custBusy} />
+              </label>
+              {custListId && !creating && <button type="button" className="btn-link gs-remove" onClick={removeCustomer} disabled={custBusy}>Remove customer prices</button>}
+              <p className="gs-dim">
+                {creating
+                  ? 'Starts from the default prices. Change what these customers pay, then Save. Add several buyers to give them all the same prices.'
+                  : `Only ${custSaved.names[0] || 'this customer'}’s prices change here; the default prices stay as they are. Faded numbers are the defaults. Add more names to copy these prices to other buyers.`}
+              </p>
+            </div>
+          ) : (
+            <p className="gs-dim gs-default-note">Default prices: the starting point for every customer. {custLists.length ? `${custLists.length} customer${custLists.length === 1 ? ' has' : 's have'} their own prices; pick one above.` : 'Use “+ Customer prices” to keep different prices for one or more buyers.'}</p>
+          )}
+          {custError && <p className="price-list-error" role="alert">{custError}</p>}
+          {isCustomer && custDirty && <p className="gs-dim">Save before downloading this customer’s price list.</p>}
+        </>
+      )}
 
       <div className="price-unit-row">
         <label htmlFor="price-unit">Price per</label>
@@ -349,6 +520,27 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
                     <td className="mono" style={{ fontWeight: 600 }}>{size.sizeMm}</td>
                     {columns.map((g) => {
                       const price = priceAt(size.id, g.groupId);
+                      if (isCustomer) {
+                        const key = `${size.id}:${g.groupId}`;
+                        const v = custCells[key] ?? '';
+                        const changed = v !== (custSaved.cells[key] ?? '');
+                        const bad = v.trim() !== '' && !(Number(v) >= 0);
+                        return (
+                          <td key={g.groupId} style={{ minWidth: 100 }}>
+                            <input
+                              aria-label={`${size.sizeMm} mm ${g.label} INR price for ${custNames[0] || 'this customer'}`}
+                              inputMode="decimal"
+                              value={v}
+                              placeholder={price !== null ? String(price) : '--'}
+                              title={price !== null ? `Default ${price}` : undefined}
+                              disabled={custBusy}
+                              className={`mono cp-cell${bad ? ' bad' : changed ? ' changed' : ''}`}
+                              style={{ width: 80, padding: '5px 6px', fontSize: 12.5 }}
+                              onChange={(e) => { const val = e.target.value.replace(/[^\d.]/g, ''); setCustCells((cur) => ({ ...cur, [key]: val })); }}
+                            />
+                          </td>
+                        );
+                      }
                       return (
                         <td key={g.groupId} style={{ minWidth: 100 }}>
                           <input
@@ -372,6 +564,13 @@ export default function PricingClient({ categories, initialCategoryId }: { categ
             </table>
           </div>
         </>
+      )}
+      {isCustomer && custDirty && !gSeries && (
+        <div className="gs-savebar" role="region" aria-label="Unsaved changes">
+          <span>{creating ? 'New customer prices' : custChanged ? `${custChanged} price${custChanged === 1 ? '' : 's'} changed` : 'Details changed'}</span>
+          <button type="button" className="btn-ghost" onClick={() => (creating ? openCustomer(null) : custListId && openCustomer(custListId))} disabled={custBusy}>Discard</button>
+          <button type="button" className="btn" onClick={saveCustomer} disabled={custBusy || custBad}>{custBusy ? 'Saving…' : custNames.length > 1 ? `Save for ${custNames.length} customers` : 'Save customer prices'}</button>
+        </div>
       )}
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>

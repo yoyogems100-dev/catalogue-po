@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import IconSelect from '@/components/IconSelect';
 import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
+import CustomerNamesInput from '@/components/admin/CustomerNamesInput';
 import type { GSeriesGrid } from '@/lib/g-series-grid';
 import { topView } from '@/lib/three-view';
-import { CUSTOMER_NAME_MAX, todayIso } from '@/lib/price-list-options';
+import { todayIso } from '@/lib/price-list-options';
 
 type SavedList = { id: number; customerName: string; priceDate: string; updatedAt: string };
 type Colour = { code: string; name: string; url: string | null };
-type Loaded = { grid: GSeriesGrid; list: { id: number; customerName: string; priceDate: string } | null; lists: SavedList[]; photos: Record<number, Colour[]> };
+type Loaded = { grid: GSeriesGrid; list: { id: number; customerName: string; priceDate: string } | null; lists: SavedList[]; photos: Record<number, Colour[]>; buyers?: string[] };
 
 const shortDate = (iso: string) => new Date(iso.length === 10 ? iso + 'T00:00:00' : iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const asCells = (g: GSeriesGrid) => g.rows.map((r) => r.prices.map((p) => (p === null ? '' : String(p))));
@@ -37,7 +38,10 @@ export default function GSeriesPricing({ categoryId }: { categoryId: number }) {
   const [listId, setListId] = useState<number | null>(null);
   const [data, setData] = useState<Loaded | null>(null);
   const [cells, setCells] = useState<string[][]>([]);
-  const [customerName, setCustomerName] = useState('');
+  // The first name is the copy on screen; any more get the same prices saved.
+  const [customerNames, setCustomerNames] = useState<string[]>([]);
+  const customerName = customerNames[0] || '';
+  const setCustomerName = (name: string) => setCustomerNames(name ? [name] : []);
   const [priceDate, setPriceDate] = useState(todayIso());
   const [creating, setCreating] = useState(false); // a new customer's prices, not saved yet
   const [loading, setLoading] = useState(true);
@@ -72,7 +76,7 @@ export default function GSeriesPricing({ categoryId }: { categoryId: number }) {
   const savedCells = useMemo(() => (data ? asCells(data.grid) : []), [data]);
   const changedCount = cells.reduce((n, row, ri) => n + row.filter((v, ci) => v !== savedCells[ri]?.[ci]).length, 0);
   const isCustomer = listId !== null || creating;
-  const detailsChanged = listId !== null && data?.list && (customerName.trim() !== data.list.customerName || priceDate !== data.list.priceDate);
+  const detailsChanged = listId !== null && data?.list && (customerNames.length !== 1 || customerName.trim() !== data.list.customerName || priceDate !== data.list.priceDate);
   const dirty = changedCount > 0 || creating || Boolean(detailsChanged);
   const badCell = cells.some((row) => row.some((v) => v.trim() !== '' && !(Number(v) >= 0)));
 
@@ -109,13 +113,13 @@ export default function GSeriesPricing({ categoryId }: { categoryId: number }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isCustomer
-          ? { category_id: categoryId, source_list_id: listId, prices: toPrices(cells), target: 'customer', target_list_id: listId, customer_name: customerName, date: priceDate }
+          ? { category_id: categoryId, source_list_id: listId, prices: toPrices(cells), target: 'customer', target_list_id: listId, customer_name: customerName, customer_names: customerNames, date: priceDate }
           : { category_id: categoryId, source_list_id: null, prices: toPrices(cells), target: 'default' })
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'The prices could not be saved. Please retry.');
       await load(body.listId ?? null);
-      setToast(isCustomer ? `Saved ${customerName.trim()}’s prices.` : 'Default prices saved.');
+      setToast(isCustomer ? (customerNames.length > 1 ? `Saved for ${customerNames.length} customers.` : `Saved ${customerName.trim()}’s prices.`) : 'Default prices saved.');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -168,8 +172,8 @@ export default function GSeriesPricing({ categoryId }: { categoryId: number }) {
       {isCustomer ? (
         <div className="gs-customer">
           <label>
-            <span>Customer</span>
-            <input value={customerName} maxLength={CUSTOMER_NAME_MAX} placeholder="Customer name" onChange={(e) => setCustomerName(e.target.value)} autoFocus={creating} />
+            <span>{customerNames.length > 1 ? `Customers (${customerNames.length})` : 'Customer'}</span>
+            <CustomerNamesInput names={customerNames} onChange={setCustomerNames} suggestions={[...new Set([...(data.buyers || []), ...data.lists.map((l) => l.customerName)])]} autoFocus={creating} disabled={saving} />
           </label>
           <label>
             <span>Prices dated</span>

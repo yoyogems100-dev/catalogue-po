@@ -17,3 +17,10 @@ export function gridToEntries(grid: GSeriesGrid, prices: (number | null)[][]): P
   }));
   return out;
 }
+
+/** Stored customer prices ([{ s, g, p }]) back as entries; malformed ones are dropped. */
+export function entriesFromJson(json: unknown): PriceEntry[] {
+  if (!Array.isArray(json)) return [];
+  return json.filter((e: any) => Number.isFinite(e?.s) && Number.isFinite(e?.g) && Number.isFinite(e?.p))
+    .map((e: any) => ({ shapeSizeId: e.s, groupId: e.g, price: e.p }));
+}

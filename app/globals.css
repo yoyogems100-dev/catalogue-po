@@ -3386,3 +3386,13 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
   .gs-savebar > span { flex-basis: 100%; }
   .gs-savebar button { flex: 1; }
 }
+
+/* Customer prices on the regular price table, and the customers chip input. */
+.cp-toolbar { margin-top: 4px; }
+input.cp-cell.changed { background: #fbf0cf; box-shadow: inset 0 -2px #d4ac3c; }
+input.cp-cell.bad { background: #fde8e5; box-shadow: inset 0 -2px #c0392b; }
+input.cp-cell::placeholder { color: #b9bec6; }
+.cn-input { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 44px; padding: 4px 6px; border: 1px solid #d8d5cb; border-radius: 8px; background: #fff; box-sizing: border-box; text-transform: none; letter-spacing: 0; }
+.cn-input input { flex: 1 1 160px; min-width: 120px; min-height: 34px !important; border: 0 !important; padding: 4px 6px !important; font-size: 15px; background: transparent; outline: none; }
+.cn-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 3px 10px; border: 1px solid #1B3A6B; border-radius: 999px; background: #eef2f8; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; cursor: pointer; }
+.cn-chip span { font-size: 15px; line-height: 1; }
