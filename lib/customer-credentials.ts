@@ -20,3 +20,10 @@ export async function getCredentials(customerId: number) {
     .select('password_hash, password_enc, set_at, set_by').eq('customer_id', customerId).maybeSingle();
   return data as { password_hash: string; password_enc: string | null; set_at: string; set_by: 'admin' | 'customer' } | null;
 }
+
+/** IDs of customers who already have a password or PIN. */
+export async function customerIdsWithCredentials(): Promise<Set<number>> {
+  const { data, error } = await supabaseAdmin.from('customer_credentials').select('customer_id');
+  if (error) throw new Error(error.message);
+  return new Set((data || []).map((r: { customer_id: number }) => r.customer_id));
+}
