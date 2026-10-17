@@ -3344,7 +3344,7 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .gs-col b { display: block; font-size: 18px; line-height: 1.1; }
 .gs-col small { display: block; font-size: 10.5px; font-weight: 400; margin-top: 1px; }
 .gs-thumbs { display: flex; justify-content: center; gap: 2px; margin-top: 5px; min-height: 16px; }
-.gs-thumbs img { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; }
+.gs-thumbs img { width: 19px; height: 16px; object-fit: contain; }
 .gs-size { font-weight: 700; color: #12233F; font-size: 14px; padding: 0 8px !important; white-space: nowrap; height: 44px; }
 .gs-cell input { width: 100%; min-width: 64px; height: 44px; border: 0; border-radius: 0; background: transparent; text-align: center; font: 700 16px/1 var(--font-body, inherit); font-variant-numeric: tabular-nums; color: var(--gs-ink, #12233F); box-sizing: border-box; }
 .gs-cell input:hover { background: rgb(27 58 107 / 4%); }
@@ -3365,7 +3365,7 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .gs-key-row > b { color: var(--gs-ink); font-size: 16px; min-width: 18px; }
 .gs-key-row > span { display: flex; flex-wrap: wrap; gap: 6px; }
 .gs-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 999px; background: var(--gs-wash); font-size: 12px; font-weight: 600; color: #12233F; }
-.gs-chip img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.gs-chip img { width: 24px; height: 20px; object-fit: contain; }
 .gs-chip small { font-weight: 400; color: #5b616b; }
 .gs-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border: 1px solid #e3c97a; border-radius: 10px; background: #fffaf0; box-shadow: 0 -6px 18px rgb(18 35 63 / 8%); }
 .gs-savebar > span { flex: 1; font-weight: 600; font-size: 14px; color: #6b5317; }

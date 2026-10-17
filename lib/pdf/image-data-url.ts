@@ -5,7 +5,8 @@ import sharp from 'sharp';
 // Thumbnails of files under /public, for PDFs. react-pdf can't read WebP, so
 // each photo is re-encoded once (and kept for the life of the server) as a
 // high-quality JPEG on white, sized for crisp print: `size` px across a
-// ~20pt tile is well over 300 dpi.
+// ~20pt tile is well over 300 dpi. The whole photo is kept (centred in the
+// square), so every stone prints at the same size and none loses its sides.
 const cache = new Map<string, Promise<string | null>>();
 
 export function publicThumbDataUrl(source: string | null | undefined, size = 240): Promise<string | null> {
@@ -19,7 +20,7 @@ export function publicThumbDataUrl(source: string | null | undefined, size = 240
         const filePath = path.resolve(publicRoot, source.slice(1));
         if (!filePath.startsWith(publicRoot + path.sep)) return null;
         const jpg = await sharp(await readFile(filePath))
-          .resize(size, size, { fit: 'cover', withoutEnlargement: true })
+          .resize(size, size, { fit: 'contain', background: '#ffffff', withoutEnlargement: true })
           .flatten({ background: '#ffffff' })
           .jpeg({ quality: 90, chromaSubsampling: '4:4:4' })
           .toBuffer();
