@@ -97,6 +97,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     sentQty: sentOf(it),
     needsCheck: !!it.needs_check,
     tracked: hasFulfilmentColumns(it),
+    note: it.note || null,
     quantity: it.quantity,
     qtyUnit: fieldOf(it.category_id).unit,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,

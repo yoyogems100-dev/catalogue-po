@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { parseQuantity } from '@/lib/quantity';
+import { expandQtyShorthand, parseQuantity } from '@/lib/quantity';
 
 export default function QuantityInput({ value, label, onChange, onInvalid, placeholder, allowEmpty = false }: {
   value: number; label: string; onChange: (quantity: number) => void; onInvalid: () => void;
@@ -22,7 +22,7 @@ export default function QuantityInput({ value, label, onChange, onInvalid, place
       type="text" inputMode="numeric" className="po-qty-input po-cart-qty"
       aria-label={label} value={draft} placeholder={placeholder}
       onChange={(event) => {
-        const next = event.target.value;
+        const next = expandQtyShorthand(event.target.value);
         if (!/^\d*$/.test(next)) return;
         setDraft(next);
         if (allowEmpty && next.trim() === '') { onChange(0); return; }

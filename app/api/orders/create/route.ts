@@ -4,6 +4,7 @@ import { formatQtyTotals } from '@/lib/quantity-field';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerSession } from '@/lib/customer-auth';
+import { cleanLineNote, commentWithLineNotes, insertOrderItems } from '@/lib/line-note';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { withShapeCodes } from '@/lib/shape-codes-server';
 import { notifyAdmin } from '@/lib/notify-admin';
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
   const cartWithPrices: OrderCartItem[] = cart.map((item) => {
     const pricing = pricingByCategory.get(item.categoryId);
     const unitPriceInr = !item.orderSpecs && pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
-    return { ...item, unitPriceInr, qtyUnit: fieldOf(item.categoryId).unit };
+    return { ...item, note: cleanLineNote(item.note), unitPriceInr, qtyUnit: fieldOf(item.categoryId).unit };
   });
 
   const { data: customerRecord } = await supabaseAdmin
@@ -124,12 +125,17 @@ export async function POST(req: NextRequest) {
     quantity: item.qty,
     order_specs: item.orderSpecs || null,
     request_type: item.requestType,
+    note: cleanLineNote(item.note),
     // Stored at creation time, not recomputed later -- so the PDF/order record
     // stays historically accurate even if the admin changes prices afterward.
     unit_price: item.unitPriceInr ?? null
   }));
 
-  const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);
+  const { error: itemsError, notesKept } = await insertOrderItems(supabaseAdmin, itemRows);
+  // A database without order_items.note yet: the notes go in the comment.
+  if (!itemsError && !notesKept) {
+    await supabaseAdmin.from('orders').update({ comment: commentWithLineNotes(comment, cartWithPrices) }).eq('id', order.id);
+  }
   if (itemsError) {
     // The order row above already committed -- without this, a failed items
     // insert leaves a permanent zero-item "ghost" order (status 'placed') that

@@ -27,6 +27,7 @@ type Item = {
   needsCheck?: boolean;
   /** False until the delivery-tracking columns exist in the database. */
   tracked?: boolean;
+  note?: string | null;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -543,7 +544,7 @@ export default function OrderAdminClient({
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: i.colorHex }} />
-                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}{i.note && <small className="po-line-note-text">Note: {i.note}</small>}
                     </span>
                   )}
                 </td>

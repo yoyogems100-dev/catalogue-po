@@ -29,6 +29,8 @@ export type CartItem = {
   /** What qty counts ("lines" for Semi Precious Beads); absent means pieces. */
   qtyUnit?: string | null;
   requestType: RequestType;
+  /** The buyer's note on this line ("Radiant cut required"). */
+  note?: string;
 };
 
 export const CART_KEY = 'yoyo_po_cart_v2';
@@ -73,14 +75,16 @@ export function mergeIntoCart(current: CartItem[], item: CartItem): CartItem[] {
       i.colorId === item.colorId &&
       i.sizeId === item.sizeId &&
       i.requestType === item.requestType &&
-      specKey(i.orderSpecs) === specKey(item.orderSpecs)
+      specKey(i.orderSpecs) === specKey(item.orderSpecs) &&
+      // The same stone with a different instruction stays its own line.
+      (i.note || '') === (item.note || '')
   );
   if (existing) return current.map((i) => (i.id === existing.id ? { ...i, qty: i.qty + item.qty } : i));
   return [...current, item];
 }
 
-// The requirement's message to the team, kept with the draft so remarks that
-// arrive with a pasted list ("Radiant cut required") wait in the message box.
+// The requirement's message to the team, kept with the draft so a half-typed
+// message survives a reload or a look at another page.
 export const CART_NOTE_KEY = 'yoyo_po_cart_note_v1';
 
 export function loadCartNote(): string {
@@ -92,13 +96,6 @@ export function saveCartNote(note: string) {
     if (note.trim()) window.localStorage.setItem(CART_NOTE_KEY, note);
     else window.localStorage.removeItem(CART_NOTE_KEY);
   } catch { /* storage unavailable: the note just isn't kept */ }
-}
-
-/** Adds lines to the message, skipping any already in it. */
-export function appendCartNote(lines: string[]) {
-  const current = loadCartNote();
-  const fresh = lines.filter((l) => l.trim() && !current.includes(l));
-  if (fresh.length) saveCartNote([current.trim(), ...fresh].filter(Boolean).join('\n'));
 }
 
 export function cartPieces(cart: CartItem[]): number {

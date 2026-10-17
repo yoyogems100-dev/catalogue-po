@@ -69,6 +69,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     colorRefPhotoUrl: colorMap[it.color_id]?.refPhotoUrl || null,
     orderSpecs: it.order_specs || null,
     sentQty: sentOf(it),
+    note: it.note || null,
     quantity: it.quantity,
     qtyUnit: fieldOf(it.category_id).unit,
     requestType: it.request_type || 'Place Order',

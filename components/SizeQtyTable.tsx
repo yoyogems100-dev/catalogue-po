@@ -2,6 +2,7 @@
 
 import { useRef, type KeyboardEvent } from 'react';
 import type { QuickSize } from '@/lib/quick-order';
+import { expandQtyShorthand } from '@/lib/quantity';
 import type { TableEntries, TableGroup } from '@/lib/size-table';
 
 /**
@@ -56,7 +57,7 @@ export default function SizeQtyTable<S extends QuickSize>({
                     placeholder="0"
                     value={v}
                     onKeyDown={next}
-                    onChange={(e) => onEntries({ ...entries, [s.id]: e.target.value })}
+                    onChange={(e) => onEntries({ ...entries, [s.id]: expandQtyShorthand(e.target.value) })}
                   />
                 </label>
               );

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { findOrCreateCustomer } from '@/lib/customer-identity';
+import { cleanLineNote, commentWithLineNotes, insertOrderItems } from '@/lib/line-note';
 import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { withShapeCodes } from '@/lib/shape-codes-server';
 import { getCategoryPricing } from '@/lib/pricing';
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
   const cartWithPrices: OrderCartItem[] = cart.map((item) => {
     const pricing = pricingByCategory.get(item.categoryId);
     const unitPriceInr = !item.orderSpecs && pricing && item.sizeId != null ? lineInrPrice(pricing, item.shapeId, item.sizeId, item.colorId) : null;
-    return { ...item, unitPriceInr };
+    return { ...item, note: cleanLineNote(item.note), unitPriceInr };
   });
 
   const message = buildOrderMessage(await withShapeCodes(cartWithPrices), contactName || '', comment);
@@ -98,10 +99,15 @@ export async function POST(req: NextRequest) {
     quantity: item.qty,
     order_specs: item.orderSpecs || null,
     request_type: item.requestType,
+    note: cleanLineNote(item.note),
     unit_price: item.unitPriceInr ?? null
   }));
 
-  const { error: itemsError } = await supabaseAdmin.from('order_items').insert(itemRows);
+  const { error: itemsError, notesKept } = await insertOrderItems(supabaseAdmin, itemRows);
+  // A database without order_items.note yet: the notes go in the comment.
+  if (!itemsError && !notesKept) {
+    await supabaseAdmin.from('orders').update({ comment: commentWithLineNotes(comment, cartWithPrices) }).eq('id', order.id);
+  }
   if (itemsError) {
     // See app/api/orders/create/route.ts for why this rollback matters --
     // the order row above already committed.

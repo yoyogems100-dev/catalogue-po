@@ -61,6 +61,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     orderSpecs: it.order_specs || null,
+    note: it.note || null,
     quantity: it.quantity
   }));
 
