@@ -3,6 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FullLogo } from '@/components/Logo';
+import { rememberLogin } from '@/lib/remember-login';
+
+// There's one shared admin password, so the saved login needs a fixed name
+// for the password manager to file it under.
+const ADMIN_LOGIN_NAME = 'YOYO GEMS admin';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
@@ -18,6 +23,7 @@ export default function LoginPage() {
       body: JSON.stringify({ password })
     });
     if (res.ok) {
+      await rememberLogin(ADMIN_LOGIN_NAME, password);
       router.push('/admin');
       router.refresh();
     } else {
@@ -29,8 +35,11 @@ export default function LoginPage() {
     <div className="login-box card">
       <div style={{ marginBottom: 20 }}><FullLogo size="md" color="#1B3A6B" /></div>
       <form onSubmit={submit}>
+        <input type="text" name="username" autoComplete="username" value={ADMIN_LOGIN_NAME} readOnly hidden />
         <input
           type="password"
+          name="password"
+          autoComplete="current-password"
           placeholder="Admin password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DEALS_IN_OPTIONS } from './ProfileCompletionForm';
+import { rememberLogin } from '@/lib/remember-login';
 
 type Tab = 'login' | 'signup';
 
@@ -53,8 +54,11 @@ export default function LoginForm({ onSuccess, initialTab = 'login', autoFocus =
       body: JSON.stringify({ phone, password: pin })
     });
     const data = await res.json().catch(() => ({}));
-    setSending(false);
-    if (!res.ok) return setError(data.error || 'Could not log in. Please try again.');
+    if (!res.ok) {
+      setSending(false);
+      return setError(data.error || 'Could not log in. Please try again.');
+    }
+    await rememberLogin(phone.trim(), pin);
     onSuccess();
   }
 
