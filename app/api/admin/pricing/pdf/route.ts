@@ -7,6 +7,8 @@ import { getSettings } from '@/lib/settings';
 import PriceListPdfDocument, { type PriceListData, type PriceListShapeSection } from '@/lib/pdf/PriceListPdfDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 import { priceColumns, groupsInScope, showShapeHeadings } from '@/lib/price-columns';
+import GSeriesPriceListDocument from '@/lib/pdf/GSeriesPriceListDocument';
+import { loadGSeriesPriceList } from '@/lib/g-series-pdf';
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,6 +16,20 @@ export async function GET(req: NextRequest) {
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   if (categoryId === 34) return NextResponse.redirect(new URL('/api/categories/34/size-chart?type=prices', req.url));
+
+  // Crushed Ice Cut prices by G-Series column: one illustrated page laid out
+  // like the supplier's sheet, instead of a table per shape.
+  const gSeries = await loadGSeriesPriceList(categoryId);
+  if (gSeries) {
+    const buffer = await renderToBuffer(React.createElement(GSeriesPriceListDocument, { data: gSeries }) as any);
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="YOYO-GEMS-Ice-Cut-G-Series-Price-List.pdf"',
+        'Cache-Control': 'private, no-store'
+      }
+    });
+  }
 
   const [{ data: category }, { data: shapeLinks }, { data: groups }, { data: prices }, { data: categoryColors }, { data: groupMembers }, settings] = await Promise.all([
     supabaseAdmin.from('categories').select('id, name, price_unit').eq('id', categoryId).single(),

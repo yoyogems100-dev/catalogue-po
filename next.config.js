@@ -3,6 +3,8 @@ const nextConfig = {
   outputFileTracingIncludes: {
     // The shared shape photos too: a shape with no category-specific photo
     // falls back to its own reference photo (e.g. Moissanite Tapered Baguette).
+    // The illustrated G-Series price list prints colour and shape photos.
+    '/api/admin/pricing/pdf': ['./public/reference/colors/crushed-ice/*', './public/reference/stones/*', './public/moissanite-shapes/*.png'],
     '/api/categories/*/size-chart': ['./public/moissanite-shapes/*.png', './public/reference/stones/*'],
     // assets/fonts is the watermark typeface. It is read from disk at
     // request time by every route that stores a photo, so without this trace they get ENOENT in

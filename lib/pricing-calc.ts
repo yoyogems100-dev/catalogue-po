@@ -8,6 +8,10 @@
 // to bring them all back. Prices the team types on an individual order (admin
 // order page) are unaffected.
 export const CATALOGUE_PRICES_ENABLED = false;
+// Owner, 2026-10-17: the admin's own Pricing screens and price-list downloads
+// are back (Crushed Ice Cut G-Series sheet). Buyers still see no prices --
+// that stays on CATALOGUE_PRICES_ENABLED above.
+export const ADMIN_PRICING_ENABLED = true;
 
 export type CategoryPricing = {
   colorToGroup: Record<number, number>;

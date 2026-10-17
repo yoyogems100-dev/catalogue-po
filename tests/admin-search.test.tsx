@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanQuery, rankItems, scoreItem, staticSearchItems } from '../lib/admin-search';
 import { notificationHref, notificationLabel } from '../lib/notifications';
+import { ADMIN_PRICING_ENABLED } from '../lib/pricing-calc';
 
 const items = staticSearchItems(
   [{ id: 34, name: 'Moissanite' }, { id: 1, name: 'Cubic Zirconia' }, { id: 20, name: 'Hole Punched Stones' }],
@@ -45,6 +46,7 @@ test('each notification opens the right page', () => {
   assert.equal(notificationLabel('access_request'), 'Sign-up request');
 });
 
-test('catalogue pricing is hidden while prices are switched off', () => {
-  assert.ok(!items.some((r) => r.href === '/admin/pricing' || r.href.endsWith('tab=pricing')));
+test('admin pricing pages are searchable only while admin pricing is on', () => {
+  const found = items.some((r) => r.href === '/admin/pricing' || r.href.endsWith('tab=pricing'));
+  assert.equal(found, ADMIN_PRICING_ENABLED);
 });
