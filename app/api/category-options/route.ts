@@ -42,7 +42,7 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
 
   const [{ data: shapes }, { data: colors }, { data: sizes }] = await Promise.all([
     shapeIds.length
-      ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name')
+      ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url, short_code').in('id', shapeIds).order('sort_order').order('name')
       : Promise.resolve({ data: [] as any[] }),
     colorIds.length
       ? supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds).order('sort_order').order('name')
@@ -55,7 +55,7 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
   return {
     name: (category as any)?.name || undefined,
     qtyUnit: fieldOf(categoryId).unit,
-    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: categoryPhoto.get(s.id) || s.ref_photo_url, holePhotos: drillOf(s.id) })),
+    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, shortCode: s.short_code ?? null, refPhotoUrl: categoryPhoto.get(s.id) || s.ref_photo_url, holePhotos: drillOf(s.id) })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shape_id: s.shape_id, size_mm: s.size_mm }))
   };

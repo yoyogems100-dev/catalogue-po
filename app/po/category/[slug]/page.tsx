@@ -59,7 +59,7 @@ async function getCategoryData(slug: string) {
   const dewBySize = new Map<number, number>((linkedSizeIds || []).filter((r: any) => r.diamond_equivalent_ct !== null && r.diamond_equivalent_ct !== undefined).map((r: any) => [r.shape_size_id, Number(r.diamond_equivalent_ct)]));
 
   const [{ data: shapes }, { data: colors }, { data: tags }, { data: sizes }] = await Promise.all([
-    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url').in('id', shapeIds).order('sort_order').order('name') : { data: [] },
+    shapeIds.length ? supabasePublic.from('shapes').select('id, name, icon_key, ref_photo_url, short_code').in('id', shapeIds).order('sort_order').order('name') : { data: [] },
     colorIds.length ? supabasePublic.from('colors').select('id, name, hex_value, ref_photo_url').in('id', colorIds).order('sort_order').order('name') : { data: [] },
     tagIds.length ? supabasePublic.from('tags').select('id, name').in('id', tagIds) : { data: [] },
     sizeIds.length ? supabasePublic.from('shape_sizes').select('id, shape_id, size_mm').in('id', sizeIds) : { data: [] }
@@ -101,7 +101,7 @@ async function getCategoryData(slug: string) {
     // deliberate intent and isn't used to suppress an available photo.
     const photoUrl = link?.ref_photo_url || s.ref_photo_url || null;
     // Hole Punched: the stone drilled with 1, 2 or 3 holes, for the hole count chosen.
-    return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl, holePhotos: holePhotos(link?.drill, link?.ref_photo_url || null) };
+    return { id: s.id, name: s.name, iconKey: s.icon_key, shortCode: s.short_code ?? null, refPhotoUrl: photoUrl, holePhotos: holePhotos(link?.drill, link?.ref_photo_url || null) };
   });
   const colorsFormatted = (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url }));
 

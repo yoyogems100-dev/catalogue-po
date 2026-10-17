@@ -3190,3 +3190,17 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .icon-select-divider { padding: 8px 12px 4px; font-size: 11px; letter-spacing: 0.04em; color: #756e5c; border-top: 1px solid var(--line); margin-top: 4px; }
 .bulk-pins { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .bulk-pins-status { font-size: 12.5px; color: #2f7a4a; }
+
+/* Per-line quantities: one small box per shape x size line (owner, 2026-10-17). */
+.po-qty-mode { margin: 0 0 12px; }
+.po-qty-mode > .po-type-toggle { margin-bottom: 8px; }
+.po-line-qty-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #5b6168; margin-bottom: 6px; }
+.po-line-qty-head .po-clear-selection { margin: 0; white-space: nowrap; }
+.po-line-qty-group + .po-line-qty-group { margin-top: 10px; }
+.po-line-qty-colour { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 13px; font-weight: 500; color: #12233F; }
+.po-line-qty-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.po-line-qty-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border: 1px solid #e3ded2; border-radius: 8px; background: #fff; min-width: 0; }
+.po-line-qty-name { flex: 1; min-width: 0; font-size: 13px; color: #3A3F44; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-line-qty-name b { color: #1B3A6B; font-weight: 600; }
+.po-line-qty-row .po-qty-input { width: 76px; flex: none; padding: 6px; min-height: 36px; }
+@media (max-width: 480px) { .po-line-qty-grid { grid-template-columns: 1fr 1fr; } .po-line-qty-row .po-qty-input { width: 62px; } }
