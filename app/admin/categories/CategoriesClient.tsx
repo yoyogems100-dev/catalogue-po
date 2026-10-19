@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
+import ArrangeOrder from './ArrangeOrder';
 import { COVERAGE_FILTERS, catalogueGaps, matchesCoverage, type CoverageFilter } from '@/lib/catalogue-health';
 
 // Same Google Drive rate-limiting story as the public catalogue (see
@@ -41,6 +42,12 @@ type Row = {
 const ListIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
+const OrderIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" />
   </svg>
 );
 
@@ -101,7 +108,7 @@ export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; 
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [coverage, setCoverage] = useState<CoverageFilter>('all');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [view, setView] = useState<'grid' | 'list' | 'order'>('grid');
   const [toast, setToast] = useState('');
 
   // UI/UX audit ("visible saved-state feedback"): these mutations previously
@@ -192,14 +199,14 @@ export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; 
 
   return (
     <>
-      <div className="admin-coverage-filters" role="group" aria-label="Catalogue completeness">
+      {view !== 'order' && <div className="admin-coverage-filters" role="group" aria-label="Catalogue completeness">
         {COVERAGE_FILTERS.map((filter) => (
           <button key={filter.key} type="button" className={`tag-chip ${coverage === filter.key ? 'active' : ''}`}
             aria-pressed={coverage === filter.key} onClick={() => setCoverage(filter.key)}>
             {filter.label} <b>{localRows.filter((row) => matchesCoverage(row, filter.key)).length}</b>
           </button>
         ))}
-      </div>
+      </div>}
       <div className="admin-cat-toolbar">
         <div className="admin-cat-toolbar-left">
           <input type="text" aria-label="Search categories" placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 280 }} />
@@ -207,6 +214,7 @@ export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; 
             <button type="button" aria-pressed={view === 'grid'} className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}><GridIcon /> Grid</button>
             <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}><ListIcon /> List</button>
           </div>
+          <button type="button" className={`btn-ghost admin-arrange-btn${view === 'order' ? ' active' : ''}`} aria-pressed={view === 'order'} onClick={() => setView('order')}><OrderIcon /> Arrange order</button>
         </div>
         <div className="admin-cat-toolbar-right">
           <input
@@ -227,8 +235,18 @@ export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; 
           <Link href="/admin/content/home-sections">Home page sections</Link>. The order here decides every other category below them, and changes show on the live site straight away.
         </div>
       )}
-      <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} active categories{archivedRows.length ? ` (${archivedRows.length} archived below)` : ''}. Missing links are review prompts; they do not change product availability.</p>
-      {view === 'list' ? (
+      {view !== 'order' && <p className="admin-results-summary" role="status">Showing {visibleRows.length} of {localRows.length} active categories{archivedRows.length ? ` (${archivedRows.length} archived below)` : ''}. Missing links are review prompts; they do not change product availability.</p>}
+      {view === 'order' ? (
+        <ArrangeOrder
+          items={localRows.map((r) => ({ id: r.id, name: r.name, coverUrl: r.coverUrl }))}
+          archivedIds={archivedRows.map((r) => r.id)}
+          shelfOf={shelfOf}
+          onDone={(saved) => {
+            setView('grid');
+            if (saved) { setToast('New order saved. The catalogue shows it now.'); router.refresh(); }
+          }}
+        />
+      ) : view === 'list' ? (
         <table>
           <thead>
             <tr><th></th><th>#</th><th>Cover</th><th>Category</th><th>Stats</th><th></th></tr>
@@ -305,7 +323,7 @@ export default function CategoriesClient({ rows, shelves = [] }: { rows: Row[]; 
           )}
         </div>
       )}
-      {archivedRows.length > 0 && (
+      {view !== 'order' && archivedRows.length > 0 && (
         <section className={`admin-archived ${archivedOpen ? 'open' : ''}`} aria-labelledby="archived-categories-heading">
           <button type="button" className="admin-archived-head" aria-expanded={archivedOpen} aria-controls="archived-categories-list"
             onClick={() => setArchivedOpen((open) => !open)}>

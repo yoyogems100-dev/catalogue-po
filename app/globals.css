@@ -3532,3 +3532,41 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .po-stone-switch-list em { font-size: 11px; color: #9C7A25; font-style: normal; white-space: nowrap; }
 .po-stone-switch-dot { width: 18px; height: 18px; border-radius: 50%; background: #1B3A6B; flex: none; }
 .po-stone-switch-empty { padding: 10px 8px; font-size: 13px; color: #5b6168; }
+
+/* Admin > Categories > Arrange order: the /po card order, staged then saved. */
+.admin-arrange-btn { display: inline-flex; align-items: center; gap: 6px; }
+.admin-arrange-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.arrange-order { max-width: 760px; }
+.arrange-order-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.arrange-order-intro p { margin: 0; font-size: 13px; color: #5b5546; line-height: 1.5; }
+.arrange-order-intro .btn-ghost { flex: none; }
+.arrange-order-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: hidden; }
+.arrange-order-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-bottom: 1px solid var(--line); transition: background-color .6s; }
+.arrange-order-row:last-child { border-bottom: 0; }
+.arrange-order-row.moved { background: #f6f1e4; }
+.arrange-order-grip { flex: none; }
+.arrange-order-pos { flex: none; width: 44px; height: 36px; padding: 0; text-align: center; font-size: 16px; font-weight: 600; color: var(--navy); border: 1px solid var(--line); border-radius: 6px; background: var(--ivory); }
+.arrange-order-thumb { flex: none; width: 40px; height: 40px; border-radius: 6px; overflow: hidden; background: #f1ede3; }
+.arrange-order-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.arrange-order-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; font-size: 14px; color: var(--ink); }
+.arrange-order-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arrange-order-name small { font-size: 11px; color: var(--gold); }
+.arrange-order-moves { flex: none; display: flex; gap: 4px; }
+.arrange-order-moves button { width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--navy); font-size: 16px; line-height: 1; cursor: pointer; }
+.arrange-order-moves button:hover:not(:disabled) { border-color: var(--navy); }
+.arrange-order-moves button:disabled { opacity: .3; cursor: default; }
+.arrange-order-bar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; padding: 10px 0; background: var(--ivory); border-top: 1px solid var(--line); }
+.arrange-order-status { margin-right: auto; font-size: 12.5px; color: #756e5c; }
+@media (max-width: 780px) {
+  .arrange-order-intro { flex-direction: column; }
+  .arrange-order-row { gap: 8px; padding: 6px; }
+  .arrange-order-grip, .arrange-order-thumb { display: none; }
+  .arrange-order-moves { gap: 3px; }
+  /* Top/bottom need the room more than they need a button each on a phone;
+     typing 1 in the position box does the same job. */
+  .arrange-order-moves button:first-child, .arrange-order-moves button:last-child { display: none; }
+  .arrange-order-moves button { width: 40px; height: 40px; }
+  .arrange-order-pos { height: 40px; }
+  .arrange-order-bar { flex-wrap: wrap; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
+  .arrange-order-status { flex-basis: 100%; }
+}
