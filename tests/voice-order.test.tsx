@@ -110,3 +110,23 @@ test('choosing the stone in the grid re-matches what was heard', () => {
 test('of the recogniser\'s guesses, the one naming catalogue words wins', () => {
   assert.equal(bestAlternative(['eyes crash cousin 4 him him', 'ice crush cushion 4 mm 1000'], map, {}), 'ice crush cushion 4 mm 1000');
 });
+
+test('colour codes said without their zero, "octo" heard as "auto", "3 3" as 3x3', () => {
+  const codes: CatalogueMap = {
+    materials: [],
+    categories: [{ id: 1, name: 'Crushed Ice Cut', slug: 'crushed-ice-cut', colorIds: [5, 40], shapeIds: [63, 1], sizeIds: [834, 857, 101, 133] }],
+    shapes: [{ id: 63, name: 'Octagon', refPhotoUrl: null }, { id: 1, name: 'Round', refPhotoUrl: null }],
+    sizes: [{ id: 834, shapeId: 63, sizeMm: '3x4' }, { id: 857, shapeId: 63, sizeMm: '4x6' }, { id: 101, shapeId: 1, sizeMm: '3.3' }, { id: 133, shapeId: 1, sizeMm: '3' }],
+    colors: [{ id: 5, name: 'G-05 Morganite Orange', hex: null, refPhotoUrl: null, familyId: 6 }, { id: 40, name: 'G-40 White D', hex: null, refPhotoUrl: null, familyId: 1 }]
+  };
+  const one = (text: string) => resolveLine(codes, parseOrderText(text, codes).lines[0]);
+  const heard = one('G5 auto 3 3');
+  assert.deepEqual([heard.categoryId, heard.shapeId, heard.colorId, heard.sizeId], [1, 63, 5, null]);
+  assert.equal(heard.heard.size, '3x3 mm'); // not sold -- the buyer is shown the nearest
+  assert.deepEqual(nearestSizes(codes, codes.categories[0], 63, heard.heard.size!), ['3x4', '4x6']);
+  assert.deepEqual(nearestSizes(codes, codes.categories[0], 63, '33', 1), ['3x4']);
+  const said = one('G5 OCTO SHAPE 46 200 pieces');
+  assert.deepEqual([said.shapeId, said.sizeId, said.colorId, said.qty], [63, 857, 5, 200]);
+  assert.equal(one('g 05 octagon 3x4 500').colorId, 5);
+  assert.equal(one('round 33 100').sizeId, 101); // a round "33" is 3.3 mm
+});
