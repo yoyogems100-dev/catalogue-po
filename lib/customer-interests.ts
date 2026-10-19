@@ -30,3 +30,15 @@ export function withInterests(config: HomeSections, interests: { ids: number[]; 
   if (!interests || !interests.show || interests.ids.length === 0) return config;
   return { ...config, sections: [forYouSection(interests.ids), ...config.sections] };
 }
+
+/**
+ * The buyer's own star on a /po category card: starring adds the category to
+ * the end of their shelf, un-starring takes it off. Null when the shelf is
+ * already full.
+ */
+export function toggleInterest(ids: number[], categoryId: number, starred: boolean): number[] | null {
+  const without = ids.filter((id) => id !== categoryId);
+  if (!starred) return without;
+  if (ids.includes(categoryId)) return ids;
+  return without.length >= MAX_INTERESTS ? null : [...without, categoryId];
+}
