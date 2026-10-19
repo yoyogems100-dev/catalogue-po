@@ -1,3 +1,4 @@
+import { hasFulfilmentColumns, sentOf } from '@/lib/line-fulfilment';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
@@ -93,6 +94,9 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     colorName: colorMap[it.color_id]?.name || '—',
     colorHex: colorMap[it.color_id]?.hex || '#ccc',
     orderSpecs: it.order_specs || null,
+    sentQty: sentOf(it),
+    needsCheck: !!it.needs_check,
+    tracked: hasFulfilmentColumns(it),
     quantity: it.quantity,
     qtyUnit: fieldOf(it.category_id).unit,
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,

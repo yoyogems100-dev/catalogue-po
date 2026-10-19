@@ -19,6 +19,8 @@ type RequestType = 'Place Order' | 'Request Quotation';
 
 type Item = {
   orderSpecs?: OrderSpecs;
+  /** How much of this line has been sent so far. */
+  sentQty?: number;
   id: number;
   categoryId: number;
   categoryName: string;
@@ -318,7 +320,7 @@ export default function OrderDetailClient({
                   <td>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ColorSwatch hex={i.colorHex} refPhotoUrl={i.colorRefPhotoUrl} name={i.colorName} size={14} />
-                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}
+                      {i.colorName}{i.orderSpecs && <small style={{display:"block"}}>{specText(i.orderSpecs,quantities[i.id] ?? i.quantity)}</small>}{(i.sentQty || 0) > 0 && <small className="po-line-sent">{(i.sentQty || 0) >= i.quantity ? 'Sent' : `Sent ${(i.sentQty || 0).toLocaleString('en-IN')} of ${i.quantity.toLocaleString('en-IN')}`}</small>}
                     </span>
                   </td>
                   <td>
