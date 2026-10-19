@@ -22,7 +22,7 @@ export function sanitizeInterestIds(value: unknown): number[] {
 }
 
 export function forYouSection(categoryIds: number[]): HomeSection {
-  return { key: 'for-you', title: FOR_YOU_TITLE, subtitle: FOR_YOU_SUBTITLE, cardLabel: 'For you', visible: true, categoryIds };
+  return { key: 'for-you', title: FOR_YOU_TITLE, subtitle: FOR_YOU_SUBTITLE, cardLabel: 'For you', visible: true, categoryIds, display: 'shelf', inMenu: false };
 }
 
 /** The shop's shelves with this buyer's own shelf first, when they have one. */

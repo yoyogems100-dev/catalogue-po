@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
-import { DEFAULT_REST_TITLE, newSection, serializeHomeSections, type HomeSection, type HomeSections } from '@/lib/home-sections';
+import { DEFAULT_REST_TITLE, newSection, sectionDisplay, sectionInMenu, serializeHomeSections, type HomeSection, type HomeSections } from '@/lib/home-sections';
+import { categoryIconUrl } from '@/lib/category-icons';
 
-type Category = { id: number; num: number; name: string; archived: boolean; thumb: string | null };
+type Category = { id: number; num: number; name: string; slug: string | null; archived: boolean; thumb: string | null };
 
 // One card per shelf, in the order buyers see them. Everything is edited in
 // place and saved together from the bar at the bottom, so a half-arranged
@@ -15,12 +16,13 @@ export default function HomeSectionsEditor({ categories, initial }: { categories
   const [saved, setSaved] = useState(() => serializeHomeSections(initial));
   const [sections, setSections] = useState(initial.sections);
   const [restTitle, setRestTitle] = useState(initial.restTitle);
+  const [restShowsAll, setRestShowsAll] = useState(initial.restShowsAll !== false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
-  const current = serializeHomeSections({ sections, restTitle });
+  const current = serializeHomeSections({ sections, restTitle, restShowsAll });
   const dirty = current !== saved;
 
   // Leaving with unsaved changes asks first.
@@ -55,6 +57,7 @@ export default function HomeSectionsEditor({ categories, initial }: { categories
     const back = JSON.parse(saved) as HomeSections;
     setSections(back.sections);
     setRestTitle(back.restTitle);
+    setRestShowsAll(back.restShowsAll !== false);
     setStatus(null);
   }
 
@@ -74,8 +77,8 @@ export default function HomeSectionsEditor({ categories, initial }: { categories
   }
 
   const liveCategories = categories.filter((c) => !c.archived);
-  const shelved = new Set(sections.filter((s) => s.visible).flatMap((s) => s.categoryIds.filter((id) => byId.get(id) && !byId.get(id)!.archived)));
-  const restCount = liveCategories.filter((c) => !shelved.has(c.id)).length;
+  const shelved = new Set(sections.filter((s) => s.visible && sectionDisplay(s) === 'shelf').flatMap((s) => s.categoryIds.filter((id) => byId.get(id) && !byId.get(id)!.archived)));
+  const restCount = restShowsAll ? liveCategories.length : liveCategories.filter((c) => !shelved.has(c.id)).length;
   const sectionNamesFor = (id: number, except: string) =>
     sections.filter((s) => s.key !== except && s.categoryIds.includes(id)).map((s) => s.title || 'Untitled section');
   const hasNewIn = sections.some((s) => /^new in$/i.test(s.title.trim()));
@@ -86,7 +89,7 @@ export default function HomeSectionsEditor({ categories, initial }: { categories
         {sections.map((s, i) => (
           <li key={s.key} className={s.visible ? '' : 'is-hidden'}>
             <a href={`#hs-${s.key}`}><span className="hs-outline-num">{i + 1}</span>{s.title || 'Untitled section'}</a>
-            <span className="hs-outline-count">{s.visible ? `${s.categoryIds.length}` : 'hidden'}</span>
+            <span className="hs-outline-count">{!s.visible ? 'hidden' : sectionDisplay(s) === 'tag' ? `tag · ${s.categoryIds.length}` : `${s.categoryIds.length}`}</span>
           </li>
         ))}
         <li className="hs-outline-rest">
@@ -127,7 +130,13 @@ export default function HomeSectionsEditor({ categories, initial }: { categories
           <input className="hs-title" value={restTitle} maxLength={60} aria-label="Title for every other category" placeholder={DEFAULT_REST_TITLE}
             onChange={(e) => { setRestTitle(e.target.value); setStatus(null); }} />
         </div>
-        <p className="hs-hint">Always last: the {restCount} {restCount === 1 ? 'category' : 'categories'} not on any shelf above, in catalogue order.</p>
+        <label className="hs-switch">
+          <input type="checkbox" checked={restShowsAll} onChange={(e) => { setRestShowsAll(e.target.checked); setStatus(null); }} />
+          <span>Show every category here, including those in a section above</span>
+        </label>
+        <p className="hs-hint">
+          Always last: {restShowsAll ? `all ${restCount} live categories` : `the ${restCount} ${restCount === 1 ? 'category' : 'categories'} not on any shelf above`}, in catalogue order.
+        </p>
       </section>
 
       <div className={`hs-savebar${dirty ? ' is-dirty' : ''}`} role="region" aria-label="Save changes">
@@ -170,6 +179,11 @@ function SectionCard({
 
   const { dragHandleProps, dropTargetProps, dragIndex, overIndex } = useDragReorder((from, to) => onChange({ categoryIds: moveItem(ids, from, to) }));
   const name = section.title || 'this section';
+  const display = sectionDisplay(section);
+  const inMenu = sectionInMenu(section);
+  // Only categories in this section that have a gemstone picture can stand for it in the menu.
+  const iconChoices = ids.map((id) => byId.get(id)).filter((c): c is Category => !!c && !!categoryIconUrl(c.slug));
+  const iconFor = iconChoices.find((c) => c.id === section.iconCategoryId) ?? iconChoices[0];
 
   return (
     <section id={`hs-${section.key}`} className={`card hs-card${section.visible ? '' : ' is-hidden'}`} aria-label={section.title || 'Untitled section'}>
@@ -186,12 +200,42 @@ function SectionCard({
       <div className="hs-card-row">
         <label className="hs-switch">
           <input type="checkbox" checked={section.visible} onChange={(e) => onChange({ visible: e.target.checked })} />
-          <span>{section.visible ? 'Shown on /po' : 'Hidden from /po'}</span>
+          <span>{section.visible ? 'On' : 'Off — hidden everywhere'}</span>
         </label>
         <button type="button" className="hs-link" aria-expanded={showMore} onClick={() => setShowMore((v) => !v)}>
-          {showMore ? 'Fewer options' : 'Subtitle & card tag'}
+          {showMore ? 'Fewer options' : display === 'tag' ? 'Subtitle' : 'Subtitle & card tag'}
         </button>
         <button type="button" className="hs-link hs-danger" onClick={onRemove}>Remove section</button>
+      </div>
+
+      <div className="hs-modes" role="radiogroup" aria-label={`How ${name} shows on the home page`}>
+        <button type="button" role="radio" aria-checked={display === 'shelf'} className={display === 'shelf' ? 'is-on' : ''} onClick={() => onChange({ display: 'shelf' })}>
+          <strong>Section of cards</strong><small>Its own row on the home page</small>
+        </button>
+        <button type="button" role="radio" aria-checked={display === 'tag'} className={display === 'tag' ? 'is-on' : ''} onClick={() => onChange({ display: 'tag', cardLabel: section.cardLabel || section.title })}>
+          <strong>Tag only</strong><small>No row; a small tag on these cards</small>
+        </button>
+      </div>
+      {display === 'tag' && (
+        <label className="hs-inline-field">Tag text
+          <input value={section.cardLabel} maxLength={20} placeholder={section.title || 'e.g. Most ordered'} onChange={(e) => onChange({ cardLabel: e.target.value })} />
+        </label>
+      )}
+
+      <div className="hs-card-row">
+        <label className="hs-switch">
+          <input type="checkbox" checked={inMenu} onChange={(e) => onChange({ inMenu: e.target.checked })} />
+          <span>Group in the Categories menu</span>
+        </label>
+        {inMenu && iconChoices.length > 0 && (
+          <label className="hs-icon-pick">
+            {iconFor && <img src={categoryIconUrl(iconFor.slug)!} alt="" width={26} height={26} />}
+            <select aria-label={`Menu picture for ${name}`} value={section.iconCategoryId ?? ''} onChange={(e) => onChange({ iconCategoryId: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">Picture: first category</option>
+              {iconChoices.map((c) => <option key={c.id} value={c.id}>Picture: {c.name}</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       {showMore && (
@@ -199,14 +243,16 @@ function SectionCard({
           <label>Subtitle <span>beside the title</span>
             <input value={section.subtitle} maxLength={80} placeholder="e.g. Just added to the catalogue" onChange={(e) => onChange({ subtitle: e.target.value })} />
           </label>
-          <label>Card tag <span>on these cards in search results</span>
-            <input value={section.cardLabel} maxLength={20} placeholder="e.g. New" onChange={(e) => onChange({ cardLabel: e.target.value })} />
-          </label>
+          {display === 'shelf' && (
+            <label>Card tag <span>on these cards in search results</span>
+              <input value={section.cardLabel} maxLength={20} placeholder="e.g. New" onChange={(e) => onChange({ cardLabel: e.target.value })} />
+            </label>
+          )}
         </div>
       )}
 
       {ids.length === 0 ? (
-        <p className="hs-hint">No categories yet. A section with none stays off the home page.</p>
+        <p className="hs-hint">No categories yet. A section with none stays off the home page and the menu.</p>
       ) : (
         <ol className="hs-cats">
           {ids.map((id, i) => {

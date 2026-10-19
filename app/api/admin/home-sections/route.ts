@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.sections)) return NextResponse.json({ error: 'sections required' }, { status: 400 });
-  if (body.sections.length > 12) return NextResponse.json({ error: 'At most 12 sections.' }, { status: 400 });
+  if (body.sections.length > 30) return NextResponse.json({ error: 'At most 30 sections.' }, { status: 400 });
   // Round-trip through the parser so only clean, known fields are stored.
   const value = serializeHomeSections(parseHomeSections(JSON.stringify(body)));
   const { error } = await supabaseAdmin.from('settings').upsert({ key: HOME_SECTIONS_SETTING_KEY, value }, { onConflict: 'key' });
