@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from 'react';
 import { CUSTOMER_NAME_MAX, todayIso } from '@/lib/price-list-options';
+import PdfPreviewDialog, { fetchPdf, saveBlobUrl, type PdfPreviewFile } from '@/components/admin/PdfPreview';
 
 type SavedList = { id: number; customerName: string; priceDate: string };
 
@@ -35,6 +36,8 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
   const [opening, setOpening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preview, setPreview] = useState<PdfPreviewFile | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   const plainUrl = `/api/admin/pricing/pdf?category_id=${categoryId}`;
   const match = lists.find((l) => l.customerName.trim().toLowerCase() === name.trim().toLowerCase()) || null;
@@ -43,8 +46,12 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     setOpening(true);
     setError('');
     try {
-      // Moissanite's price list is its own illustrated chart.
-      if (categoryId === 34) { window.location.href = plainUrl; return; }
+      // Moissanite's price list is its own illustrated chart: straight to its preview.
+      if (categoryId === 34) {
+        const { url, fileName } = await fetchPdf(plainUrl);
+        setPreview({ url, fileName, title: 'Price list preview' });
+        return;
+      }
       const res = await fetch(`/api/admin/pricing/grid?category_id=${categoryId}`);
       if (!res.ok) throw new Error();
       let data = await res.json();
@@ -68,35 +75,62 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
     }
   }
 
+  // Saves the customer's prices only when asked to and a name is given.
+  const willSave = save && name.trim() !== '';
+
+  function requestPdf(saveForCustomer: boolean) {
+    // Off the Pricing page, a known customer's copy prints their own saved prices.
+    const body = current
+      ? { source_list_id: current.sourceListId, ...(current.prices ? { prices: current.prices } : {}) }
+      : { source_list_id: match?.id ?? null };
+    return fetchPdf('/api/admin/pricing/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_id: categoryId, customer_name: name, date, save_for_customer: saveForCustomer, ...body })
+    });
+  }
+
+  function closePreview() {
+    // Later, so a download started from it isn't cut off.
+    if (preview) { const url = preview.url; setTimeout(() => URL.revokeObjectURL(url), 10_000); }
+    setPreview(null);
+  }
+
+  // A look at the PDF first. Never saves anything; saving happens on Download.
+  async function showPreview() {
+    setPreviewing(true);
+    setError('');
+    try {
+      const { url, fileName } = await requestPdf(false);
+      setPreview({ url, fileName, title: 'Price list preview' });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
   async function download() {
+    // From the preview, with nothing to save: the PDF on screen is the download.
+    if (preview && (categoryId === 34 || !willSave)) {
+      saveBlobUrl(preview.url, preview.fileName);
+      closePreview();
+      dialogRef.current?.close();
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      // Off the Pricing page, a known customer's copy prints their own saved prices.
-      const body = current
-        ? { source_list_id: current.sourceListId, ...(current.prices ? { prices: current.prices } : {}) }
-        : { source_list_id: match?.id ?? null };
-      const res = await fetch('/api/admin/pricing/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category_id: categoryId, customer_name: name, date, save_for_customer: save && name.trim() !== '', ...body })
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'The price list could not be made. Please retry.');
-      const blob = await res.blob();
-      const fileName = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'price-list.pdf';
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const { url, fileName, res } = await requestPdf(willSave);
+      saveBlobUrl(url, fileName);
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       const savedId = Number(res.headers.get('X-Price-List-Id'));
       if (savedId) onSaved?.(savedId);
+      closePreview();
       dialogRef.current?.close();
     } catch (e) {
       setError((e as Error).message);
+      closePreview();
     } finally {
       setBusy(false);
     }
@@ -147,9 +181,11 @@ export default function PriceListDownloadButton({ categoryId, className = 'btn-g
         </div>
         <footer className="price-list-dialog-foot">
           <button type="button" className="btn-ghost" onClick={() => dialogRef.current?.close()}>Cancel</button>
-          <button type="button" className="btn" onClick={download} disabled={busy || !date}>{busy ? 'Making PDF…' : 'Download PDF'}</button>
+          <button type="button" className="btn-ghost" onClick={showPreview} disabled={previewing || busy || !date}>{previewing ? 'Making preview…' : 'Preview'}</button>
+          <button type="button" className="btn" onClick={download} disabled={busy || previewing || !date}>{busy ? 'Making PDF…' : 'Download PDF'}</button>
         </footer>
       </dialog>
+      <PdfPreviewDialog file={preview} onClose={closePreview} onDownload={download} downloading={busy} />
     </>
   );
 }
