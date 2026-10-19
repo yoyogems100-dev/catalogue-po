@@ -23,6 +23,7 @@ export function buildPdfItems(
     sizeMm: maps.sizeMm[it.shape_size_id] || it.custom_size || '—',
     colorName: maps.colorName[it.color_id] || '—',
     orderSpecs: it.order_specs || null,
+    note: it.note || null,
     quantity: it.quantity,
     qtyUnit: qtyUnitOf(it.category_id),
     unitPrice: it.unit_price != null ? Number(it.unit_price) : null,
