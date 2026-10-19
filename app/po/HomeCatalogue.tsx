@@ -251,20 +251,20 @@ export default function HomeCatalogue({
         </div>
       </div>
 
-      {!hasActiveFilter && (
+      {/* Speak and colour start side by side on wider screens. */}
+      {!hasActiveFilter && <div className="home-quick-start">
         <button type="button" className="home-voice-start" onClick={() => window.dispatchEvent(new CustomEvent(VOICE_ORDER_OPEN_EVENT))}>
           <span className="home-voice-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" /></svg>
           </span>
           <span className="home-voice-text">
             <strong>Speak your order</strong>
-            <small>Say the stone, shape, sizes and quantity — English or Hindi</small>
+            <small>English or Hindi</small>
           </span>
           <span className="home-voice-go" aria-hidden="true">→</span>
         </button>
-      )}
 
-      {!hasActiveFilter && colorButtons.length > 0 && (
+      {colorButtons.length > 0 && (
         <div className="home-color-start">
           <span className="home-color-start-label">Order by colour</span>
           <div className="home-color-chips">
@@ -282,6 +282,7 @@ export default function HomeCatalogue({
           </div>
         </div>
       )}
+      </div>}
 
       {starError && <p className="cat-star-error" role="alert">{starError}</p>}
 
