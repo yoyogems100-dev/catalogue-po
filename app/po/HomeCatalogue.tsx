@@ -9,6 +9,7 @@ import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 import { VOICE_ORDER_OPEN_EVENT } from '@/components/VoiceOrderButton';
 import { useColorButtons, useColorNames } from '@/components/useOrderPreferences';
 import { layoutHomeSections, type HomeSections } from '@/lib/home-sections';
+import { FOR_YOU_TITLE, MAX_INTERESTS, toggleInterest, withInterests } from '@/lib/customer-interests';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
 // lh3.googleusercontent.com, which starts returning 429 when a page asks for
@@ -89,7 +90,9 @@ export default function HomeCatalogue({
   allColors,
   sections,
   colorButtonIds,
-  colorNames: shopColorNames = {}
+  colorNames: shopColorNames = {},
+  interests = null,
+  signedIn = false
 }: {
   categories: Category[];
   allShapes: Ref[];
@@ -98,6 +101,9 @@ export default function HomeCatalogue({
   colorButtonIds: number[];
   /** The shop's names for colour buttons, as rendered. */
   colorNames?: ColorNames;
+  /** This buyer's "Curated for you" shelf, if signed in. */
+  interests?: { ids: number[]; show: boolean } | null;
+  signedIn?: boolean;
 }) {
   const colorNames = useColorNames() ?? shopColorNames;
   const [query, setQuery] = useState('');
@@ -141,7 +147,40 @@ export default function HomeCatalogue({
     return index;
   }, [categories, allShapes, allColors, colorNames]);
 
-  const { shelves, rest: unshelved } = useMemo(() => layoutHomeSections(sections, categories), [sections, categories]);
+  // Starred cards: the buyer's shelf, kept here so a star shows up (or drops
+  // off) the shelf at once while the save happens in the background.
+  const [forYou, setForYou] = useState(() => interests ?? { ids: [], show: true });
+  const starred = useMemo(() => new Set(forYou.ids), [forYou.ids]);
+  const [starError, setStarError] = useState('');
+  const saving = useRef(Promise.resolve());
+  const toggleStar = (categoryId: number) => {
+    const add = !starred.has(categoryId);
+    const next = toggleInterest(forYou.ids, categoryId, add);
+    if (!next) { setStarError(`You can star up to ${MAX_INTERESTS} categories. Un-star one to add another.`); return; }
+    setStarError('');
+    setForYou({ ids: next, show: add ? true : forYou.show });
+    // One save at a time, in tap order, so quick taps can't land out of order.
+    saving.current = saving.current.then(async () => {
+      try {
+        const res = await fetch('/api/account/interests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoryId, starred: add })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error || 'Could not save');
+        if (Array.isArray(data?.ids)) setForYou((s) => ({ ...s, ids: data.ids }));
+      } catch (e) {
+        // Undo just this tap; later taps keep their own outcome.
+        setForYou((s) => ({ ...s, ids: toggleInterest(s.ids, categoryId, !add) ?? s.ids }));
+        setStarError(e instanceof Error ? e.message : 'Could not save');
+      }
+    });
+  };
+  const star = { signedIn, starred, onToggle: toggleStar };
+
+  const allSections = useMemo(() => withInterests(sections, forYou), [sections, forYou]);
+  const { shelves, rest: unshelved } = useMemo(() => layoutHomeSections(allSections, categories), [allSections, categories]);
 
   // Search results: categories on a shelf rank first, in shelf order. Each
   // keeps the card tag of the first shelf it sits on that has one.
@@ -188,7 +227,7 @@ export default function HomeCatalogue({
   const renderGrid = (list: Category[], offset: number, tagged: boolean) => (
     <div className="grid-cats">
       {list.map((cat, i) => (
-        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} label={tagged ? cardLabel.get(cat.id) : undefined} />
+        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} label={tagged ? cardLabel.get(cat.id) : undefined} star={star} />
       ))}
     </div>
   );
@@ -244,6 +283,8 @@ export default function HomeCatalogue({
         </div>
       )}
 
+      {starError && <p className="cat-star-error" role="alert">{starError}</p>}
+
       {visibleShelves.map((shelf, i) => {
         const grid = renderGrid(shelf.categories, offset, false);
         offset += shelf.categories.length;
@@ -254,6 +295,7 @@ export default function HomeCatalogue({
               {shelf.subtitle && <span className="count">{shelf.subtitle}</span>}
             </div>
             {grid}
+            {shelf.key === 'for-you' && <p className="cat-star-hint">Tap the diamond on any category to add it here.</p>}
           </section>
         );
       })}
@@ -274,7 +316,9 @@ export default function HomeCatalogue({
   );
 }
 
-function CategoryCard({ cat, cardIndex, label }: { cat: Category; cardIndex: number; label?: string }) {
+type StarProps = { signedIn: boolean; starred: Set<number>; onToggle: (categoryId: number) => void };
+
+function CategoryCard({ cat, cardIndex, label, star }: { cat: Category; cardIndex: number; label?: string; star: StarProps }) {
   // One tag, not the same counts twice. The card used to badge
   // counts over the thumbnail AND repeat all three as text under the
   // name. Worse, a count of 1 tells a buyer nothing -- "1 shape" on a
@@ -296,7 +340,26 @@ function CategoryCard({ cat, cardIndex, label }: { cat: Category; cardIndex: num
     .sort((a, b) => b.count - a.count)
     .slice(0, chosen.length ? chosen.length : 1);
   const badges = best.map((d) => `${d.count} ${d.count === 1 ? d.one : d.many}`);
+  const isStarred = star.starred.has(cat.id);
+  const starLabel = isStarred ? `Remove ${cat.name} from ${FOR_YOU_TITLE}` : `Add ${cat.name} to ${FOR_YOU_TITLE}`;
+  const starIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={isStarred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 4h10l4 5-9 11L3 9z" /><path d="M3 9h18M9.5 4L12 9l2.5-5M12 9v11" fill="none" stroke={isStarred ? '#fff' : 'currentColor'} strokeWidth="1.2" />
+    </svg>
+  );
+  // A sibling of the card's link, not inside it: a button nested in a link
+  // would also open the category on tap.
   return (
+    <div className="cat-card-wrap">
+      {star.signedIn ? (
+        <button type="button" className={`cat-star${isStarred ? ' on' : ''}`} aria-pressed={isStarred} aria-label={starLabel} title={starLabel} onClick={() => star.onToggle(cat.id)}>
+          {starIcon}
+        </button>
+      ) : (
+        <Link className="cat-star" href="/po/account/login?next=/po" aria-label={`Sign in to add ${cat.name} to ${FOR_YOU_TITLE}`} title={`Sign in to add to ${FOR_YOU_TITLE}`}>
+          {starIcon}
+        </Link>
+      )}
     <Link href={`/po/category/${cat.slug}`}>
       <div className="cat-card">
         <div className="cat-thumb">
@@ -315,5 +378,6 @@ function CategoryCard({ cat, cardIndex, label }: { cat: Category; cardIndex: num
         </div>
       </div>
     </Link>
+    </div>
   );
 }
