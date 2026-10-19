@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { cleanQuery, type SearchItem } from '@/lib/admin-search';
+import { milestoneLabel } from '@/lib/order-milestones';
 
 // The database half of the admin search: customers, suppliers, shapes, sizes,
 // colours and orders whose name (or phone, size, order number) matches ?q=.
@@ -40,12 +41,36 @@ export async function GET(req: NextRequest) {
         })()
       : Promise.resolve({ data: [] as any[] }),
     orderNo
-      ? supabaseAdmin.from('orders').select('id, contact_name, status').eq('id', Number(orderNo)).is('deleted_at', null).limit(1)
-      : supabaseAdmin.from('orders').select('id, contact_name, status').ilike('contact_name', like).is('deleted_at', null).order('id', { ascending: false }).limit(5)
+      ? supabaseAdmin.from('orders').select('id, contact_name, status, created_at, customer_id').eq('id', Number(orderNo)).is('deleted_at', null).limit(1)
+      : supabaseAdmin.from('orders').select('id, contact_name, status, created_at, customer_id').ilike('contact_name', like).is('deleted_at', null).order('id', { ascending: false }).limit(5)
   ]);
 
+  // Most orders carry no typed contact name -- the buyer is on the customer
+  // record. So "Discovery" or a phone number also brings up the latest orders
+  // of the buyers it matched.
+  const matchedCustomers = (customers.data || []) as any[];
+  const buyerOrders = !orderNo && matchedCustomers.length
+    ? await supabaseAdmin.from('orders').select('id, contact_name, status, created_at, customer_id')
+        .in('customer_id', matchedCustomers.map((c) => c.id)).is('deleted_at', null)
+        .order('created_at', { ascending: false }).limit(6)
+    : { data: [] as any[] };
+  const orderRows = [...(orders.data || []), ...(buyerOrders.data || [])]
+    .filter((o: any, i, all) => all.findIndex((x: any) => x.id === o.id) === i)
+    .sort((a: any, b: any) => b.id - a.id)
+    .slice(0, 6);
+  // Names for orders whose buyer the customer search did not already bring back.
+  const missing = [...new Set(orderRows.map((o: any) => o.customer_id).filter((id: any) => id && !matchedCustomers.some((c) => c.id === id)))];
+  const { data: extraCustomers } = missing.length
+    ? await supabaseAdmin.from('customers').select('id, name, company').in('id', missing)
+    : { data: [] as any[] };
+  const buyerName = (id: number | null) => {
+    const c = [...matchedCustomers, ...(extraCustomers || [])].find((x: any) => x.id === id);
+    return c ? c.name || c.company : null;
+  };
+  const orderDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+
   const items: SearchItem[] = [
-    ...(orders.data || []).map((o: any) => ({ kind: 'order' as const, label: `Order #${o.id}`, detail: [o.contact_name, o.status].filter(Boolean).join(' · '), href: `/admin/orders/${o.id}` })),
+    ...orderRows.map((o: any) => ({ kind: 'order' as const, label: `Order #${o.id}`, detail: [o.contact_name || buyerName(o.customer_id), milestoneLabel(o.status), orderDate(o.created_at)].filter(Boolean).join(' · '), href: `/admin/orders/${o.id}` })),
     ...(customers.data || []).map((c: any) => ({ kind: 'customer' as const, label: c.name || c.company || c.phone || `Customer ${c.id}`, detail: [c.name ? c.company : null, c.place, c.phone].filter(Boolean).join(' · '), href: `/admin/customers/${c.id}`, keywords: `${c.company || ''} ${c.place || ''} ${c.phone || ''}` })),
     ...(suppliers.data || []).map((s: any) => ({ kind: 'supplier' as const, label: s.name || s.company || `Supplier ${s.id}`, detail: [s.company !== s.name ? s.company : null, s.contact_name, s.phone].filter(Boolean).join(' · '), href: `/admin/suppliers/${s.id}`, keywords: `${s.company || ''} ${s.contact_name || ''} ${s.phone || ''}` })),
     ...(shapes.data || []).map((s: any) => ({ kind: 'shape' as const, label: s.name, detail: 'Shapes & sizes', href: `/admin/shapes?q=${encodeURIComponent(s.name)}&open=${s.id}` })),

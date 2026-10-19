@@ -3016,6 +3016,13 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 .admin-search-bar:hover { border-color: rgba(27,58,107,0.35); }
 .admin-search-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-search-bar svg { color: var(--navy); flex-shrink: 0; }
+/* The Overview's search box: a real field, matches drop down under it. */
+.admin-search-inline { position: relative; margin: 18px 0 14px; }
+.admin-search-inline .admin-search-bar { margin: 0; cursor: text; padding: 6px 10px 6px 14px; }
+.admin-search-inline .admin-search-bar:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(27,58,107,0.12); }
+.admin-search-inline input { flex: 1; min-width: 0; min-height: 40px; border: none !important; outline: none; box-shadow: none !important; padding: 4px 0 !important; font-size: 16px; background: transparent; color: var(--ink); }
+.admin-search-inline .admin-search-close { min-height: 30px; }
+.admin-search-inline-pop { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 6px); max-height: min(440px, 62vh); overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px rgba(18,35,63,0.18); }
 .admin-search-bar kbd, .admin-search-close { font: inherit; font-size: 11px; color: var(--text-dim); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; background: var(--ivory); }
 .admin-search-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(18,35,63,0.45); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
 .admin-search { width: min(620px, 100%); max-height: min(560px, 80vh); display: flex; flex-direction: column; background: #fff; border-radius: 12px; box-shadow: 0 24px 60px rgba(18,35,63,0.35); overflow: hidden; }

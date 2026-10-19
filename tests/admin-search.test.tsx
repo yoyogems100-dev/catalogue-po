@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanQuery, rankItems, scoreItem, staticSearchItems } from '../lib/admin-search';
+import { cleanQuery, mergeResults, rankItems, scoreItem, staticSearchItems } from '../lib/admin-search';
 import { notificationHref, notificationLabel } from '../lib/notifications';
 import { ADMIN_PRICING_ENABLED } from '../lib/pricing-calc';
 
@@ -49,4 +49,20 @@ test('each notification opens the right page', () => {
 test('admin pricing pages are searchable only while admin pricing is on', () => {
   const found = items.some((r) => r.href === '/admin/pricing' || r.href.endsWith('tab=pricing'));
   assert.equal(found, ADMIN_PRICING_ENABLED);
+});
+
+test('an order or phone number puts the exact server hit first; words put pages first', () => {
+  const order = { kind: 'order' as const, label: 'Order #34', href: '/admin/orders/34' };
+  const page = { kind: 'category' as const, label: 'Moissanite', href: '/admin/categories/34' };
+  assert.equal(mergeResults('34', [page], [order])[0].href, '/admin/orders/34');
+  assert.equal(mergeResults('#34', [page], [order])[0].href, '/admin/orders/34');
+  assert.equal(mergeResults('98290 12345', [page], [order])[0].href, '/admin/orders/34');
+  assert.equal(mergeResults('moiss', [page], [order])[0].href, '/admin/categories/34');
+});
+
+test('the same place found twice shows once', () => {
+  const a = { kind: 'action' as const, label: 'Pending lines', href: '/admin/pending' };
+  const b = { kind: 'page' as const, label: 'Pending lines', href: '/admin/pending' };
+  assert.deepEqual(mergeResults('pending', [a, b], []).map((r) => r.kind), ['action']);
+  assert.equal(rankItems(items, 'pending')[0].href, '/admin/pending');
 });
