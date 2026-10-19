@@ -197,7 +197,10 @@ const singular = (w: string) => (w.length > 4 && w.endsWith('s') && !w.endsWith(
 function words(name: string): string[] {
   return name.toLowerCase().replace(/&/g, ' and ').replace(/[#()'’]/g, ' ').replace(/[^a-z0-9.\s]/g, ' ')
     .replace(/(\d)([a-z])/g, (m, d, l) => (l === 'a' ? m : `${d} ${l}`))
-    .split(/\s+/).filter(Boolean).map(singular);
+    .split(/\s+/).filter(Boolean).map(singular)
+    // "G-05" is said "G 5": codes match without their leading zeros, the way
+    // normalize() writes every spoken number.
+    .map((w) => (/^0\d+$/.test(w) ? String(Number(w)) : w));
 }
 
 /** A rough sound-key for Indian-English spellings: "cushion"/"kushan" -> "ksn". */
@@ -272,7 +275,8 @@ const SHAPE_ALIASES: Record<string, string[]> = {
   triangle: ['triangle', 'tikona', 'trikon'],
   cabochon: ['cabochon', 'cab', 'kaboshan', 'cabochan'],
   star: ['star', 'sitara', 'taara'],
-  octagon: ['octagon', 'ashtkon']
+  // "octo" is often heard as "auto" in an Indian accent.
+  octagon: ['octagon', 'ashtkon', 'octo', 'octa', 'okta', 'octagan', 'auto', 'otto']
 };
 // Hindi colour words -> colour family (lib/color-family ids).
 const FAMILY_WORDS: Record<string, number> = {
@@ -483,8 +487,8 @@ export function parseOrderText(text: string, map: CatalogueMap, context: ParseCo
       continue;
     }
     let kind: 'size' | 'qty';
-    let value: string | number | null;
-    let heard: string;
+    let value: string | number | null | undefined;
+    let heard = '';
     if (tk.t === 'size') { kind = 'size'; value = tk.v; heard = tk.heard; }
     else if (tk.t === 'qty') { kind = 'qty'; value = tk.v; heard = tk.heard; }
     else {
@@ -499,15 +503,34 @@ export function parseOrderText(text: string, map: CatalogueMap, context: ParseCo
         }
         return false;
       })();
-      if (tk.qtyBefore) kind = 'qty';
+      const next = toks[idx + 1];
+      const afterNext = toks[idx + 2];
+      const afterShape = toks[idx - 1]?.t === 'attr' && (toks[idx - 1] as any).field === 'shape';
+      const small = (v: number) => Number.isInteger(v) && v > 0 && v < 30;
+      if (!tk.qtyBefore && !tk.afterLinker && small(n) && next?.t === 'num' && small(next.v)
+        && afterNext?.t !== 'num' && afterNext?.t !== 'size') {
+        // "octo 3 3" / "4 6": two small numbers together are one size, 3x3 / 4x6.
+        kind = 'size';
+        value = `${n}x${next.v}`;
+        heard = `${n}x${next.v} mm`;
+        idx++;
+      } else if (afterShape && !pending.length && /^[1-9]{2}$/.test(String(n))) {
+        // "octo shape 33": right after a shape, a two-digit number is its
+        // size (3x3 or 3.3 -- findSize works out which the shape has).
+        kind = 'size';
+        value = String(n);
+        heard = String(n);
+      } else if (tk.qtyBefore) kind = 'qty';
       else if (tk.afterLinker && pending.length) kind = 'qty';
       else if (nextIsMmRun && n < 30) kind = 'size';
       else if (!Number.isInteger(n)) kind = 'size';
       else if (n >= 30) kind = 'qty';
       else if (pending.length && n >= 10) kind = 'qty';
       else kind = 'size';
-      value = kind === 'size' ? String(n) : n;
-      heard = kind === 'size' ? `${n} mm` : String(n);
+      if (value === undefined) {
+        value = kind === 'size' ? String(n) : n;
+        heard = kind === 'size' ? `${n} mm` : String(n);
+      }
     }
     recognised++;
     if (kind === 'size') {
@@ -592,6 +615,13 @@ export function findSize(map: CatalogueMap, category: MapCategory, shapeId: numb
   const candidates = map.sizes.filter((s) => s.shapeId === shapeId && linked.has(s.id));
   const hit = candidates.find((s) => { const d = sizeDims(s.sizeMm); return !!d && sameDims(d, want); });
   if (hit) return hit.id;
+  // "33" for a shape sold as 3x4, 6x8...: 3x3. Rounds keep "33" = 3.3 below.
+  const compound = candidates.some((s) => (sizeDims(s.sizeMm) || []).length > 1);
+  if (compound && want.length === 1 && /^[1-9]{2}$/.test(String(want[0]))) {
+    const [a, b] = String(want[0]).split('').map(Number);
+    const pair = candidates.find((s) => { const d = sizeDims(s.sizeMm); return !!d && sameDims(d, a === b ? [a] : [a, b]); });
+    if (pair) return pair.id;
+  }
   // "19" or "110" said without the point: 1.9 / 1.1 mm.
   if (want.length === 1 && Number.isInteger(want[0]) && want[0] >= 10) {
     for (const scale of [10, 100]) {
@@ -604,14 +634,23 @@ export function findSize(map: CatalogueMap, category: MapCategory, shapeId: numb
 
 /** Sizes offered nearby, for a "not available" hint. */
 export function nearestSizes(map: CatalogueMap, category: MapCategory, shapeId: number, heard: string, count = 2): string[] {
-  const want = sizeDims(heard);
+  let want = sizeDims(heard);
   if (!want) return [];
   const linked = new Set(category.sizeIds);
-  return map.sizes
+  const rows = map.sizes
     .filter((s) => s.shapeId === shapeId && linked.has(s.id))
     .map((s) => ({ s, d: sizeDims(s.sizeMm) }))
-    .filter((x): x is { s: typeof x.s; d: number[] } => !!x.d && x.d.length === want.length)
-    .map(({ s, d }) => ({ s, gap: d.reduce((n, v, i) => n + Math.abs(v - want[i]), 0) }))
+    .filter((x): x is { s: typeof x.s; d: number[] } => !!x.d);
+  // Shapes sold as 3x4, 6x8...: compare as pairs (a square 4x4 is [4, 4];
+  // "33" said for such a shape is 3x3).
+  const compound = rows.some((r) => r.d.length > 1);
+  const pair = (d: number[]) => (compound && d.length === 1 ? [d[0], d[0]] : d);
+  if (compound && want.length === 1 && /^[1-9]{2}$/.test(String(want[0]))) want = String(want[0]).split('').map(Number);
+  const w = pair(want);
+  return rows
+    .map(({ s, d }) => ({ s, d: pair(d) }))
+    .filter(({ d }) => d.length === w.length)
+    .map(({ s, d }) => ({ s, gap: d.reduce((n, v, i) => n + Math.abs(v - w[i]), 0) }))
     .sort((a, b) => a.gap - b.gap)
     .slice(0, count)
     .map(({ s }) => s.sizeMm);
@@ -657,7 +696,10 @@ export function resolveLine(map: CatalogueMap, line: RawLine, opts: ResolveOptio
   }
   if (!category && !line.category && (line.shape?.ids.length || line.color?.ids.length)) {
     // No stone named: if exactly one stone carries this shape/size/colour, it's that one.
-    const fits = map.categories.filter((c) => categoryFits(map, c, line));
+    // A size the stone doesn't sell ("octo 3x3") shouldn't hide the stone
+    // itself: if nothing fits with the size, try without it.
+    let fits = map.categories.filter((c) => categoryFits(map, c, line));
+    if (!fits.length && line.size) fits = map.categories.filter((c) => categoryFits(map, c, { ...line, size: undefined }));
     if (fits.length === 1) { category = fits[0]; out.guessed.category = true; }
   }
   out.categoryId = category?.id ?? null;
