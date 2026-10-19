@@ -15,7 +15,7 @@ test('the color chart closes the reference strip without hiding the other photos
   // one tap from its zoomable full-screen view.
   const props = { categoryName: 'Crushed Ice', shapeIds: [2], sizeIds: [], colorIds: [], shapes: [], colors: [], colorChartUrl: '/chart.jpg' };
   const photos = [
-    { id: 1, url: '/one.jpg', shapeIds: [1], sizeIds: [], colorIds: [] },
+    { id: 1, url: '/one.jpg', shapeIds: [], sizeIds: [], colorIds: [] },
     { id: 2, url: '/two.jpg', shapeIds: [2], sizeIds: [], colorIds: [] }
   ];
 

@@ -19,11 +19,18 @@ const DIMENSIONS = ['shapeIds', 'colorIds', 'sizeIds'] as const;
  *  shape with no tagged photo of its own showed the entire gallery, since
  *  filtering to nothing fell back to everything.
  *
+ *  The one exception is shape: once a cut is picked and has photos of its own,
+ *  photos tagged as a *different* cut are dropped -- a buyer who chose
+ *  Firecracker swipes through Firecracker stones, not Round ones. Untagged
+ *  photos stay, and a cut with no photos of its own still shows everything.
+ *
  *  Group angles are left out: this is a quick "what does it look like" strip,
  *  so it shows one tile per stone -- the group's cover -- and leaves the other
  *  angles to the Explore Photos gallery, where they can be swiped through. */
 export function referencePhotos(photos: OrderReferencePhoto[], selection: { shapeIds: number[]; colorIds: number[]; sizeIds: number[] }) {
-  const available = photos.filter((photo) => !!photo.url && !(photo.parentId ?? null));
+  let available = photos.filter((photo) => !!photo.url && !(photo.parentId ?? null));
+  const ofPickedShape = (photo: OrderReferencePhoto) => selection.shapeIds.some((id) => photo.shapeIds.includes(id));
+  if (available.some(ofPickedShape)) available = available.filter((photo) => photo.shapeIds.length === 0 || ofPickedShape(photo));
   const selected = DIMENSIONS.filter((key) => selection[key].length > 0);
   if (selected.length === 0) return { photos: available, matching: false, fallback: false };
 
