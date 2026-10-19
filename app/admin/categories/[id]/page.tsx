@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
 import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
+import { PdfPreviewLink } from '@/components/admin/PdfPreview';
 import { readDrill } from '@/lib/drill-data';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
@@ -183,7 +184,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       {category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={category.archived_at} />}
       <div className="category-downloads">
         {ADMIN_PRICING_ENABLED && <PriceListDownloadButton categoryId={categoryId} className="btn-ghost size-chart-download" />}
-        {!category.archived_at && <a className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`}>Download shape &amp; size chart</a>}
+        {!category.archived_at && <PdfPreviewLink className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`} title="Shape & size chart preview">Download shape &amp; size chart</PdfPreviewLink>}
         {!category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={null} />}
       </div>
       <nav className="admin-coverage-filters" aria-label="Category workspace">

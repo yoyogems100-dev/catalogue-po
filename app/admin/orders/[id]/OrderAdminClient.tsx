@@ -1,5 +1,6 @@
 'use client';
 import LineFulfilment from '@/components/admin/LineFulfilment';
+import PdfPreviewDialog, { fetchPdf, type PdfPreviewFile } from '@/components/admin/PdfPreview';
 import SpecialOrderComposer from '@/components/SpecialOrderComposer';
 import PacketWeights from '@/components/admin/PacketWeights';
 import type { PacketWeights as PacketWeightsValue } from '@/lib/packet-weights';
@@ -159,6 +160,7 @@ export default function OrderAdminClient({
   }, [items]);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<PdfPreviewFile | null>(null);
   const [currentInvoiceUrl, setCurrentInvoiceUrl] = useState(invoiceUrl);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const allItemsPriced = items.length > 0 && items.every((i) => i.unitPrice != null);
@@ -246,6 +248,21 @@ export default function OrderAdminClient({
     setJustUpdated(false);
   }
 
+  // A freshly made PDF opens in a preview first; a new tab if it can't be fetched.
+  async function previewSaved(url: string, title: string, fileName: string) {
+    try {
+      const pdf = await fetchPdf(url);
+      setPdfPreview({ url: pdf.url, fileName, title });
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  function closePdfPreview() {
+    if (pdfPreview) { const url = pdfPreview.url; setTimeout(() => URL.revokeObjectURL(url), 10_000); }
+    setPdfPreview(null);
+  }
+
   async function generatePdf() {
     setGeneratingPdf(true);
     try {
@@ -254,7 +271,7 @@ export default function OrderAdminClient({
     setGeneratingPdf(false);
     if (res.ok && data.url) {
       setCurrentPdfUrl(data.url);
-      window.open(data.url, '_blank', 'noopener,noreferrer');
+      await previewSaved(data.url, `${isQuotation ? 'Quotation' : 'Order'} #${orderId} preview`, `YOYO-GEMS-${isQuotation ? 'Quotation' : 'Order'}-${orderId}.pdf`);
       setJustUpdated(false);
     } else {
       setToast(data.error || 'Failed to generate PDF.');
@@ -271,7 +288,7 @@ export default function OrderAdminClient({
     setGeneratingInvoice(false);
     if (res.ok && data.url) {
       setCurrentInvoiceUrl(data.url);
-      window.open(data.url, '_blank', 'noopener,noreferrer');
+      await previewSaved(data.url, `Invoice for order #${orderId}`, `YOYO-GEMS-Invoice-${orderId}.pdf`);
     } else {
       setToast(data.error || 'Failed to generate invoice.');
     }
@@ -422,6 +439,7 @@ export default function OrderAdminClient({
           {currentInvoiceUrl && <a className="btn-ghost" href={currentInvoiceUrl} target="_blank" rel="noopener noreferrer">View last invoice</a>}
         </div>
       </div>
+      <PdfPreviewDialog file={pdfPreview} onClose={closePdfPreview} />
 
       <section style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: '#756e5c' }}>
