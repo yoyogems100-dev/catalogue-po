@@ -295,7 +295,7 @@ export default function HomeCatalogue({
               {shelf.subtitle && <span className="count">{shelf.subtitle}</span>}
             </div>
             {grid}
-            {shelf.key === 'for-you' && <p className="cat-star-hint">Tap ☆ on any category to add it here.</p>}
+            {shelf.key === 'for-you' && <p className="cat-star-hint">Tap the diamond on any category to add it here.</p>}
           </section>
         );
       })}
@@ -344,7 +344,7 @@ function CategoryCard({ cat, cardIndex, label, star }: { cat: Category; cardInde
   const starLabel = isStarred ? `Remove ${cat.name} from ${FOR_YOU_TITLE}` : `Add ${cat.name} to ${FOR_YOU_TITLE}`;
   const starIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={isStarred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" />
+      <path d="M7 4h10l4 5-9 11L3 9z" /><path d="M3 9h18M9.5 4L12 9l2.5-5M12 9v11" fill="none" stroke={isStarred ? '#fff' : 'currentColor'} strokeWidth="1.2" />
     </svg>
   );
   // A sibling of the card's link, not inside it: a button nested in a link
