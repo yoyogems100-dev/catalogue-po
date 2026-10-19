@@ -8,7 +8,9 @@ import { colorButtonFamilies, colorFamilyId, colorSearchText, namedFamilies, typ
 import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 import { VOICE_ORDER_OPEN_EVENT } from '@/components/VoiceOrderButton';
 import { useColorButtons, useColorNames } from '@/components/useOrderPreferences';
-import { layoutHomeSections, type HomeSections } from '@/lib/home-sections';
+import { layoutHomeSections, menuGroups, type HomeSections } from '@/lib/home-sections';
+import { categoryIconUrl } from '@/lib/category-icons';
+import CategoryMenu from '@/components/CategoryMenu';
 import { FOR_YOU_TITLE, MAX_INTERESTS, toggleInterest, withInterests } from '@/lib/customer-interests';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
@@ -180,7 +182,8 @@ export default function HomeCatalogue({
   const star = { signedIn, starred, onToggle: toggleStar };
 
   const allSections = useMemo(() => withInterests(sections, forYou), [sections, forYou]);
-  const { shelves, rest: unshelved } = useMemo(() => layoutHomeSections(allSections, categories), [allSections, categories]);
+  const { shelves, rest: restList, tags } = useMemo(() => layoutHomeSections(allSections, categories), [allSections, categories]);
+  const groups = useMemo(() => menuGroups(sections, categories, (c) => !!categoryIconUrl(c.slug)), [sections, categories]);
 
   // Search results: categories on a shelf rank first, in shelf order. Each
   // keeps the card tag of the first shelf it sits on that has one.
@@ -219,15 +222,16 @@ export default function HomeCatalogue({
   const clearAll = () => { setQuery(''); setShapeFilter('all'); setFamilyFilter('all'); };
 
   const visibleShelves = hasActiveFilter ? [] : shelves;
-  const rest = hasActiveFilter ? filtered : unshelved;
+  const rest = hasActiveFilter ? filtered : restList;
   const shelvedCards = visibleShelves.reduce((n, s) => n + s.categories.length, 0);
 
-  // A shelf's own cards need no tag -- the heading already says it. Tags
-  // only show in search results, where the heading is gone.
+  // A tag-only section's tag ("Most ordered") shows on its cards everywhere.
+  // A shelf's own tag needs no showing on its cards -- the heading already
+  // says it -- so those only show in search results, where the heading is gone.
   const renderGrid = (list: Category[], offset: number, tagged: boolean) => (
     <div className="grid-cats">
       {list.map((cat, i) => (
-        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} label={tagged ? cardLabel.get(cat.id) : undefined} star={star} />
+        <CategoryCard key={cat.id} cat={cat} cardIndex={offset + i} label={tags.get(cat.id) ?? (tagged ? cardLabel.get(cat.id) : undefined)} star={star} />
       ))}
     </div>
   );
@@ -236,9 +240,12 @@ export default function HomeCatalogue({
   return (
     <>
       <div className="home-search-bar">
-        <div className="home-search-input">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3A3F44" strokeWidth="2"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-          <input type="search" enterKeyHint="search" aria-label="Search stones, shapes or colours" placeholder="Search stones, shapes, colours..." value={query} onChange={(e) => setQuery(e.target.value)} />
+        <div className="home-search-top">
+          <CategoryMenu groups={groups} all={categories} />
+          <div className="home-search-input">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3A3F44" strokeWidth="2"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            <input type="search" enterKeyHint="search" aria-label="Search stones, shapes or colours" placeholder="Search stones, shapes, colours..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
         </div>
         <div className="home-filter-row">
           <IconSelect options={allShapes} value={shapeFilter} onChange={setShapeFilter} allLabel="All shapes" leading="icon" />
@@ -301,7 +308,7 @@ export default function HomeCatalogue({
       })}
 
       <div className="section-head" style={visibleShelves.length > 0 ? { marginTop: 36 } : undefined}>
-        <h2>{hasActiveFilter ? 'Results' : visibleShelves.length > 0 ? sections.restTitle : 'The collection'}</h2>
+        <h2>{hasActiveFilter ? 'Results' : sections.restTitle}</h2>
         <span className="count mono">{hasActiveFilter ? `${filtered.length} of ${categories.length} categories` : `${rest.length} categories`}</span>
       </div>
 

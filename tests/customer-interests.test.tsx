@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { sanitizeInterestIds, toggleInterest, withInterests, MAX_INTERESTS } from '../lib/customer-interests';
 import { layoutHomeSections, mostOrderedSection } from '../lib/home-sections';
 
-const shop = { sections: [mostOrderedSection([2, 3])], restTitle: 'More categories' };
+const shop = { sections: [{ ...mostOrderedSection([2, 3]), display: 'shelf' as const }], restTitle: 'More categories', restShowsAll: false };
 const cats = [1, 2, 3, 4, 5].map((id) => ({ id }));
 
 test('interest ids keep pick order, drop junk and duplicates, and are capped', () => {
