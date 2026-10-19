@@ -19,9 +19,9 @@ test('picking options re-orders the reference strip instead of emptying it',()=>
  assert.equal(result.photos.some(photo=>photo.id===3),false);
 });
 test('a partial match still leads, and a total miss says so',()=>{
- // Shape 1 and colour 4 sit on different photos: each matches one dimension,
+ // Colour 2 and size 92 sit on different photos: each matches one dimension,
  // so neither outranks the other and the admin's own order decides.
- const partial=referencePhotos(photos,{shapeIds:[1],colorIds:[4],sizeIds:[]});
+ const partial=referencePhotos(photos,{shapeIds:[],colorIds:[2],sizeIds:[92]});
  assert.deepEqual(partial.photos.map(photo=>photo.id),[1,2]);
  assert.equal(partial.matching,true);assert.equal(partial.fallback,false);
  // Nothing carries this shape: the photos are still shown, flagged as a
@@ -34,11 +34,25 @@ test('a partial match still leads, and a total miss says so',()=>{
  assert.deepEqual(all.photos.map(photo=>photo.id),[1,2]);
  assert.equal(all.matching,false);assert.equal(all.fallback,false);
 });
+test('a picked cut hides photos of other cuts, but keeps untagged ones',()=>{
+ // YOTCF: a buyer who picks Firecracker swipes through the Firecracker chart
+ // and stones only. The exact colour leads, then the cut's own colour chart.
+ const cuts=[
+  {id:10,url:'/fc-chart.jpg',shapeIds:[7],colorIds:[],sizeIds:[]},
+  {id:11,url:'/round-05.jpg',shapeIds:[1],colorIds:[5],sizeIds:[]},
+  {id:12,url:'/fc-01.jpg',shapeIds:[7],colorIds:[1],sizeIds:[]},
+  {id:13,url:'/fc-05.jpg',shapeIds:[7],colorIds:[5],sizeIds:[]},
+  {id:14,url:'/loose.jpg',shapeIds:[],colorIds:[],sizeIds:[]}
+ ];
+ assert.deepEqual(referencePhotos(cuts,{shapeIds:[7],colorIds:[5],sizeIds:[]}).photos.map(photo=>photo.id),[13,10,12,14]);
+ // A cut with no photo of its own still shows everything rather than nothing.
+ assert.deepEqual(referencePhotos(cuts,{shapeIds:[99],colorIds:[],sizeIds:[]}).photos.map(photo=>photo.id),[10,11,12,13,14]);
+});
 test('the purchase composer shows one tile per stone, not every angle of it',()=>{
  // Extra angles belong to the Explore Photos gallery, where they can be
  // swiped through. Here they would just repeat the same stone across the
  // strip and push the next stone off screen.
  const grouped=[...photos,{id:4,url:'/a-side.jpg',parentId:1,shapeIds:[1],colorIds:[2],sizeIds:[91]}];
- const result=referencePhotos(grouped,{shapeIds:[1],colorIds:[],sizeIds:[]});
+ const result=referencePhotos(grouped,{shapeIds:[],colorIds:[2],sizeIds:[]});
  assert.deepEqual(result.photos.map(photo=>photo.id),[1,2]);
 });
