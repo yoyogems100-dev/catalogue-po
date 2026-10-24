@@ -31,6 +31,7 @@ export const KIND_LABEL: Record<SearchKind, string> = {
 export const QUICK_ACTIONS: SearchItem[] = [
   { kind: 'action', label: 'New customer', href: '/admin/customers?new=1', keywords: 'add create buyer client' },
   { kind: 'action', label: 'Create order', href: '/admin/orders/new', keywords: 'new add requirement purchase' },
+  { kind: 'action', label: 'Pending lines', href: '/admin/pending', keywords: 'to send balance dispatch delivery left' },
   { kind: 'action', label: 'All categories', href: '/admin/categories', keywords: 'catalogue arrange order' }
 ];
 
@@ -98,6 +99,17 @@ export function rankItems(items: SearchItem[], query: string, limit = 30): Searc
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .slice(0, limit)
     .map((r) => r.item);
+}
+
+/**
+ * The browser's matches and the server's, without repeats. An order number or
+ * phone number puts the server's exact hits (that order, that buyer) first;
+ * otherwise pages and categories lead.
+ */
+export function mergeResults(query: string, local: SearchItem[], remote: SearchItem[]): SearchItem[] {
+  const seen = new Set<string>();
+  const numeric = /^#?[\d\s+-]+$/.test(query.trim());
+  return (numeric ? [...remote, ...local] : [...local, ...remote]).filter((r) => !seen.has(r.href) && !!seen.add(r.href));
 }
 
 /** Safe inside a PostgREST or() filter: no commas, brackets or wildcards. */

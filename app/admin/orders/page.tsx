@@ -20,16 +20,19 @@ const PURCHASE_TYPES = ['Place Order'];
 // quotation follow-up -- it belongs in the RQ table, not just the purchase one.
 const RQ_TYPES = ['Request Quotation', 'Mixed'];
 const PAGE_SIZE = 50;
+const PAYMENT_FILTERS = [{ key: 'pending', label: 'Payment pending' }, { key: 'partial', label: 'Partly paid' }, { key: 'paid', label: 'Paid' }];
 
-export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string }> }) {
+export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
+  // The Overview's "Payment outstanding" and "Partial payment" cards open these.
+  const paymentFilter = PAYMENT_FILTERS.find((p) => p.key === searchParams.payment);
   const search = (searchParams.q || '').replace(/[^\p{L}\p{N} ]/gu, '').trim().slice(0, 80);
   const usedPlaces = await getUsedPlaces();
   const places = (searchParams.place || '').split(',').map((v) => v.trim()).filter((v) => usedPlaces.includes(v));
   const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value ? value : undefined;
   const from = validDate(searchParams.from), to = validDate(searchParams.to);
-  const filtersActive = Boolean(statusFilter || search || places.length || from || to);
+  const filtersActive = Boolean(statusFilter || paymentFilter || search || places.length || from || to);
   const oldest = searchParams.sort === 'oldest';
   const parsePage = (raw: string | undefined) => {
     const n = Number(raw || 1);
@@ -37,8 +40,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
   };
   const page = parsePage(searchParams.page);
   const rqPage = parsePage(searchParams.rqPage);
-  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1, sortOldest = oldest) {
+  function filterUrl(status: string | undefined, targetPage = 1, targetRqPage = 1, sortOldest = oldest, payment = paymentFilter?.key) {
     const params = new URLSearchParams();
+    if (payment) params.set('payment', payment);
     if (search) params.set('q', search);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -74,6 +78,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
       .is('deleted_at', null)
       .order('created_at', { ascending: oldest }).order('id', { ascending: oldest });
     if (statusFilter) q = q.eq('status', statusFilter);
+    if (paymentFilter) q = q.eq('payment_status', paymentFilter.key);
     if (from) q = q.gte('created_at', `${from}T00:00:00+05:30`);
     if (to) q = q.lte('created_at', `${to}T23:59:59.999+05:30`);
     if (searchFilters) q = q.or(searchFilters.join(','));
@@ -191,6 +196,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
       </div>
       <form method="get" id="admin-order-search-form" className="admin-order-search">
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+        {paymentFilter && <input type="hidden" name="payment" value={paymentFilter.key} />}
         <label>Search<DebouncedSearchField name="q" defaultValue={search} placeholder="Search orders" /></label>
         <AutoSubmitField>
           <label style={{ flex: '0 1 200px' }}>
@@ -217,6 +223,18 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
             aria-current={statusFilter === m.key ? 'page' : undefined}
           >
             {m.label}
+          </Link>
+        ))}
+      </div>
+      <div className="admin-status-chips" aria-label="Payment">
+        {PAYMENT_FILTERS.map((p) => (
+          <Link
+            key={p.key}
+            href={filterUrl(statusFilter, 1, 1, oldest, paymentFilter?.key === p.key ? undefined : p.key)}
+            className={`tag-chip ${paymentFilter?.key === p.key ? 'active' : ''}`}
+            aria-current={paymentFilter?.key === p.key ? 'page' : undefined}
+          >
+            {p.label}{paymentFilter?.key === p.key && <span aria-hidden="true"> ×</span>}
           </Link>
         ))}
       </div>
