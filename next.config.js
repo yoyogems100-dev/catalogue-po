@@ -23,6 +23,18 @@ const nextConfig = {
       { source: `${p}/:path*`, destination: `/po${p}/:path*`, permanent: true }
     ]);
   },
+  // Filtered category views (?shape=, ?size=, ?colour=, ?grade=) are the
+  // plain cached page filtered in the browser: tell search engines not to
+  // index them. Their HTML already names the plain URL as canonical, and
+  // robots.txt asks crawlers not to fetch them at all. A static header, so it
+  // costs no function call.
+  async headers() {
+    return ['shape', 'size', 'colour', 'grade'].map((key) => ({
+      source: '/products/:path*',
+      has: [{ type: 'query', key }],
+      headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }]
+    }));
+  },
   images: {
     // Website pictures are resized through /_next/image (lib/site/optimize.ts).
     // Uploaded files get new names, so a long cache is safe and keeps the

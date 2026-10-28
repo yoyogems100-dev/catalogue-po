@@ -1,7 +1,9 @@
 // Category-page filters: Shape · Size · Colour · Grade. Filters live in the
-// URL (?colour=green,blue&shape=oval) so every filtered view is a real,
-// shareable, indexable page. Pure functions only -- used by the server page,
-// the client filter bar and tests.
+// URL (?colour=green,blue&shape=oval) so a filtered view can be shared, but
+// they are applied in the browser: the server only ever renders the plain
+// category page, which is cached. Filtered URLs are kept out of search
+// engines (robots.txt, X-Robots-Tag, canonical to the plain page). Pure
+// functions only -- used by the category page, the filter bar and tests.
 
 export type Dimension = 'shape' | 'size' | 'colour' | 'grade';
 export const DIMENSIONS: Dimension[] = ['shape', 'size', 'colour', 'grade'];
@@ -99,12 +101,19 @@ export function fillTemplate(template: string, words: Record<string, string>): s
   return template.replace(/\{(\w+)\}/g, (_, k) => words[k] ?? '').replace(/\s+/g, ' ').replace(/\s+([,.])/g, '$1').trim();
 }
 
-/**
- * Index simple filtered views (one value in up to two dimensions) as pages
- * of their own; point deeper combinations at the unfiltered page so search
- * engines are not handed thousands of near-duplicates.
- */
-export function isIndexable(sel: Selection): boolean {
-  const used = DIMENSIONS.filter((d) => sel[d].length);
-  return used.length <= 2 && used.every((d) => sel[d].length === 1);
+/** URLSearchParams -> the shape parseSelection reads (repeated keys joined). */
+export function searchOf(params: { getAll(key: string): string[] }): Record<Dimension, string> {
+  return Object.fromEntries(DIMENSIONS.map((d) => [d, params.getAll(d).join(',')])) as Record<Dimension, string>;
+}
+
+/** Heading and intro for a filtered view; the page's own name when nothing is chosen. */
+export function describeSelection(
+  page: { name: string; photos: unknown[] }, sel: Selection, options: OptionsByDim, templates: { heading?: string; intro?: string } = {}
+): { heading: string; intro: string | null } {
+  if (!activeCount(sel)) return { heading: page.name, intro: null };
+  const words = { filters: selectionWords(sel, options), category: page.name, count: String(page.photos.length) };
+  return {
+    heading: fillTemplate(templates.heading || '{filters} {category}', words),
+    intro: fillTemplate(templates.intro || '{filters} {category} from our ready range.', words)
+  };
 }

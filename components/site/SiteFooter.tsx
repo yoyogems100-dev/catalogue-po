@@ -55,7 +55,7 @@ export default function SiteFooter({ global, categories, autoPopular = [], showC
           <div style={{ marginTop: 32 }}>
             <h2>Popular searches</h2>
             <ul style={{ display: 'flex', flexWrap: 'wrap', gap: '0 18px' }}>
-              {popular.map((l: any) => <li key={l.url}><Link href={l.url}>{l.label}</Link></li>)}
+              {popular.map((l: any) => <li key={l.url}><Link href={l.url} rel={l.url.includes('?') ? 'nofollow' : undefined} prefetch={false}>{l.label}</Link></li>)}
             </ul>
           </div>
         )}

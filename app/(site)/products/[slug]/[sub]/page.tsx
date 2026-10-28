@@ -1,13 +1,22 @@
 import { CategoryRoute, categoryMetadata } from '@/lib/site/category-route';
 
-type Props = { params: Promise<{ slug: string; sub: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+// Rendered on first visit and cached; refreshed hourly or as soon as the
+// owner edits the website (the 'site' cache tag). Filters are applied in the
+// browser, so every ?shape=… variant is served from this one cached page.
+export const revalidate = 3600;
 
-export async function generateMetadata({ params, searchParams }: Props) {
-  const { slug, sub } = await params;
-  return categoryMetadata(slug, sub, await searchParams);
+export async function generateStaticParams() {
+  return [];
 }
 
-export default async function SubCategoryPage({ params, searchParams }: Props) {
+type Props = { params: Promise<{ slug: string; sub: string }> };
+
+export async function generateMetadata({ params }: Props) {
   const { slug, sub } = await params;
-  return <CategoryRoute parentSlug={slug} slug={sub} search={await searchParams} />;
+  return categoryMetadata(slug, sub);
+}
+
+export default async function SubCategoryPage({ params }: Props) {
+  const { slug, sub } = await params;
+  return <CategoryRoute parentSlug={slug} slug={sub} />;
 }

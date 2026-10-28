@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import FilterLink from './FilterLink';
 import { DIMENSIONS, activeCount, filterHref, valueName, type Dimension, type OptionsByDim, type Selection } from '@/lib/site/filters';
 import { Chevron, Close } from './icons';
 import s from './category.module.css';
@@ -10,10 +10,10 @@ import { thumb } from '@/lib/site/optimize';
 type Opt = { slug: string; name: string; img?: string | null };
 const LABEL: Record<Dimension, string> = { shape: 'Shape', size: 'Size', colour: 'Colour', grade: 'Grade' };
 
-// Sticky Shape · Size · Colour · Grade bar. Every option is a real link, so
-// filtered views are crawlable and shareable; navigation keeps the scroll
-// position. Desktop: a dropdown per filter. Phone: one "Filter (n)" button
-// opening a bottom sheet.
+// Sticky Shape · Size · Colour · Grade bar. Every option is a real,
+// shareable link that filters in place: no page load, no server request,
+// scroll position kept. Desktop: a dropdown per filter.
+// Phone: one "Filter (n)" button opening a bottom sheet.
 export default function FilterBar({ basePath, options, selection, resultCount }: {
   basePath: string; options: Partial<Record<Dimension, Opt[]>>; selection: Selection; resultCount: number;
 }) {
@@ -52,12 +52,12 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
   const optionLink = (dim: Dimension, o: Opt) => {
     const on = selection[dim].includes(o.slug);
     return (
-      <Link key={o.slug} href={filterHref(basePath, selection, dim, o.slug)} scroll={false} replace prefetch={false} onClick={keepSheet}
-        className={`${s.opt} ${dim === 'colour' || dim === 'shape' ? s.optImg : ''}`} aria-pressed={on} rel="nofollow">
+      <FilterLink key={o.slug} href={filterHref(basePath, selection, dim, o.slug)} replace onClick={keepSheet}
+        className={`${s.opt} ${dim === 'colour' || dim === 'shape' ? s.optImg : ''}`} aria-pressed={on}>
         {o.img && <img {...thumb(o.img, 28)} alt="" width={28} height={28} loading="lazy" />}
         <span>{o.name}</span>
         {on && <span className={s.tick} aria-hidden="true">✓</span>}
-      </Link>
+      </FilterLink>
     );
   };
 
@@ -65,9 +65,9 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
   const chips = DIMENSIONS.flatMap((d) => selection[d].map((v) => {
     const name = valueName(d, v, all);
     return name ? (
-      <Link key={`${d}-${v}`} href={filterHref(basePath, selection, d, v)} scroll={false} replace prefetch={false} className={s.chip} aria-label={`Remove ${name}`}>
+      <FilterLink key={`${d}-${v}`} href={filterHref(basePath, selection, d, v)} replace className={s.chip} aria-label={`Remove ${name}`}>
         {name} <Close size={14} />
-      </Link>
+      </FilterLink>
     ) : null;
   }));
 
@@ -84,7 +84,7 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
               {open === d && (
                 <div className={s.popover}>
                   <div className={`${s.optGrid} ${d === 'colour' || d === 'shape' ? s.optGridWide : ''}`}>{options[d]!.map((o) => optionLink(d, o))}</div>
-                  {selection[d].length > 0 && <Link href={filterHref(basePath, selection, d, undefined, true)} scroll={false} replace prefetch={false} className={s.clearLink}>Clear {LABEL[d].toLowerCase()}</Link>}
+                  {selection[d].length > 0 && <FilterLink href={filterHref(basePath, selection, d, undefined, true)} replace className={s.clearLink}>Clear {LABEL[d].toLowerCase()}</FilterLink>}
                 </div>
               )}
             </div>
@@ -98,7 +98,7 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
       {count > 0 && (
         <div className={s.chips}>
           {chips}
-          <Link href={basePath} scroll={false} replace prefetch={false} className={s.clearAll}>Clear all</Link>
+          <FilterLink href={basePath} replace className={s.clearAll}>Clear all</FilterLink>
         </div>
       )}
     </div>
@@ -119,7 +119,7 @@ export default function FilterBar({ basePath, options, selection, resultCount }:
               ))}
             </div>
             <div className={s.sheetFoot}>
-              {count > 0 && <Link href={basePath} scroll={false} replace prefetch={false} className={s.sheetClear} onClick={keepSheet}>Clear all</Link>}
+              {count > 0 && <FilterLink href={basePath} replace className={s.sheetClear} onClick={keepSheet}>Clear all</FilterLink>}
               <button type="button" className={s.sheetDone} onClick={showResults}>Show {resultCount} photo{resultCount === 1 ? '' : 's'}</button>
             </div>
           </div>
