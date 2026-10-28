@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Put a category under a material, or take it out. Many-to-many: a category
 // can sit under several materials.
@@ -12,6 +13,7 @@ async function ids(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const link = await ids(req);
   if (!link) return NextResponse.json({ error: 'Material and category are required.' }, { status: 400 });
   const { error } = await supabaseAdmin.from('material_categories').upsert(link, { onConflict: 'material_id,category_id', ignoreDuplicates: true });
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const link = await ids(req);
   if (!link) return NextResponse.json({ error: 'Material and category are required.' }, { status: 400 });
   const { error } = await supabaseAdmin.from('material_categories').delete().eq('material_id', link.material_id).eq('category_id', link.category_id);

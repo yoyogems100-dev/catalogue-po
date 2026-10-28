@@ -9,9 +9,11 @@ import { buildOrderMessage, type OrderCartItem } from '@/lib/order-message';
 import { withShapeCodes } from '@/lib/shape-codes-server';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const body = await req.json();
   const requestType: string = body.requestType || 'Place Order';

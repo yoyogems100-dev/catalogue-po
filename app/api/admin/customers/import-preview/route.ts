@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { parseWorkbookRows } from '@/lib/xlsx-import';
 import { canonicalPlace } from '@/lib/customer-places';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 const ALIASES: Record<string, string> = {
   name: 'name',
@@ -16,6 +17,7 @@ const ALIASES: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const formData = await request.formData();
   const file = formData.get('file');
   if (!(file instanceof File)) return NextResponse.json({ error: 'Upload a .xlsx file.' }, { status: 400 });

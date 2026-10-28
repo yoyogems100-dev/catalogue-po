@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, positiveId, readJson, requireAdmin } from '@/lib/site/api';
 import { LEAD_STATUSES, LIMITS } from '@/lib/site/leads';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
 /** Change a catalogue request's status or its internal notes. */
 export async function PATCH(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   if (!id || !body) return fail('Invalid request.');
@@ -28,6 +30,7 @@ export async function PATCH(req: NextRequest, context: Context) {
 /** Remove a request (spam, test or duplicate). */
 export async function DELETE(_req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
   const { error } = await supabaseAdmin.from('site_leads').delete().eq('id', id);

@@ -92,20 +92,11 @@ const PUBLIC_SITE_PREFIXES = ['/products', '/charts', '/about', '/quality', '/ho
 // site's "page not found" (a real 404) rather than a trade sign-in screen.
 const PRIVATE_PREFIXES = ['/po', '/admin', '/api'];
 
-// The catalogue used to live at the site root. Bookmarks, WhatsApp links and
-// order PDFs sent before the move still point at those addresses, so they are
-// forwarded to the same page under /po rather than 404ing. This runs before the
-// auth check so a signed-out visitor's ?next= already carries the new path.
-const MOVED_PREFIXES = ['/category', '/cart', '/browse', '/account'];
+// The catalogue's old addresses (/category, /cart, /browse, /account) are
+// forwarded to /po by redirects() in next.config.js, before this runs.
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-
-  if (MOVED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    const url = req.nextUrl.clone();
-    url.pathname = `/po${pathname}`;
-    return NextResponse.redirect(url, 308);
-  }
 
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (PUBLIC_SITE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith('/') ? p : `${p}/`))) return NextResponse.next();
@@ -141,8 +132,10 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next's own build output and static files in /public
-  // (images, fonts, stylesheets). Those carry no catalogue data on their own
-  // and gating them would block the sign-in page's own logo and styles.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|svg|webp|ico|css|js|mjs|txt|woff2?|ttf|otf|pdf)$).*)']
+  // Only the private app: the catalogue, admin and the API. The public website
+  // and static files never need a sign-in check, so they don't pay for one.
+  // /api/site/* is the public website's own API (share images) and is skipped
+  // too. The checks above still list the public pages so a page moved under
+  // these prefixes later stays private unless it is added there.
+  matcher: ['/po/:path*', '/admin/:path*', '/api/((?!site/).*)']
 };

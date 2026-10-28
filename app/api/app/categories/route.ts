@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
 
 // JSON equivalent of the data app/page.tsx fetches server-side for the web homepage --
-// the mobile app needs it as an API response instead of rendered HTML.
-export async function GET() {
+// the mobile app needs it as an API response instead of rendered HTML. The
+// same for everyone, so cached until the next admin save.
+const load = cachedCatalogue(async () => {
   // Unfiltered reads of the whole join table -- each must page past the
   // project's 1000-row response cap or silently undercount whichever
   // categories' rows land past the first page. See app/page.tsx for the same fix.
@@ -50,5 +52,9 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ categories: categoriesFormatted });
+  return { categories: categoriesFormatted };
+}, ['app-categories']);
+
+export async function GET() {
+  return NextResponse.json(await load(), { headers: { 'Cache-Control': SHARED_JSON_CACHE } });
 }

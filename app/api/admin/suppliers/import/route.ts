@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type ImportRow = { name: string; company?: string; contactName?: string; phone?: string; email?: string; address?: string; notes?: string; categoryIds?: number[] };
 
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await request.json();
   const rows: ImportRow[] = Array.isArray(body.rows) ? body.rows : [];
   const valid = rows.filter((row) => row.name && row.name.trim());

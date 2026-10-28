@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { getAllCategoryPaths, getCategoryPage, optionsOf } from './category-data';
 import { getGlobal } from './public';
 import { filterLinks, popularLinks, type FilterLink } from './seo';
+import { shareInFlight } from '@/lib/in-flight';
 
 // Every visible category page and its worthwhile filtered views, for the
 // sitemap and the footer. Cached with the rest of the site and refreshed on
@@ -17,7 +18,8 @@ async function load(): Promise<CategoryEntry[]> {
     .map((page) => ({ href: page.href, links: filterLinks(page, optionsOf(page), template) }));
 }
 
-export const getSeoCategories = unstable_cache(load, ['site-seo-categories'], { revalidate: 3600, tags: ['site'] });
+// Every website page's footer asks for this; pages rendered at the same time share one load.
+export const getSeoCategories = shareInFlight(unstable_cache(load, ['site-seo-categories'], { revalidate: 3600, tags: ['site'] }));
 
 /** Footer "Popular searches" when the owner has not chosen their own. */
 export async function getPopularSearches(): Promise<{ label: string; url: string }[]> {

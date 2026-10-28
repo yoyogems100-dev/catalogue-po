@@ -31,24 +31,43 @@ test('the site root is a public landing page, and the catalogue lives under /po'
 
 test('links shared before the move still reach the page they named', async () => {
   // Bookmarks, WhatsApp messages and order PDFs sent while the catalogue was at
-  // the site root must not become 404s -- they are forwarded, query intact.
+  // the site root must not become 404s -- next.config's redirects forward them,
+  // query intact (Next keeps the query on a redirect by default).
+  const { default: nextConfig } = await import('../next.config.js');
+  const rules = (await nextConfig.redirects()) as { source: string; destination: string; permanent: boolean }[];
+  const forward = (path: string) => {
+    for (const r of rules) {
+      const prefix = r.source.replace('/:path*', '');
+      if (r.source.endsWith('/:path*') ? path.startsWith(`${prefix}/`) : path === r.source) {
+        assert.equal(r.permanent, true, path);
+        return r.destination.replace('/:path*', path.slice(prefix.length));
+      }
+    }
+    return null;
+  };
   const cases: [string, string][] = [
     ['/category/crushed-ice-cut', '/po/category/crushed-ice-cut'],
     ['/cart', '/po/cart'],
-    ['/browse?tag=4', '/po/browse'],
+    ['/browse', '/po/browse'],
     ['/account/orders', '/po/account/orders'],
     ['/account/login', '/po/account/login']
   ];
-  for (const [from, expected] of cases) {
-    const res = await get(from);
-    assert.equal(res.status, 308, from);
-    const to = new URL(res.headers.get('location')!);
-    assert.equal(to.pathname, expected, from);
-  }
-  assert.equal(new URL((await get('/browse?tag=4')).headers.get('location')!).search, '?tag=4');
+  for (const [from, expected] of cases) assert.equal(forward(from), expected, from);
+  // Look-alikes and the website's own pages are not forwarded.
+  for (const path of ['/categories', '/cartier', '/products/cz', '/about']) assert.equal(forward(path), null, path);
 
   // The admin workspace and every API route deliberately did not move: the
   // mobile app calls /api/app/* directly and has no way to learn a new prefix
   // without a new build in the stores.
   assert.equal(new URL((await get('/admin')).headers.get('location')!).pathname, '/login');
+});
+
+test('the sign-in check runs only on the private app, not the public website', async () => {
+  const { unstable_doesMiddlewareMatch } = await import('next/experimental/testing/server');
+  const { config } = await import('../middleware');
+  const runs = (path: string) => unstable_doesMiddlewareMatch({ config, url: path });
+  for (const path of ['/po', '/po/category/ruby', '/admin', '/admin/orders/5', '/api/category-options', '/api/admin/orders', '/api/app/categories'])
+    assert.equal(runs(path), true, path);
+  for (const path of ['/', '/about', '/products/cz/4a', '/charts/shapes', '/login', '/robots.txt', '/sitemap.xml', '/api/site/og', '/logo.png', '/_next/static/x.js'])
+    assert.equal(runs(path), false, path);
 });

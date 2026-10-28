@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, positiveId, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { storeSiteImage } from '@/lib/site/media';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
 // a category gallery / colour / shape / size as they land.
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const form = await req.formData();
   const files = form.getAll('file').filter((f): f is File => f instanceof File);
   if (!files.length) return fail('Choose at least one image.');

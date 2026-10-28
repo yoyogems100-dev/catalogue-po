@@ -2,8 +2,10 @@ import {NextRequest,NextResponse} from 'next/server';
 import {isAdminAuthed} from '@/lib/auth';
 import {supabaseAdmin} from '@/lib/supabase-admin';
 import {RAINBOW_CATEGORY_ID} from '@/lib/order-specs';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 export async function PUT(req:NextRequest) {
  if(!(await isAdminAuthed())) return NextResponse.json({error:'Unauthorized'},{status:401});
+ catalogueChanged();
  let body;try{body=await req.json();}catch{return NextResponse.json({error:'Invalid JSON'},{status:400});}
  const {sizeId,counts}=body||{};
  if(!Number.isSafeInteger(sizeId)||sizeId<1||!Array.isArray(counts)||counts.length>30||counts.some(n=>!Number.isInteger(n)||n<1||n>100000))return NextResponse.json({error:'Enter up to 30 positive whole stone counts.'},{status:400});

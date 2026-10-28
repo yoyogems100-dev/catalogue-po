@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import sharp from 'sharp';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Uploads the brand logo to fixed paths in the same Storage bucket product
 // photos use. Kept separate from /api/photos/upload since this isn't tied to
@@ -19,6 +20,7 @@ import sharp from 'sharp';
 // backgrounds, but that's not what a logo upload is.
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   if (!file) return NextResponse.json({ error: 'file required' }, { status: 400 });

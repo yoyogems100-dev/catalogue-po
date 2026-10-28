@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { photoUrl } from '@/lib/photos';
 import { fail, idArray, positiveId, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { copyPoPhotos, poPhotosFor } from '@/lib/site/copy-po-photos';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -37,6 +38,7 @@ export async function GET(_req: NextRequest, context: Context) {
 // the browser sends larger selections in batches.
 export async function POST(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   const photoIds = idArray(body?.photo_ids, 12);

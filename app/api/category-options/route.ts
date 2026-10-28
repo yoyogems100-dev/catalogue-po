@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { holePhotos, type HoleCount } from '@/lib/drill-data';
 import { supabasePublic } from '@/lib/supabase-public';
+import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
 
 // The shapes, colours and sizes a category offers, for one or more categories.
 //
@@ -61,6 +62,10 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
   };
 }
 
+// One category's options, cached until the next admin save (they are the
+// same for every buyer).
+const cachedOptions = cachedCatalogue(async (categoryId: number) => optionsFor(categoryId, await getQuantityFields()), ['category-options']);
+
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get('ids') || '';
   const ids = Array.from(new Set(
@@ -69,12 +74,11 @@ export async function GET(req: NextRequest) {
 
   if (!ids.length) return NextResponse.json({ options: {} });
 
-  const fieldOf = await getQuantityFields();
-  const results = await Promise.all(ids.map(async (id) => [id, await optionsFor(id, fieldOf)] as const));
+  const results = await Promise.all(ids.map(async (id) => [id, await cachedOptions(id)] as const));
   const options: Record<number, CategoryOptions> = {};
   results.forEach(([id, value]) => { options[id] = value; });
 
   return NextResponse.json({ options }, {
-    headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=300' }
+    headers: { 'Cache-Control': SHARED_JSON_CACHE }
   });
 }

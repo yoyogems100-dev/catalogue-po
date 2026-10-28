@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { fetchDriveImage, uploadWatermarked, uprightOriginal, watermarkedVariant } from '@/lib/photo-files';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -13,6 +14,7 @@ export const maxDuration = 60;
 // Body: { category_id: number, drive_ids: string[] }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, drive_ids } = await req.json();
   if (!Number.isInteger(category_id) || !Array.isArray(drive_ids) || drive_ids.length === 0) {
     return NextResponse.json({ error: 'category_id and drive_ids[] required' }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 const tables = {color:'colors',shape:'shapes',size:'shape_sizes',tag:'tags'} as const;
 const linkTables = {
   color: { table: 'category_colors', column: 'color_id' },
@@ -10,6 +11,7 @@ const linkTables = {
 } as const;
 export async function PUT(req:NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({error:'Unauthorized'},{status:401});
+  catalogueChanged();
   let body; try {body = await req.json();} catch {return NextResponse.json({error:'Invalid JSON'},{status:400});}
   if (!body || !Object.hasOwn(tables,body.kind) || !Number.isSafeInteger(body.categoryId) || body.categoryId <= 0 || !Number.isSafeInteger(body.id) || body.id <= 0 || typeof body.enabled !== 'boolean') return NextResponse.json({error:'Invalid option'},{status:400});
   const kind = body.kind as keyof typeof tables;

@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { FIELD_LABEL_MAX, FORM_FIELDS_SETTING_KEY, normalizeFormFields, parseFormFields } from '@/lib/form-fields';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -10,6 +11,7 @@ type Context = { params: Promise<{ id: string }> };
  *  POST { labels: { shape: "Shape / Cut" }, hidden: ["size"] } */
 export async function POST(request: NextRequest, context: Context) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await context.params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
   const fields = normalizeFormFields(await request.json().catch(() => null));

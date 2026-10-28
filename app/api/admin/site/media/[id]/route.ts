@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, positiveId, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { removeStoredFiles, storeSiteImage } from '@/lib/site/media';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -16,6 +17,7 @@ function cleanTags(raw: unknown): string[] {
 /** Alt text, tags, and which categories / colours / shapes / sizes use it. */
 export async function PATCH(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   if (!id || !body) return fail('Invalid request.');
@@ -54,6 +56,7 @@ export async function PATCH(req: NextRequest, context: Context) {
 /** Replace the image file but keep its id, alt text and every place it is used. */
 export async function POST(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
   const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants, original_path').eq('id', id).maybeSingle();
@@ -71,6 +74,7 @@ export async function POST(req: NextRequest, context: Context) {
 
 export async function DELETE(_req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
   const { data: current } = await supabaseAdmin.from('site_media').select('storage_path, variants, original_path').eq('id', id).maybeSingle();

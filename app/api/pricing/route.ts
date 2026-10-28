@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { priceColumns, groupsInScope } from '@/lib/price-columns';
 import { normalizePriceUnit, PRICE_UNIT_MAX } from '@/lib/price-unit';
 import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { category_id, shape_id, shape_size_id, price_group_id, price_inr } = await req.json();
   if (!category_id || !shape_id || !shape_size_id || !price_group_id) {
     return NextResponse.json({ error: 'category_id, shape_id, shape_size_id, price_group_id required' }, { status: 400 });
@@ -81,6 +83,7 @@ export async function PATCH(req: NextRequest) {
 // edited from the pricing screen, beside the prices it describes.
 export async function PUT(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { category_id, price_unit } = await req.json();
   if (!category_id) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
   const unit = normalizePriceUnit(price_unit);

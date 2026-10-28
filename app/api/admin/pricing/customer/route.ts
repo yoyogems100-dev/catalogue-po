@@ -3,6 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { listCustomerPriceLists, saveCustomerPrices } from '@/lib/g-series-pdf';
 import { buyerNames, customerListEntries, validEntries } from '@/lib/customer-prices';
 import { CUSTOMER_NAME_MAX, tidyCustomerName, todayIso, validDate } from '@/lib/price-list-options';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 const noStore = { 'Cache-Control': 'private, no-store' };
 const idOf = (v: unknown) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await req.json().catch(() => null);
   const categoryId = idOf(body?.category_id);
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });

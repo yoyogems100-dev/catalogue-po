@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { key, value } = await req.json();
   if (!key) return NextResponse.json({ error: 'key required' }, { status: 400 });
   const { error } = await supabaseAdmin.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' });

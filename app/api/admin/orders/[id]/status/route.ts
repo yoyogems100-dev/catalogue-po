@@ -3,10 +3,12 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import { sendPushToCustomer } from '@/lib/expo-push';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const orderId = Number(params.id);
   const { status } = await req.json();

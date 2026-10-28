@@ -1,12 +1,14 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Accepts either a single size (size_mm [+ weight_ct]) or a bulk list
 // (sizes: [{ size_mm, weight_ct? }, ...]) so the admin can add many sizes to
 // a shape in one action instead of one form-submit per size.
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const body = await req.json();
   const { shape_id } = body;
   if (!shape_id) return NextResponse.json({ error: 'shape_id required' }, { status: 400 });
@@ -41,6 +43,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id } = await req.json();
   const { error } = await supabaseAdmin.from('shape_sizes').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

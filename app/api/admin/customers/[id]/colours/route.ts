@@ -3,11 +3,13 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { preferencesFromBody } from '@/lib/customer-preferences';
 import { sanitizeColorButtons } from '@/lib/color-family';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // One buyer's colour buttons (null = same as the shop) and the stone each
 // colour opens for them. Only these two columns are written.
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid customer.' }, { status: 400 });
   const body = await request.json();

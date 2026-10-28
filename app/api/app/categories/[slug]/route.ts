@@ -2,19 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
 import { getCategoryPricing } from '@/lib/pricing';
+import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
 
 // JSON equivalent of getCategoryData() in app/po/category/[slug]/page.tsx -- powers the
 // app's category detail / Place Order flow (needs the linked shapes/colors/sizes to
 // build the picker).
-export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ slug: string }> }) {
-  const params = await paramsPromise;
+// The same for everyone, so cached per category until the next admin save.
+const load = cachedCatalogue(async (slug: string) => {
   const { data: category } = await supabasePublic
     .from('categories')
     .select('id, num, name, slug, color_chart_url')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single();
 
-  if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+  if (!category) return null;
 
   const [{ data: linkedShapeIds }, { data: linkedColorIds }, { data: linkedSizeIds }] = await Promise.all([
     supabasePublic.from('category_shapes').select('*').eq('category_id', category.id),
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   const pricing = await getCategoryPricing(category.id);
 
-  return NextResponse.json({
+  return {
     category,
     colorChartUrl: category.color_chart_url,
     shapes: (shapes || []).map((s: any) => {
@@ -69,5 +70,11 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
       colorIds: (p.photo_colors || []).map((r: any) => r.color_id)
     })),
     pricing
-  });
+  };
+}, ['app-category']);
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const data = await load((await params).slug);
+  if (!data) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+  return NextResponse.json(data, { headers: { 'Cache-Control': SHARED_JSON_CACHE } });
 }

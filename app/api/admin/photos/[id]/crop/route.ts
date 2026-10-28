@@ -5,6 +5,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { validCrop } from '@/lib/photo-crop';
 import { loadOriginalBytes, uploadWatermarked, uprightOriginal, watermarkedVariant } from '@/lib/photo-files';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 type Context={params:Promise<{id:string}>};
@@ -33,6 +34,7 @@ export async function GET(_req:NextRequest,context:Context) {
 }
 export async function POST(req:NextRequest,context:Context) {
   if(!await isAdminAuthed())return NextResponse.json({error:'Unauthorized'},{status:401});
+  catalogueChanged();
   let uploaded:string|undefined;
   try {
     const {target,crop,reset}=await req.json();

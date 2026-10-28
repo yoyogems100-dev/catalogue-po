@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Adds (or removes) the same shapes/sizes/colours/specifications on several
 // photos at once, leaving every other tag each photo already has alone --
@@ -22,6 +23,7 @@ const ids = (value: unknown): number[] =>
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await req.json().catch(() => ({}));
   const photoIds = ids(body.photo_ids);
   const mode = body.mode === 'remove' ? 'remove' : 'add';

@@ -1,7 +1,7 @@
 'use client';
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { hotKey, isHot, type HotFlags, type OptionKind } from '@/lib/hot-selling';
-const HotContext = createContext({ flags: {} as HotFlags, ready: false, error: '', toggle: async (_categoryId: number, _kind: OptionKind, _id: number) => {} });
+const HotContext = createContext({ flags: {} as HotFlags, ready: false, error: '', toggle: async (_categoryId: number, _kind: OptionKind, _id: number) => {}, load: () => {} });
 const EditingContext = createContext(false);
 export function HotEditing({children}: {children: React.ReactNode}) { return <EditingContext.Provider value={true}>{children}</EditingContext.Provider>; }
 export function HotSellingProvider({children}: {children: React.ReactNode}) {
@@ -9,7 +9,13 @@ export function HotSellingProvider({children}: {children: React.ReactNode}) {
   const [ready,setReady] = useState(false);
   const [error,setError] = useState('');
   const pending = useRef(new Set<string>());
-  useEffect(() => { let active = true; fetch('/api/hot-selling', {cache:'no-store'}).then(async r => { if (!r.ok) throw Error(); return r.json(); }).then(data => { if(active) { setFlags(data.flags); setReady(true); } }).catch(() => { if(active) setError('Hot-selling flags are unavailable. Please reload after setup is complete.'); }); return () => {active=false;}; }, []);
+  // The provider wraps every page (root layout), but only pages that show a
+  // flame need the flags: they are fetched the first time one asks, so the
+  // public website and sign-in pages make no call at all. Admin asks for a
+  // fresh copy (no CDN cache) so a flag just changed shows on reload.
+  const [wanted, setWanted] = useState(false);
+  const load = useCallback(() => setWanted(true), []);
+  useEffect(() => { if (!wanted) return; let active = true; const url = window.location.pathname.startsWith('/admin') ? '/api/hot-selling?fresh=1' : '/api/hot-selling'; fetch(url).then(async r => { if (!r.ok) throw Error(); return r.json(); }).then(data => { if(active) { setFlags(data.flags); setReady(true); } }).catch(() => { if(active) setError('Hot-selling flags are unavailable. Please reload after setup is complete.'); }); return () => {active=false;}; }, [wanted]);
   async function toggle(categoryId:number,kind: OptionKind,id: number) {
     const key = hotKey(categoryId,kind,id);
     if (!ready || pending.current.has(key)) return;
@@ -23,9 +29,9 @@ export function HotSellingProvider({children}: {children: React.ReactNode}) {
     } catch(e) { setError(e instanceof Error ? e.message : 'Could not save.'); }
     finally {pending.current.delete(key);}
   }
-  return <HotContext.Provider value={{flags,ready,error,toggle}}>{children}</HotContext.Provider>;
+  return <HotContext.Provider value={{flags,ready,error,toggle,load}}>{children}</HotContext.Provider>;
 }
-export function useHotSelling() { return useContext(HotContext); }
+export function useHotSelling() { const ctx = useContext(HotContext); const { load } = ctx; useEffect(() => { load(); }, [load]); return ctx; }
 export function HotStatus() { const {error} = useHotSelling(); return error ? <p role="alert">{error}</p> : null; }
 export function HotMark({categoryId,kind,ids,name}: {categoryId?:number;kind?:OptionKind;ids:number[];name:string}) {
   const {flags,ready,toggle} = useHotSelling();

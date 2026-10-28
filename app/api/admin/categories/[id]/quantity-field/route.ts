@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { normalizeQuantityField, parseQuantityFields, QUANTITY_FIELDS_SETTING_KEY, QUANTITY_LABEL_MAX, DEFAULT_QTY_MAX } from '@/lib/quantity-field';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -10,6 +11,7 @@ type Context = { params: Promise<{ id: string }> };
  *  POST { label, defaultQty } -- blanks mean "Qty (pcs)", empty. */
 export async function POST(request: NextRequest, context: Context) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await context.params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
   const field = normalizeQuantityField(await request.json().catch(() => null));

@@ -3,10 +3,12 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 import { milestoneLabel } from '@/lib/order-milestones';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const orderId = Number(params.id);
   const { data: order } = await supabaseAdmin.from('orders').select('id, status, customer_id').eq('id', orderId).single();

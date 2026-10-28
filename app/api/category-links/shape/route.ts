@@ -1,9 +1,11 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, shape_id } = await req.json();
   const { error } = await supabaseAdmin.from('category_shapes').upsert({ category_id, shape_id }, { onConflict: 'category_id,shape_id', ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -12,6 +14,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, shape_id } = await req.json();
 
   // Unlinking a shape must also drop this category's links to that shape's
@@ -31,6 +34,7 @@ export async function DELETE(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { category_id, shape_id, reference_style } = await req.json();
   if (!Number.isInteger(category_id) || !Number.isInteger(shape_id)) {
     return NextResponse.json({ error: 'Category and shape are required.' }, { status: 400 });

@@ -2,12 +2,14 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { refreshCatalogue } from '@/lib/refresh-catalogue';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Swaps a shape's sort_order with its immediate neighbor in the master list --
 // same pattern as /api/photos/reorder.
 // Body: { shape_id: number, direction: 'up' | 'down' }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { shape_id, direction } = await req.json();
   if (!shape_id || !direction) {
     return NextResponse.json({ error: 'shape_id and direction required' }, { status: 400 });

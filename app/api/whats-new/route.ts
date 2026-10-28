@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
+import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
 
 // Powers the app's "what's new" section -- recently added categories and photos,
 // nothing more. Public, no auth, no new tables (just recency-ordered reads against
-// what already exists).
-export async function GET() {
+// what already exists). The same for everyone, so cached until the next admin save.
+const load = cachedCatalogue(async () => {
   const [{ data: categories }, { data: photos }] = await Promise.all([
     supabasePublic.from('categories').select('id, name, slug, created_at').order('created_at', { ascending: false }).limit(10),
     supabasePublic
@@ -41,5 +42,9 @@ export async function GET() {
     createdAt: p.created_at
   }));
 
-  return NextResponse.json({ categories: categoriesFormatted, photos: photosFormatted });
+  return { categories: categoriesFormatted, photos: photosFormatted };
+}, ['whats-new']);
+
+export async function GET() {
+  return NextResponse.json(await load(), { headers: { 'Cache-Control': SHARED_JSON_CACHE } });
 }

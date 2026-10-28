@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, idArray, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { cleanAnswer, cleanQuestion } from '@/lib/site/faq';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const question = cleanQuestion(body?.question);
   if (!question) return fail('Write the question first.');
@@ -18,6 +20,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const ids = idArray((await readJson(req))?.ids, 200);
   if (!ids?.length) return fail('Nothing to reorder.');
   for (const [i, id] of ids.entries()) await supabaseAdmin.from('site_faqs').update({ sort_order: (i + 1) * 10 }).eq('id', id);

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import { notificationHref, notificationLabel, timeAgo, type AdminNotification as Notification } from '@/lib/notifications';
 
 export default function NotificationBell() {
@@ -19,13 +20,10 @@ export default function NotificationBell() {
     setLoaded(true);
   }
 
-  useEffect(() => {
-    load();
-    // Light polling so a new order/edit shows up without a manual refresh --
-    // 30s is frequent enough to feel live without hammering the endpoint.
-    const t = setInterval(load, 30000);
-    return () => clearInterval(t);
-  }, []);
+  // Light polling so a new order/edit shows up without a manual refresh --
+  // 30s is frequent enough to feel live without hammering the endpoint, and
+  // only while this tab is on screen.
+  useVisiblePolling(load, 30000);
 
   async function openNotification(n: Notification) {
     setOpen(false);

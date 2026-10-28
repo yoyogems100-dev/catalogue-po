@@ -16,7 +16,7 @@ import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from
 import ColorSwatch from './ColorSwatch';
 import ShapeReferenceImage from './ShapeReferenceImage';
 import type { CategoryPricing } from '@/lib/pricing-calc';
-import { cartLinePrice } from '@/lib/pricing-calc';
+import { CATALOGUE_PRICES_ENABLED, cartLinePrice } from '@/lib/pricing-calc';
 import { expandQtyShorthand, parseQuantity } from '@/lib/quantity';
 import { shapeAbbrevs } from '@/lib/shape-abbrev';
 import { loadCart, saveCart, mergeIntoCart as mergeCartLines, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
@@ -546,7 +546,8 @@ export default function POSelector({
 
   const missingKey = missingPricingIds.join(',');
   useEffect(() => {
-    if (!missingKey) return;
+    // With catalogue prices off every category prices to nothing, so there is nothing to ask for.
+    if (!missingKey || !CATALOGUE_PRICES_ENABLED) return;
     let active = true;
     fetch(`/api/category-pricing?ids=${missingKey}`)
       .then((r) => (r.ok ? r.json() : null))

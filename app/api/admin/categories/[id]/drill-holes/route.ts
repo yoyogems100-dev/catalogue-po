@@ -5,6 +5,7 @@ import { ORIGINALS_BUCKET, uploadWatermarked, uprightOriginal, watermarkedVarian
 import { BACKDROPS, cleanHoles, drilledCutout, inLightBox, type Backdrop } from '@/lib/drill-hole';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
 import { holesLabel, readDrill, type DrillRecord, type HoleCount } from '@/lib/drill-data';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +35,7 @@ async function loadBase(base: string, origin: string): Promise<Buffer> {
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const categoryId = Number((await params).id);
   if (categoryId !== DRILLED_CATEGORY_ID) return NextResponse.json({ error: 'Drill holes are for Hole Punched Stones only.' }, { status: 400 });
   const body = await request.json().catch(() => null);

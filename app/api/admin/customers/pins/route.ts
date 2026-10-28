@@ -6,6 +6,7 @@ import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { customerIdsWithCredentials, savePassword } from '@/lib/customer-credentials';
 import { decryptForAdmin, generatePin } from '@/lib/customer-password';
 import { withoutAccessRequest } from '@/lib/access-requests';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 // Each PIN is hashed with scrypt; a few hundred take a while.
@@ -23,6 +24,7 @@ async function activeCustomers() {
 /** Give every customer with a WhatsApp number but no PIN a random 4-digit PIN. */
 export async function POST() {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   try {
     const [customers, has] = await Promise.all([activeCustomers(), customerIdsWithCredentials()]);
     const todo = customers.filter((c) => c.phone && !has.has(c.id));
