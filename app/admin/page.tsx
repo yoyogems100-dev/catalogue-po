@@ -19,6 +19,8 @@ export default async function AdminDashboard() {
     { title: 'New catalogue requests', href: '/admin/site/leads', query: supabaseAdmin.from('site_leads').select('id', {count:'exact',head:true}).eq('status','new') },
     { title: 'Orders placed today', href: `/admin/orders?from=${today}&to=${today}`, query: countable().gte('created_at', `${today}T00:00:00+05:30`).lte('created_at', `${today}T23:59:59.999+05:30`) },
     { title: 'Awaiting confirmation', href: '/admin/orders?status=placed', query: countable().eq('status','placed') },
+    // Quotation requests nobody has answered yet (still at Placed).
+    { title: 'Quotations to price', href: '/admin/orders?status=placed#request-quotations', query: countable().eq('status','placed').in('request_type', ['Request Quotation','Mixed']) },
     { title: 'Sourcing', href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },
     { title: 'Ready to dispatch', href: '/admin/orders?status=packed', query: countable().eq('status','packed') },
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },

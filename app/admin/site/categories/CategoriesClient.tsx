@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Sortable from '@/components/admin/site/Sortable';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 export type TreeRow = {
   id: number; parent_id: number | null; slug: string; name: string; sort_order: number;
@@ -54,7 +55,7 @@ export default function CategoriesClient({ rows: initial }: { rows: TreeRow[] })
   }
 
   async function remove(r: TreeRow) {
-    if (!confirm(`Delete the website page "${r.name}"? Its text is removed and its photos are taken off it (they stay in the website library). The /po catalogue is not affected.`)) return;
+    if (!(await confirmAction(`Delete the website page "${r.name}"? Its text is removed and its photos are taken off it (they stay in the website library). The /po catalogue is not affected.`))) return;
     try { await send(`/api/admin/site/categories/${r.id}`, 'DELETE'); setRows(rows.filter((x) => x.id !== r.id)); flash(`${r.name} deleted.`); }
     catch (e: any) { flash(e.message); }
   }

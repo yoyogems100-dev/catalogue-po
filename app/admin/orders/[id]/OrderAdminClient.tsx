@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 // Shown both as the disabled button's tooltip and as text beside it, so the
 // reason is readable on touch devices too -- a title attribute never appears
@@ -381,7 +382,7 @@ export default function OrderAdminClient({
   }
 
   async function removeRow(item: Item) {
-    if (!confirm(`Remove ${item.shapeName} ${item.sizeMm}mm ${item.colorName} from this order?`)) return;
+    if (!(await confirmAction(`Remove ${item.shapeName} ${item.sizeMm}mm ${item.colorName} from this order?`))) return;
     setRemovingRowId(item.id);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/edit`, {

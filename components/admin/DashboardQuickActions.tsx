@@ -78,7 +78,7 @@ function UploadPhotos({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <form className="quick-card" onSubmit={upload}>
+    <form className="quick-card" id="quick-upload" onSubmit={upload}>
       <h3>Upload photos</h3>
       <label htmlFor="qa-photo-cat">Category</label>
       <CategorySelect id="qa-photo-cat" categories={categories} value={categoryId} onChange={setCategoryId} allowNone />
