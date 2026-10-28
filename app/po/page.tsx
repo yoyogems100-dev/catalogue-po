@@ -12,6 +12,7 @@ import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, parseColorButtons, 
 import { getCustomerId } from '@/lib/customer-auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sanitizeInterestIds } from '@/lib/customer-interests';
+import { cachedCatalogue } from '@/lib/catalogue-cache';
 
 export const revalidate = 30; // re-check for new photos/categories every 30s
 
@@ -26,7 +27,7 @@ type PhotoRow = {
   photo_crop: { path?: string } | null; cover_crop: { path?: string } | null;
 };
 
-async function getData() {
+async function loadData() {
   const [
     { data: categories },
     { data: photos },
@@ -103,6 +104,11 @@ async function getData() {
 
   return { categories: categoriesFormatted, allShapes: shapesFormatted, allColors: colorsFormatted };
 }
+
+// The page itself runs per buyer (their sign-in, their shelf), but the
+// catalogue it shows is the same for everyone: read once and cached until the
+// next admin save, not re-read (5,000+ rows) on every visit.
+const getData = cachedCatalogue(loadData, ['po-home-data']);
 
 // The signed-in buyer's "Curated for you" shelf, set by the team on their
 // customer page. Never blocks the page: any failure just means no shelf.

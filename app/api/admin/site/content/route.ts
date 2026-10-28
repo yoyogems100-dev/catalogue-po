@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fail, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { listRevisions, publish, restoreRevision, saveDraft, type Entity } from '@/lib/site/content-store';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Draft autosave, publish, and undo history for pages and category pages.
 
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const t = target(body?.entity, body?.key);
   if (!t) return fail('Unknown page.');
@@ -28,6 +30,7 @@ export async function PUT(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const t = target(body?.entity, body?.key);
   if (!t) return fail('Unknown page.');

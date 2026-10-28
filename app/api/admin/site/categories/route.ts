@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, idArray, positiveId, readJson, refreshPublicSite, requireAdmin, slugify } from '@/lib/site/api';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Create a website category, or save a new order for one level of the tree.
 
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const name = typeof body?.name === 'string' ? body.name.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
   if (!name) return fail('Give the category a name.');
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const ids = idArray(body?.ids);
   if (!ids?.length) return fail('Nothing to reorder.');

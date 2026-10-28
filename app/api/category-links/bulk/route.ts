@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Links every selected shape and every selected color to every selected
 // category in one action -- e.g. 3 shapes x 2 colors x 4 categories links
@@ -10,6 +11,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // Body: { categoryIds: number[], shapeIds?: number[], colorIds?: number[] }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const { categoryIds, shapeIds, colorIds } = await req.json();
   const catIds: number[] = Array.isArray(categoryIds) ? categoryIds : [];
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
 // Body: { categoryIds: number[], shapeIds?: number[], colorIds?: number[] }
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const body = await req.json().catch(() => ({}));
   const ids = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is number => Number.isInteger(v) && v > 0) : []);

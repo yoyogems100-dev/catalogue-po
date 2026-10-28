@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { refreshPublicSite } from '@/lib/site/api';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 function slugify(name: string) {
   return name
@@ -15,6 +16,7 @@ function slugify(name: string) {
 // them elsewhere afterward, same as a freshly added shape/color.
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
@@ -47,6 +49,7 @@ const BADGE_TYPES = ['shapes', 'colors', 'sizes'];
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id, name, badge_types, archived } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
@@ -97,6 +100,7 @@ async function renumberActiveFirst(): Promise<string | null> {
 // keep their line items instead of being deleted.
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id } = await req.json();
   const { error } = await supabaseAdmin.from('categories').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { supabasePublic } from '@/lib/supabase-public';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import { shareInFlight } from '@/lib/in-flight';
 import { withDefaults, type ContentValue } from './schema';
 import { categorySchema } from './schemas';
 import { categoryDefaults } from './category-defaults';
@@ -217,8 +218,8 @@ export function optionsOf(page: CategoryPage): OptionsByDim {
   };
 }
 
-export const getCategoryPage = (parentSlug: string | null, slug: string) =>
-  unstable_cache(() => load(parentSlug, slug), ['site-category', parentSlug ?? '', slug], { revalidate: 3600, tags: ['site'] })();
+export const getCategoryPage = shareInFlight((parentSlug: string | null, slug: string) =>
+  unstable_cache(() => load(parentSlug, slug), ['site-category', parentSlug ?? '', slug], { revalidate: 3600, tags: ['site'] })());
 
 /** Every visible category path, for the sitemap and static generation. */
 export const getAllCategoryPaths = unstable_cache(async () => {

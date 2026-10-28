@@ -4,11 +4,13 @@ import { isAdminAuthed } from '@/lib/auth';
 import { PHOTOS_BUCKET, supabaseAdmin } from '@/lib/supabase-admin';
 import { DRILLED_CATEGORY_ID } from '@/lib/order-specs';
 import { isExistingPhoto } from '@/lib/reuse-options';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const categoryId = Number((await params).id);
   const form = await request.formData();
   const shapeId = Number(form.get('shape_id'));
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .webp({ quality: 94, alphaQuality: 100 })
       .toBuffer();
     const storagePath = `shape-references/${categoryId}/${shapeId}-${Date.now()}.webp`;
-    const uploaded = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(storagePath, bytes, { contentType: 'image/webp', upsert: false });
+    const uploaded = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(storagePath, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
     if (uploaded.error) throw uploaded.error;
     const { data } = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(storagePath);
     // A new photo for a Hole Punched shape is a fresh, undrilled one to drill into.
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
  *  PUT { shape_id, url } */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const categoryId = Number((await params).id);
   const body = await request.json().catch(() => null);
   const shapeId = Number(body?.shape_id);

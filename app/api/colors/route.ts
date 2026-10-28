@@ -2,9 +2,11 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isExistingPhoto } from '@/lib/reuse-options';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { name, hex_value } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
   const { data, error } = await supabaseAdmin
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id, hex_value, name, ref_photo_url } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const updates: Record<string, string> = {};
@@ -45,6 +48,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id } = await req.json();
   const { error } = await supabaseAdmin.from('colors').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

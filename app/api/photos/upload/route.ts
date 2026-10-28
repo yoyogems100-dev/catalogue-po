@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { ORIGINALS_BUCKET, uploadWatermarked, uprightOriginal, watermarkedVariant } from '@/lib/photo-files';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -27,6 +28,7 @@ function idList(formData: FormData, field: string): number[] {
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   const rawCategoryId = formData.get('category_id');

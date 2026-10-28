@@ -5,6 +5,7 @@ import {
 } from '@/lib/g-series-pdf';
 import { buyerNames } from '@/lib/customer-prices';
 import { CUSTOMER_NAME_MAX, parsePriceMatrix, tidyCustomerName, todayIso, validDate } from '@/lib/price-list-options';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 const noStore = { 'Cache-Control': 'private, no-store' };
 const listIdOf = (v: unknown) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await req.json().catch(() => null);
   const categoryId = Number(body?.category_id);
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });
@@ -73,6 +75,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const categoryId = Number(req.nextUrl.searchParams.get('category_id'));
   const listId = listIdOf(req.nextUrl.searchParams.get('list_id'));
   if (!categoryId || !listId) return NextResponse.json({ error: 'category_id and list_id required' }, { status: 400 });

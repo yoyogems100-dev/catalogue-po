@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { parseSent, sentOf } from '@/lib/line-fulfilment';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // How much of one order line has been sent, and whether it is flagged to
 // check. Team-only; the buyer sees the sent amount on their order.
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await paramsPromise).id);
   if (!Number.isSafeInteger(id) || id <= 0) return NextResponse.json({ error: 'Invalid line' }, { status: 400 });
   const body = await req.json().catch(() => ({}));

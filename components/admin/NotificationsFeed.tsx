@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import { NOTIFICATION_KINDS, notificationHref, notificationLabel, timeAgo, type AdminNotification } from '@/lib/notifications';
 
 async function markRead(body: { id: number } | { all: true }) {
@@ -26,7 +27,7 @@ function Row({ n, onOpen }: { n: AdminNotification; onOpen: (n: AdminNotificatio
 
 /**
  * The Overview's "Notifications" section: the latest few, unread first-class,
- * with a link to the full page. Checks again every 30 seconds.
+ * with a link to the full page. Checks again every 30 seconds while on screen.
  */
 export function NotificationsPreview() {
   const [items, setItems] = useState<AdminNotification[] | null>(null);
@@ -42,11 +43,7 @@ export function NotificationsPreview() {
     setUnread(data.unreadCount || 0);
   }, []);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 30000);
-    return () => clearInterval(t);
-  }, [load]);
+  useVisiblePolling(load, 30000);
 
   function open(n: AdminNotification) {
     if (!n.is_read) markRead({ id: n.id });

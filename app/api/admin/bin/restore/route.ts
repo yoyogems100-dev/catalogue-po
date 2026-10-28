@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 const TABLES = { orders: 'orders', customers: 'customers', suppliers: 'suppliers' } as const;
 type BinType = keyof typeof TABLES;
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { type, id } = await req.json();
   if (!(type in TABLES) || !Number.isSafeInteger(id)) return NextResponse.json({ error: 'type and id required' }, { status: 400 });
 

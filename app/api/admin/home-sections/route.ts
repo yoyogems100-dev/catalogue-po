@@ -3,10 +3,12 @@ import { revalidatePath } from 'next/cache';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { HOME_SECTIONS_SETTING_KEY, parseHomeSections, serializeHomeSections } from '@/lib/home-sections';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 /** Saves the /po home page shelves. POST { sections, restTitle } */
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await request.json().catch(() => null);
   if (!body || !Array.isArray(body.sections)) return NextResponse.json({ error: 'sections required' }, { status: 400 });
   if (body.sections.length > 30) return NextResponse.json({ error: 'At most 30 sections.' }, { status: 400 });

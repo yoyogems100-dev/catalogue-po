@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, idArray, readJson, refreshPublicSite, requireAdmin, slugify } from '@/lib/site/api';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const body = await readJson(req);
   const name = typeof body?.name === 'string' ? body.name.replace(/\s+/g, ' ').trim().slice(0, 40) : '';
   const code = slugify(name);
@@ -18,6 +20,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const ids = idArray((await readJson(req))?.ids, 100);
   if (!ids?.length) return fail('Nothing to reorder.');
   for (const [i, id] of ids.entries()) await supabaseAdmin.from('site_grades').update({ sort_order: (i + 1) * 10 }).eq('id', id);

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, idArray, positiveId, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
 // Replace the ordered list of website images in a category's gallery.
 export async function PUT(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   const mediaIds = idArray(body?.media_ids, 300);

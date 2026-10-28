@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCategoryPricing } from '@/lib/pricing';
+import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
+
+// The catalogue price list (the same for every buyer), cached until the next admin save.
+const cachedPricing = cachedCatalogue((id: number) => getCategoryPricing(id), ['category-pricing']);
 
 // Public customer-facing price lookup for one or more categories.
 //
@@ -23,12 +27,12 @@ export async function GET(req: NextRequest) {
 
   if (!ids.length) return NextResponse.json({ pricing: {} });
 
-  const results = await Promise.all(ids.map(async (id) => [id, await getCategoryPricing(id)] as const));
+  const results = await Promise.all(ids.map(async (id) => [id, await cachedPricing(id)] as const));
   const pricing: Record<number, unknown> = {};
   results.forEach(([id, value]) => { pricing[id] = value; });
 
   return NextResponse.json({ pricing }, {
     // Catalogue prices change rarely and are identical for every customer.
-    headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=300' }
+    headers: { 'Cache-Control': SHARED_JSON_CACHE }
   });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { isAdminAuthed } from '@/lib/auth';
 import { PHOTOS_BUCKET, supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Category-only shapes, sizes and materials (colours owned by one category,
 // e.g. Semi Precious Beads' Rose Quartz), and which materials each shape/size
@@ -53,6 +54,7 @@ async function nextSort(table: 'colors' | 'shapes', categoryId: number) {
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return fail('Unauthorized', 401);
+  catalogueChanged();
   const categoryId = Number((await params).id);
   if (!Number.isInteger(categoryId) || categoryId <= 0) return fail('Unknown category.');
   const body = await request.json().catch(() => null);
@@ -171,6 +173,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 // dropdown thumbnails never pull a full-size phone picture.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return fail('Unauthorized', 401);
+  catalogueChanged();
   const categoryId = Number((await params).id);
   const form = await request.formData();
   const colorId = Number(form.get('color_id'));
@@ -185,7 +188,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .webp({ quality: 90, alphaQuality: 100 })
       .toBuffer();
     const storagePath = `material-refs/${categoryId}/${colorId}-${Date.now()}.webp`;
-    const uploaded = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(storagePath, bytes, { contentType: 'image/webp', upsert: false });
+    const uploaded = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(storagePath, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
     if (uploaded.error) throw uploaded.error;
     const { data } = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(storagePath);
     const updated = await supabaseAdmin.from('colors').update({ ref_photo_url: data.publicUrl }).eq('id', colorId);

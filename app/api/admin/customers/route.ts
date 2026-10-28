@@ -6,6 +6,7 @@ import { canonicalPlace } from '@/lib/customer-places';
 import { passwordProblem } from '@/lib/customer-password';
 import { savePassword } from '@/lib/customer-credentials';
 import { sanitizeInterestIds } from '@/lib/customer-interests';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Create a customer from the admin directory, for the common case where the
 // team takes an enquiry on the phone before the buyer has ever signed in.
@@ -15,6 +16,7 @@ import { sanitizeInterestIds } from '@/lib/customer-interests';
 // hand used to create a second, separate record.
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const body = await request.json();
   const name = String(body.name || '').trim();

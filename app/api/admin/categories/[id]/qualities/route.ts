@@ -4,6 +4,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { specialCategory } from '@/lib/order-specs';
 import { MAX_QUALITIES, QUALITIES_SETTING_KEY, QUALITY_MAX_LENGTH, SHAPE_QUALITIES_SETTING_KEY, normalizeQualities, parseCategoryQualities, parseShapeQualities } from '@/lib/qualities';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -11,6 +12,7 @@ type Context = { params: Promise<{ id: string }> };
  *  POST { qualities: ["4A", "5A"] } -- an empty list removes the field. */
 export async function POST(request: NextRequest, context: Context) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await context.params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
   if (specialCategory(id)) return NextResponse.json({ error: 'This category has its own order options, so it has no quality field.' }, { status: 400 });

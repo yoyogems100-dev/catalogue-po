@@ -15,7 +15,7 @@ import { cleanLineNote, LINE_NOTE_MAX } from '@/lib/line-note';
 import WhatsAppIcon from './admin/WhatsAppIcon';
 import { specText, quantityFactor, drilledHoles, gradeSpec } from '@/lib/order-specs';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
-import { cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
+import { CATALOGUE_PRICES_ENABLED, cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
   CART_EVENT, loadCart, mergeIntoCart, saveCart, loadCartNote, saveCartNote,
   type CartItem, type RequestType
@@ -142,19 +142,25 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   );
   const categoryKey = categoryIds.join(',');
 
+  // Each category's options (and prices, while catalogue prices are on) are
+  // asked for once: adding or removing a line only fetches a category not
+  // already loaded, rather than every category in the cart again.
+  const requested = useRef(new Set<number>());
   useEffect(() => {
-    if (!categoryKey) return;
-    let active = true;
+    const missing = categoryIds.filter((id) => !requested.current.has(id));
+    if (!missing.length) return;
+    missing.forEach((id) => requested.current.add(id));
+    const key = missing.join(',');
     Promise.all([
-      fetch(`/api/category-pricing?ids=${categoryKey}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch(`/api/category-options?ids=${categoryKey}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      CATALOGUE_PRICES_ENABLED ? fetch(`/api/category-pricing?ids=${key}`).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
+      fetch(`/api/category-options?ids=${key}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
     ]).then(([priceData, optionData]) => {
-      if (!active) return;
       if (priceData?.pricing) setPricingByCategory((prev) => ({ ...prev, ...priceData.pricing }));
       if (optionData?.options) setOptionsByCategory((prev) => ({ ...prev, ...optionData.options }));
+      // A failed request can be tried again the next time the cart changes.
+      if (!optionData?.options) missing.forEach((id) => requested.current.delete(id));
     });
-    return () => { active = false; };
-  }, [categoryKey]);
+  }, [categoryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   function unitPriceInr(item: CartItem): number | null {

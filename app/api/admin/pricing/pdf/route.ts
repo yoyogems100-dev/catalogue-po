@@ -11,6 +11,7 @@ import GSeriesPriceListDocument from '@/lib/pdf/GSeriesPriceListDocument';
 import { gridToEntries, loadGSeriesGrid, loadGSeriesPriceList, saveCustomerPrices } from '@/lib/g-series-pdf';
 import { parsePriceListOptions, priceListFileName, type PriceListOptions } from '@/lib/price-list-options';
 import { categoryDefaultEntries, customerListEntries } from '@/lib/customer-prices';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 async function gSeriesPdf(categoryId: number, options?: Partial<PriceListOptions> & { listId?: number | null }, extraHeaders: Record<string, string> = {}) {
   const data = await loadGSeriesPriceList(categoryId, options);
@@ -30,6 +31,7 @@ async function gSeriesPdf(categoryId: number, options?: Partial<PriceListOptions
  */
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await req.json().catch(() => null);
   const categoryId = Number(body?.category_id);
   if (!categoryId) return NextResponse.json({ error: 'category_id required' }, { status: 400 });

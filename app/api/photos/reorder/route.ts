@@ -2,11 +2,13 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { refreshCatalogue } from '@/lib/refresh-catalogue';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Swaps a photo's sort_order with its immediate neighbor in the given direction.
 // Body: { category_id: number, photo_id: number, direction: 'left' | 'right' }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, photo_id, direction } = await req.json();
   if (!category_id || !photo_id || !direction) {
     return NextResponse.json({ error: 'category_id, photo_id, direction required' }, { status: 400 });

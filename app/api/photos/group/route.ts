@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Group photos of the same stone together, or break a group apart.
 //
@@ -45,6 +46,7 @@ async function resequence(categoryId: number | null) {
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { photo_ids, lead_id, ungroup } = await req.json();
 
   const ids = Array.isArray(photo_ids)

@@ -10,6 +10,7 @@ import { lineInrPrice } from '@/lib/pricing-calc';
 import SizeChartDocument, { type SizeChartColor, type SizeChartSection } from '@/lib/pdf/SizeChartDocument';
 import { getPdfLogoDataUrl } from '@/lib/pdf/brand';
 import { isAdminAuthed } from '@/lib/auth';
+import { generatedPath, publicFileUrl, storedFile } from '@/lib/generated-files';
 export const runtime='nodejs';
 function compareDimensions(a:string,b:string){
  const left=a.split('x').map(Number),right=b.split('x').map(Number);
@@ -60,21 +61,39 @@ export async function GET(_req:NextRequest,{params}:{params:Promise<{id:string}>
  // would price every size off an arbitrary, undisclosed color with no
  // indication in the PDF of which one it was.
  if(includePrices&&(colorLinks.data?.length||0)!==1)return NextResponse.json({error:'Price list export requires exactly one linked color.'},{status:409});
+ const categorySlug=category.data.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
+ const filename=`YOYO-GEMS-${categorySlug}-${includePrices?'Price-List':'Shapes-Sizes'}.pdf`;
+ const linkedShapes=new Set((shapes.data||[]).map((s:any)=>s.shape_id));
+ if(!(sizes.data||[]).some((r:any)=>linkedShapes.has(r.shape_sizes?.shape_id)))return NextResponse.json({error:'No sizes configured yet.'},{status:404});
+ // The public chart (no prices) is the same for everyone until its rows
+ // change: built once per version, stored, and downloaded from Supabase's CDN.
+ // The commit is part of the version so a new layout or logo is picked up.
+ // The price list is admin-only and is never stored.
+ if(!includePrices){
+  const source={v:process.env.VERCEL_GIT_COMMIT_SHA||'dev',category:category.data,shapes:shapes.data,sizes:sizes.data,colors:colorLinks.data};
+  const file=generatedPath(`size-chart/${id}`,source,'pdf');
+  const result=await storedFile(file,'application/pdf',()=>buildPdf(id,false,category.data,shapes.data||[],sizes.data||[],colorLinks.data||[]));
+  if('bytes' in result)return pdfResponse(result.bytes,filename,false);
+  return NextResponse.redirect(publicFileUrl(file,filename),{status:302,headers:{'Cache-Control':'public, max-age=60, s-maxage=60, stale-while-revalidate=86400'}});
+ }
+ return pdfResponse(await buildPdf(id,true,category.data,shapes.data||[],sizes.data||[],colorLinks.data||[]),filename,true);
+}
+function pdfResponse(buffer:Buffer,filename:string,includePrices:boolean){
+ return new NextResponse(new Uint8Array(buffer),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${filename}"`,'Cache-Control':includePrices?'private, no-store':'public, max-age=60'}});
+}
+async function buildPdf(id:number,includePrices:boolean,category:any,shapeRows:any[],sizeRows:any[],colorRows:any[]):Promise<Buffer>{
  const pricing=includePrices?await getCategoryPricing(id):null;
- const colorId=colorLinks.data?.[0]?.color_id;
- const colors:SizeChartColor[]=await Promise.all((colorLinks.data||[]).map(async(row:any)=>{
+ const colorId=colorRows[0]?.color_id;
+ const colors:SizeChartColor[]=await Promise.all(colorRows.map(async(row:any)=>{
   const color=Array.isArray(row.colors)?row.colors[0]:row.colors;
   return {name:color?.name||`Color #${row.color_id}`,hex:color?.hex_value||null,image:await imageDataUrl(color?.ref_photo_url)};
  }));
  colors.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
- const sections:SizeChartSection[]=await Promise.all((shapes.data||[]).map(async(s:any)=>{
+ const sections:SizeChartSection[]=await Promise.all(shapeRows.map(async(s:any)=>{
   const shape=Array.isArray(s.shapes)?s.shapes[0]:s.shapes;
   const image=await imageDataUrl(s.ref_photo_url||shape?.ref_photo_url);
-  return {name:shape?.name||`Shape #${s.shape_id}`,image,rows:(sizes.data||[]).filter((r:any)=>r.shape_sizes?.shape_id===s.shape_id).map((r:any)=>({size:r.shape_sizes.size_mm,diamondEquivalentCt:r.diamond_equivalent_ct===null?null:Number(r.diamond_equivalent_ct),pcsPerCt:r.pcs_per_ct??null,...(includePrices?{priceInr:pricing&&colorId?lineInrPrice(pricing,s.shape_id,r.shape_sizes.id,colorId):null}:{})})).sort((a,b)=>compareDimensions(a.size,b.size))};
+  return {name:shape?.name||`Shape #${s.shape_id}`,image,rows:sizeRows.filter((r:any)=>r.shape_sizes?.shape_id===s.shape_id).map((r:any)=>({size:r.shape_sizes.size_mm,diamondEquivalentCt:r.diamond_equivalent_ct===null?null:Number(r.diamond_equivalent_ct),pcsPerCt:r.pcs_per_ct??null,...(includePrices?{priceInr:pricing&&colorId?lineInrPrice(pricing,s.shape_id,r.shape_sizes.id,colorId):null}:{})})).sort((a,b)=>compareDimensions(a.size,b.size))};
  }));
  sections.sort((a,b)=>a.name==='Round'?-1:b.name==='Round'?1:a.name.localeCompare(b.name));
- if(!sections.some(s=>s.rows.length))return NextResponse.json({error:'No sizes configured yet.'},{status:404});
- const buffer=await renderToBuffer(React.createElement(SizeChartDocument,{sections,colors,categoryName:category.data.name,includePrices,priceUnit:(category.data as any).price_unit??null,logoUrl:await getPdfLogoDataUrl()}) as any);
- const categorySlug=category.data.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
- return new NextResponse(new Uint8Array(buffer),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="YOYO-GEMS-${categorySlug}-${includePrices?'Price-List':'Shapes-Sizes'}.pdf"`,'Cache-Control':includePrices?'private, no-store':'public, max-age=60'}});
+ return renderToBuffer(React.createElement(SizeChartDocument,{sections,colors,categoryName:category.name,includePrices,priceUnit:category.price_unit??null,logoUrl:await getPdfLogoDataUrl()}) as any);
 }

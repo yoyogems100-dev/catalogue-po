@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { decryptForAdmin, passwordProblem } from '@/lib/customer-password';
 import { getCredentials, savePassword } from '@/lib/customer-credentials';
 import { withoutAccessRequest } from '@/lib/access-requests';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 async function customerId(params: Promise<{ id: string }>) {
   const id = Number((await params).id);
@@ -24,6 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = await customerId(params);
   if (!id) return NextResponse.json({ error: 'Invalid customer.' }, { status: 400 });
   const body = await req.json().catch(() => ({}));

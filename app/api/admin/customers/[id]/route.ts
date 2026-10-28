@@ -5,9 +5,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { preferencesFromBody } from '@/lib/customer-preferences';
 import { canonicalPlace } from '@/lib/customer-places';
 import { sanitizeInterestIds } from '@/lib/customer-interests';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await params).id);
   if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Invalid customer.' }, { status: 400 });
   const body = await request.json();
@@ -40,6 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // permanently deleted from the Bin, not by this soft delete.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await params).id);
   const { error } = await supabaseAdmin.from('customers').update({ deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

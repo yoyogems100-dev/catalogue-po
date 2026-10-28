@@ -1,5 +1,6 @@
 import { photoUrl } from '@/lib/photos';
 import { supabasePublic } from '@/lib/supabase-public';
+import { cachedCatalogue } from '@/lib/catalogue-cache';
 import { holePhotos } from '@/lib/drill-data';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { getSettings } from '@/lib/settings';
@@ -26,11 +27,11 @@ export const revalidate = 30;
 // buyer with several open, or a link shared on WhatsApp, couldn't tell them apart.
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { data } = await supabasePublic.from('categories').select('name').eq('slug', slug).maybeSingle();
-  return data?.name ? { title: `${data.name} — YOYO GEMS` } : {};
+  const name = (await getCategoryData(slug))?.category.name;
+  return name ? { title: `${name} — YOYO GEMS` } : {};
 }
 
-async function getCategoryData(slug: string) {
+async function loadCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
     .select('id, num, name, slug, color_chart_url, price_unit, option_label, explore_default_filter')
@@ -138,6 +139,9 @@ async function getCategoryData(slug: string) {
     sizeColors: (sizeColorRows || []).map((r) => [r.shape_size_id, r.color_id] as [number, number])
   };
 }
+
+// The same for every buyer: cached per category until the next admin save.
+const getCategoryData = cachedCatalogue(loadCategoryData, ['po-category-data']);
 
 export default async function CategoryPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
   const params = await paramsPromise;

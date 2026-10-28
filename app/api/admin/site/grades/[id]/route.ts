@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, positiveId, readJson, refreshPublicSite, requireAdmin } from '@/lib/site/api';
 import { cleanContent } from '@/lib/site/schema';
 import { gradeSchema } from '@/lib/site/schemas';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,7 @@ export async function GET(_req: NextRequest, context: Context) {
 
 export async function PATCH(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   if (!id || !body) return fail('Invalid request.');
@@ -44,6 +46,7 @@ export async function PATCH(req: NextRequest, context: Context) {
 
 export async function DELETE(_req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
   const { error } = await supabaseAdmin.from('site_grades').delete().eq('id', id);

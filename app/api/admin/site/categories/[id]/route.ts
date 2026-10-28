@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fail, positiveId, readJson, refreshPublicSite, requireAdmin, slugify } from '@/lib/site/api';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type Context = { params: Promise<{ id: string }> };
 const FILTER_KEYS = ['shape', 'size', 'colour', 'grade'] as const;
@@ -9,6 +10,7 @@ const FILTER_KEYS = ['shape', 'size', 'colour', 'grade'] as const;
 // image) save immediately. Page text goes through the draft/publish route.
 export async function PATCH(req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   const body = await readJson(req);
   if (!id || !body) return fail('Invalid request.');
@@ -51,6 +53,7 @@ export async function PATCH(req: NextRequest, context: Context) {
 
 export async function DELETE(_req: NextRequest, context: Context) {
   const denied = await requireAdmin(); if (denied) return denied;
+  catalogueChanged();
   const id = positiveId((await context.params).id);
   if (!id) return fail('Invalid request.');
   const { count } = await supabaseAdmin.from('site_categories').select('id', { count: 'exact', head: true }).eq('parent_id', id);

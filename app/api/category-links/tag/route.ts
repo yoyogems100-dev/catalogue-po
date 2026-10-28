@@ -1,9 +1,11 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, tag_id } = await req.json();
   const { error } = await supabaseAdmin.from('category_tags').upsert({ category_id, tag_id }, { onConflict: 'category_id,tag_id', ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -12,6 +14,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { category_id, tag_id } = await req.json();
   const { error } = await supabaseAdmin.from('category_tags').delete().eq('category_id', category_id).eq('tag_id', tag_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

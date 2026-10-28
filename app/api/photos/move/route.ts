@@ -1,6 +1,7 @@
 import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Moves selected photos into a different category, appending them after that
 // category's existing photos. Shape/color/size/spec tags stay on each photo --
@@ -9,6 +10,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // Body: { ids: number[], to_category_id: number }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { ids, to_category_id } = await req.json();
   if (!Array.isArray(ids) || ids.length === 0 || !to_category_id) {
     return NextResponse.json({ error: 'ids and to_category_id required' }, { status: 400 });

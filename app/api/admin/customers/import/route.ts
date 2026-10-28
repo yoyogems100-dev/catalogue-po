@@ -3,11 +3,13 @@ import { normalizePhone } from '@/lib/phone';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { canonicalPlace } from '@/lib/customer-places';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 type ImportRow = { name?: string; company?: string; phone?: string; email?: string; address?: string; place?: string; workStream?: string; goToRequirements?: string };
 
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await request.json();
   const rows: ImportRow[] = Array.isArray(body.rows) ? body.rows : [];
   // Every row always creates a new customer record -- imported rows are never

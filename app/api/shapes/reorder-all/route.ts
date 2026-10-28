@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { refreshCatalogue } from '@/lib/refresh-catalogue';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Persists a full new order in one shot (drag-and-drop can jump more than one
 // position, unlike the neighbor-swap /api/shapes/reorder) -- sort_order
@@ -9,6 +10,7 @@ import { refreshCatalogue } from '@/lib/refresh-catalogue';
 // Body: { orderedIds: number[] }
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { orderedIds } = await req.json();
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
     return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });

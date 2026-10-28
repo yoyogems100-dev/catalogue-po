@@ -6,11 +6,13 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { ORIGINALS_BUCKET } from '@/lib/photo-files';
 import { withWatermark } from '@/lib/watermark-render';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
 export async function POST(request: NextRequest, context: Context) {
   if (!await isAdminAuthed()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   let uploaded: string | undefined;
   try {
     const id = Number((await context.params).id);
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest, context: Context) {
       const { error: originalError } = await supabaseAdmin.storage.from(ORIGINALS_BUCKET).upload(uploaded, clean, { contentType: 'image/webp', upsert: true });
       if (originalError) throw originalError;
       const bytes = await (await withWatermark(upright)).webp({ quality: 95 }).toBuffer();
-      const { error: uploadError } = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(uploaded, bytes, { contentType: 'image/webp', upsert: false });
+      const { error: uploadError } = await supabaseAdmin.storage.from(PHOTOS_BUCKET).upload(uploaded, bytes, { contentType: 'image/webp', upsert: false, cacheControl: '31536000' });
       if (uploadError) throw uploadError;
       url = supabaseAdmin.storage.from(PHOTOS_BUCKET).getPublicUrl(uploaded).data.publicUrl;
     }

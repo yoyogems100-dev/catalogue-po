@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(request: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await request.json(); const name = String(body.name || '').trim();
   if (!name) return NextResponse.json({ error: 'Supplier name is required.' }, { status: 400 });
   const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds.filter((id: unknown) => Number.isSafeInteger(id) && (id as number) > 0) : [];

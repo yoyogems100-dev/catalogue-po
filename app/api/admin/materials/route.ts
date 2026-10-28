@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Materials sit above categories (Ruby over Ruby Corundum, Ruby Chatham...).
 // Create, rename, reorder and delete. Deleting a material only removes it and
@@ -11,6 +12,7 @@ function cleanName(raw: unknown): string {
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const { name } = await req.json();
   const clean = cleanName(name);
   if (!clean) return NextResponse.json({ error: 'Give the material a name.' }, { status: 400 });
@@ -22,6 +24,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const body = await req.json();
   if (Array.isArray(body.order)) {
     const ids = body.order.map(Number).filter((n: number) => Number.isSafeInteger(n) && n > 0);
@@ -41,6 +44,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await req.json()).id);
   if (!Number.isSafeInteger(id)) return NextResponse.json({ error: 'Material is required.' }, { status: 400 });
   const { error } = await supabaseAdmin.from('materials').delete().eq('id', id);

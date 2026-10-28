@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await params).id); const body = await request.json(); const name = String(body.name || '').trim();
   if (!name) return NextResponse.json({ error: 'Supplier name is required.' }, { status: 400 });
   const { error } = await supabaseAdmin.from('suppliers').update({ name, company: String(body.company || '').trim() || null, address: String(body.address || '').trim() || null, contact_name: String(body.contactName || '').trim() || null, phone: String(body.phone || '').trim() || null, email: String(body.email || '').trim().toLowerCase() || null, notes: String(body.notes || '').trim() || null, updated_at: new Date().toISOString() }).eq('id', id);
@@ -18,6 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // list) instead of destroying it.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
   const id = Number((await params).id);
   const { error } = await supabaseAdmin.from('suppliers').update({ deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

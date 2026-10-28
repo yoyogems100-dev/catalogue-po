@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { THREE_VIEW_KEYS } from '@/lib/three-view';
 import { isExistingPhoto } from '@/lib/reuse-options';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { name, icon_key } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
   // The drawing picked for it when it was added; none means the generic one.
@@ -20,6 +22,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const body = await req.json();
   const { id, name } = body;
   // Another drawing, or a photo another shape already has ("Choose existing").
@@ -53,6 +56,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  catalogueChanged();
   const { id } = await req.json();
   const { error } = await supabaseAdmin.from('shapes').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

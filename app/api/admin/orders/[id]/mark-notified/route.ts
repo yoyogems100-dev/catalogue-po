@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { catalogueChanged } from '@/lib/catalogue-cache';
 
 // Best-effort record that admin clicked "Notify via WhatsApp" -- there's no way to
 // confirm the message was actually sent from the manual wa.me flow, only that this
@@ -8,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  catalogueChanged();
 
   const orderId = Number(params.id);
 
