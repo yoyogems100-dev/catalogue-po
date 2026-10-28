@@ -25,8 +25,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// The footer's automatic "Popular searches" reads every category page. On a
+// cold cache that can be slow; it's a nice-to-have, so a page never waits on it
+// for more than 20s (or fails because of it) -- it renders without them instead.
+function popularOrNothing(): Promise<{ label: string; url: string }[]> {
+  return Promise.race([
+    getPopularSearches().catch(() => []),
+    new Promise<[]>((resolve) => setTimeout(() => resolve([]), 20000).unref?.())
+  ]);
+}
+
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [g, categories, autoPopular, chartsContent] = await Promise.all([getGlobal(), getNavTree(), getPopularSearches().catch(() => []), getPage('charts')]);
+  const [g, categories, autoPopular, chartsContent] = await Promise.all([getGlobal(), getNavTree(), popularOrNothing(), getPage('charts')]);
   // Every chart hidden in Admin → Website → Charts: drop the Charts links too.
   const showCharts = chartPages(chartsContent).length > 0;
   const wa = whatsappHref(g.contact?.whatsapp, g.contact?.whatsapp_message);
