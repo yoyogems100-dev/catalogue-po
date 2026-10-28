@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fillTemplate, filterHref, isIndexable, matches, parseSelection, selectionWords, sizeBucketOf, type OptionsByDim } from '../lib/site/filters';
+import { describeSelection, fillTemplate, filterHref, matches, parseSelection, searchOf, selectionWords, sizeBucketOf, type OptionsByDim } from '../lib/site/filters';
 
 const options: OptionsByDim = {
   shape: [{ slug: 'round', name: 'Round' }, { slug: 'oval', name: 'Oval' }],
@@ -43,14 +43,20 @@ test('filter links toggle one value and keep the rest', () => {
   assert.equal(filterHref('/p', sel, 'grade', undefined, true), '/p?shape=oval');
 });
 
-test('filtered pages get a heading from the template, and only simple ones are indexed', () => {
+test('filtered pages get a heading from the template', () => {
   const sel = { shape: ['oval'], size: [], colour: ['royal-blue'], grade: ['5a'] };
   assert.equal(fillTemplate('{filters} {category}', { filters: selectionWords(sel, options), category: 'Nano' }), '5A Royal Blue Oval Nano');
   assert.equal(fillTemplate('{category} in {filters}.', { filters: '', category: 'Nano' }), 'Nano in.');
-  assert.ok(isIndexable({ shape: ['oval'], size: [], colour: [], grade: [] }));
-  assert.ok(isIndexable({ shape: ['oval'], size: [], colour: ['green'], grade: [] }));
-  assert.ok(!isIndexable(sel));
-  assert.ok(!isIndexable({ shape: ['oval', 'round'], size: [], colour: [], grade: [] }));
+  const page = { name: 'Nano', photos: [1, 2, 3] };
+  assert.deepEqual(describeSelection(page, sel, options), { heading: '5A Royal Blue Oval Nano', intro: '5A Royal Blue Oval Nano from our ready range.' });
+  assert.deepEqual(describeSelection(page, sel, options, { heading: '{category}: {filters}', intro: '{count} photos' }), { heading: 'Nano: 5A Royal Blue Oval', intro: '3 photos' });
+  assert.deepEqual(describeSelection(page, { shape: [], size: [], colour: [], grade: [] }, options), { heading: 'Nano', intro: null });
+});
+
+test('the browser reads filters from the address bar the same way the server did', () => {
+  const params = new URLSearchParams('shape=oval&colour=green&colour=royal-blue&utm_source=x');
+  assert.deepEqual(searchOf(params), { shape: 'oval', size: '', colour: 'green,royal-blue', grade: '' });
+  assert.deepEqual(parseSelection(searchOf(params), options), { shape: ['oval'], size: [], colour: ['green', 'royal-blue'], grade: [] });
 });
 
 test('sizes fall into mm ranges by their largest dimension', () => {

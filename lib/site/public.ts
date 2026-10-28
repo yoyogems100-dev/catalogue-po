@@ -83,11 +83,7 @@ export const getChartTeaser = cache(async () => {
   };
 });
 
-export function whatsappHref(number: string, message: string) {
-  const digits = (number || '').replace(/\D/g, '');
-  if (!digits) return null;
-  return `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
-}
+export { whatsappHref } from './whatsapp';
 
 export function telHref(phone: string) {
   const digits = (phone || '').replace(/[^\d+]/g, '');

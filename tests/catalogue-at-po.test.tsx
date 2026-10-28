@@ -71,3 +71,24 @@ test('the sign-in check runs only on the private app, not the public website', a
   for (const path of ['/', '/about', '/products/cz/4a', '/charts/shapes', '/login', '/robots.txt', '/sitemap.xml', '/api/site/og', '/logo.png', '/_next/static/x.js'])
     assert.equal(runs(path), false, path);
 });
+
+test('crawlers stay off filtered category URLs, and a few bots stay off entirely', async () => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://example.supabase.co'; process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'synthetic-test-key';
+  const { default: robots } = await import('../app/robots');
+  const rules = robots().rules as { userAgent: string | string[]; disallow?: string | string[] }[];
+  const all = rules.find((r) => r.userAgent === '*')!;
+  assert.ok((all.disallow as string[]).includes('/products/*?*'));
+  for (const bot of ['Amazonbot', 'PetalBot', 'DotBot']) {
+    const rule = rules.find((r) => Array.isArray(r.userAgent) && r.userAgent.includes(bot));
+    assert.equal(rule?.disallow, '/', bot);
+  }
+
+  // Filtered views also answer noindex (a static header, no function call).
+  const { default: nextConfig } = await import('../next.config.js');
+  const headers = (await nextConfig.headers()) as { source: string; has: { type: string; key: string }[]; headers: { key: string; value: string }[] }[];
+  assert.deepEqual(headers.map((h) => h.has[0].key).sort(), ['colour', 'grade', 'shape', 'size']);
+  for (const h of headers) {
+    assert.equal(h.source, '/products/:path*');
+    assert.deepEqual(h.headers, [{ key: 'X-Robots-Tag', value: 'noindex, follow' }]);
+  }
+});

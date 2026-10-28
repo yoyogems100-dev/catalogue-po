@@ -2,9 +2,10 @@ import Link from 'next/link';
 import type { CategoryPage } from '@/lib/site/category-data';
 import { filterHref, matches, type OptionsByDim, type Selection } from '@/lib/site/filters';
 import type { ContentValue } from '@/lib/site/schema';
-import { whatsappHref } from '@/lib/site/public';
+import { whatsappHref } from '@/lib/site/whatsapp';
 import RichText from './RichText';
 import FilterBar from './FilterBar';
+import FilterLink from './FilterLink';
 import HideOnError from './HideOnError';
 import { pic, responsive } from '@/lib/site/optimize';
 import { Arrow, WhatsApp } from './icons';
@@ -62,7 +63,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
             <p>{filtered ? 'We may still hold it. ' : ''}Tell us the shape, size and colour and we’ll confirm stock.</p>
             <div className={s.heroActions} style={{ justifyContent: 'center', marginTop: 14 }}>
               <Link href={requestHref} className={`${s.btn} ${s.btnSm}`}>Request catalogue</Link>
-              {filtered && <Link href={page.href} scroll={false} className={`${s.btnGhost} ${s.btnSm}`}>Clear filters</Link>}
+              {filtered && <FilterLink href={page.href} className={`${s.btnGhost} ${s.btnSm}`}>Clear filters</FilterLink>}
             </div>
           </div>
         )}
@@ -80,7 +81,7 @@ export default function CategoryView({ page, selection, options, heading, intro,
           <li><Link href="/">Home</Link></li>
           <li><Link href="/products">Products</Link></li>
           {page.parent && <li><Link href={page.parent.href}>{page.parent.name}</Link></li>}
-          {filtered ? <li><Link href={page.href}>{page.name}</Link></li> : <li aria-current="page">{page.name}</li>}
+          {filtered ? <li><FilterLink href={page.href}>{page.name}</FilterLink></li> : <li aria-current="page">{page.name}</li>}
         </ol>
       </nav>
 
@@ -162,10 +163,10 @@ export default function CategoryView({ page, selection, options, heading, intro,
             {page.grades.length > 0 && (
               <div className={c.gradeRow}>
                 {page.grades.map((g) => {
-                  const href = page.filters.grade ? filterHref(page.href, selection, 'grade', g.slug) + '#stones' : chartShown('grades') ? '/charts/grades' : null;
                   const inner = <><strong>{g.name}</strong>{g.summary && <span>{g.summary}</span>}</>;
-                  return href
-                    ? <Link key={g.slug} href={href} className={c.grade} title={g.summary || undefined}>{inner}</Link>
+                  if (page.filters.grade) return <FilterLink key={g.slug} href={`${filterHref(page.href, selection, 'grade', g.slug)}#stones`} className={c.grade} title={g.summary || undefined}>{inner}</FilterLink>;
+                  return chartShown('grades')
+                    ? <Link key={g.slug} href="/charts/grades" className={c.grade} title={g.summary || undefined}>{inner}</Link>
                     : <span key={g.slug} className={c.grade} title={g.summary || undefined}>{inner}</span>;
                 })}
               </div>
@@ -174,10 +175,10 @@ export default function CategoryView({ page, selection, options, heading, intro,
               <ul className={c.shapeGrid} role="list">
                 {page.shapes.map((sh) => (
                   <li key={sh.slug}>
-                    <Link href={page.filters.shape ? `${filterHref(page.href, selection, 'shape', sh.slug)}#stones` : page.href} className={c.shapeCard}>
+                    <FilterLink href={page.filters.shape ? `${filterHref(page.href, selection, 'shape', sh.slug)}#stones` : page.href} className={c.shapeCard}>
                       {sh.img ? <HideOnError as="span" className={c.shapeImg} img={{ src: sh.img, alt: '', width: 64, height: 64, loading: 'lazy' }} /> : <span className={c.shapeImg} />}
                       <span>{sh.name}</span>
-                    </Link>
+                    </FilterLink>
                   </li>
                 ))}
               </ul>
@@ -198,10 +199,10 @@ export default function CategoryView({ page, selection, options, heading, intro,
                 <ul className={c.swatchGrid} role="list">
                   {chartColours.map((col) => (
                     <li key={col.slug}>
-                      <Link href={page.filters.colour ? `${filterHref(page.href, selection, 'colour', col.slug)}#stones` : page.href} className={c.swatchCard}>
+                      <FilterLink href={page.filters.colour ? `${filterHref(page.href, selection, 'colour', col.slug)}#stones` : page.href} className={c.swatchCard}>
                         {col.img ? <HideOnError as="span" className={c.swatchImg} img={{ src: col.img, alt: '', width: 56, height: 56, loading: 'lazy' }} /> : <span className={c.swatchImg} />}
                         <span>{col.name}</span>
-                      </Link>
+                      </FilterLink>
                     </li>
                   ))}
                 </ul>
