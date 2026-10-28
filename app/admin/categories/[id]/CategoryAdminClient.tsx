@@ -153,11 +153,12 @@ export default function CategoryAdminClient({
     const t = setTimeout(() => setBulkTagDone(null), 2500);
     return () => clearTimeout(t);
   }, [bulkTagDone]);
-  // Select mode ends on a tap anywhere outside the toolbar and the photos,
-  // so there is no need to scroll back up to "Done selecting".
-  const selectBarRef = useRef<HTMLDivElement>(null);
-  const photoGridRef = useRef<HTMLDivElement>(null);
-  const selectToggleRef = useRef<HTMLButtonElement>(null);
+  // Select mode used to end (and drop every tick) on a tap anywhere outside
+  // the toolbar and photos -- a stray tap while scrolling lost the whole
+  // selection. It now ends only on "Done", and on phones a footer keeps
+  // "Done" and "Add tag" in reach instead. The footer (and its tag sheet)
+  // only exists on narrow screens.
+  const isPhone = useNarrowScreen();
   // Narrows the admin gallery; can also be saved as the Explore Photos default.
   const [filter, setFilter] = useState<ExploreFilter>(NO_FILTER);
   const [savedDefault, setSavedDefault] = useState<ExploreFilter>(exploreDefault);
@@ -477,22 +478,39 @@ export default function CategoryAdminClient({
     setBulkTagDone(null);
   }
 
-  useEffect(() => {
-    if (!selectMode) return;
-    function onPointerDown(e: PointerEvent) {
-      const target = e.target as Node | null;
-      // A press on the page scrollbar lands on <html>; that is not "elsewhere".
-      if (!target || target === document.documentElement || bulkBusy) return;
-      // A confirm/notice dialog opened from the toolbar (e.g. "Delete
-      // selected") is part of the same action, not a click elsewhere.
-      if (target instanceof Element && target.closest('dialog, [role="dialog"], [role="alertdialog"]')) return;
-      if ([selectBarRef, photoGridRef, selectToggleRef].some((ref) => ref.current?.contains(target))) return;
-      toggleSelectMode();
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectMode, bulkBusy]);
+  // Long-press on a photo (phones): straight into Select mode with that photo ticked.
+  function startSelectingFrom(photoId: number) {
+    if (!selectMode) toggleSelectMode();
+    setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur : [...cur, photoId]));
+    try { navigator.vibrate?.(15); } catch { /* not supported */ }
+  }
+
+  const renderBulkTagPanel = () => (
+                  <div className="photo-bulk-tags">
+                    <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 8px' }}>
+                      Choose tags to add to all {selectedPhotoIds.length} selected photo{selectedPhotoIds.length === 1 ? '' : 's'} (a grouped stone's tags live on its cover). Tags each photo already has are kept.
+                    </p>
+                    <PhotoTagPicker
+                      categoryId={categoryId}
+                shapes={linkedShapes}
+                sizes={linkedSizes}
+                colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
+                tags={linkedTags}
+                colorLabel={colorLabel}
+                      value={bulkTags}
+                      onChange={(next) => { setBulkTags(next); setBulkTagDone(null); }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                      <button className={`btn${bulkTagDone === 'add' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('add')}>
+                        {bulkBusy ? 'Working…' : bulkTagDone === 'add' ? '✓ Added' : `Add to ${selectedPhotoIds.length} photo${selectedPhotoIds.length === 1 ? '' : 's'}`}
+                      </button>
+                      <button className={`btn-ghost${bulkTagDone === 'remove' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('remove')}>
+                        {bulkTagDone === 'remove' ? '✓ Removed' : 'Remove from selected'}
+                      </button>
+                      {tagSetCount(bulkTags) > 0 && <button type="button" className="btn-link" onClick={() => setBulkTags(EMPTY_TAG_SET)}>Clear choice</button>}
+                    </div>
+                  </div>
+  );
 
   function toggleSelectPhoto(photoId: number) {
     setSelectedPhotoIds((cur) => (cur.includes(photoId) ? cur.filter((id) => id !== photoId) : [...cur, photoId]));
@@ -851,7 +869,7 @@ export default function CategoryAdminClient({
                   <DownloadIcon size={14} /> Download all photos
                 </a>
               )}
-              <button type="button" ref={selectToggleRef} className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
+              <button type="button" className={selectMode ? 'btn' : 'btn-ghost'} style={{ fontSize: 12, marginLeft: galleryPhotos.length > 0 ? 0 : 'auto' }} onClick={toggleSelectMode}>
                 {selectMode ? 'Done selecting' : 'Select'}
               </button>
             </div>
@@ -912,7 +930,7 @@ export default function CategoryAdminClient({
               </div>
             )}
             {selectMode ? (
-              <div className="photo-select-bar" ref={selectBarRef}>
+              <div className="photo-select-bar">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
                   <input
                     type="checkbox"
@@ -967,32 +985,7 @@ export default function CategoryAdminClient({
                 <button className="btn-danger" disabled={selectedPhotoIds.length === 0 || bulkBusy} onClick={deleteSelectedPhotos}>
                   {bulkBusy ? 'Working…' : 'Delete selected'}
                 </button>
-                {bulkTagOpen && (
-                  <div className="photo-bulk-tags">
-                    <p style={{ fontSize: 12.5, color: '#756e5c', margin: '0 0 8px' }}>
-                      Choose tags to add to all {selectedPhotoIds.length} selected photo{selectedPhotoIds.length === 1 ? '' : 's'} (a grouped stone's tags live on its cover). Tags each photo already has are kept.
-                    </p>
-                    <PhotoTagPicker
-                      categoryId={categoryId}
-                shapes={linkedShapes}
-                sizes={linkedSizes}
-                colors={linkedColors.map((c) => ({ id: c.id, name: c.name, hex: c.hexValue, refPhotoUrl: c.refPhotoUrl }))}
-                tags={linkedTags}
-                colorLabel={colorLabel}
-                      value={bulkTags}
-                      onChange={(next) => { setBulkTags(next); setBulkTagDone(null); }}
-                    />
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                      <button className={`btn${bulkTagDone === 'add' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('add')}>
-                        {bulkBusy ? 'Working…' : bulkTagDone === 'add' ? '✓ Added' : `Add to ${selectedPhotoIds.length} photo${selectedPhotoIds.length === 1 ? '' : 's'}`}
-                      </button>
-                      <button className={`btn-ghost${bulkTagDone === 'remove' ? ' btn-done' : ''}`} disabled={selectedPhotoIds.length === 0 || tagSetCount(bulkTags) === 0 || bulkBusy} onClick={() => tagSelectedPhotos('remove')}>
-                        {bulkTagDone === 'remove' ? '✓ Removed' : 'Remove from selected'}
-                      </button>
-                      {tagSetCount(bulkTags) > 0 && <button type="button" className="btn-link" onClick={() => setBulkTags(EMPTY_TAG_SET)}>Clear choice</button>}
-                    </div>
-                  </div>
-                )}
+                {bulkTagOpen && !isPhone && renderBulkTagPanel()}
               </div>
             ) : (
               <>
@@ -1015,10 +1008,38 @@ export default function CategoryAdminClient({
                 )}
               </>
             )}
+            {/* Phones: the bottom of the screen is where the thumb is. Count,
+                Add tag (opens the tag picker as a sheet above) and Done. */}
+            {selectMode && isPhone && (
+              <div className="photo-select-footer" role="region" aria-label="Selected photos">
+                {bulkTagOpen && (
+                  <div className="photo-select-sheet">
+                    <div className="photo-select-sheet-head">
+                      <strong>Tag {selectedPhotoIds.length} photo{selectedPhotoIds.length === 1 ? '' : 's'}</strong>
+                      <button type="button" className="btn-link" onClick={() => setBulkTagOpen(false)}>Close</button>
+                    </div>
+                    {renderBulkTagPanel()}
+                  </div>
+                )}
+                <div className="photo-select-footer-bar">
+                  <span className="photo-select-footer-count">{selectedPhotoIds.length === 0 ? 'Tap photos to select' : `${selectedPhotoIds.length} selected`}</span>
+                  <button
+                    type="button"
+                    className={bulkTagOpen ? 'btn' : 'btn-ghost'}
+                    disabled={selectedPhotoIds.length === 0 && !bulkTagOpen}
+                    aria-expanded={bulkTagOpen}
+                    onClick={() => setBulkTagOpen((cur) => !cur)}
+                  >
+                    Add tag
+                  </button>
+                  <button type="button" className="btn" onClick={toggleSelectMode}>Done</button>
+                </div>
+              </div>
+            )}
             {filterActive && visibleGroups.length === 0 && (
               <p style={{ fontSize: 12.5, color: '#756e5c', padding: '24px 0' }}>No photos match this filter. <button type="button" className="btn-link" onClick={() => setFilter(NO_FILTER)}>Show all</button></p>
             )}
-            <div className="admin-photo-grid" ref={photoGridRef}>
+            <div className={`admin-photo-grid${selectMode ? ' is-selecting' : ''}`}>
               {visibleGroups.map(({ group: { lead: p, media }, index: i }) => (
                 <PhotoRow
                   categoryId={categoryId}
@@ -1043,6 +1064,7 @@ export default function CategoryAdminClient({
                   selectMode={selectMode}
                   selected={selectedPhotoIds.includes(p.id)}
                   onToggleSelect={() => toggleSelectPhoto(p.id)}
+                  onLongPress={() => startSelectingFrom(p.id)}
                   angles={media.slice(1)}
                   onUngroup={ungroupOne}
                   onDetachAngle={ungroupOne}
@@ -1110,6 +1132,7 @@ function PhotoRow({
   selectMode,
   selected,
   onToggleSelect,
+  onLongPress,
   angles = [],
   onUngroup,
   onDetachAngle,
@@ -1147,6 +1170,8 @@ function PhotoRow({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Press and hold on the photo: start selecting with this photo ticked. */
+  onLongPress?: () => void;
   /** The other photos of this stone, shown inside this card instead of as
       cards of their own. */
   angles?: Photo[];
@@ -1170,6 +1195,44 @@ function PhotoRow({
     setTagIds(photo.tag_ids);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tagSig]);
+  // Press-and-hold on the photo. Moving the finger (a scroll) cancels it, and
+  // the tap that ends a long-press is swallowed so it doesn't untick again.
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const longPressed = useRef(false);
+  const selectable = !hideMoveControls && !compact && !!onLongPress;
+  function cancelPress() {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressStart.current = null;
+  }
+  useEffect(() => cancelPress, []);
+  const pressProps: HTMLAttributes<HTMLDivElement> = selectable ? {
+    onPointerDown: (e) => {
+      if (e.button !== 0 || (e.target as Element).closest('button, input, label, a, select, .drag-handle')) return;
+      longPressed.current = false;
+      pressStart.current = { x: e.clientX, y: e.clientY };
+      pressTimer.current = setTimeout(() => {
+        pressTimer.current = null;
+        longPressed.current = true;
+        if (!selected) onLongPress!();
+      }, 450);
+    },
+    onPointerMove: (e) => {
+      const p = pressStart.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+    },
+    onPointerUp: cancelPress,
+    onPointerCancel: cancelPress,
+    onPointerLeave: cancelPress,
+    // Keep the phone's own "save image" menu from popping up over the hold.
+    onContextMenu: (e) => { if (longPressed.current || pressTimer.current) e.preventDefault(); },
+    // In Select mode, a tap anywhere on the photo ticks or unticks it.
+    onClick: (e) => {
+      if (longPressed.current) { longPressed.current = false; return; }
+      if (selectMode && !(e.target as Element).closest('button, input, label, a, select')) onToggleSelect?.();
+    }
+  } : {};
   const [productCode, setProductCode] = useState(photo.product_code || '');
   const [notes, setNotes] = useState(photo.notes || '');
   const visibleFieldOptions = fieldOptions ? FIELD_OPTIONS.filter((o) => fieldOptions.includes(o.value)) : FIELD_OPTIONS;
@@ -1441,8 +1504,12 @@ function PhotoRow({
       style={{ opacity: isDragging ? 0.4 : 1 }}
       {...dropTargetProps}
     >
-      <div style={{ aspectRatio: '1/1', background: '#eee', position: 'relative', overflow: 'hidden', borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
-        {photo.url && <img src={photo.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+      <div
+        className={`admin-photo-media${selectable ? ' is-pressable' : ''}${selectMode && selected ? ' is-selected' : ''}`}
+        style={{ aspectRatio: '1/1', background: '#eee', position: 'relative', overflow: 'hidden', borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
+        {...pressProps}
+      >
+        {photo.url && <img src={photo.url} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         {!hideMoveControls && selectMode ? (
           <label
             style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 4, padding: '4px 6px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
@@ -1556,4 +1623,17 @@ function PhotoRow({
       </div>
     </div>
   );
+}
+
+/** True on phone-width screens; false during server render and on desktop. */
+function useNarrowScreen(maxWidth = 640) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, [maxWidth]);
+  return narrow;
 }
