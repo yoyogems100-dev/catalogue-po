@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { uploadMedia, replaceMedia, Thumb } from '@/components/admin/site/MediaPicker';
 import { mediaSrc, type MediaRow } from '@/lib/site/media-url';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Link = { media_id: number; target_type: string; target_id: number };
 type Option = { id: number; name: string; shape_id?: number };
@@ -140,7 +141,7 @@ export function MediaDetail({ media, links: initialLinks, options, onClose, onSa
   async function remove() {
     const shown = links.filter((l) => l.target_type === 'site_category').length;
     const where = shown ? ` It is shown on ${shown} website categor${shown > 1 ? 'ies' : 'y'} and will disappear from ${shown > 1 ? 'them' : 'it'}.` : '';
-    if (!confirm(`Delete this website image permanently?${where} The /po catalogue is not affected.`)) return;
+    if (!(await confirmAction(`Delete this website image permanently?${where} The /po catalogue is not affected.`))) return;
     const res = await fetch(`/api/admin/site/media/${media.id}`, { method: 'DELETE' });
     if (!res.ok) { setMessage((await res.json().catch(() => ({}))).error || 'Could not delete.'); return; }
     onDeleted(media.id);

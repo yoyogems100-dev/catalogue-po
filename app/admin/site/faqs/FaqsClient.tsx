@@ -6,6 +6,7 @@ import RichTextEditor from '@/components/admin/site/RichTextEditor';
 import EarlierVersions from '@/components/admin/site/EarlierVersions';
 import { richTextToPlain } from '@/lib/site/rich-text';
 import s from '@/components/admin/site/site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Faq = { id: number; question: string; answer: string; sort_order: number; is_visible: boolean };
 
@@ -37,7 +38,7 @@ export default function FaqsClient({ initial }: { initial: Faq[] }) {
     } catch (err: any) { flash(err.message); }
   }
   async function remove(f: Faq) {
-    if (!confirm(`Delete this question?\n\n“${f.question}”\n\nTo take it off the site but keep it, use Edit → untick “Show on the website” instead.`)) return;
+    if (!(await confirmAction(`Delete this question?\n\n“${f.question}”\n\nTo take it off the site but keep it, use Edit → untick “Show on the website” instead.`))) return;
     try { await send(`/api/admin/site/faqs/${f.id}`, 'DELETE'); setFaqs(faqs.filter((x) => x.id !== f.id)); flash('Question deleted.'); } catch (e: any) { flash(e.message); }
   }
 

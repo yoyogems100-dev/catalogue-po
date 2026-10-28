@@ -7,6 +7,7 @@ import { WordMark } from '@/components/Logo';
 import NotificationBell from '@/components/admin/NotificationBell';
 import AdminSearch from '@/components/admin/AdminSearch';
 import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf, type NavGroup, type NavLink } from '@/components/admin/nav-config';
+import ScrollJump from './ScrollJump';
 
 export type NavCategory = { id: number; name: string; parent?: string };
 
@@ -219,6 +220,8 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
         </div>
         {category ? categoryPanel(category) : group ? groupPanel(group) : rootPanel()}
       </nav>
+      {/* On every admin page, alongside the menu. */}
+      <ScrollJump />
     </>
   );
 }

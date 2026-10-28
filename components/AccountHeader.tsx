@@ -3,6 +3,7 @@ import HeaderLogo from '@/components/HeaderLogo';
 import QuickOrderButton from '@/components/QuickOrderButton';
 import VoiceOrderButton from '@/components/VoiceOrderButton';
 import ActingBanner from '@/components/ActingBanner';
+import HomeButton from '@/components/HomeButton';
 import { getAccountState } from '@/lib/account-state';
 
 export default async function AccountHeader() {
@@ -13,6 +14,7 @@ export default async function AccountHeader() {
     <div className="topbar">
       <Link href="/po"><HeaderLogo height={28} /></Link>
       <div className="account-header-actions">
+        <HomeButton />
         <QuickOrderButton />
         <VoiceOrderButton listenForOpen />
         <Link href="/po/account/orders" style={{ fontSize: 13, color: '#fff' }}>My Orders</Link>

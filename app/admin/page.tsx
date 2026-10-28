@@ -19,19 +19,25 @@ export default async function AdminDashboard() {
     { title: 'New catalogue requests', href: '/admin/site/leads', query: supabaseAdmin.from('site_leads').select('id', {count:'exact',head:true}).eq('status','new') },
     { title: 'Orders placed today', href: `/admin/orders?from=${today}&to=${today}`, query: countable().gte('created_at', `${today}T00:00:00+05:30`).lte('created_at', `${today}T23:59:59.999+05:30`) },
     { title: 'Awaiting confirmation', href: '/admin/orders?status=placed', query: countable().eq('status','placed') },
+    // Quotation requests nobody has answered yet (still at Placed).
+    { title: 'Quotations to price', href: '/admin/orders?status=placed#request-quotations', query: countable().eq('status','placed').in('request_type', ['Request Quotation','Mixed']) },
     { title: 'Sourcing', href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },
     { title: 'Ready to dispatch', href: '/admin/orders?status=packed', query: countable().eq('status','packed') },
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },
     { title: 'Partial payment', href: '/admin/orders?payment=partial', query: countable().eq('payment_status','partial') }
   ];
-  const [counts, {data: qaCategories}, {data: qaTags}, {data: accessRows}] = await Promise.all([
+  const [counts, {data: qaCategories}, {data: qaTags}, {data: accessRows}, {data: siteCats}] = await Promise.all([
     Promise.all(queues.map(queue => queue.query)),
     // For the quick-action forms below.
     supabaseAdmin.from('categories').select('id,name').order('num'),
     supabaseAdmin.from('tags').select('id,name').order('name'),
     // Sign-up requests waiting for a PIN (see lib/access-requests).
-    supabaseAdmin.from('customers').select('id,name,company,phone,created_at').contains('tags', [ACCESS_REQUEST_TAG]).is('deleted_at', null).order('created_at', {ascending:false}).limit(50)
+    supabaseAdmin.from('customers').select('id,name,company,phone,created_at').contains('tags', [ACCESS_REQUEST_TAG]).is('deleted_at', null).order('created_at', {ascending:false}).limit(50),
+    // For the search box: website categories match there too.
+    supabaseAdmin.from('site_categories').select('id,name,parent_id').order('sort_order')
   ]);
+  const siteNames = new Map((siteCats || []).map(c => [c.id, c.name]));
+  const searchSiteCategories = (siteCats || []).map(c => ({ id: c.id, name: c.name, parent: c.parent_id != null ? siteNames.get(c.parent_id) : undefined }));
   // "Order details" used to stand in for every order whose contact_name was
   // null, which is most of them -- a row reading "#8 - Order details - Placed"
   // gives nothing worth scanning. A guest order genuinely has no name, but one
@@ -63,7 +69,7 @@ export default async function AdminDashboard() {
   };
   return <>
     <h1>Admin overview</h1><p>Orders needing attention and shortcuts for today’s work.</p>
-    <AdminSearchBar />
+    <AdminSearchBar poCategories={qaCategories || []} siteCategories={searchSiteCategories} />
     <nav className="admin-overview-actions" aria-label="Quick actions">
       <Link className="btn" href="/admin/customers?new=1">+ New customer</Link>
       <Link className="btn" href="/admin/orders/new">+ Create order</Link>

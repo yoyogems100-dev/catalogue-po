@@ -10,6 +10,7 @@ import RichTextEditor from './RichTextEditor';
 import MediaPicker, { Thumb } from './MediaPicker';
 import Sortable from './Sortable';
 import s from './site-admin.module.css';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Props = {
   entity: 'page' | 'category';
@@ -108,7 +109,7 @@ export default function ContentEditor({ entity, entityKey, initialDraft, initial
   }
 
   async function restore(id: number) {
-    if (!confirm('Put this earlier version back into the draft? The live page will not change until you publish.')) return;
+    if (!(await confirmAction('Put this earlier version back into the draft? The live page will not change until you publish.'))) return;
     const res = await fetch('/api/admin/site/content', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entity, key: entityKey, action: 'restore', revision_id: id })
@@ -267,8 +268,8 @@ function FieldInput({ field, value, onChange, id, media, onMedia }: {
             <div className={s.listItem}>
               <div className={s.listItemHead}>
                 <span>{field.itemLabel} {index + 1}</span>
-                <button type="button" className={s.linkBtn} onClick={() => {
-                  if (field.confirmRemove && !confirm(field.confirmRemove)) return;
+                <button type="button" className={s.linkBtn} onClick={async () => {
+                  if (field.confirmRemove && !(await confirmAction(field.confirmRemove))) return;
                   onChange(items.filter((_, j) => j !== x.i));
                 }}>{field.removeLabel || 'Remove'}</button>
               </div>

@@ -281,7 +281,7 @@ export default function VoiceOrderButton({ label = 'Speak order', categoryId, li
       {open && (
         <dialog
           ref={dialog}
-          className="quick-order-dialog voice-order-dialog"
+          className={`quick-order-dialog voice-order-dialog${rows.length ? ' has-rows' : ''}`}
           aria-label="Speak your order"
           onCancel={(e) => { e.preventDefault(); close(); }}
           onClose={() => { setOpen(false); setLoaded(false); opener.current?.focus(); }}
@@ -295,6 +295,8 @@ export default function VoiceOrderButton({ label = 'Speak order', categoryId, li
             Say the stone, shape, sizes and quantity — in English or Hindi. For example: <em>“{EXAMPLE}”</em>
           </p>
 
+          {/* Speak on the left, type on the right (desktop); stacked on phones. */}
+          <div className="vo-input">
           <div className="vo-capture">
             {supported ? (
               <button
@@ -317,7 +319,6 @@ export default function VoiceOrderButton({ label = 'Speak order', categoryId, li
               </div>
             )}
           </div>
-          {heard && <p className="vo-heard" aria-live="polite"><span>Heard:</span> {heard}</p>}
 
           <form
             className="vo-type"
@@ -332,6 +333,8 @@ export default function VoiceOrderButton({ label = 'Speak order', categoryId, li
             />
             <button type="submit" className="btn-ghost" disabled={!typed.trim() || !map}>Make list</button>
           </form>
+          </div>
+          {heard && <p className="vo-heard" aria-live="polite"><span>Heard:</span> {heard}</p>}
 
           {message && <p className={`quick-order-message${problem ? ' vo-problem' : ''}`} aria-live="polite">{message}</p>}
 

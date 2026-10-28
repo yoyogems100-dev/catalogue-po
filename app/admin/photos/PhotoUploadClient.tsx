@@ -6,6 +6,7 @@ import Link from 'next/link';
 import IconSelect from '@/components/IconSelect';
 import MultiSelect from '@/components/MultiSelect';
 import { categoryIconUrl } from '@/lib/category-icons';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 
 type Category = { id: number; name: string; slug: string | null };
 type Shape = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null };
@@ -264,7 +265,7 @@ function InboxCard({ photo, categories, onDone }: { photo: InboxPhoto; categorie
   }
 
   async function remove() {
-    if (busy || !confirm('Delete this photo? This cannot be undone.')) return;
+    if (busy || !(await confirmAction('Delete this photo? This cannot be undone.'))) return;
     setBusy(true);
     const res = await fetch('/api/photos/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: photo.id }) });
     setBusy(false);
