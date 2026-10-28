@@ -3,6 +3,7 @@ import { getSettings } from '@/lib/settings';
 import { getAccountState } from '@/lib/account-state';
 import AccountMenu from '@/components/AccountMenu';
 import CartBag from '@/components/CartBag';
+import HomeButton from '@/components/HomeButton';
 import HeaderLogo from '@/components/HeaderLogo';
 import Footer from '@/components/Footer';
 import CartView from '@/components/CartView';
@@ -20,6 +21,7 @@ export default async function CartPage() {
       <div className="topbar">
         <Link href="/po"><HeaderLogo height={28} /></Link>
         <div className="topbar-actions">
+          <HomeButton />
           <CartBag />
           <AccountMenu {...account} />
         </div>
