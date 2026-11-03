@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
+import { fetchAllRows } from '@/lib/fetch-all-rows';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,9 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
   const fromOrderId = Number(params.from) || null;
   const [{ data: categories }, { data: customers }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
-    supabaseAdmin.from('customers').select('id, name, phone, company, place').order('name')
+    // Binned customers stay out of the picker, and every page is read so the
+    // list doesn't silently stop at Supabase's 1000-row response cap.
+    fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
   ]);
   let repeatItems: any[] = [];
   let initialRequestType = 'Place Order';
