@@ -30,7 +30,9 @@ export default function AccountMenu({ loggedIn, customerName, canSwitch = false,
     // of a separate always-visible "My Orders" link crowding the row.
     return (
       <div className="account-menu account-menu-loggedin">
-        <button type="button" className={`account-menu-trigger${actingAs ? ' is-acting' : ''}`} onClick={() => setOpen(!open)} aria-haspopup="dialog" aria-expanded={open}>
+        {/* On a narrow phone the name is hidden to fit the header (see
+            globals.css); the label keeps it for screen readers. */}
+        <button type="button" className={`account-menu-trigger${actingAs ? ' is-acting' : ''}`} onClick={() => setOpen(!open)} aria-label={actingAs ? `Ordering for ${customerName || 'customer'}` : `Account${customerName ? `: ${customerName}` : ''}`} aria-haspopup="dialog" aria-expanded={open}>
           <UserIcon />
           <span>{actingAs ? `For: ${customerName || 'customer'}` : customerName || 'Account'}</span>
         </button>
@@ -38,6 +40,8 @@ export default function AccountMenu({ loggedIn, customerName, canSwitch = false,
           <>
             <div className="account-menu-backdrop" onClick={() => setOpen(false)} />
             <div className="account-menu-popover card">
+              {/* The header shows only the icon on a phone, so say who is signed in here. */}
+              {!actingAs && customerName && <p className="account-menu-who">Signed in as <strong>{customerName}</strong></p>}
               {actingAs && (
                 <div className="account-acting">
                   <p>Ordering for <strong>{customerName || 'this customer'}</strong>. Orders you send are placed in their name.</p>

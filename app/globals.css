@@ -88,6 +88,8 @@ a { color: inherit; text-decoration: none; }
 .account-menu-trigger span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-menu-trigger:hover { color: var(--gold-soft); }
 .account-menu-backdrop { position: fixed; inset: 0; z-index: 55; }
+.account-menu-who { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--text-dim); overflow-wrap: anywhere; }
+.account-menu-who strong { color: var(--ink); font-weight: 600; }
 .account-menu-popover {
   position: absolute; top: calc(100% + 10px); right: 0; z-index: 60;
   width: 300px; max-width: calc(100vw - 32px);
@@ -2032,6 +2034,17 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
    the topbar is space-between with a logo and an account control, so a third
    child landed dead centre. */
 .topbar-actions { display: inline-flex; align-items: center; gap: 14px; }
+/* Logo, Quick Order, mic, bag and the buyer's name needed ~425px; a 375-390px
+   phone cut the name off the right edge (owner, 2026-11-03). Below 440px the
+   signed-in control is the person icon alone and the rest sits closer. */
+@media (max-width: 440px) {
+  .topbar-actions { gap: 8px; }
+  .topbar-actions .quick-order-btn { padding: 7px 11px; font-size: 12px; }
+  .topbar-actions .account-menu-trigger:not(.is-acting) span { display: none; }
+  .topbar-actions .account-menu-trigger { padding: 6px; min-width: 40px; }
+  .topbar-actions .account-menu-trigger.is-acting { padding: 6px 10px; }
+  .topbar-actions .account-menu-trigger.is-acting span { max-width: 72px; }
+}
 
 /* Collapsible category groups in the requirement. A fifty-line basket across
    several categories reads as one long list otherwise. */
