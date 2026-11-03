@@ -16,6 +16,7 @@ import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { maskPhone } from '@/lib/mask';
 import MatchText from '@/components/MatchText';
+import { adminColorLabel } from '@/lib/color-admin-codes';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
@@ -30,7 +31,7 @@ const customerDetails = (c: Customer) => {
 };
 type Options = {
   shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
-  colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null }[];
+  colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null; adminCode?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
   pricing?: CategoryPricing;
 };
@@ -52,6 +53,8 @@ type CartItem = {
   sizeMm: string;
   colorId: number;
   colorName: string;
+  /** The owner's own code, shown here only -- never sent with the order. */
+  colorCode?: string | null;
   qty: number;
   note?: string | null;
 };
@@ -213,6 +216,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             sizeMm: match.sizeMm,
             colorId: color.id,
             colorName: color.name,
+            colorCode: color.adminCode || null,
             qty: qtyNum
           });
         }
@@ -447,7 +451,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             <IconSelect
               categoryId={Number(pickCategoryId) || undefined}
               multiple
-              options={currentOptions?.colors || []}
+              // "YOTCF-05 (#39)": the owner's code in the list, while the
+              // line itself keeps the plain name the buyer and invoice see.
+              options={(currentOptions?.colors || []).map((c) => ({ ...c, name: adminColorLabel(c.name, c.adminCode) }))}
               locked={pickCategoryId === 34}
               values={pickColorIds}
               onChange={setPickColorIds}
@@ -496,7 +502,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
                 <div key={item.id} className="po-item-row po-item-row--simple">
                   <div className="po-item-main">
                     <strong>{item.shapeName} · {item.sizeMm}mm</strong>
-                    <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
+                    <span>{item.categoryName} · {adminColorLabel(item.colorName, item.colorCode)}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
                     {item.note && <span className="po-line-note-text">Note: {item.note}</span>}
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
