@@ -41,7 +41,8 @@ const SLUGS_WITH_ICONS = new Set([
   'star-light',
   'synthetic-corundum',
   'synthetic-opals',
-  'turkey-ring-stones'
+  'turkey-ring-stones',
+  'yotcf'
 ]);
 
 /**

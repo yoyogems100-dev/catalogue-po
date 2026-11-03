@@ -152,7 +152,11 @@ const CATEGORY_ICONS = {
   'preform-balls':         { src: 'preformballs.tiff', circle: 'fit', skipFill: true, fitT: 40, fitShrink: 0.02, fitUpperLeft: true },
   'synthetic-corundum':    { src: 'synthtic corundum.png', fringe: 24, fringeLo: 0.3, fringeHi: 0.5 },
   'natural-pearls':        { src: 'pearl.webp' },
-  'semi-precious-stones':  { src: 'semiPrecious.png', fringe: 24 }
+  'semi-precious-stones':  { src: 'semiPrecious.png', fringe: 24 },
+  // YOTCF firecracker cut: one blue stone cropped from the owner's tray photo
+  // (YOTCF-ROSE.JPG). A saturated stone on a pale tray, so keyed on colour;
+  // holes closes the bright facets, solo drops the slivers of neighbours.
+  'yotcf':                 { src: 'yotcf firecracker blue.jpg', skipFill: true, chroma: 30, holes: true, solo: true }
   // Every category is illustrated. If a new one is added, give it an entry
   // here and re-run this script.
 };
