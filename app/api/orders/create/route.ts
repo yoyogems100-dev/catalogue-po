@@ -11,6 +11,7 @@ import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { parseQuantity } from '@/lib/quantity';
+import { ANY_CATEGORY_ID } from '@/lib/cart-storage';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   // Prices are always computed fresh here from the admin-set price/multiplier,
   // never trusted from the client -- a cart can span multiple categories, so
   // pricing is fetched once per distinct category present.
-  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))];
+  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))].filter((id) => id !== ANY_CATEGORY_ID);
 
   // A cart saved on the device can outlive a category the team has since
   // archived; ask the buyer to remove those lines rather than accept them.
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   const itemRows = cartWithPrices.map((item) => ({
     order_id: order.id,
-    category_id: item.categoryId,
+    category_id: item.categoryId === ANY_CATEGORY_ID ? null : item.categoryId,
     shape_id: item.shapeId,
     shape_size_id: item.sizeId,
     // Custom size ranges (e.g. "0.7-1.5") don't have a shape_sizes row -- sizeId

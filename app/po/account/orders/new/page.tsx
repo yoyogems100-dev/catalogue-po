@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import type { CartItem } from '@/lib/cart-storage';
 import RepeatOrderRedirect from './RepeatOrderRedirect';
+import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 // This route only ever exists as the "Repeat order" destination
 // (?from=<orderId>) -- there's no separate "start a fresh order" flow here;
@@ -47,8 +48,8 @@ export default async function NewOrderPage({ searchParams: searchParamsPromise }
 
   const seedItems: CartItem[] = (items || []).map((it: any, i: number) => ({
     id: `repeat-${fromOrderId}-${it.id ?? i}`,
-    categoryId: it.category_id,
-    categoryName: catMap[it.category_id] || '—',
+    categoryId: it.category_id ?? ANY_CATEGORY_ID,
+    categoryName: it.category_id == null ? ANY_CATEGORY_NAME : catMap[it.category_id] || '—',
     shapeId: it.shape_id,
     shapeName: shapeMap[it.shape_id]?.name || '—',
     shapeIconKey: shapeMap[it.shape_id]?.iconKey || null,

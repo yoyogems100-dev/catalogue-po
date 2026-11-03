@@ -9,6 +9,7 @@ import BreadcrumbHome from '@/components/BreadcrumbHome';
 import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
 import { milestoneIndex } from '@/lib/order-milestones';
 import OrderDetailClient from './OrderDetailClient';
+import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -56,8 +57,8 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
 
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
-    categoryId: it.category_id,
-    categoryName: catMap[it.category_id] || '—',
+    categoryId: it.category_id ?? ANY_CATEGORY_ID,
+    categoryName: it.category_id == null ? ANY_CATEGORY_NAME : catMap[it.category_id] || '—',
     categorySlug: catSlugMap[it.category_id] || '',
     shapeId: it.shape_id,
     shapeName: shapeMap[it.shape_id] || '—',

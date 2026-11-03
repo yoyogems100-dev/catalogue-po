@@ -10,7 +10,7 @@ import { fetchAllRows } from './fetch-all-rows';
 
 export type MapMaterial = { id: number; name: string; sortOrder: number; categoryIds: number[] };
 export type MapCategory = { id: number; name: string; slug: string | null; colorIds: number[]; shapeIds: number[]; sizeIds: number[] };
-export type MapShape = { id: number; name: string; refPhotoUrl: string | null };
+export type MapShape = { id: number; name: string; iconKey?: string | null; refPhotoUrl: string | null };
 export type MapSize = { id: number; shapeId: number; sizeMm: string };
 export type MapColor = { id: number; name: string; hex: string | null; refPhotoUrl: string | null; familyId: number | null };
 
@@ -116,7 +116,7 @@ export async function loadCatalogueMap(db: any): Promise<CatalogueMap> {
     materialsRes, materialLinksRes
   ] = await Promise.all([
     db.from('categories').select('id, name, slug').order('num'),
-    db.from('shapes').select('id, name, ref_photo_url').order('sort_order').order('name'),
+    db.from('shapes').select('id, name, icon_key, ref_photo_url').order('sort_order').order('name'),
     db.from('colors').select('id, name, hex_value, ref_photo_url').order('sort_order').order('name'),
     all<{ id: number; shape_id: number; size_mm: string }>('shape_sizes', 'id, shape_id, size_mm'),
     all<{ category_id: number; color_id: number }>('category_colors', 'category_id, color_id'),
@@ -152,7 +152,7 @@ export async function loadCatalogueMap(db: any): Promise<CatalogueMap> {
       id: c.id, name: c.name, slug: c.slug,
       colorIds: colorsOf.get(c.id) || [], shapeIds: shapesOf.get(c.id) || [], sizeIds: sizesOf.get(c.id) || []
     })),
-    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, refPhotoUrl: s.ref_photo_url || null })),
+    shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key || null, refPhotoUrl: s.ref_photo_url || null })),
     sizes: (sizes || []).map((s) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     colors: (colors || []).map((c: any) => ({
       id: c.id, name: c.name, hex: c.hex_value || null, refPhotoUrl: c.ref_photo_url || null, familyId: colorFamilyId(c.name, c.hex_value)

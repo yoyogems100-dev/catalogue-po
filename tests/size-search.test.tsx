@@ -26,3 +26,12 @@ test('a size written the other way round finds the same size', () => {
   assert.ok(find('7x', LIST).includes('5x7 mm'));
   assert.ok(!find('7x', LIST).includes('4x6 mm'));
 });
+
+test('3x4 finds 4x3 however either is written (owner, 2026-11-03)', () => {
+  const list = ['3.0 mm', '3x4 mm', '4x3 mm', '3x5 mm', '4x6 mm'];
+  for (const q of ['3x4', '4x3', '3*4', '4*3', '3 X 4', '4×3', '3/4', '3x4mm']) {
+    const hits = find(q, list);
+    assert.ok(hits.slice(0, 2).includes('3x4 mm') && hits.slice(0, 2).includes('4x3 mm'), q);
+  }
+  assert.ok(!find('3x4', list).includes('4x6 mm'));
+});

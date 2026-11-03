@@ -7,6 +7,7 @@ import { milestoneIndex } from '@/lib/order-milestones';
 import { notifyAdmin } from '@/lib/notify-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
+import { ANY_CATEGORY_ID } from '@/lib/cart-storage';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
   const updateResults=await Promise.all(updates.map((u:any)=>supabaseAdmin.from('order_items').update({quantity:u.quantity}).eq('id',u.id).eq('order_id',orderId)));
   if(updateResults.some(r=>r.error))return NextResponse.json({error:'Quantity change could not be saved.'},{status:400});
   if(removedIds.length){const {error}=await supabaseAdmin.from('order_items').delete().in('id',removedIds).eq('order_id',orderId);if(error)return NextResponse.json({error:'Removal could not be saved.'},{status:400});}
-  const newItemCategoryIds = [...new Set(validRawNewItems.map((n: any) => n.categoryId))];
+  const newItemCategoryIds = [...new Set(validRawNewItems.map((n: any) => n.categoryId))].filter((id) => id !== ANY_CATEGORY_ID);
   const newItemPricingByCategory = new Map(
     await Promise.all(newItemCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
   );
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     const unitPrice = !n.orderSpecs && pricing ? lineInrPrice(pricing, n.shapeId, n.sizeId, n.colorId) : null;
     return {
       order_id: orderId,
-      category_id: n.categoryId,
+      category_id: n.categoryId === ANY_CATEGORY_ID ? null : n.categoryId,
       shape_id: n.shapeId,
       shape_size_id: n.sizeId,
       color_id: n.colorId,

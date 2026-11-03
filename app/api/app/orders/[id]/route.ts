@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import { milestoneLabel } from '@/lib/order-milestones';
+import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 // JSON equivalent of app/po/account/orders/[id]/page.tsx + OrderDetailClient's data --
 // powers the app's order detail screen (items, timeline, edit-while-early-stage
@@ -50,8 +51,8 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
 
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
-    categoryId: it.category_id,
-    categoryName: catMap[it.category_id] || '—',
+    categoryId: it.category_id ?? ANY_CATEGORY_ID,
+    categoryName: it.category_id == null ? ANY_CATEGORY_NAME : catMap[it.category_id] || '—',
     categorySlug: catSlugMap[it.category_id] || '',
     shapeId: it.shape_id,
     shapeName: shapeMap[it.shape_id] || '—',
