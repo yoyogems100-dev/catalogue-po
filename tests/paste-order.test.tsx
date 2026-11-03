@@ -174,7 +174,7 @@ test('line notes: tidied, capped, and kept in the comment when the column is mis
 test('the WhatsApp message shows a line note after its line', async () => {
   const { buildOrderMessage } = await import('../lib/order-message');
   const msg = buildOrderMessage([{ categoryId: 12, categoryName: 'Coloured CZ Stones', shapeId: 3, shapeName: 'Octagon', sizeId: 1, sizeMm: '5x7', colorId: 30, colorName: 'Yellow', qty: 175, requestType: 'Place Order', note: 'Radiant cut' }], 'Discovery', '');
-  assert.match(msg, /Octagon · 5x7 · Yellow · 175 _\(Radiant cut\)_/);
+  assert.match(msg, /• Octagon · 5x7 · Yellow — 175 _\(Radiant cut\)_/);
 });
 
 test('quantity shorthand: 1k is 1000', async () => {
