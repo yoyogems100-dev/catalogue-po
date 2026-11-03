@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCategoryPricing } from '@/lib/pricing';
+import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 
 // Returns the shapes/colors/sizes linked to a category -- used by the admin
 // "create order" builder to populate pickers as each category is added,
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     tagIds.length ? supabaseAdmin.from('tags').select('id, name').in('id', tagIds).order('name') : Promise.resolve({ data: [] })
   ]);
 
-  const pricing = await getCategoryPricing(categoryId, supabaseAdmin);
+  const [pricing, codes] = await Promise.all([getCategoryPricing(categoryId, supabaseAdmin), fetchAdminColorCodes(supabaseAdmin, colorIds)]);
 
   return NextResponse.json({
     // Icons and reference photos are included so the admin builder's pickers
@@ -44,7 +45,8 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
       const link: any = (catShapes || []).find((l: any) => l.shape_id === s.id);
       return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: link?.ref_photo_url || s.ref_photo_url || null };
     }),
-    colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
+    // adminCode: the owner's own code, shown after the name in admin only.
+    colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url, adminCode: codes[c.id] || null })),
     sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     tags: (tags || []).map((t: any) => ({ id: t.id, name: t.name })),
     pricing

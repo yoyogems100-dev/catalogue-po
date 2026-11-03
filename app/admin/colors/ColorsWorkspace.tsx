@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import ColorsClient from './ColorsClient';
+import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 
 export async function ColorsWorkspace({ initialCategoryId, initialSearch, embedded = false }: { initialCategoryId?: number; initialSearch?: string; embedded?: boolean }) {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
@@ -23,6 +24,10 @@ export async function ColorsWorkspace({ initialCategoryId, initialSearch, embedd
     supabaseAdmin.from('color_palette_items').select('palette_id, color_id')
   ]);
 
+  // The owner's own codes ("#39"), admin only -- edited beside each colour.
+  const codes = await fetchAdminColorCodes(supabaseAdmin, (colors || []).map((c: any) => c.id));
+  const colorsWithCodes = (colors || []).map((c: any) => ({ ...c, admin_code: codes[c.id] || null }));
+
   const byPalette: Record<number, number[]> = {};
   (paletteItems || []).forEach((i: any) => {
     if (!byPalette[i.palette_id]) byPalette[i.palette_id] = [];
@@ -36,7 +41,7 @@ export async function ColorsWorkspace({ initialCategoryId, initialSearch, embedd
       <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 18 }}>
         Manage color names and reference photos. Filter by category to see its linked colors. Editing a shared color changes it in every category using that color.
       </p>
-      <ColorsClient key={`${embedded}-${initialCategoryId || 0}-${initialSearch || ''}`} initialSearch={initialSearch} colors={colors || []} categories={categories || []} catColors={catColors || []} palettes={palettes} initialCategoryId={initialCategoryId} lockedCategory={embedded} />
+      <ColorsClient key={`${embedded}-${initialCategoryId || 0}-${initialSearch || ''}`} initialSearch={initialSearch} colors={colorsWithCodes} categories={categories || []} catColors={catColors || []} palettes={palettes} initialCategoryId={initialCategoryId} lockedCategory={embedded} />
     </>
   );
 }
