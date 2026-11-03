@@ -9,6 +9,7 @@ import { QUICK_ORDER_COLOR_EVENT } from '@/components/QuickOrderButton';
 import { VOICE_ORDER_OPEN_EVENT } from '@/components/VoiceOrderButton';
 import { useColorButtons, useColorNames } from '@/components/useOrderPreferences';
 import { layoutHomeSections, menuGroups, type HomeSections } from '@/lib/home-sections';
+import { nameMatchScore, nameWordScore } from '@/lib/name-match';
 import { categoryIconUrl } from '@/lib/category-icons';
 import CategoryMenu from '@/components/CategoryMenu';
 import { FOR_YOU_TITLE, MAX_INTERESTS, toggleInterest, withInterests } from '@/lib/customer-interests';
@@ -141,11 +142,11 @@ export default function HomeCatalogue({
     // Words, not one long string: "red" should match "Ruby Red" but not the
     // middle of "Coloured".
     const words = (text: string) => text.split(/[^a-z0-9]+/).filter(Boolean);
-    const index = new Map<number, { name: string[]; all: string[] }>();
+    const index = new Map<number, { name: string[]; rest: string[] }>();
     categories.forEach((c) => {
       const name = words(`${c.name.toLowerCase()} ${categoryAliases(c.name)}`);
       const rest = words([...c.shapeIds.map((id) => shapeName.get(id) || ''), ...c.colorIds.map((id) => colorText.get(id) || '')].join(' '));
-      index.set(c.id, { name, all: [...name, ...rest] });
+      index.set(c.id, { name, rest });
     });
     return index;
   }, [categories, allShapes, allColors, colorNames]);
@@ -204,16 +205,19 @@ export default function HomeCatalogue({
       if (shapeFilter !== 'all' && !c.shapeIds.includes(shapeFilter)) return false;
       if (familyFilter !== 'all' && !c.colorIds.some((id) => familyByColorId.get(id) === familyFilter)) return false;
       if (tokens.length === 0) return true;
-      const { all } = searchIndex.get(c.id)!;
-      return tokens.every((t) => all.some((w) => w.startsWith(t)));
+      // The name matches inside a word or with a slip ("tcf" finds YOTCF);
+      // shapes and colours only from a word's start.
+      const { name, rest } = searchIndex.get(c.id)!;
+      return tokens.every((t) => name.some((w) => nameWordScore(t, w) > 0) || rest.some((w) => w.startsWith(t)));
     });
     // A category named for the search comes before one that only carries a
-    // matching shape or colour; within each, most-ordered first, then catalogue order.
-    const nameHit = (c: Category) => tokens.length > 0 && tokens.every((t) => searchIndex.get(c.id)!.name.some((w) => w.startsWith(t)));
+    // matching shape or colour -- a name's start before a near miss; within
+    // each, most-ordered first, then catalogue order.
+    const nameHit = (c: Category) => nameMatchScore(tokens, searchIndex.get(c.id)!.name);
     return matches
       .map((c, i) => ({ c, i }))
       .sort((a, b) =>
-        Number(nameHit(b.c)) - Number(nameHit(a.c)) ||
+        nameHit(b.c) - nameHit(a.c) ||
         (rank.get(a.c.id) ?? 1e6) - (rank.get(b.c.id) ?? 1e6) ||
         a.i - b.i)
       .map(({ c }) => c);

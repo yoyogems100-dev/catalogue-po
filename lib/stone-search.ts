@@ -2,6 +2,7 @@
 // finds the stone (and colour) so a mixed order moves from one stone to the
 // next without going back to the catalogue (owner, 2026-10-17).
 import type { CatalogueMap } from './catalogue-map';
+import { nameMatchScore, nameWordScore } from './name-match';
 
 export type StoneHit = {
   categoryId: number;
@@ -17,7 +18,7 @@ const ALIASES: Record<string, string[]> = { swiz: ['swiss'], cz: ['zircon', 'zir
 const words = (s: string) => s.toLowerCase().replace(/#/g, ' ').replace(/[^a-z0-9.]+/g, ' ').trim().split(/\s+/).filter(Boolean);
 const withAliases = (ws: string[]) => ws.flatMap((w) => [w, ...(ALIASES[w] || [])]);
 
-/** Stones (and stone + colour pairs) whose names hold every typed word as the start of a word. */
+/** Stones (and stone + colour pairs) whose names hold every typed word (see lib/name-match). */
 export function searchStones(map: CatalogueMap, query: string, limit = 8): StoneHit[] {
   const q = words(query);
   if (!q.length) return [];
@@ -27,9 +28,11 @@ export function searchStones(map: CatalogueMap, query: string, limit = 8): Stone
     if (!cat.slug) continue;
     const catWords = withAliases(words(cat.name));
     const base = { categoryId: cat.id, categoryName: cat.name, slug: cat.slug };
-    // The stone on its own: every word is in its name.
-    if (q.every((t) => catWords.some((w) => w.startsWith(t)))) {
-      scored.push({ hit: { ...base, colorId: null, colorName: null, hex: null, refPhotoUrl: null }, score: 10 + q.length });
+    // The stone on its own: every word is in its name -- inside a word or
+    // with a slip too ("tcf" finds YOTCF), a word's start ranking first.
+    const nameScore = nameMatchScore(q, catWords);
+    if (nameScore) {
+      scored.push({ hit: { ...base, colorId: null, colorName: null, hex: null, refPhotoUrl: null }, score: 7 + nameScore + q.length });
     }
     for (const colorId of cat.colorIds) {
       const color = colorById.get(colorId);
@@ -38,7 +41,7 @@ export function searchStones(map: CatalogueMap, query: string, limit = 8): Stone
       let colourMatches = 0;
       const ok = q.every((t) => {
         if (colorWords.some((w) => w.startsWith(t))) { colourMatches++; return true; }
-        return catWords.some((w) => w.startsWith(t));
+        return catWords.some((w) => nameWordScore(t, w) > 0);
       });
       // A pair needs at least one word of the colour; "nano" alone is the stone.
       if (!ok || !colourMatches) continue;
