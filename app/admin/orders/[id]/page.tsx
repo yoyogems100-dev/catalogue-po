@@ -1,4 +1,5 @@
 import { hasFulfilmentColumns, sentOf } from '@/lib/line-fulfilment';
+import { adminColorLabel, fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Link from 'next/link';
@@ -105,8 +106,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   const weightUnitOf: Record<number, WeightUnit> = Object.fromEntries(categoryIds.map((id: number) => [id, fieldOf(id).weightUnit || 'g']));
   const shapeMap: Record<number, string> = Object.fromEntries((shapesData || []).map((s: any) => [s.id, s.name]));
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
+  // Admin only: "YOTCF-05 (#39)" -- the owner's own code after the name. The
+  // PDF, WhatsApp text and the buyer's views read the plain name elsewhere.
+  const colorCodes = await fetchAdminColorCodes(supabaseAdmin, [...new Set([...colorIds, ...((catColors || []).map((r: any) => r.color_id))])] as number[]);
   const colorMap: Record<number, { name: string; hex: string | null }> = Object.fromEntries(
-    (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value }])
+    (colorsData || []).map((c: any) => [c.id, { name: adminColorLabel(c.name, colorCodes[c.id]), hex: c.hex_value }])
   );
 
   const suppliersFormatted = (suppliers || []).map((supplier: any) => ({
@@ -167,7 +171,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
             .filter((r: any) => r.category_id === cid)
             .map((r: any) => colorById[r.color_id])
             .filter(Boolean)
-            .map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
+            .map((c: any) => ({ id: c.id, name: adminColorLabel(c.name, colorCodes[c.id]), hex: c.hex_value })),
           sizes: (catSizes || []).filter((r: any) => r.category_id === cid).map((r: any) => sizeById[r.shape_size_id]).filter(Boolean).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }))
         }
       ])
