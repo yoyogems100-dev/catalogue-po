@@ -37,3 +37,10 @@ test('suggestions follow what is typed', () => {
   assert.deepEqual(suggestSizes(sizes.filter((s) => s.shape_id === 1), '1.7').map((s) => s.size_mm), ['1.7', '1.75']);
   assert.deepEqual(suggestSizes(sizes.filter((s) => s.shape_id === 1), '22').map((s) => s.size_mm), ['2.2', '2.25']);
 });
+
+test('a size typed the other way round is still suggested', () => {
+  const oval = rows(9, '4x6 5x7 6x8');
+  assert.deepEqual(suggestSizes(oval, '7x5').map((s) => s.size_mm), ['5x7']);
+  assert.deepEqual(suggestSizes(oval, '7x').map((s) => s.size_mm), ['5x7']);
+  assert.deepEqual(suggestSizes(oval, '5x').map((s) => s.size_mm), ['5x7']);
+});
