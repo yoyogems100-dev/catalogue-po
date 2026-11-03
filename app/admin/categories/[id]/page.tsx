@@ -13,6 +13,7 @@ import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton'
 import { PdfPreviewLink } from '@/components/admin/PdfPreview';
 import { readDrill } from '@/lib/drill-data';
 import ShapeReferenceManager from '@/components/admin/ShapeReferenceManager';
+import { sizeFitsShape } from '@/lib/shape-size-fit';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import CategoryMaterialsManager from '@/components/admin/CategoryMaterialsManager';
 import { parseExploreFilter } from '@/lib/explore-filter';
@@ -102,7 +103,9 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       ? supabaseAdmin.from('categories').select('id, name, slug').neq('id', categoryId).order('num')
       : Promise.resolve({ data: [] as { id: number; name: string; slug: string | null }[], error: null })
   ]);
-  const allSizes = fullSizesResult.data || [];
+  // A round shape never offers 3x4-style sizes to tick (lib/shape-size-fit.ts).
+  const shapeNameById = new Map((allShapes || []).map((s: any) => [s.id, s.name]));
+  const allSizes = (fullSizesResult.data || []).filter((sz) => sizeFitsShape(shapeNameById.get(sz.shape_id), sz.size_mm));
   const otherCategories = otherCategoriesRaw || [];
 
   if (!category) {

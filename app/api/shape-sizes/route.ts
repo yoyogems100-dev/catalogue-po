@@ -2,6 +2,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { catalogueChanged } from '@/lib/catalogue-cache';
+import { ROUND_SIZE_MESSAGE, sizeFitsShape } from '@/lib/shape-size-fit';
 
 // Accepts either a single size (size_mm [+ weight_ct]) or a bulk list
 // (sizes: [{ size_mm, weight_ct? }, ...]) so the admin can add many sizes to
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
     .filter((r) => r.size_mm.length > 0);
 
   if (rows.length === 0) return NextResponse.json({ error: 'At least one size_mm required' }, { status: 400 });
+  const { data: shape } = await supabaseAdmin.from('shapes').select('name').eq('id', shape_id).maybeSingle();
+  const misfit = rows.find((r) => !sizeFitsShape(shape?.name, r.size_mm));
+  if (misfit) return NextResponse.json({ error: `${misfit.size_mm}: ${ROUND_SIZE_MESSAGE}` }, { status: 400 });
 
   const { data, error } = await supabaseAdmin.from('shape_sizes').insert(rows).select();
   if (error) {
