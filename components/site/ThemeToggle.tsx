@@ -8,9 +8,9 @@ import s from './site.module.css';
 // Both icons are rendered and CSS shows the one for the other theme, so the
 // server markup is right before this component knows the stored choice.
 export default function ThemeToggle({ className = '' }: { className?: string }) {
-  const [theme, setTheme] = useState<SiteTheme>('dark');
+  const [theme, setTheme] = useState<SiteTheme>('light');
   useEffect(() => {
-    setTheme(document.documentElement.getAttribute('data-site-theme') === 'light' ? 'light' : 'dark');
+    setTheme(document.documentElement.getAttribute('data-site-theme') === 'dark' ? 'dark' : 'light');
   }, []);
 
   const toggle = () => {
