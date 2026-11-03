@@ -8,6 +8,7 @@ import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 import { hasFinePointer } from '@/lib/pointer';
+import { searchOptions } from '@/lib/option-search';
 
 type Option = { hotIds?: number[]; id: number; name: string; hex?: string | null; iconKey?: string | null; refPhotoUrl?: string | null };
 type Palette = { id: number; name: string; memberIds: number[] };
@@ -129,7 +130,7 @@ export default function MultiSelect({
 
   const selected = options.filter((o) => localIds.includes(o.id));
   const filtered = useMemo(
-    () => orderedOptions.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase())),
+    () => searchOptions(orderedOptions, query, kind === 'color'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [orderedOptions, query]
   );

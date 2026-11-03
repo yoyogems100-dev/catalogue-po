@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 async function loadCategoryData(slug: string) {
   const { data: category } = await supabasePublic
     .from('categories')
-    .select('id, num, name, slug, color_chart_url, price_unit, option_label, explore_default_filter')
+    .select('id, num, name, slug, description, color_chart_url, price_unit, option_label, explore_default_filter')
     .eq('slug', slug)
     .single();
 
@@ -177,6 +177,7 @@ export default async function CategoryPage({ params: paramsPromise }: { params: 
             {data.category.color_chart_url && <ColorChartPreview categoryName={data.category.name} chartUrl={data.category.color_chart_url} colors={data.colors} />}
           </div>}
         </div>
+        {data.category.description && <p className="category-desc">{data.category.description}</p>}
         <CategoryTabs
           categoryId={data.category.id}
           categoryName={data.category.name}

@@ -61,6 +61,7 @@ type Category = {
   num: number;
   name: string;
   slug: string;
+  description?: string | null;
   thumb: string | null;
   shapeIds: number[];
   colorIds: number[];
@@ -383,6 +384,7 @@ function CategoryCard({ cat, cardIndex, label, star }: { cat: Category; cardInde
         </div>
         <div className="cat-info">
           <h3>{cat.name}</h3>
+          {cat.description && <p className="cat-desc">{cat.description}</p>}
         </div>
       </div>
     </Link>

@@ -4,7 +4,13 @@ import ColorsClient from './ColorsClient';
 
 export async function ColorsWorkspace({ initialCategoryId, initialSearch, embedded = false }: { initialCategoryId?: number; initialSearch?: string; embedded?: boolean }) {
   const [{ data: colors }, { data: categories }, { data: catColors }, { data: palettesRaw }, { data: paletteItems }] = await Promise.all([
-    supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order').is('owner_category_id', null).order('sort_order').order('name'),
+    // Shared colours, plus -- inside one category's Colors tab -- that
+    // category's own (Coin Stone's "Green" is a different stone from the
+    // shared Green, and only Coin Stone offers it).
+    (embedded && initialCategoryId
+      ? supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order, owner_category_id').or(`owner_category_id.is.null,owner_category_id.eq.${initialCategoryId}`)
+      : supabaseAdmin.from('colors').select('id, name, hex_value, ref_photo_url, sort_order, owner_category_id').is('owner_category_id', null)
+    ).order('sort_order').order('name'),
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     // Unfiltered read of the whole join table -- even embedded in a single
     // category's "Colors" tab, each row still shows how many OTHER

@@ -4,6 +4,7 @@ import { photoUrl } from '@/lib/photos';
 import RainbowStripOptions from '@/components/admin/RainbowStripOptions';
 import CategoryTagBar from '@/components/admin/CategoryTagBar';
 import CategoryAdminClient from './CategoryAdminClient';
+import CategoryDescriptionField from '@/components/admin/CategoryDescriptionField';
 import CategoryArchiveToggle from '@/components/admin/CategoryArchiveToggle';
 import Link from 'next/link';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
@@ -79,7 +80,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
     fullSizesResult,
     { data: otherCategoriesRaw }
   ] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types, color_chart_url, archived_at, explore_default_filter').eq('id', categoryId).single(),
+    supabaseAdmin.from('categories').select('id, num, name, slug, description, thumbnail_photo_id, badge_types, color_chart_url, archived_at, explore_default_filter').eq('id', categoryId).single(),
     // Shared shapes, plus this category's own -- never another category's.
     supabaseAdmin.from('shapes').select('id, name, icon_key, ref_photo_url').or(`owner_category_id.is.null,owner_category_id.eq.${categoryId}`).order('sort_order').order('name'),
     supabaseAdmin.from('tags').select('id, name, is_global').order('name'),
@@ -182,6 +183,7 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
       <Link href="/admin/categories" className="back-link">&larr; All categories</Link>
       <h1 style={{ marginTop: 8 }}>{String(category.num).padStart(2, '0')} — {category.name}{category.archived_at && <span className="admin-archived-pill">Archived</span>}</h1>
       {category.archived_at && <CategoryArchiveToggle id={category.id} name={category.name} archivedAt={category.archived_at} />}
+      <CategoryDescriptionField key={category.id} id={category.id} initial={category.description} />
       <div className="category-downloads">
         {ADMIN_PRICING_ENABLED && <PriceListDownloadButton categoryId={categoryId} className="btn-ghost size-chart-download" />}
         {!category.archived_at && <PdfPreviewLink className="btn-ghost size-chart-download" href={`/api/categories/${categoryId}/size-chart`} title="Shape & size chart preview">Download shape &amp; size chart</PdfPreviewLink>}
