@@ -1,4 +1,5 @@
 import {supabaseAdmin} from './supabase-admin';
+import {ANY_CATEGORY_ID} from './cart-storage';
 import {specialCategory,validSpecQuantity,type OrderSpecs} from './order-specs';
 import {parseCategoryQualities,parseShapeQualities,lineQualities,QUALITIES_SETTING_KEY,SHAPE_QUALITIES_SETTING_KEY,type CategoryQualities,type ShapeQualities} from './qualities';
 // Canonicalize only the two scoped category configurations before any order writes.
@@ -8,6 +9,18 @@ export async function validateOrderSpecs<T extends {categoryId:number;shapeId:nu
  let qualities:CategoryQualities|null=null;
  let shapeQualities:ShapeQualities|null=null;
  for(const item of items) {
+  // A Quick Order line with the stone left to the team: a real shape, a size
+  // of that shape and a real colour, and no stone-specific options.
+  if(item && item.categoryId===ANY_CATEGORY_ID) {
+   if(!Number.isSafeInteger(item.shapeId)||item.shapeId<=0||item.sizeId===null||!Number.isSafeInteger(item.sizeId)||item.sizeId<=0||item.colorId===null||item.orderSpecs)throw Error('Choose valid shape, size and color options.');
+   const [size,color]=await Promise.all([
+    database.from('shape_sizes').select('shape_id').eq('id',item.sizeId).maybeSingle(),
+    database.from('colors').select('id').eq('id',item.colorId).maybeSingle()
+   ]);
+   if(size.error||color.error)throw Error('Could not validate the order options. Please retry.');
+   if(!size.data||size.data.shape_id!==item.shapeId||!color.data)throw Error('Choose a size that matches the selected shape.');
+   result.push(item);continue;
+  }
   if(!item || ![item.categoryId,item.shapeId].every(n=>Number.isSafeInteger(n)&&n>0) || (item.sizeId!==null && (!Number.isSafeInteger(item.sizeId)||item.sizeId<=0)))throw Error('Choose valid category, shape and size options.');
   if(item.categoryId===34) {
    const [size,linkedSize,shape,color]=await Promise.all([

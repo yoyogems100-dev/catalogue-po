@@ -12,17 +12,17 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
 import { DEFAULT_COLOR_BUTTONS, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
-import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences, useOwnOrderPreferences, useShapeQualities } from './useOrderPreferences';
 import { lineQualities, pickQualities } from '@/lib/qualities';
 import { useCatalogueMap } from './useCatalogueMap';
-import StoneFinder from './StoneFinder';
+import { anyLines, shapesOf, sizeKeysOf, stonesForFamilies, stonesForPicks } from '@/lib/quick-order-any';
 import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
 
 /** Home-page colour chips open Quick Order already started on a colour. */
 export const QUICK_ORDER_COLOR_EVENT = 'yoyo:quick-order-color';
 import { categoryIconUrl } from '@/lib/category-icons';
 import type { CategoryPricing } from '@/lib/pricing-calc';
-import { loadCart, saveCart, mergeIntoCart, cartPieces, QUOTATIONS_ENABLED, type CartItem, type RequestType } from '@/lib/cart-storage';
+import { loadCart, saveCart, mergeIntoCart, cartPieces, QUOTATIONS_ENABLED, ANY_CATEGORY_ID, ANY_CATEGORY_NAME, type CartItem, type RequestType } from '@/lib/cart-storage';
 
 type CategoryOption = { id: number; name: string; slug: string };
 type CategoryOptionsData = {
@@ -71,25 +71,40 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   const [cartCount, setCartCount] = useState(0);
 
   // Colour-first ordering: "Red" + the buyer's usual picks -> Ruby Corundum 5A.
+  // Only a stone the team mapped for this buyer opens by itself; with none,
+  // the stone stays open and the line goes in as "Stone to confirm" (owner,
+  // 2026-11-03). The shop defaults still supply a usual quality.
   const preferences = useOrderPreferences();
+  const ownPreferences = useOwnOrderPreferences();
   const families = useColorFamilies();
   const qualities = useCategoryQualities();
   const shapeQualities = useShapeQualities();
   const colorButtons = colorButtonFamilies(useColorButtons() ?? DEFAULT_COLOR_BUTTONS, Object.fromEntries(families.map((f) => [f.id, f.name])));
-  const [pickFamily, setPickFamily] = useState<number | null>(null);
+  // Colour families picked -- the colours of a stone-less line, and the
+  // filter on a stone's colour list once one is chosen.
+  const [pickFamilies, setPickFamilies] = useState<number[]>([]);
+  const pickFamily = pickFamilies[0] ?? null;
+  // Sizes of a stone-less line, as sizeKey() spells them.
+  const [pickSizeKeys, setPickSizeKeys] = useState<string[]>([]);
+  // Shapes and sizes carried over when the stone is chosen or cleared.
+  const [pendingCarry, setPendingCarry] = useState<{ shapeIds: number[]; sizeKeys: string[] } | null>(null);
   const [pickGrade, setPickGrade] = useState('');
   const [pendingCategoryId, setPendingCategoryId] = useState<number | null>(null);
-  // Colour first, then shape/size across every stone: the finder lists the
-  // stones that match, and choosing one carries the shape and size over.
+  // Before a stone is chosen, shapes and sizes come from every stone that
+  // carries the chosen colours (lib/quick-order-any).
   const catalogueMap = useCatalogueMap(open);
   const [pendingPick, setPendingPick] = useState<{ shapeId: number | null; size: string | null; colorId?: number | null } | null>(null);
 
-  function chooseFamily(familyId: number | null) {
-    setPickFamily(familyId);
+  function chooseFamilies(next: number[]) {
+    setPickFamilies(next);
     setPickColorIds([]);
     setMessage('');
-    const pref = familyId ? preferenceForFamily(preferences, familyId) : null;
+    // The buyer's own stone for a colour opens when it is the only colour.
+    const pref = next.length === 1 && pickCategoryId === '' ? preferenceForFamily(ownPreferences, next[0]) : null;
     if (pref) setPendingCategoryId(pref.categoryId);
+  }
+  function toggleFamily(familyId: number) {
+    chooseFamilies(pickFamilies.includes(familyId) ? pickFamilies.filter((id) => id !== familyId) : [...pickFamilies, familyId]);
   }
 
   // The category list may still be loading when a colour is chosen (a home
@@ -102,7 +117,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     void handleCategoryChange(String(id), { keepFamily: true });
     // The shape, size and quantity the team preset for this colour; the
     // pendingPick effect drops a shape or size this stone no longer carries.
-    const pref = pickFamily ? preferenceForFamily(preferences, pickFamily) : null;
+    const pref = pickFamily ? preferenceForFamily(ownPreferences, pickFamily) : null;
     if (pref?.categoryId !== id) return;
     if (pref.shapeId || pref.size || pref.colorId) setPendingPick({ shapeId: pref.shapeId ?? null, size: pref.size ?? null, colorId: pref.colorId ?? null });
     if (pref.qty) setPickQty(String(pref.qty));
@@ -113,11 +128,11 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     function onStart(e: Event) {
       const familyId = Number((e as CustomEvent).detail?.familyId);
       setOpen(true);
-      if (familyId) chooseFamily(familyId);
+      if (familyId) chooseFamilies([familyId]);
     }
     window.addEventListener(QUICK_ORDER_COLOR_EVENT, onStart);
     return () => window.removeEventListener(QUICK_ORDER_COLOR_EVENT, onStart);
-  }); // re-bound each render so chooseFamily sees the latest preferences
+  }); // re-bound each render so chooseFamilies sees the latest preferences
 
   useEffect(() => { if (open && !dialog.current?.open) dialog.current?.showModal(); }, [open]);
 
@@ -134,7 +149,9 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   function close() { dialog.current?.close(); }
 
   function reset() {
-    setPickFamily(null);
+    setPickFamilies([]);
+    setPickSizeKeys([]);
+    setPendingCarry(null);
     setPickGrade('');
     setPendingCategoryId(null);
     setPickCategoryId('');
@@ -148,12 +165,19 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
 
   async function handleCategoryChange(idStr: string, opts: { keepFamily?: boolean } = {}) {
     const id = idStr ? Number(idStr) : '';
+    // The colours stay as the filter, and the shapes and sizes picked so far
+    // carry over to the stone (or back to "any stone") where it has them.
+    const sizeKeys = pickCategoryId === '' ? pickSizeKeys : pickSizeIdxs.map((i) => sizeGroups[i]?.key).filter((k): k is string => !!k);
+    const carry = { shapeIds: pickShapeIds, sizeKeys };
     setPickCategoryId(id);
     setPickShapeIds([]);
     setPickColorIds([]);
     setPickSizeIdxs([]);
+    setPickSizeKeys([]);
     setMessage('');
-    if (!opts.keepFamily) setPickFamily(null);
+    if (opts.keepFamily) setPendingCarry(null);
+    else if (id === '') { setPickShapeIds(carry.shapeIds); setPickSizeKeys(carry.sizeKeys); }
+    else setPendingCarry(carry);
     // The buyer's usual grade for this stone -- from the colour they started
     // with if that points here, else any usual pick for this category.
     const grades = typeof id === 'number' ? categoryGrades(id, qualities) : [];
@@ -217,6 +241,45 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
     setPendingPick(null);
   }, [pendingPick, currentOptions, pickShapeIds, sizeGroups]);
 
+  useEffect(() => {
+    if (!pendingCarry || !currentOptions) return;
+    const shapeIds = pendingCarry.shapeIds.filter((id) => currentOptions.shapes.some((s) => s.id === id));
+    if (shapeIds.length) setPickShapeIds(shapeIds);
+    setPickSizeIdxs(sizeGroups.flatMap((g, i) => (
+      pendingCarry.sizeKeys.includes(g.key) && (!shapeIds.length || g.rows.some((r) => shapeIds.includes(r.shapeId))) ? [i] : []
+    )));
+    setPendingCarry(null);
+  }, [pendingCarry, currentOptions, sizeGroups]);
+
+  // No stone chosen: colour families, then shapes and sizes from every stone
+  // that carries them.
+  const anyMode = pickCategoryId === '';
+  const familyName = (id: number) => families.find((f) => f.id === id)?.name || colorButtons.find((f) => f.id === id)?.name || 'Colour';
+  const anyShapeOptions = useMemo(
+    () => (catalogueMap ? shapesOf(catalogueMap, stonesForFamilies(catalogueMap, pickFamilies)) : []),
+    [catalogueMap, pickFamilies]
+  );
+  const anySizeKeys = useMemo(
+    () => (catalogueMap ? sizeKeysOf(catalogueMap, stonesForPicks(catalogueMap, pickFamilies, pickShapeIds), pickShapeIds) : []),
+    [catalogueMap, pickFamilies, pickShapeIds]
+  );
+  // A size the new shape doesn't come in drops out of the picks.
+  useEffect(() => {
+    if (!anyMode || !catalogueMap) return;
+    setPickSizeKeys((cur) => (cur.every((k) => anySizeKeys.includes(k)) ? cur : cur.filter((k) => anySizeKeys.includes(k))));
+  }, [anyMode, catalogueMap, anySizeKeys]);
+  const anyLineList = useMemo(
+    () => (anyMode && catalogueMap ? anyLines(catalogueMap, pickFamilies.map((id) => ({ id, name: familyName(id) })), pickShapeIds, pickSizeKeys) : []),
+    [anyMode, catalogueMap, pickFamilies, pickShapeIds, pickSizeKeys] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // The stone list narrows to the stones that carry what's picked.
+  const stoneOptions = useMemo(() => {
+    if (!allCategories) return [];
+    if (!anyMode || !catalogueMap || (!pickFamilies.length && !pickShapeIds.length)) return allCategories;
+    const ids = new Set(stonesForPicks(catalogueMap, pickFamilies, pickShapeIds).map((c) => c.id));
+    return allCategories.filter((c) => ids.has(c.id));
+  }, [allCategories, anyMode, catalogueMap, pickFamilies, pickShapeIds]);
+
   // A picked shape/cut with its own qualities (Green OSP HW: 3A / AA) replaces
   // the category's, starting on its first.
   const { grades, start: shapeStart } = typeof pickCategoryId === 'number'
@@ -231,21 +294,55 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   // With a colour chosen, only that family's colours are offered -- unless the
   // category has none in it, in which case hiding everything would be a dead end.
   const familyColors = useMemo(
-    () => (currentOptions && pickFamily ? currentOptions.colors.filter((c) => colorFamilyId(c.name, c.hex) === pickFamily) : []),
-    [currentOptions, pickFamily]
+    () => (currentOptions && pickFamilies.length ? currentOptions.colors.filter((c) => pickFamilies.includes(colorFamilyId(c.name, c.hex) ?? -1)) : []),
+    [currentOptions, pickFamilies]
   );
-  const colorOptions = pickFamily && familyColors.length > 0 ? familyColors : currentOptions?.colors || [];
-  const familyMissing = !!pickFamily && !!currentOptions && familyColors.length === 0;
+  const colorOptions = pickFamilies.length && familyColors.length > 0 ? familyColors : currentOptions?.colors || [];
+  const familyMissing = pickFamilies.length > 0 && !!currentOptions && familyColors.length === 0;
   useEffect(() => {
     if (familyColors.length === 1 && pickColorIds.length === 0) setPickColorIds([familyColors[0].id]);
   }, [familyColors]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = !!currentOptions && pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0
+  const canAdd = anyMode
+    ? anyLineList.length > 0 && qtyNum > 0
+    : !!currentOptions && pickShapeIds.length > 0 && pickColorIds.length > 0 && pickSizeIdxs.length > 0 && qtyNum > 0
     && (grades.length === 0 || grades.includes(pickGrade));
-  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
+  const comboCount = anyMode ? anyLineList.length : pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
+
+  function addAnyLines() {
+    if (!canAdd) {
+      setMessage('Pick a colour, shape/cut and size, and enter quantity first.');
+      return;
+    }
+    let cart = loadCart();
+    for (const line of anyLineList) {
+      cart = mergeIntoCart(cart, {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        categoryId: ANY_CATEGORY_ID,
+        categoryName: ANY_CATEGORY_NAME,
+        shapeId: line.shapeId,
+        shapeName: line.shapeName,
+        shapeIconKey: line.shapeIconKey,
+        sizeId: line.sizeId,
+        sizeMm: line.sizeMm,
+        colorId: line.colorId,
+        colorName: line.colorName,
+        colorHex: line.colorHex || '#ccc',
+        colorRefPhotoUrl: line.colorRefPhotoUrl,
+        qty: qtyNum,
+        requestType: pickRequestType
+      });
+    }
+    saveCart(cart);
+    setCartCount(cartPieces(cart));
+    setAddedCount((n) => n + anyLineList.length);
+    setMessage(anyLineList.length > 1 ? `Added ${anyLineList.length} lines to your cart.` : 'Added to your cart.');
+    setPickSizeKeys([]);
+  }
 
   function addLines() {
+    if (anyMode) return addAnyLines();
     if (!canAdd || !currentOptions || !currentCategory) {
       setMessage(grades.length > 0 && !pickGrade ? `Choose a quality (${grades.join(' or ')}) first.` : 'Pick a shape/cut, color and size, and enter quantity first.');
       return;
@@ -320,7 +417,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             <button type="button" autoFocus onClick={close} aria-label="Close quick order">✕</button>
           </div>
           <p className="quick-order-hint">
-            Start with a colour or a category, then shape, size and quantity.{' '}
+            Pick colour, shape, size and quantity. The stone is optional &mdash; we confirm it with you.{' '}
             <button
               type="button"
               className="po-inline-link qo-speak-link"
@@ -330,19 +427,20 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             </button>
           </p>
 
-          {colorButtons.length > 0 && <div className="qo-family-chips" role="group" aria-label="Start with a colour">
+          {colorButtons.length > 0 && <div className="qo-family-chips" role="group" aria-label="Colours">
             {colorButtons.map((f) => {
-              const usual = preferenceForFamily(preferences, f.id);
+              const usual = preferenceForFamily(ownPreferences, f.id);
               const usualName = usual ? allCategories?.find((c) => c.id === usual.categoryId)?.name : null;
+              const active = pickFamilies.includes(f.id);
               return (
                 <button
                   key={f.id}
                   type="button"
-                  className={`qo-family-chip${pickFamily === f.id ? ' active' : ''}`}
-                  aria-pressed={pickFamily === f.id}
+                  className={`qo-family-chip${active ? ' active' : ''}`}
+                  aria-pressed={active}
                   title={usualName ? `${usualName}${usual?.grade ? ` ${usual.grade}` : ''}` : undefined}
                   ref={pickFamily === f.id ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
-                  onClick={() => chooseFamily(pickFamily === f.id ? null : f.id)}
+                  onClick={() => toggleFamily(f.id)}
                 >
                   <ColorSwatch hex={f.hex} refPhotoUrl={f.refPhotoUrl} size={22} />
                   {f.name}
@@ -350,37 +448,95 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
               );
             })}
           </div>}
-          {pickFamily && !pickCategoryId && !pendingCategoryId && (
-            catalogueMap ? (
-              <div className="qo-finder">
-                <p className="quick-order-hint" style={{ margin: 0 }}>Which stone? Narrow by shape and size, or choose a category below.</p>
-                <StoneFinder
-                  map={catalogueMap}
-                  familyId={pickFamily}
-                  onChoose={(categoryId, picked) => {
-                    void handleCategoryChange(String(categoryId), { keepFamily: true });
-                    setPendingPick(picked.shapeId ? picked : null);
-                  }}
-                />
-              </div>
-            ) : (
-              <p className="quick-order-hint">Now choose the stone.</p>
-            )
-          )}
-          {pickFamily && !!pickCategoryId && (
-            <button type="button" className="qo-other-stones" onClick={() => { void handleCategoryChange('', { keepFamily: true }); }}>
-              Other stones in {families.find((f) => f.id === pickFamily)?.name.toLowerCase()} →
-            </button>
-          )}
 
           <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
             <div>
-              <label className="po-label">Category</label>
+              <label className="po-label">Color{(anyMode ? pickFamilies : pickColorIds).length > 1 ? 's' : ''}</label>
+              {familyMissing && <p className="quick-order-hint" style={{ margin: '0 0 6px' }}>No {familyName(pickFamily!).toLowerCase()} in this stone — showing all colours.</p>}
+              {/* Before a stone is chosen a colour is a colour family -- White,
+                  Red -- same as the buttons above; a stone lists its own shades. */}
+              {anyMode || !currentOptions ? (
+                <IconSelect
+                  multiple
+                  options={colorButtons.length > 0 ? colorButtons : families}
+                  values={pickFamilies}
+                  onChange={chooseFamilies}
+                  closeOnFirstPick={pickShapeIds.length === 0}
+                  placeholder="Choose colour(s)"
+                  leading="swatch"
+                />
+              ) : (
+                <IconSelect
+                  categoryId={Number(pickCategoryId) || undefined}
+                  multiple
+                  options={colorOptions}
+                  locked={pickCategoryId === 34}
+                  values={pickColorIds}
+                  onChange={setPickColorIds}
+                  closeOnFirstPick={pickShapeIds.length === 0}
+                  placeholder="Choose color(s)"
+                  leading="swatch"
+                />
+              )}
+            </div>
+            <div>
+              <label className="po-label">Shape/Cut</label>
+              {anyMode ? (
+                <IconSelect
+                  multiple
+                  options={anyShapeOptions}
+                  values={pickShapeIds}
+                  onChange={setPickShapeIds}
+                  closeOnFirstPick={pickFamilies.length === 0}
+                  placeholder={catalogueMap ? 'Choose shape(s)' : 'Loading shapes…'}
+                  leading="icon"
+                />
+              ) : (
+                <IconSelect
+                  categoryId={Number(pickCategoryId) || undefined}
+                  multiple
+                  options={shapeOptions}
+                  values={pickShapeIds}
+                  onChange={setPickShapeIds}
+                  closeOnFirstPick={pickColorIds.length === 0}
+                  placeholder={!currentOptions ? 'Loading shapes…' : 'Choose shape(s)'}
+                  leading="icon"
+                  disabledIds={incompatibleShapes}
+                  disabledReason={NO_SHARED_SIZE_REASON}
+                  disabledNote={NO_SHARED_SIZE_NOTE}
+                />
+              )}
+            </div>
+            <div>
+              <label className="po-label">Size{(anyMode ? pickSizeKeys : pickSizeIdxs).length > 1 ? 's' : ''} (mm)</label>
+              {anyMode ? (
+                <IconSelect
+                  multiple
+                  optionKind="size"
+                  options={anySizeKeys.map((key, i) => ({ id: i + 1, name: `${key} mm` }))}
+                  values={pickSizeKeys.map((k) => anySizeKeys.indexOf(k) + 1).filter((id) => id > 0)}
+                  onChange={(ids) => setPickSizeKeys(ids.map((id) => anySizeKeys[id - 1]).filter(Boolean))}
+                  placeholder={!catalogueMap ? 'Loading sizes…' : anySizeKeys.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
+                />
+              ) : (
+                <IconSelect
+                  categoryId={Number(pickCategoryId) || undefined}
+                  multiple
+                  optionKind="size"
+                  options={sizeOptions}
+                  values={pickSizeIdxs}
+                  onChange={setPickSizeIdxs}
+                  placeholder={!currentOptions ? 'Loading sizes…' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
+                />
+              )}
+            </div>
+            <div>
+              <label className="po-label">Stone <span className="qo-optional">(optional)</span></label>
               <IconSelect
-                options={(allCategories || []).map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
+                options={stoneOptions.map((c) => ({ id: c.id, name: c.name, refPhotoUrl: categoryIconUrl(c.slug) }))}
                 value={pickCategoryId === '' ? 'all' : pickCategoryId}
                 onChange={(v) => handleCategoryChange(v === 'all' ? '' : String(v))}
-                allLabel={loadingCategories ? 'Loading categories…' : 'Choose category'}
+                allLabel={loadingCategories ? 'Loading stones…' : 'Any stone — we confirm'}
                 leading="photo"
                 searchable
               />
@@ -395,61 +551,6 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 </div>
               </div>
             )}
-            <div>
-              <label className="po-label">Color{pickColorIds.length > 1 ? 's' : ''}</label>
-              {familyMissing && <p className="quick-order-hint" style={{ margin: '0 0 6px' }}>No {families.find((f) => f.id === pickFamily)?.name.toLowerCase()} in this stone — showing all colours.</p>}
-              {/* Before a stone is chosen the colour is where an order can
-                  start: pick a colour family here, same as the buttons above. */}
-              {!currentOptions ? (
-                <IconSelect
-                  options={colorButtons.length > 0 ? colorButtons : families}
-                  value={pickFamily ?? 'all'}
-                  onChange={(v) => chooseFamily(v === 'all' ? null : v)}
-                  allLabel="Choose colour"
-                  leading="swatch"
-                />
-              ) : (
-                <IconSelect
-                  categoryId={Number(pickCategoryId) || undefined}
-                  multiple
-                  options={colorOptions}
-                  locked={pickCategoryId === 34}
-                  values={pickColorIds}
-                  onChange={setPickColorIds}
-              closeOnFirstPick={pickShapeIds.length === 0}
-                  placeholder="Choose color(s)"
-                  leading="swatch"
-                />
-              )}
-            </div>
-            <div>
-              <label className="po-label">Shape/Cut</label>
-              <IconSelect
-                categoryId={Number(pickCategoryId) || undefined}
-                multiple
-                options={shapeOptions}
-                values={pickShapeIds}
-                onChange={setPickShapeIds}
-              closeOnFirstPick={pickColorIds.length === 0}
-                placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape/cut'}
-                leading="icon"
-                disabledIds={incompatibleShapes}
-                disabledReason={NO_SHARED_SIZE_REASON}
-                disabledNote={NO_SHARED_SIZE_NOTE}
-              />
-            </div>
-            <div>
-              <label className="po-label">Size{pickSizeIdxs.length > 1 ? 's' : ''} (mm)</label>
-              <IconSelect
-                categoryId={Number(pickCategoryId) || undefined}
-                multiple
-                optionKind="size"
-                options={sizeOptions}
-                values={pickSizeIdxs}
-                onChange={setPickSizeIdxs}
-                placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
-              />
-            </div>
             <div>
               <label className="po-label">Qty (pcs)</label>
               <input
@@ -497,9 +598,9 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
             <button type="button" className="po-add-line-btn" onClick={addLines} disabled={!canAdd}>
               + Add {comboCount > 1 ? `${comboCount} lines` : 'line'} to cart
             </button>
-            {/* Adding keeps the category, shape and colour so the next line is
-                quick; this empties the form completely, category included. */}
-            {(pickCategoryId !== '' || pickShapeIds.length > 0 || pickColorIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== '') && (
+            {/* Adding keeps the stone, shape and colour so the next line is
+                quick; this empties the form completely, stone included. */}
+            {(pickCategoryId !== '' || pickFamilies.length > 0 || pickSizeKeys.length > 0 || pickShapeIds.length > 0 || pickColorIds.length > 0 || pickSizeIdxs.length > 0 || pickQty !== '') && (
               <button type="button" className="po-clear-selection" onClick={reset}>Clear selection</button>
             )}
           </div>

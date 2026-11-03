@@ -3794,3 +3794,11 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .po-in-order .po-remove-btn { width: 32px; height: 32px; }
 .po-in-order-foot { margin: 8px 2px 2px; font-size: 12px; color: var(--text-dim); }
 .po-in-order-foot a { color: var(--navy); font-weight: 600; }
+
+/* Quick Order: the stone is optional (owner, 2026-11-03). */
+.qo-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted, #6b7280); }
+/* Cart lines show the shape drawing (owner, 2026-11-03): on an ivory tile so
+   the navy lines read on the navy requirement card. */
+.requirement-stone:has(> .shape-reference-fallback) { background: #faf8f3; border-radius: 8px; padding: 4px 3px; box-sizing: border-box; }
+.po-line-group-head .requirement-stone:has(> .shape-reference-fallback) { width: 56px; padding: 2px 3px; }
+.po-line-group-head .requirement-stone .shape-reference-fallback { color: #12233f; }

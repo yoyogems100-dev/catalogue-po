@@ -6,6 +6,7 @@ import OrderAdminClient from './OrderAdminClient';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
+import { ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -116,7 +117,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   const itemsFormatted = (items || []).map((it: any) => ({
     id: it.id,
     categoryId: it.category_id,
-    categoryName: catMap[it.category_id] || '—',
+    categoryName: it.category_id == null ? ANY_CATEGORY_NAME : catMap[it.category_id] || '—',
     shapeId: it.shape_id || null,
     shapeName: shapeMap[it.shape_id] || '—',
     sizeId: it.shape_size_id || null,

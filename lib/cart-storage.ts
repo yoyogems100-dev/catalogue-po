@@ -10,6 +10,12 @@ export type RequestType = 'Place Order' | 'Request Quotation';
 // still display and can be moved to purchase. Flip to bring the choice back.
 export const QUOTATIONS_ENABLED = false;
 
+// Quick Order lines can leave the stone open (owner, 2026-11-03): "White,
+// Round 3 mm, 5000 pcs" is clear enough, and the team confirms which stone.
+// Such a line carries category 0 in the cart and NULL in order_items.
+export const ANY_CATEGORY_ID = 0;
+export const ANY_CATEGORY_NAME = 'Stone to confirm';
+
 export type CartItem = {
   orderSpecs?: OrderSpecs;
   id: string;

@@ -17,7 +17,7 @@ import { specText, quantityFactor, drilledHoles, gradeSpec } from '@/lib/order-s
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import { CATALOGUE_PRICES_ENABLED, cartLinePrice, type CategoryPricing } from '@/lib/pricing-calc';
 import {
-  CART_EVENT, loadCart, mergeIntoCart, saveCart, loadCartNote, saveCartNote,
+  CART_EVENT, ANY_CATEGORY_ID, loadCart, mergeIntoCart, saveCart, loadCartNote, saveCartNote,
   type CartItem, type RequestType
 } from '@/lib/cart-storage';
 import { formatRupees } from '@/lib/money';
@@ -191,7 +191,8 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   }, [toast, canUndoRemove]);
 
   const categoryIds = useMemo(
-    () => Array.from(new Set(cart.map((i) => i.categoryId))).sort((a, b) => a - b),
+    // A "Stone to confirm" line has no category options to fetch.
+    () => Array.from(new Set(cart.map((i) => i.categoryId))).filter((id) => id !== ANY_CATEGORY_ID).sort((a, b) => a - b),
     [cart]
   );
   const categoryKey = categoryIds.join(',');
@@ -331,11 +332,13 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   function StoneReference({ item }: { item: CartItem }) {
     const opts = optionsByCategory[item.categoryId];
     const shape = opts?.shapes.find((s) => s.id === item.shapeId);
+    // The shape's line drawing, not a photo of a white stone (owner,
+    // 2026-11-03) -- except where the photo says what the drawing can't: a
+    // Glass Pearl's colour, or a Hole Punched stone's number of holes.
+    const holes = drilledHoles(item.orderSpecs);
     const src = item.categoryId === GLASS_PEARLS_CATEGORY_ID
       ? (item.colorRefPhotoUrl || item.shapeRefPhotoUrl)
-      // Today's category photo wins over the one saved when the line was added;
-      // a Hole Punched line shows the stone with its number of holes.
-      : ((shape ? photoForHoles(shape, drilledHoles(item.orderSpecs)) : null) || item.shapeRefPhotoUrl || null);
+      : holes && shape ? photoForHoles(shape, holes) : null;
     return (
       <span className="requirement-stone">
         <ShapeReferenceImage name={item.shapeName} src={src} iconKey={item.shapeIconKey || shape?.iconKey} fallbackSize={36} />

@@ -24,6 +24,9 @@ export async function GET() {
   }
   return NextResponse.json({
     preferences: mergePreferences(mine, parseDefaultPreferences(setting(DEFAULT_PICKS_SETTING_KEY))),
+    // Only the buyer's own picks: Quick Order opens a stone for a colour only
+    // when the team mapped one for this buyer (owner, 2026-11-03).
+    myPreferences: mine,
     colorButtons: myButtons ?? parseColorButtons(setting(COLOR_BUTTONS_SETTING_KEY)),
     colorNames: parseColorNames(setting(COLOR_NAMES_SETTING_KEY)),
     // Which qualities each stone offers, so Quick Order can ask for one.

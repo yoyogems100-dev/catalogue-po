@@ -10,6 +10,7 @@ import { withShapeCodes } from '@/lib/shape-codes-server';
 import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { catalogueChanged } from '@/lib/catalogue-cache';
+import { ANY_CATEGORY_ID } from '@/lib/cart-storage';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))];
+  const distinctCategoryIds = [...new Set(cart.map((i) => i.categoryId))].filter((id) => id !== ANY_CATEGORY_ID);
   const pricingByCategory = new Map(
     await Promise.all(distinctCategoryIds.map(async (id) => [id, await getCategoryPricing(id, supabaseAdmin)] as const))
   );
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   const itemRows = cartWithPrices.map((item) => ({
     order_id: order.id,
-    category_id: item.categoryId,
+    category_id: item.categoryId === ANY_CATEGORY_ID ? null : item.categoryId,
     shape_id: item.shapeId,
     shape_size_id: item.sizeId,
     color_id: item.colorId,
