@@ -11,7 +11,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
   const fromOrderId = Number(params.from) || null;
   const [{ data: categories }, { data: customers }] = await Promise.all([
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
-    supabaseAdmin.from('customers').select('id, name, phone, company').order('name')
+    supabaseAdmin.from('customers').select('id, name, phone, company, place').order('name')
   ]);
   let repeatItems: any[] = [];
   let initialRequestType = 'Place Order';
@@ -36,7 +36,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
       </p>
       <AdminOrderBuilder
         allCategories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name, slug: c.slug }))}
-        allCustomers={(customers || []).map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, company: c.company }))}
+        allCustomers={(customers || []).map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, company: c.company, place: c.place }))}
         initialCustomerId={initialCustomerId}
         repeatItems={repeatItems}
         initialRequestType={initialRequestType}

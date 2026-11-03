@@ -3265,6 +3265,23 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 .switch-row.is-current { background: #faf3e2; }
 .switch-back { color: var(--navy); font-weight: 600; justify-content: center; }
 .switch-empty { padding: 14px 4px; font-size: 13px; color: #6b6556; list-style: none; }
+
+/* Admin new-order customer picker: name on top, phone · company · place below. */
+.match-mark { background: none; color: var(--gold); font-weight: 700; }
+.cust-pick { position: relative; }
+.cust-pick input { width: 100%; }
+.cust-pick-hint { margin: 6px 2px 0; font-size: 12.5px; color: var(--text-dim); }
+.cust-pick-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; font-size: 13px; color: var(--text-dim); }
+.cust-pick-list { list-style: none; margin: 8px 0 0; padding: 4px; max-height: min(320px, 50vh); overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.cust-pick-list li { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 48px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.cust-pick-list li + li { border-top: 1px solid #f1ede3; }
+.cust-pick-list li[aria-selected="true"] { background: #eef2f8; }
+.cust-pick-list strong, .cust-pick-chosen strong { font-size: 14px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.cust-pick-list small, .cust-pick-chosen small { font-size: 12px; color: var(--text-dim); line-height: 1.4; overflow-wrap: anywhere; }
+.cust-pick-sep { color: #b9b1a0; }
+.cust-pick-chosen { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border: 1px solid rgba(27,58,107,0.35); border-left: 3px solid var(--navy); border-radius: 10px; background: #f6f8fc; }
+.cust-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cust-pick-change { flex-shrink: 0; min-height: 40px; }
 .acting-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; padding: 8px 16px; background: var(--gold); color: #fff; font-size: 13px; text-align: center; }
 .acting-banner button { min-height: 32px; padding: 0 12px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 999px; background: transparent; color: #fff; font-size: 12.5px; cursor: pointer; }
 .admin-placed-by { margin: 6px 0 10px; padding: 8px 12px; border-radius: 8px; background: #faf3e2; border: 1px solid #ead9ad; font-size: 13px; }
