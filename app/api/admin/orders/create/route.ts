@@ -38,8 +38,9 @@ export async function POST(req: NextRequest) {
   let contactName: string | null = null;
 
   if (existingCustomerId) {
-    const { data: existing } = await supabaseAdmin.from('customers').select('id, name').eq('id', existingCustomerId).maybeSingle();
+    const { data: existing } = await supabaseAdmin.from('customers').select('id, name, deleted_at').eq('id', existingCustomerId).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Customer not found' }, { status: 400 });
+    if (existing.deleted_at) return NextResponse.json({ error: 'This customer is in the Bin. Restore them first, or pick another customer.' }, { status: 400 });
     customerId = existing.id;
     contactName = existing.name;
   } else if (newCustomerPhone) {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KIND_LABEL, QUICK_ACTIONS, mergeResults, rankItems, staticSearchItems, type SearchItem } from '@/lib/admin-search';
 import type { NavCategory } from '@/components/admin/AdminNav';
+import MatchText from '@/components/MatchText';
 
 const OPEN_EVENT = 'admin-search:open';
 
@@ -63,8 +64,9 @@ function useListKeys(results: SearchItem[], go: (item: SearchItem | undefined) =
   return { active, setActive, listRef, onKeyDown };
 }
 
-function ResultList({ id, results, active, setActive, go, listRef }: {
+function ResultList({ id, results, active, setActive, go, listRef, query }: {
   id: string;
+  query: string;
   results: SearchItem[];
   active: number;
   setActive: (i: number) => void;
@@ -86,8 +88,8 @@ function ResultList({ id, results, active, setActive, go, listRef }: {
         >
           <span className={`admin-search-kind admin-search-kind-${item.kind}`}>{KIND_LABEL[item.kind]}</span>
           <span className="admin-search-text">
-            <span className="admin-search-label">{item.label}</span>
-            {item.detail && <span className="admin-search-detail">{item.detail}</span>}
+            <span className="admin-search-label"><MatchText text={item.label} query={query} /></span>
+            {item.detail && <span className="admin-search-detail"><MatchText text={item.detail} query={query} /></span>}
           </span>
         </li>
       ))}
@@ -154,7 +156,7 @@ export function AdminSearchBar({ poCategories, siteCategories }: { poCategories:
       </div>
       {open && (
         <div className="admin-search-inline-pop">
-          <ResultList id="admin-search-inline-results" results={shown} active={keys.active} setActive={keys.setActive} go={go} listRef={keys.listRef} />
+          <ResultList id="admin-search-inline-results" results={shown} active={keys.active} setActive={keys.setActive} go={go} listRef={keys.listRef} query={q} />
           {!shown.length && !loading && <p className="admin-search-empty">Nothing matches “{q}”.</p>}
           {loading && <p className="admin-search-hint">Searching orders, buyers, suppliers, shapes and sizes…</p>}
         </div>
@@ -241,7 +243,7 @@ export default function AdminSearch({ poCategories, siteCategories }: { poCatego
               <button type="button" className="admin-search-close" onClick={close} aria-label="Close search">Esc</button>
             </div>
             {!q && <p className="admin-search-hint">Quick actions</p>}
-            <ResultList id="admin-search-results" results={results} active={keys.active} setActive={keys.setActive} go={go} listRef={keys.listRef} />
+            <ResultList id="admin-search-results" results={results} active={keys.active} setActive={keys.setActive} go={go} listRef={keys.listRef} query={q} />
             {q && !results.length && !loading && <p className="admin-search-empty">Nothing matches “{q}”.</p>}
             {q && loading && <p className="admin-search-hint">Searching orders, buyers, suppliers, shapes and sizes…</p>}
           </div>

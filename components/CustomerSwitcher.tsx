@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MatchText from '@/components/MatchText';
 
 type Buyer = { id: number; name: string | null; company: string | null; place: string | null; phone: string | null };
 
@@ -94,8 +95,8 @@ export default function CustomerSwitcher({ onClose }: { onClose: () => void }) {
             {shown.map((b) => (
               <li key={b.id}>
                 <button type="button" className={`switch-row${b.id === current ? ' is-current' : ''}`} onClick={() => pick(b.id)} disabled={busy !== null} aria-current={b.id === current ? 'true' : undefined}>
-                  <strong>{label(b)}</strong>
-                  <span>{[b.name?.trim() ? b.company : null, b.place, b.phone].filter(Boolean).join(' · ')}</span>
+                  <strong><MatchText text={label(b)} query={q} /></strong>
+                  <span><MatchText text={[b.company?.trim().toLowerCase() !== label(b).toLowerCase() ? b.company : null, b.place, b.phone].filter(Boolean).join(' · ')} query={q} /></span>
                   {b.id === current && <em>Current</em>}
                 </button>
               </li>

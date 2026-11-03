@@ -15,9 +15,19 @@ import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { maskPhone } from '@/lib/mask';
+import MatchText from '@/components/MatchText';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
-type Customer = { id: number; name: string | null; phone: string | null; company: string | null };
+type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
+
+const CUSTOMER_LIMIT = 20;
+const customerTitle = (c: Customer) => c.name?.trim() || c.company?.trim() || 'No name';
+/** The muted second line: phone, company (unless it is already the title) and place. */
+const customerDetails = (c: Customer) => {
+  const company = c.company?.trim();
+  const showCompany = company && company.toLowerCase() !== customerTitle(c).toLowerCase();
+  return [maskPhone(c.phone), showCompany ? company : null, c.place?.trim()].filter(Boolean) as string[];
+};
 type Options = {
   shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
   colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null }[];
@@ -76,11 +86,45 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   // UI/UX audit ("Make customer lookup search-first instead of immediately
   // exposing the entire customer list"): an empty query now shows nothing
   // rather than the first 20 customers by default.
-  const filteredCustomers = useMemo(() => {
+  // Every typed word must appear in the name, company or place, or (3+ digits)
+  // in the phone -- so "ravi jaipur" or "4601" both find the buyer. Names that
+  // start with the query come first.
+  const customerMatches = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
     if (!q) return [];
-    return allCustomers.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)).slice(0, 20);
+    const words = q.split(/\s+/);
+    const digits = q.replace(/\D/g, '');
+    return allCustomers
+      .filter((c) => {
+        const hay = `${c.name || ''} ${c.company || ''} ${c.place || ''}`.toLowerCase();
+        return words.every((w) => hay.includes(w) || (digits.length >= 3 && (c.phone || '').replace(/\D/g, '').includes(digits)));
+      })
+      .sort((a, b) => Number(customerTitle(b).toLowerCase().startsWith(words[0])) - Number(customerTitle(a).toLowerCase().startsWith(words[0])));
   }, [allCustomers, customerSearch]);
+  const filteredCustomers = customerMatches.slice(0, CUSTOMER_LIMIT);
+  const [activeCustomer, setActiveCustomer] = useState(0);
+  useEffect(() => { setActiveCustomer(0); }, [customerSearch]);
+
+  function pickCustomer(id: number) {
+    setSelectedCustomerId(id);
+    setCustomerSearch('');
+  }
+  function onCustomerKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!filteredCustomers.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveCustomer((i) => Math.min(filteredCustomers.length - 1, i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveCustomer((i) => Math.max(0, i - 1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); pickCustomer(filteredCustomers[activeCustomer]?.id ?? filteredCustomers[0].id); }
+  }
+  useEffect(() => {
+    document.getElementById(`cust-pick-${activeCustomer}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeCustomer]);
+  // "No match" offers the typed text as a new customer: digits become the
+  // phone, anything else the name.
+  function addAsNewCustomer() {
+    const q = customerSearch.trim();
+    if (/^[\d\s+()-]{6,}$/.test(q)) setNewPhone(q); else setNewName(q);
+    setCustomerMode('new');
+  }
 
   const selectedCustomer = allCustomers.find((c) => c.id === selectedCustomerId) || null;
   const currentOptions = pickCategoryId !== 'all' ? optionsCache[pickCategoryId] : null;
@@ -290,50 +334,67 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         </div>
 
         {customerMode === 'existing' ? (
-          <div>
-            <input
-              type="text"
-              placeholder="Search by name or phone..."
-              value={customerSearch}
-              onChange={(e) => { setCustomerSearch(e.target.value); setSelectedCustomerId(null); }}
-              style={{ marginBottom: 8 }}
-            />
-            {selectedCustomer ? (
-              <div className="tag-chip active" style={{ fontSize: 13 }}>
-                {selectedCustomer.name || 'No name'} · {maskPhone(selectedCustomer.phone)}
-                <button
-                  type="button"
-                  aria-label="Clear selected customer"
-                  style={{ cursor: 'pointer', marginLeft: 8, background: 'none', border: 'none', color: 'inherit', font: 'inherit' }}
-                  onClick={() => setSelectedCustomerId(null)}
-                >
-                  &times;
-                </button>
-              </div>
-            ) : (
-              <div role="listbox" aria-label="Matching customers" style={{ maxHeight: 180, overflowY: 'auto', border: customerSearch.trim() ? '1px solid var(--line)' : 'none' }}>
-                {!customerSearch.trim() && (
-                  <div style={{ padding: 10, fontSize: 12.5, color: '#756e5c' }}>Start typing a name or phone number to find a customer.</div>
-                )}
-                {customerSearch.trim() && filteredCustomers.length === 0 && (
-                  <div style={{ padding: 10, fontSize: 12.5, color: '#756e5c' }}>No matching customers.</div>
-                )}
-                {filteredCustomers.map((c) => (
-                  <div
-                    key={c.id}
-                    role="option"
-                    aria-selected={false}
-                    tabIndex={0}
-                    onClick={() => setSelectedCustomerId(c.id)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedCustomerId(c.id); } }}
-                    style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '1px solid var(--line)' }}
-                  >
-                    {c.name || 'No name'} · {maskPhone(c.phone)}{c.company ? ` · ${c.company}` : ''}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          selectedCustomer ? (
+            <div className="cust-pick-chosen">
+              <span className="cust-pick-text">
+                <strong>{customerTitle(selectedCustomer)}</strong>
+                {customerDetails(selectedCustomer).length > 0 && <small>{customerDetails(selectedCustomer).join(' · ')}</small>}
+              </span>
+              <button type="button" className="btn-ghost cust-pick-change" onClick={() => setSelectedCustomerId(null)} aria-label="Change customer">Change</button>
+            </div>
+          ) : (
+            <div className="cust-pick">
+              <input
+                type="search"
+                placeholder="Search name, company, city or phone…"
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                onKeyDown={onCustomerKeyDown}
+                role="combobox"
+                aria-expanded={filteredCustomers.length > 0}
+                aria-controls="cust-pick-list"
+                aria-activedescendant={filteredCustomers[activeCustomer] ? `cust-pick-${activeCustomer}` : undefined}
+                aria-label="Search customers"
+                autoComplete="off"
+                enterKeyHint="go"
+              />
+              {!customerSearch.trim() ? (
+                <p className="cust-pick-hint">Start typing a name, company, city or the last digits of a phone number.</p>
+              ) : filteredCustomers.length === 0 ? (
+                <div className="cust-pick-empty">
+                  <span>No customer matches &ldquo;{customerSearch.trim()}&rdquo;.</span>
+                  <button type="button" className="btn-ghost" onClick={addAsNewCustomer}>Add as new customer</button>
+                </div>
+              ) : (
+                <>
+                  <ul id="cust-pick-list" role="listbox" aria-label="Matching customers" className="cust-pick-list">
+                    {filteredCustomers.map((c, i) => (
+                      <li
+                        key={c.id}
+                        id={`cust-pick-${i}`}
+                        role="option"
+                        aria-selected={i === activeCustomer}
+                        onMouseEnter={() => setActiveCustomer(i)}
+                        onClick={() => pickCustomer(c.id)}
+                      >
+                        <strong><MatchText text={customerTitle(c)} query={customerSearch} /></strong>
+                        {customerDetails(c).length > 0 && (
+                          <small>
+                            {customerDetails(c).map((d, j) => (
+                              <span key={j}>{j > 0 && <span className="cust-pick-sep" aria-hidden="true"> · </span>}<MatchText text={d} query={customerSearch} /></span>
+                            ))}
+                          </small>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {customerMatches.length > CUSTOMER_LIMIT && (
+                    <p className="cust-pick-hint">Showing {CUSTOMER_LIMIT} of {customerMatches.length} matches &mdash; keep typing to narrow down.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )
         ) : (
           <div style={{ display: 'flex', gap: 8, maxWidth: 480 }}>
             <input type="text" placeholder="Name (optional)" value={newName} onChange={(e) => setNewName(e.target.value)} />
