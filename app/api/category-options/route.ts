@@ -19,6 +19,8 @@ const MAX_CATEGORIES = 25;
 type CategoryOptions = {
   /** Today's name -- a cart line keeps the name it was added under. */
   name?: string;
+  /** For the cart's link back to the category page. */
+  slug?: string;
   /** What a quantity counts here ("lines"); null means pieces. */
   qtyUnit?: string | null;
   shapes: { id: number; name: string; iconKey: string | null; refPhotoUrl: string | null; holePhotos?: Partial<Record<HoleCount, string>> }[];
@@ -28,7 +30,7 @@ type CategoryOptions = {
 
 async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: string | null }): Promise<CategoryOptions> {
   const [{ data: category }, { data: shapeLinks }, { data: colorLinks }, { data: sizeLinks }] = await Promise.all([
-    supabasePublic.from('categories').select('name').eq('id', categoryId).maybeSingle(),
+    supabasePublic.from('categories').select('name, slug').eq('id', categoryId).maybeSingle(),
     supabasePublic.from('category_shapes').select('shape_id, ref_photo_url, drill').eq('category_id', categoryId),
     supabasePublic.from('category_colors').select('color_id').eq('category_id', categoryId),
     supabasePublic.from('category_shape_sizes').select('shape_size_id').eq('category_id', categoryId)
@@ -55,6 +57,7 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
 
   return {
     name: (category as any)?.name || undefined,
+    slug: (category as any)?.slug || undefined,
     qtyUnit: fieldOf(categoryId).unit,
     shapes: (shapes || []).map((s: any) => ({ id: s.id, name: s.name, iconKey: s.icon_key, shortCode: s.short_code ?? null, refPhotoUrl: categoryPhoto.get(s.id) || s.ref_photo_url, holePhotos: drillOf(s.id) })),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
@@ -64,7 +67,7 @@ async function optionsFor(categoryId: number, fieldOf: (id: number) => { unit: s
 
 // One category's options, cached until the next admin save (they are the
 // same for every buyer).
-const cachedOptions = cachedCatalogue(async (categoryId: number) => optionsFor(categoryId, await getQuantityFields()), ['category-options']);
+const cachedOptions = cachedCatalogue(async (categoryId: number) => optionsFor(categoryId, await getQuantityFields()), ['category-options', 'with-slug']);
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get('ids') || '';

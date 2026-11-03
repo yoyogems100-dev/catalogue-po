@@ -69,6 +69,10 @@ type MultiProps = CommonProps & {
   closeOnFirstPick?: boolean;
   /** A "Done" bar at the foot of the open list, for lists meant to take many picks. */
   doneBar?: boolean;
+  /** What the Done bar does instead of only closing the list (the cart's line editor applies). */
+  onDone?: () => void;
+  /** Start with the list open -- the cart opens its line editor on a tap of the colour itself. */
+  defaultOpen?: boolean;
   /**
    * The next pick replaces what's selected instead of adding to it, then the
    * list closes -- after a line is added, picking Star swaps out Round.
@@ -104,7 +108,7 @@ export default function IconSelect(props: Props) {
     else if (single.value !== id) single.onChange(id);
   }, [props.locked, options, isMulti, multi.values, single.value]);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(isMulti && !!multi.defaultOpen);
   const [search, setSearch] = useState('');
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -435,7 +439,7 @@ export default function IconSelect(props: Props) {
           {isMulti && multi.doneBar && (
             <div className="icon-select-done">
               <span>{multi.values.length ? `${multi.values.length} selected` : 'Pick as many as you need'}</span>
-              <button type="button" onClick={closeAndRefocus}>Done</button>
+              <button type="button" onClick={multi.onDone || closeAndRefocus}>Done</button>
             </div>
           )}
         </div>

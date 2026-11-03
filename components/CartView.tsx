@@ -30,7 +30,61 @@ const GLASS_PEARLS_CATEGORY_ID = 16;
 type ShapeRef = { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null; holePhotos?: Partial<Record<HoleCount, string>> };
 type ColorRef = { id: number; name: string; hex?: string | null; refPhotoUrl?: string | null };
 type SizeRef = { id: number; shape_id: number; size_mm: string };
-type CategoryOptions = { name?: string; qtyUnit?: string | null; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
+type CategoryOptions = { name?: string; slug?: string; qtyUnit?: string | null; shapes: ShapeRef[]; colors: ColorRef[]; sizes: SizeRef[] };
+
+type OptionEdit = { itemId: string; kind: 'size' | 'color'; values: number[] };
+
+// Changing a line's size or colour. Declared out here, not inside CartView: as
+// an inner component it was a new type on every render, so each tick remounted
+// it and shut the list -- a second colour could not be added, and unticking the
+// old one to switch left nothing chosen (owner, 2026-10-30).
+function ItemOptionEditor({ item, opts, editing, onChange, onApply, onDiscard }: {
+  item: CartItem;
+  opts: CategoryOptions;
+  editing: OptionEdit;
+  onChange: (values: number[]) => void;
+  onApply: () => void;
+  onDiscard: () => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const applyRef = useRef(onApply);
+  applyRef.current = onApply;
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) applyRef.current();
+    }
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const color = editing.kind === 'color';
+  return (
+    <div className="po-item-option-editor" ref={panelRef}>
+      <button type="button" className="po-item-option-close" aria-label="Close without saving" onClick={onDiscard}>&times;</button>
+      <div className="po-item-option-row">
+        <IconSelect
+          categoryId={item.categoryId}
+          multiple
+          defaultOpen
+          doneBar
+          onDone={onApply}
+          optionKind={color ? undefined : 'size'}
+          options={color
+            ? opts.colors
+            : opts.sizes.filter((o) => o.shape_id === item.shapeId).map((o) => ({ id: o.id, name: `${o.size_mm} mm` }))}
+          values={editing.values}
+          onChange={onChange}
+          placeholder={color ? 'Choose colours' : 'Choose sizes'}
+          leading={color ? 'swatch' : undefined}
+        />
+        <button type="button" className="btn" onClick={onApply}>Apply</button>
+      </div>
+      <p>{color
+        ? 'Tick another colour to add it, untick one to drop it. Clearing all removes this line.'
+        : 'Tick another size to add it, untick one to drop it. Clearing all removes this line.'}</p>
+    </div>
+  );
+}
 
 // Leading number of a size ("4", "4x6", "1.5") for ordering lines small to large.
 function sizeSortKey(sizeMm: string): number {
@@ -80,7 +134,7 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
   // The line just removed and where it sat, so the removal can be undone.
   const [removed, setRemoved] = useState<{ item: CartItem; index: number; message: string } | null>(null);
   const canUndoRemove = !!removed && removed.message === toast;
-  const [editingOption, setEditingOption] = useState<{ itemId: string; kind: 'size' | 'color'; values: number[] } | null>(null);
+  const [editingOption, setEditingOption] = useState<OptionEdit | null>(null);
   // Collapsed category groups, keyed by request type + category so Purchase and
   // Quotation fold independently. A fifty-line requirement spanning several
   // categories is unreadable as one long list; folding a category you've
@@ -289,47 +343,6 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
     );
   }
 
-  function ItemOptionEditor({ item, editing, onApply, onDiscard }: {
-    item: CartItem;
-    editing: { itemId: string; kind: 'size' | 'color'; values: number[] };
-    onApply: () => void;
-    onDiscard: () => void;
-  }) {
-    const panelRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-      function onDocMouseDown(e: MouseEvent) {
-        if (panelRef.current && !panelRef.current.contains(e.target as Node)) onApply();
-      }
-      document.addEventListener('mousedown', onDocMouseDown);
-      return () => document.removeEventListener('mousedown', onDocMouseDown);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onApply]);
-
-    const opts = optionsByCategory[item.categoryId];
-    if (!opts) return null;
-    return (
-      <div className="po-item-option-editor" ref={panelRef}>
-        <button type="button" className="po-item-option-close" aria-label="Close without saving" onClick={onDiscard}>&times;</button>
-        <div className="po-item-option-row">
-          <IconSelect
-            categoryId={item.categoryId}
-            multiple
-            optionKind={editing.kind === 'size' ? 'size' : undefined}
-            options={editing.kind === 'size'
-              ? opts.sizes.filter((o) => o.shape_id === item.shapeId).map((o) => ({ id: o.id, name: `${o.size_mm} mm` }))
-              : opts.colors}
-            values={editing.values}
-            onChange={(values) => setEditingOption({ ...editing, values })}
-            placeholder={editing.kind === 'size' ? 'Choose sizes' : 'Choose colors'}
-            leading={editing.kind === 'color' ? 'swatch' : undefined}
-          />
-          <button type="button" className="btn" onClick={onApply}>Apply</button>
-        </div>
-        <p>Select one or more. Clearing all removes this line.</p>
-      </div>
-    );
-  }
-
   if (!hydrated) return <div className="po-empty po-cart-loading">Loading your requirement…</div>;
 
   if (cart.length === 0 && !receipt) {
@@ -416,16 +429,29 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                       {(() => {
                         const key = `${group.type}:${catGroup.categoryId}`;
                         const isCollapsed = !!collapsed[key];
+                        const slug = optionsByCategory[catGroup.categoryId]?.slug;
+                        // The name opens the stone's own page, where its lines are
+                        // listed to change and more can be added (owner, 2026-10-30);
+                        // the caret still folds the group.
                         return (
-                          <button
-                            type="button"
-                            className="po-requirement-category-head"
-                            aria-expanded={!isCollapsed}
-                            onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))}
-                          >
-                            <span className="po-cat-caret" aria-hidden="true">{isCollapsed ? '\u25B8' : '\u25BE'}</span>
-                            <strong>{catGroup.categoryName}</strong>
-                          </button>
+                          <div className="po-requirement-category-bar">
+                            <button
+                              type="button"
+                              className="po-requirement-category-head"
+                              aria-expanded={!isCollapsed}
+                              aria-label={`${isCollapsed ? 'Show' : 'Hide'} ${catGroup.categoryName} lines`}
+                              onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))}
+                            >
+                              <span className="po-cat-caret" aria-hidden="true">{isCollapsed ? '\u25B8' : '\u25BE'}</span>
+                              {!slug && <strong>{catGroup.categoryName}</strong>}
+                            </button>
+                            {slug && (
+                              <Link className="po-requirement-category-link" href={`/po/category/${slug}#in-order`}>
+                                <strong>{catGroup.categoryName}</strong>
+                                <span>Edit or add &rsaquo;</span>
+                              </Link>
+                            )}
+                          </div>
                         );
                       })()}
                       <div className="po-item-list" hidden={!!collapsed[`${group.type}:${catGroup.categoryId}`]}>
@@ -446,7 +472,9 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                         {lineGroup.items.map((item) => {
                           const groupedBy: LineGroupBy | null = lineGroup.by;
                           const unit = unitPriceInr(item);
-                          const canEdit = !!optionsByCategory[item.categoryId] && !item.orderSpecs;
+                          // A quality (grade) holds for any size or colour; carats, drills and
+                          // strips are worked out for the size, so those lines stay as added.
+                          const canEdit = !!optionsByCategory[item.categoryId] && (!item.orderSpecs || item.orderSpecs.kind === 'grade');
                           return (
                             <div key={item.id} className="po-item-row">
                               <StoneReference item={item} />
@@ -514,10 +542,12 @@ export default function CartView({ loggedIn = false, whatsappNumber }: {
                                 </label>
                               )}
                               <button type="button" className="po-remove-btn" aria-label={`Remove ${item.shapeName} ${item.sizeMm} mm ${item.colorName}`} onClick={() => removeItem(item.id)}>&times;</button>
-                              {editingOption?.itemId === item.id && (
+                              {editingOption?.itemId === item.id && optionsByCategory[item.categoryId] && (
                                 <ItemOptionEditor
                                   item={item}
+                                  opts={optionsByCategory[item.categoryId]}
                                   editing={editingOption}
+                                  onChange={(values) => setEditingOption({ ...editingOption, values })}
                                   onDiscard={() => setEditingOption(null)}
                                   onApply={() => replaceItemOptions(
                                     item,

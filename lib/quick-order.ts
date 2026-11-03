@@ -107,10 +107,14 @@ export function suggestSizes<S extends QuickSize>(shapeSizes: S[], text: string,
   if (!t || /[-–]|to/.test(t)) return [];
   // Digits with no point, "22" on the way to "225": match sizes without their point too.
   const digits = /^\d{2,}$/.test(t) ? t : null;
+  // "7x" or "7x5" also suggests 5x7: the same size written the other way round.
+  const flipped = /[x×*]/.test(t) ? t.split(/[x×*]/).reverse().join('x') : null;
   return sortSizes(shapeSizes)
     .filter((s) => {
-      const name = s.size_mm.toLowerCase().replace(/\s+/g, '');
-      return name.startsWith(t) || (digits !== null && /^\d(\.|$)/.test(name) && (name.replace('.', '') + '00').startsWith(digits));
+      const name = s.size_mm.toLowerCase().replace(/\s+/g, '').replace(/[×*]/g, 'x');
+      const turned = name.split('x').reverse().join('x');
+      return name.startsWith(t) || (flipped !== null && (turned.startsWith(t.replace(/[×*]/g, 'x')) || name === flipped))
+        || (digits !== null && /^\d(\.|$)/.test(name) && (name.replace('.', '') + '00').startsWith(digits));
     })
     .slice(0, limit);
 }

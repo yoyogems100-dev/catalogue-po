@@ -28,6 +28,7 @@ import { formatQty, formatQtyTotals, rememberedQty, rememberQty, type QuantityFi
 import { SWISS_CATEGORY_ID, swissSizeLabel } from '@/lib/swiss-weights';
 import { VOICE_ORDER_OPEN_EVENT, MicIcon } from './VoiceOrderButton';
 import SizeQtyTable from './SizeQtyTable';
+import CategoryOrderLines from './CategoryOrderLines';
 import PasteListDialog from './PasteListDialog';
 import StoneSwitch, { PICK_COLOR_KEY } from './StoneSwitch';
 import type { PastedLine } from '@/lib/paste-order';
@@ -164,13 +165,14 @@ export default function POSelector({
   const [lineQty, setLineQty] = useState<Record<string, string>>({});
   // After shape (and colour), every size is a row with its own quantity box --
   // a buyer copying a list types the numbers straight in (owner, 2026-10-17).
-  // The table is the default; "Pick sizes from a list" is the old picker, and
-  // the buyer's choice is remembered on this device.
-  const [sizeTable, setSizeTable] = useState(true);
+  // The size dropdown is the default (owner, 2026-10-30: the full table opened
+  // straight away was too much); "Type quantities in a size table" switches to
+  // it, and the buyer's choice is remembered on this device.
+  const [sizeTable, setSizeTable] = useState(false);
   const [tableQty, setTableQty] = useState<TableEntries>({});
   const [pasteOpen, setPasteOpen] = useState(false);
   useEffect(() => {
-    try { if (localStorage.getItem(SIZE_ENTRY_KEY) === 'list') setSizeTable(false); } catch { /* storage unavailable */ }
+    try { if (localStorage.getItem(SIZE_ENTRY_KEY) === 'table') setSizeTable(true); } catch { /* storage unavailable */ }
   }, []);
   function chooseSizeTable(on: boolean) {
     setSizeTable(on);
@@ -1219,6 +1221,16 @@ export default function POSelector({
         </>}
         </div>
       </section>
+
+      {hydrated && (
+        <CategoryOrderLines
+          categoryId={categoryId}
+          cart={cart}
+          onChange={setCart}
+          onRemoved={(message, before) => { setUndo({ cart: before, message }); setToast(message); }}
+          unitLabel={quantityField?.unit}
+        />
+      )}
 
       {/* No photo grid here: the reference beside the controls above already
           shows what the buyer needs while choosing, and Explore Photos is where
