@@ -13,7 +13,7 @@ import ReusePicker from '@/components/admin/ReusePicker';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
-type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null };
+type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null; owner_category_id?: number | null };
 type Category = { id: number; num: number; name: string; slug: string | null };
 type CatColor = { category_id: number; color_id: number };
 type Palette = { id: number; name: string; colorIds: number[] };
@@ -357,6 +357,7 @@ export default function ColorsClient({
                 />
                 <span style={{ minWidth: 140, flex: '1 1 140px' }}>
                   <HotMark categoryId={scoped ? categoryFilter : undefined} kind="color" ids={[c.id]} name={c.name} /><NameCell value={c.name} onSave={(name) => renameColor(c.id, name)} />
+                  {c.owner_category_id && <span className="admin-owned-pill" title="This category's own colour -- kept apart from the shared one of the same name, and shown to buyers without this tag">{categories.find((cat) => cat.id === c.owner_category_id)?.name || 'This category'} only</span>}
                 </span>
                 <span style={{ fontSize: 11, color: '#756e5c', fontFamily: 'monospace' }}>{c.hex_value}</span>
                 <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
@@ -373,9 +374,9 @@ export default function ColorsClient({
                 {c.ref_photo_url && (
                   <button className="btn-ghost" style={{ fontSize: 11, color: '#a3341f' }} onClick={() => removePhoto(c.id)}>Remove photo</button>
                 )}
-                <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => { setExpandedCats(catsOpen ? null : c.id); }}>
+                {!c.owner_category_id && <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => { setExpandedCats(catsOpen ? null : c.id); }}>
                   {linkedCatIds.length} categories {catsOpen ? '▲' : '▼'}
-                </button>
+                </button>}
                 <button
                   type="button"
                   aria-label={`${scoped ? 'Unlink' : 'Delete'} color ${c.name}`}

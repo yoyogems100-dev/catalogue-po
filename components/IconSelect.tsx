@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
 import { sizeSearchScore } from '@/lib/size-options';
+import { searchOptions } from '@/lib/option-search';
 import ShapeIcon from './ShapeIcon';
 import ColorSwatch from './ColorSwatch';
 import { hasFinePointer } from '@/lib/pointer';
@@ -93,7 +94,7 @@ type Props = SingleProps | MultiProps;
 // automatic discriminated-union narrowing -- TS doesn't narrow reliably here
 // because the discriminant (`multiple`) is optional on one side of the union.
 export default function IconSelect(props: Props) {
-  const { options, leading = 'none', searchable = options.length > 6 } = props;
+  const { options, leading = 'none', searchable = options.length > 5 } = props;
   const { flags, ready } = useHotSelling();
   const kind = props.optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
   const hot = (o: Option) => isHot(flags, props.categoryId, kind, o.hotIds || [o.id]);
@@ -222,10 +223,6 @@ export default function IconSelect(props: Props) {
     return null;
   }
 
-  // "x", "X" and "*" are used interchangeably for compound sizes (4x6 /
-  // 4X6 / 4*6) -- normalize both sides to the same separator so a search
-  // for one form still finds options written with another.
-  const normalizeSep = (s: string) => s.toLowerCase().replace(/[x*]/g, 'x');
   // Sizes match by meaning ("5mm" finds 5.0 mm, "5/5" finds 5x5), the same
   // size first, then sizes that start with what was typed.
   const filtered = useMemo(() => {
@@ -238,7 +235,8 @@ export default function IconSelect(props: Props) {
         .sort((a, b) => b.score - a.score || a.i - b.i)
         .map((x) => x.o);
     }
-    return orderedOptions.filter((o) => normalizeSep(o.name).includes(normalizeSep(q)));
+    // Shapes and colours forgive shorthand and typos ("m pink", "pnik").
+    return searchOptions(orderedOptions, q, kind === 'color');
   }, [orderedOptions, search, kind]);
 
   // A closed multi-select colour picker shows the stones it holds (up to

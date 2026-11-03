@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { refreshPublicSite } from '@/lib/site/api';
 import { catalogueChanged } from '@/lib/catalogue-cache';
+import { CATEGORY_DESCRIPTION_MAX } from '@/lib/category-description';
 
 function slugify(name: string) {
   return name
@@ -50,7 +51,7 @@ const BADGE_TYPES = ['shapes', 'colors', 'sizes'];
 export async function PATCH(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   catalogueChanged();
-  const { id, name, badge_types, archived } = await req.json();
+  const { id, name, badge_types, archived, description } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const updates: Record<string, any> = {};
@@ -63,6 +64,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid badge_types' }, { status: 400 });
     }
     updates.badge_types = badge_types;
+  }
+  if (description !== undefined) {
+    if (description !== null && typeof description !== 'string') return NextResponse.json({ error: 'Invalid description' }, { status: 400 });
+    // One short line under the name; blank clears it.
+    const line = (description || '').replace(/\s+/g, ' ').trim();
+    if (line.length > CATEGORY_DESCRIPTION_MAX) return NextResponse.json({ error: `Keep it under ${CATEGORY_DESCRIPTION_MAX} characters` }, { status: 400 });
+    updates.description = line || null;
   }
   if (archived !== undefined) {
     if (typeof archived !== 'boolean') return NextResponse.json({ error: 'Invalid archived' }, { status: 400 });

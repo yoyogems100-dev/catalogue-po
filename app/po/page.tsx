@@ -37,7 +37,7 @@ async function loadData() {
     { data: allShapes },
     { data: allColors }
   ] = await Promise.all([
-    supabasePublic.from('categories').select('id, num, name, slug, thumbnail_photo_id, badge_types').order('num'),
+    supabasePublic.from('categories').select('id, num, name, slug, description, thumbnail_photo_id, badge_types').order('num'),
     // These four read every row of their table with no per-category filter (there's
     // no category to filter by yet -- this is what builds the per-category counts
     // below), so each must page past the project's 1000-row response cap explicitly

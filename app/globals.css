@@ -418,6 +418,7 @@ html, body { overflow-x: hidden; }
 .admin-archived-links a, .admin-archived-links button { color: var(--text-dim); background: none; border: 0; padding: 4px 0; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .admin-archived-links button:hover { color: #a3341f; }
 .admin-archived-pill { display: inline-block; vertical-align: middle; margin-left: 10px; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: #6b5a2e; background: #efe9da; border: 1px solid #d9cda9; padding: 2px 8px; }
+.admin-owned-pill { display: inline-block; vertical-align: middle; margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .3px; color: var(--navy); background: #eef1f7; border: 1px solid #cdd5e4; padding: 1px 7px; white-space: nowrap; }
 .admin-archive-banner { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; max-width: 1180px; margin: 8px 0 14px; padding: 12px 16px; background: #fbf6e8; border: 1px solid #e3d5ac; border-left: 4px solid var(--gold); }
 .admin-archive-banner p { flex: 1 1 320px; margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
 .admin-archive-error { color: #a3341f; font-size: 12.5px; }
@@ -1339,6 +1340,9 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .cat-info { flex: 1; display: flex; flex-direction: column; }
 .cat-info h3 { min-height: 2.6em; line-height: 1.3; overflow-wrap: anywhere; }
 .cat-info .n { margin-top: 8px; line-height: 1.5; }
+/* The admin-set line under a category's name; two lines at most so cards in a row stay level. */
+.cat-info h3:has(+ .cat-desc) { min-height: 0; }
+.cat-info .cat-desc { margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .po-send-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 .po-send-row label { margin-bottom: 0; min-width: 0; }
 .po-send-row input { height: 44px; }
@@ -3092,6 +3096,13 @@ li.open .colour-pick-chevron { transform: rotate(180deg); }
 
 .category-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .category-title-row .size-chart-download { margin: 10px 0 4px; }
+.category-desc { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--text-dim); max-width: 640px; }
+.admin-cat-description { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; max-width: 720px; margin: 4px 0 12px; }
+.admin-cat-description label { font-size: 12px; color: #756e5c; }
+.admin-cat-description input { width: 100%; font-size: 13.5px; }
+.admin-cat-description-state { grid-column: 2; font-size: 11.5px; color: #756e5c; }
+.admin-cat-description-state[role="alert"] { color: #a3341f; }
+@media (max-width: 560px) { .admin-cat-description { grid-template-columns: 1fr; } .admin-cat-description-state { grid-column: 1; } }
 
 @media (max-width: 560px) {
   .po-sheet-rows { grid-template-columns: 1fr; gap: 4px; }
