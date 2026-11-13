@@ -178,7 +178,7 @@ footer img{height:38px; width:auto}
 <header class="top">
   <div class="wrap">
     <a href="/po" aria-label="YOYO GEMS catalogue home"><img src="brand/logo-white.png" alt="YOYO GEMS"></a>
-    <a class="home" href="/po"><span>&larr; Main catalogue</span></a>
+    <a class="home" href="/po"><span>&larr; All categories</span></a>
   </div>
 </header>
 
@@ -698,7 +698,7 @@ function drawTabs(){
   const c = CAT[st.cat];
   $("iEye").textContent = c ? `Series ${c.series}` : `${CATS.length} categories · ${P.length} styles`;
   $("iTitle").textContent = c ? c.name : "Bracelet Collection";
-  $("iText").textContent = c ? c.text : "Choose a category to see every colour, or search all styles by name, colour or code."; $("back").hidden = !c; $("tabs").hidden = true;
+  $("iText").textContent = c ? c.text : "Choose a category to see every colour, or search all styles by name, colour or code."; $("back").hidden = false; $("back").innerHTML = c ? "&larr; All Accessories" : "&larr; All categories"; $("tabs").hidden = true;
 }
 $("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if(!b) return; st.cat = b.dataset.c; drawTabs(); render(); try{ localStorage.setItem("yoyo-cat", st.cat) }catch(_){} });
 
@@ -741,7 +741,7 @@ function render(){
 }
 function goCat(id){ st.cat = id; drawTabs(); render(); try{ localStorage.setItem("yoyo-cat", st.cat) }catch(_){}; document.querySelector(".intro").scrollIntoView({block:"start"}) }
 $("sections").addEventListener("click", e => { const cc = e.target.closest(".ccard"); if(cc) return goCat(cc.dataset.c); const c = e.target.closest(".card"); if(c) openV(+c.dataset.i) });
-$("back").addEventListener("click", () => goCat(""));
+$("back").addEventListener("click", () => { if(st.cat) goCat(""); else location.href = "/po" });
 
 /* Choose-your-pattern dropdown, grouped by category */
 let act = 0;
