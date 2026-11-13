@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <base href="/po/accessories/">
 <title>YOYO GEMS Accessories</title>
-<style>html,body{margin:0}</style>
+<style>html,body{margin:0} .top a.home{color:inherit; text-decoration:none} .top a.home span{display:inline}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Jost:wght@300;400;500&display=swap">
@@ -164,13 +164,21 @@ footer img{height:38px; width:auto}
 .ccard .m b{color:var(--gold); font-weight:500}
 .ccard .sws{display:flex; gap:5px; flex-wrap:wrap; margin-top:2px}
 .ccard .sws img{height:11px; width:auto; filter:drop-shadow(0 1px 1px rgba(15,30,56,.2))}
+@media (max-width:600px){
+  .cgrid{grid-template-columns:1fr 1fr; gap:12px}
+  .ccard .ci{padding:10px 11px 12px; gap:4px}
+  .ccard h3{font-size:15px}
+  .ccard .eyebrow{font-size:9.5px; letter-spacing:.12em}
+  .ccard .m{font-size:11px} .ccard .m b{display:none}
+  .bar{position:static}
+}
 .back{align-self:flex-start; background:none; border:0; padding:4px 0; color:var(--navy); cursor:pointer; font:inherit; font-size:13px; text-decoration:underline; text-underline-offset:3px}
 </style>
 
 <header class="top">
   <div class="wrap">
     <a href="/po" aria-label="YOYO GEMS catalogue home"><img src="brand/logo-white.png" alt="YOYO GEMS"></a>
-    <a href="/po" style="color:inherit;text-decoration:none"><span>&larr; All categories</span></a>
+    <a class="home" href="/po"><span>&larr; Main catalogue</span></a>
   </div>
 </header>
 
