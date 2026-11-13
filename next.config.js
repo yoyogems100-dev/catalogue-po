@@ -18,10 +18,23 @@ const nextConfig = {
   // 404ing. Done here, not in middleware, so they cost no function call; the
   // /po page then asks a signed-out visitor to sign in as before.
   async redirects() {
-    return ['/category', '/cart', '/browse', '/account'].flatMap((p) => [
-      { source: p, destination: `/po${p}`, permanent: true },
-      { source: `${p}/:path*`, destination: `/po${p}/:path*`, permanent: true }
-    ]);
+    return [
+      ...['/category', '/cart', '/browse', '/account'].flatMap((p) => [
+        { source: p, destination: `/po${p}`, permanent: true },
+        { source: `${p}/:path*`, destination: `/po${p}/:path*`, permanent: true }
+      ]),
+      // The Accessories card on the /po home opens the accessories catalogue:
+      // a self-contained page (its own category cards, search and photos)
+      // kept in public/po/accessories. Not permanent, so the card can later
+      // point at a regular category page again without browsers remembering this.
+      { source: '/po/category/accessories', destination: '/po/accessories', permanent: false }
+    ];
+  },
+  // /po/accessories serves that page's index.html. It sits under /po, so the
+  // middleware's sign-in gate covers it and its photos like the rest of the
+  // catalogue.
+  async rewrites() {
+    return [{ source: '/po/accessories', destination: '/po/accessories/index.html' }];
   },
   // Filtered category views (?shape=, ?size=, ?colour=, ?grade=) are the
   // plain cached page filtered in the browser: tell search engines not to
