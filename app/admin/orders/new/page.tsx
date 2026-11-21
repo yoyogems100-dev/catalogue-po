@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
+import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
@@ -25,8 +26,8 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
       const { data: rows } = await supabaseAdmin.from('order_items').select('*').eq('order_id', fromOrderId);
       const categoryIds = [...new Set((rows || []).map((row: any) => row.category_id))], shapeIds = [...new Set((rows || []).map((row: any) => row.shape_id))], sizeIds = [...new Set((rows || []).map((row: any) => row.shape_size_id).filter(Boolean))], colorIds = [...new Set((rows || []).map((row: any) => row.color_id).filter(Boolean))];
       const [{ data: rowCategories }, { data: shapes }, { data: sizes }, { data: colors }] = await Promise.all([supabaseAdmin.from('categories').select('id,name').in('id', categoryIds), supabaseAdmin.from('shapes').select('id,name').in('id', shapeIds), sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id,size_mm').in('id', sizeIds) : Promise.resolve({ data: [] }), colorIds.length ? supabaseAdmin.from('colors').select('id,name').in('id', colorIds) : Promise.resolve({ data: [] })]);
-      const names = (list: any[] | null, field: string) => new Map((list || []).map((row: any) => [row.id, row[field]])); const categoryNames = names(rowCategories, 'name'), shapeNames = names(shapes, 'name'), sizeNames = names(sizes, 'size_mm'), colorNames = names(colors, 'name');
-      repeatItems = (rows || []).map((row: any) => ({ id: `repeat-${row.id}`, categoryId: row.category_id ?? 0, categoryName: row.category_id == null ? 'Stone to confirm' : categoryNames.get(row.category_id) || 'Category', shapeId: row.shape_id, shapeName: shapeNames.get(row.shape_id) || 'Shape', sizeId: row.shape_size_id, sizeMm: sizeNames.get(row.shape_size_id) || row.custom_size || 'Custom', colorId: row.color_id, colorName: colorNames.get(row.color_id) || 'Custom', qty: row.quantity, orderSpecs: row.order_specs || undefined, note: row.note || null }));
+      const names = (list: any[] | null, field: string) => new Map((list || []).map((row: any) => [row.id, row[field]])); const categoryNames = names(rowCategories, 'name'), shapeNames = names(shapes, 'name'), sizeNames = names(sizes, 'size_mm'), colorNames = names(colors, 'name'); const colorCodes = await fetchAdminColorCodes(supabaseAdmin, colorIds);
+      repeatItems = (rows || []).map((row: any) => ({ id: `repeat-${row.id}`, categoryId: row.category_id ?? 0, categoryName: row.category_id == null ? 'Stone to confirm' : categoryNames.get(row.category_id) || 'Category', shapeId: row.shape_id, shapeName: shapeNames.get(row.shape_id) || 'Shape', sizeId: row.shape_size_id, sizeMm: sizeNames.get(row.shape_size_id) || row.custom_size || 'Custom', colorId: row.color_id, colorName: colorNames.get(row.color_id) || 'Custom', colorCode: colorCodes[row.color_id] || null, qty: row.quantity, orderSpecs: row.order_specs || undefined, note: row.note || null }));
     }
   }
 
