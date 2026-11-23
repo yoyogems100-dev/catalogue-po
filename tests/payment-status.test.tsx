@@ -59,3 +59,11 @@ test('migration makes N/A the default and keeps existing orders', () => {
   assert.match(sql, /DROP CONSTRAINT IF EXISTS orders_payment_status_check/);
   assert.doesNotMatch(sql, /UPDATE\s+public\.orders/i);
 });
+
+test('reset of old-default orders is limited to the 30 listed IDs still pending', () => {
+  const sql = readFileSync('supabase/migrations/20261123091000_reset_pending_payments_to_na.sql', 'utf8');
+  assert.match(sql, /WHERE payment_status = 'pending'/);
+  const ids = sql.match(/id IN \(([\d,]+)\)/)![1].split(',');
+  assert.equal(ids.length, 30);
+  assert.ok(!ids.includes('11'));
+});
