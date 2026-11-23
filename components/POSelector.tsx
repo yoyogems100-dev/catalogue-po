@@ -9,7 +9,7 @@ import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
 import { fieldHidden, type FormFields } from '@/lib/form-fields';
 import { useCategoryQualities, useOrderPreferences, useShapeQualities, useUsualPicks } from './useOrderPreferences';
-import { usualInCategory, usualSizeIndexes } from '@/lib/usual-picks';
+import { usualDropdownIds } from '@/lib/usual-picks';
 import { pickQualities, lineQualities, type ShapeQualities } from '@/lib/qualities';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -139,8 +139,9 @@ export default function POSelector({
   const [pickShapeIds, setPickShapeIds] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
-  // After a line is added every pick stays, and the first new pick in a field
-  // replaces its old value (Round -> Star) rather than adding to it.
+  // After a line is added every pick stays; opening one field's list clears
+  // just that field for a fresh pick, the others keep theirs (owner,
+  // 2026-11-23).
   const NO_SWAP = { shape: false, size: false, color: false };
   const [swapNext, setSwapNext] = useState(NO_SWAP);
   // Where the quantity starts: the buyer's own last number for this category,
@@ -340,10 +341,10 @@ export default function POSelector({
   // first. Picking one of the others clears the picks it doesn't come in.
   const shapeOptions = shapes;
   // A signed-in buyer's usual picks for this stone lead each list ("Your
-  // usual"); nothing is picked for them.
-  const usual = useUsualPicks();
-  const usualHere = useMemo(() => usualInCategory(usual, categoryId), [usual, categoryId]);
-  const usualSizeIdxs = useMemo(() => usualSizeIndexes(sizeGroups, usualHere.sizeKeys), [sizeGroups, usualHere]);
+  // usual"), then what they ordered of it last time ("Your last order");
+  // nothing is picked for them.
+  const usualPicks = useUsualPicks();
+  const usual = useMemo(() => usualDropdownIds(usualPicks, categoryId, sizeGroups), [usualPicks, categoryId, sizeGroups]);
   const fittingShapeIds = useMemo(() => shapes.filter((s) => available.shapeIds.has(s.id)).map((s) => s.id), [shapes, available]);
   const colorOptions = useMemo(() => colors.filter((c) => available.colorIds.has(c.id)), [colors, available]);
   const sizeOptions = useMemo(
@@ -692,8 +693,8 @@ export default function POSelector({
       }
     }
     if (!commitAdd(next, added)) return;
-    // The table empties; shape and colour stay, and the next pick in either
-    // replaces it -- the next block of a list is usually a new shape or colour.
+    // The table empties; shape and colour stay, and each clears when its list
+    // is opened -- the next block of a list is usually a new shape or colour.
     setTableQty({});
     setSwapNext({ shape: true, size: false, color: true });
     setPickRequestType('Place Order');
@@ -753,8 +754,8 @@ export default function POSelector({
     }
 
     if (!commitAdd(next, added)) return;
-    // Every pick stays for the next line; the first new pick in a field
-    // replaces its old value (owner, 2026-10-15). Request type always returns
+    // Every pick stays for the next line; opening a field's list clears just
+    // that field (owner, 2026-10-15; clear-on-open 2026-11-23). Request type always returns
     // to Purchase -- a quotation is a deliberate per-line choice.
     setSwapNext({ shape: true, size: true, color: true });
     setPickCt('');
@@ -896,14 +897,15 @@ export default function POSelector({
         locked={colorLocked}
         values={pickColorIds}
         onChange={changeColors}
-        replaceOnPick={swapNext.color}
+        clearOnOpen={swapNext.color}
         // Crushed Ice Cut is ordered colour by colour from a 60-colour card, so
         // its list stays open for picking several, with a Done bar to finish.
         closeOnFirstPick={categoryId !== CRUSHED_ICE_CATEGORY_ID && pickShapeIds.length === 0}
         doneBar={categoryId === CRUSHED_ICE_CATEGORY_ID}
         placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
-        usualIds={usualHere.colorIds}
+        usualIds={usual.colorIds}
+        recentIds={usual.recent.colorIds}
       />
     </div>
   );
@@ -957,12 +959,13 @@ export default function POSelector({
               locked={shapeLocked}
               values={pickShapeIds}
               onChange={changeShapes}
-              replaceOnPick={swapNext.shape}
+              clearOnOpen={swapNext.shape}
               closeOnFirstPick={pickColorIds.length === 0}
               placeholder={`Choose ${shapeLabel.toLowerCase()}`}
               leading="icon"
               fitIds={fittingShapeIds.length < shapes.length ? fittingShapeIds : undefined}
-              usualIds={usualHere.shapeIds}
+              usualIds={usual.shapeIds}
+              recentIds={usual.recent.shapeIds}
               otherLabel={pickSizeIdxs.length ? `Not in ${pickSizeIdxs.length === 1 ? 'this size' : 'these sizes'} — picking one changes the size` : `Not in the chosen ${lowerLabel.toLowerCase()}`}
               disabledIds={swapNext.shape ? [] : incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
@@ -978,8 +981,9 @@ export default function POSelector({
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={changeSizes}
-              replaceOnPick={swapNext.size}
-              usualIds={usualSizeIdxs}
+              clearOnOpen={swapNext.size}
+              usualIds={usual.sizeIdxs}
+              recentIds={usual.recent.sizeIdxs}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
               locked={pickShapeIds.length > 0 && sizeOptions.length === 1}

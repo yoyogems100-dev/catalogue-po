@@ -3473,6 +3473,7 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .icon-select-divider { padding: 8px 12px 4px; font-size: 11px; letter-spacing: 0.04em; color: #756e5c; border-top: 1px solid var(--line); margin-top: 4px; }
 /* "Your usual" / "Their usual": the buyer's saved go-to options lead the list. */
 .icon-select-usual-head { border-top: 0; margin-top: 0; padding-top: 6px; color: var(--gold, #9C7A25); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; }
+.icon-select-usual-head.icon-select-usual-next { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; }
 .bulk-pins { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .bulk-pins-status { font-size: 12.5px; color: #2f7a4a; }
 

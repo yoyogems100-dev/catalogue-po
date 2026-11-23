@@ -543,6 +543,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 allLabel={loadingCategories ? 'Loading stones…' : 'Any stone — we confirm'}
                 leading="photo"
                 usualIds={usualStoneIds}
+                recentIds={usualPicks.lastOrder?.categoryIds}
                 searchable
               />
             </div>

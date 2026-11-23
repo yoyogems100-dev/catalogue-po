@@ -412,6 +412,7 @@ export default function OrderDetailClient({
                     leading="photo"
                     searchable
                     usualIds={usual.categoryIds}
+                    recentIds={usual.recent.categoryIds}
                   />
                 </div>
                 <div>
@@ -427,6 +428,7 @@ export default function OrderDetailClient({
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
                     leading="swatch"
                     usualIds={usual.colorIds}
+                    recentIds={usual.recent.colorIds}
                   />
                 </div>
                 <div>
@@ -441,6 +443,7 @@ export default function OrderDetailClient({
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape/cut'}
                     leading="icon"
                     usualIds={usual.shapeIds}
+                    recentIds={usual.recent.shapeIds}
                     disabledIds={incompatibleShapes}
                     disabledReason={NO_SHARED_SIZE_REASON}
                     disabledNote={NO_SHARED_SIZE_NOTE}
@@ -456,6 +459,7 @@ export default function OrderDetailClient({
                     values={pickSizeIdxs}
                     onChange={setPickSizeIdxs}
                     usualIds={usual.sizeIdxs}
+                    recentIds={usual.recent.sizeIdxs}
                     placeholder={
                       !currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'
                     }

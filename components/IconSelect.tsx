@@ -5,7 +5,7 @@ import { useDropdownBounds } from './useDropdownBounds';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
 import { isHot, type OptionKind } from '@/lib/hot-selling';
-import { panelOrder } from '@/lib/usual-picks';
+import { leadTier, panelOrder } from '@/lib/usual-picks';
 import { sizeSearchScore } from '@/lib/size-options';
 import { searchOptions } from '@/lib/option-search';
 import ShapeIcon from './ShapeIcon';
@@ -52,6 +52,9 @@ type CommonProps = {
    */
   usualIds?: number[];
   usualLabel?: string;
+  /** Options from the buyer's last order: listed next under `recentLabel`. */
+  recentIds?: number[];
+  recentLabel?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -87,6 +90,12 @@ type MultiProps = CommonProps & {
    * list closes -- after a line is added, picking Star swaps out Round.
    */
   replaceOnPick?: boolean;
+  /**
+   * Opening the list clears what's selected here, so a fresh pick can be made
+   * (owner, 2026-11-23: after a line is added, "whichever dropdown they click
+   * clear previous data of it and rest keep all same").
+   */
+  clearOnOpen?: boolean;
 };
 
 type Props = SingleProps | MultiProps;
@@ -120,6 +129,7 @@ export default function IconSelect(props: Props) {
   const [open, setOpen] = useState(isMulti && !!multi.defaultOpen);
   const [search, setSearch] = useState('');
   const [orderSnapshot, setOrderSnapshot] = useState<number[] | null>(null);
+  const openedRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelStyle = useDropdownBounds(open, rootRef);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -184,14 +194,21 @@ export default function IconSelect(props: Props) {
 
   useEffect(() => {
     if (!open) {
+      openedRef.current = false;
       setSearch('');
       return;
     }
     // Snapshot the selected-first order once when the panel opens, rather than
     // re-sorting on every click -- otherwise a row jumps to the top the moment
     // you check it, right out from under the cursor mid multi-select.
-    const selectedIds = new Set(isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
-    const ranked = panelOrder(options, { selected: selectedIds, hot, fitIds: props.fitIds, usualIds: props.usualIds });
+    // Only on the click that opens the list, not when hot-selling data arrives
+    // while it is already open and the buyer has picked again.
+    const justOpened = !openedRef.current;
+    openedRef.current = true;
+    const clearing = justOpened && isMulti && !!multi.clearOnOpen && multi.values.length > 0;
+    if (clearing) multi.onChange([]);
+    const selectedIds = new Set(clearing ? [] : isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
+    const ranked = panelOrder(options, { selected: selectedIds, hot, fitIds: props.fitIds, usualIds: props.usualIds, recentIds: props.recentIds });
     setOrderSnapshot(ranked.map((o) => o.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ready]);
@@ -412,14 +429,19 @@ export default function IconSelect(props: Props) {
               const isDisabled = !isActive && (props.disabledIds || []).includes(o.id);
               // The buyer's usual options lead the list under a small heading;
               // a search reorders by match, so the heading only shows unsearched.
-              const usualRow = (x: Option | undefined) => !!x && !!props.usualIds?.includes(x.id);
-              const usualHead = !search.trim() && usualRow(o) && !usualRow(filtered[index - 1]);
-              const usualEnd = !search.trim() && !firstOther && index > 0 && !usualRow(o) && usualRow(filtered[index - 1]);
+              // Then the options from their last order under a heading of its own.
+              const tier = (x: Option | undefined) => (x ? leadTier(x.id, props.usualIds, props.recentIds) : 0);
+              const grouped = !search.trim();
+              const prevTier = index > 0 ? tier(filtered[index - 1]) : 0;
+              const usualHead = grouped && tier(o) === 2 && prevTier !== 2;
+              const recentHead = grouped && tier(o) === 1 && prevTier !== 1;
+              const usualEnd = grouped && !firstOther && index > 0 && tier(o) === 0 && prevTier > 0;
               return (
                 <Fragment key={o.id}>
                 {firstOther && props.otherLabel && <div className="icon-select-divider" role="presentation">{props.otherLabel}</div>}
                 {usualEnd && <div className="icon-select-divider" role="presentation">More</div>}
                 {usualHead && <div className="icon-select-divider icon-select-usual-head" role="presentation">{props.usualLabel || 'Your usual'}</div>}
+                {recentHead && <div className={`icon-select-divider icon-select-usual-head${index > 0 && !firstOther ? ' icon-select-usual-next' : ''}`} role="presentation">{props.recentLabel || 'Your last order'}</div>}
                 <div
                   role="option"
                   aria-selected={isActive}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { UsualSource } from '@/lib/usual-picks';
+import { cleanLastOrder, EMPTY_LAST_ORDER, type LastOrder, type UsualSource } from '@/lib/usual-picks';
 import type { OrderPreference } from '@/lib/customer-preferences';
 import { namedFamilies, sanitizeColorNames, type ColorFamily, type ColorNames } from '@/lib/color-family';
 import { parseCategoryQualities, parseShapeQualities, type CategoryQualities, type ShapeQualities } from '@/lib/qualities';
@@ -13,7 +13,7 @@ import { parseCategoryQualities, parseShapeQualities, type CategoryQualities, ty
 // -- and the colour buttons the shop has chosen to show.
 // colorButtons is null until loaded (or if loading failed), so a caller can
 // keep showing what the server rendered instead of flashing another list.
-type QuickOrderConfig = { preferences: OrderPreference[]; myPreferences: OrderPreference[]; myCategoryIds: number[]; colorButtons: number[] | null; colorNames: ColorNames | null; qualities: CategoryQualities | null; shapeQualities: ShapeQualities | null };
+type QuickOrderConfig = { preferences: OrderPreference[]; myPreferences: OrderPreference[]; myCategoryIds: number[]; lastOrder: LastOrder; colorButtons: number[] | null; colorNames: ColorNames | null; qualities: CategoryQualities | null; shapeQualities: ShapeQualities | null };
 let pending: Promise<QuickOrderConfig> | null = null;
 
 function load(): Promise<QuickOrderConfig> {
@@ -24,18 +24,19 @@ function load(): Promise<QuickOrderConfig> {
         preferences: Array.isArray(data?.preferences) ? data.preferences : [],
         myPreferences: Array.isArray(data?.myPreferences) ? data.myPreferences : [],
         myCategoryIds: Array.isArray(data?.myCategoryIds) ? data.myCategoryIds.filter((id: unknown) => Number.isSafeInteger(id)) : [],
+        lastOrder: cleanLastOrder(data?.lastOrder),
         colorButtons: Array.isArray(data?.colorButtons) ? data.colorButtons : null,
         colorNames: data?.colorNames ? sanitizeColorNames(data.colorNames) : null,
         qualities: data?.qualities ? parseCategoryQualities(JSON.stringify(data.qualities)) : null,
         shapeQualities: data?.shapeQualities ? parseShapeQualities(JSON.stringify(data.shapeQualities)) : null
       }))
-      .catch(() => ({ preferences: [], myPreferences: [], myCategoryIds: [], colorButtons: null, colorNames: null, qualities: null, shapeQualities: null }));
+      .catch(() => ({ preferences: [], myPreferences: [], myCategoryIds: [], lastOrder: EMPTY_LAST_ORDER, colorButtons: null, colorNames: null, qualities: null, shapeQualities: null }));
   }
   return pending;
 }
 
 function useQuickOrderConfig(): QuickOrderConfig {
-  const [config, setConfig] = useState<QuickOrderConfig>({ preferences: [], myPreferences: [], myCategoryIds: [], colorButtons: null, colorNames: null, qualities: null, shapeQualities: null });
+  const [config, setConfig] = useState<QuickOrderConfig>({ preferences: [], myPreferences: [], myCategoryIds: [], lastOrder: EMPTY_LAST_ORDER, colorButtons: null, colorNames: null, qualities: null, shapeQualities: null });
   useEffect(() => {
     let live = true;
     load().then((c) => { if (live) setConfig(c); });
@@ -55,11 +56,12 @@ export function useOwnOrderPreferences(): OrderPreference[] {
 
 /**
  * What this signed-in buyer usually orders (lib/usual-picks): their go-to
- * categories and own usual picks, never the shop defaults. Empty for guests.
+ * categories, own usual picks and last order, never the shop defaults.
+ * Empty for guests.
  */
 export function useUsualPicks(): UsualSource {
-  const { myPreferences, myCategoryIds } = useQuickOrderConfig();
-  return useMemo(() => ({ preferences: myPreferences, categoryIds: myCategoryIds }), [myPreferences, myCategoryIds]);
+  const { myPreferences, myCategoryIds, lastOrder } = useQuickOrderConfig();
+  return useMemo(() => ({ preferences: myPreferences, categoryIds: myCategoryIds, lastOrder }), [myPreferences, myCategoryIds, lastOrder]);
 }
 
 /** Colour family IDs to offer as buttons, in order: this buyer's list or the shop's. Null until loaded. */
