@@ -80,6 +80,11 @@ export function resolveSizes<S extends QuickSize>(shapeSizes: S[], text: string)
   if (!want) return { error: `“${text.trim()}” is not a size` };
   const hit = shapeSizes.find((s) => sameDims(sizeDims(s), want));
   if (hit) return { sizes: [hit] };
+  // "Sq 6mm" / "Cushion 8mm": a shape cut only square is listed as 6x6.
+  if (want.length === 1) {
+    const square = shapeSizes.filter((s) => { const d = sizeDims(s); return d.length > 1 && d.every((v) => Math.abs(v - want[0]) < EPS); });
+    if (square.length === 1) return { sizes: square };
+  }
   // "19" with no 19 mm stone is 1.9 mm, written without its point.
   if (/^\d{2,3}$/.test(t)) {
     for (const scale of [10, 100]) {

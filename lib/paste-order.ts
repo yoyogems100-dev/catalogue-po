@@ -31,7 +31,16 @@ export type PasteHints = {
 };
 
 export type PasteRow = { key: string; line: number; raw: string; block: number; hints: PasteHints };
-export type PasteParse = { rows: PasteRow[]; ignored: string[] };
+/** A line after the list that sets something for every line ("7a white", "Each 100 pcs"). */
+export type PasteApplied = { raw: string; colorIds: number[]; categoryIds: number[] | null; grade: string | null; qty: number | null };
+export type PasteParse = {
+  rows: PasteRow[];
+  ignored: string[];
+  /** Lines read as applying to every line that didn't say it itself. */
+  applied?: PasteApplied[];
+  /** Lines after the list with words that aren't an order ("Proper 7A", "Quality"): kept for the order note. */
+  remarks?: string[];
+};
 
 export type PasteField = 'stone' | 'colour' | 'shape' | 'size' | 'quantity' | 'quality';
 /** What the buyer chose for a row in the review. */
@@ -72,7 +81,9 @@ export type ResolveContext = {
 // ---------------------------------------------------------------------------
 // Words
 
-const SHAPE_ALIASES: Record<string, string> = {
+// A list of targets is tried in order: "sq" is a Square if the catalogue has
+// one, else the SQ-Princess (the shape order #30's "Sq 6mm" was entered as).
+const SHAPE_ALIASES: Record<string, string | string[]> = {
   octo: 'octagon', octa: 'octagon', oct: 'octagon',
   buguette: 'baguette', baguatte: 'baguette', bagutte: 'baguette', bagette: 'baguette', baguett: 'baguette', bag: 'baguette',
   trangle: 'triangle', triangel: 'triangle', tringle: 'triangle',
@@ -80,7 +91,7 @@ const SHAPE_ALIASES: Record<string, string> = {
   trilliant: 'trillion', trilion: 'trillion',
   marquis: 'marquise', marquees: 'marquise', mq: 'marquise',
   rd: 'round', rnd: 'round',
-  princes: 'princess', sq: 'square', cush: 'cushion', cushon: 'cushion',
+  princes: 'princess', sq: ['square', 'sq princess'], square: ['sq princess'], sqr: ['square', 'sq princess'], cush: 'cushion', cushon: 'cushion',
   hart: 'heart', ovel: 'oval', peer: 'pear',
   emerald: 'emerald cut', emarald: 'emerald cut', radient: 'radiant', checkers: 'checker',
   cobochon: 'cabochon', cabachon: 'cabochon', cabochan: 'cabochon', cab: 'cabochon', cabs: 'cabochon',
@@ -97,7 +108,7 @@ const words = (s: string) => s.toLowerCase().replace(/#/g, ' ').replace(/[^a-z0-
 const keyOf = (tokens: string[]) => [...tokens].sort().join(' ');
 const isNumeric = (t: string) => /^\d/.test(t);
 
-type Dict = { colors: Map<string, number[]>; shapes: Map<string, number[]>; categoryWords: Map<string, number[]>; maxLen: number };
+type Dict = { colors: Map<string, number[]>; shapes: Map<string, number[]>; categoryWords: Map<string, number[]>; maxLen: number; wordAlias: Map<string, string> };
 
 const dictCache = new WeakMap<CatalogueMap, Dict>();
 const GRADE_TOKEN = /^(?:[1-9]a\+?|a{2,4})$/;
@@ -131,9 +142,15 @@ function dictFor(map: CatalogueMap): Dict {
     const short = t.filter((w) => w !== 'cut' && w !== 'shape' && !/^\(/.test(w));
     if (short.length && short.length < t.length) add(shapes, keyOf(short), s.id);
   }
+  // A word that is itself a shape's name keeps meaning that shape.
+  const realNames = new Set(shapes.keys());
+  const wordAlias = new Map<string, string>();
   for (const [alias, target] of Object.entries(SHAPE_ALIASES)) {
-    const ids = shapeByName.get(target);
-    if (ids) ids.forEach((id) => add(shapes, keyOf(words(alias)), id));
+    const targets = Array.isArray(target) ? target : [target];
+    const ids = targets.map((t) => shapeByName.get(t)).find(Boolean);
+    if (ids && !realNames.has(keyOf(words(alias)))) ids.forEach((id) => add(shapes, keyOf(words(alias)), id));
+    // A one-word spelling stands in inside longer names: "octo step cut" is the Octagon Step Cut.
+    if (targets.length === 1 && !targets[0].includes(' ')) wordAlias.set(alias, targets[0]);
   }
   for (const cat of map.categories) {
     // "4A" in "4A Quality CZ" names that stone as well as a quality.
@@ -143,7 +160,7 @@ function dictFor(map: CatalogueMap): Dict {
     const ids = categoryWords.get(target);
     if (ids) ids.forEach((id) => add(categoryWords, alias, id));
   }
-  const dict = { colors, shapes, categoryWords, maxLen: Math.min(maxLen, 6) };
+  const dict = { colors, shapes, categoryWords, maxLen: Math.min(maxLen, 6), wordAlias };
   dictCache.set(map, dict);
   return dict;
 }
@@ -173,7 +190,7 @@ export function normalizeLine(raw: string): string {
   s = s.replace(/(\d)\s*mm\b/g, '$1mm');
   for (let i = 0; i < 3; i++) s = s.replace(/(\d+(?:\.\d+)?)(?:mm)?\s*x\s*(?=\d)/g, '$1x');
   s = s.replace(/(\d+(?:\.\d+)?)\s*k\b/g, (_, n) => `${Math.round(Number(n) * 1000)}pcs`);
-  s = s.replace(/(\d)\s*(?:pcs|pc|pieces|piece|nos|no)\b\.?/g, '$1pcs');
+  s = s.replace(/(\d)\s*(?:pcs|pc|pieces|piece|pecs|pec|pcz|nos|no)\b\.?/g, '$1pcs');
   return s;
 }
 
@@ -194,8 +211,9 @@ function readSegment(text: string, dict: Dict): Segment {
       if (run.some((_, j) => used[i + j]) || !run.some((t) => !isNumeric(t))) continue;
       const k = keyOf(run);
       const plural = len === 1 && run[0].length > 3 && run[0].endsWith('s') ? run[0].slice(0, -1) : null;
+      const spelled = len > 1 ? keyOf(run.map((t) => dict.wordAlias.get(t) || t)) : k;
       const colorHit = dict.colors.get(k);
-      const shapeHit = dict.shapes.get(k) || (plural ? dict.shapes.get(plural) : undefined);
+      const shapeHit = dict.shapes.get(k) || (plural ? dict.shapes.get(plural) : undefined) || (spelled !== k ? dict.shapes.get(spelled) : undefined);
       if (!colorHit && !shapeHit) continue;
       if (colorHit) colorHit.forEach((id) => { if (!seg.colorIds.includes(id)) seg.colorIds.push(id); });
       if (shapeHit) shapeHit.forEach((id) => { if (!seg.shapeIds.includes(id)) seg.shapeIds.push(id); });
@@ -302,6 +320,15 @@ export function parsePastedList(text: string, map: CatalogueMap): PasteParse {
   const ctx = { colorIds: [] as number[], shapeIds: [] as number[], categoryIds: null as number[] | null, grade: null as string | null, note: '', unknown: '' };
   let block = 0;
   let columns: Columns | null = null;
+  // Lines that set something rather than order something ("7a white",
+  // "Each 100 pcs"). Those after the last order line apply to every line.
+  type Setting = PasteApplied & { index: number; forAll: boolean; leftover: boolean };
+  const settings: Setting[] = [];
+  let lastRowIndex = -1;
+  let defaultQty: number | null = null;
+  // Plain words after such a line: a remark for the order, unless more lines follow.
+  let pendingPlain: { index: number; raw: string }[] = [];
+  const footerOpen = () => rows.length > 0 && settings.some((x) => x.index > lastRowIndex);
   const firstFilled = lines.findIndex((l) => l.trim());
   if (firstFilled >= 0 && lines[firstFilled].includes('\t')) columns = headerColumns(lines[firstFilled].split('\t'));
 
@@ -369,10 +396,23 @@ export function parsePastedList(text: string, map: CatalogueMap): PasteParse {
     const restNote = seg.rest.filter((w) => !NOTE_STOPWORDS.has(w) && !nameWords.has(w)).join(' ');
     const own = [noteCell, restNote].filter(Boolean).join(' · ');
     const noNumbers = !seg.sizes.length && seg.qty === null;
+    // A quantity on a line of its own ("Each 100 pcs"): for the lines that have none.
+    // With "each"/"all" (or before any line) it is for every line; else for the block above.
+    if (!columns && !seg.sizes.length && seg.qty !== null && !seg.colorIds.length && !seg.shapeIds.length && !seg.categoryIds && !itemLead.length) {
+      const forAll = !rows.length || /\b(each|all|every|har|sab|sabhi)\b/i.test(raw);
+      const lacking = rows.filter((r) => r.hints.qty === null && (forAll || r.block === block));
+      if (forAll || lacking.length) {
+        lacking.forEach((r) => { r.hints.qty = seg.qty; });
+        if (forAll) defaultQty = seg.qty;
+        settings.push({ index, raw: raw.trim(), colorIds: [], categoryIds: null, grade: null, qty: seg.qty, forAll, leftover: !!own });
+        return;
+      }
+    }
     // A line of plain words under a row ("for hand setting") is that block's
     // note, not a new item -- unless its words name a colour, shape or stone.
     if (noNumbers && !columns && rows.length && !seg.colorIds.length && !seg.shapeIds.length && !seg.categoryIds) {
       const words = [own, unknown].filter(Boolean).join(' ');
+      if (words && footerOpen()) { pendingPlain.push({ index, raw: raw.trim() }); return; }
       if (words) {
         const last = rows[rows.length - 1];
         ctx.note = [ctx.note, words].filter(Boolean).join(' · ');
@@ -398,12 +438,21 @@ export function parsePastedList(text: string, map: CatalogueMap): PasteParse {
     if (namesSomething) { block++; ctx.note = ''; ctx.unknown = unknown; }
 
     if (noNumbers) {
-      if (namesSomething) { if (own) ctx.note = own; return; }
+      if (namesSomething) {
+        if (own) ctx.note = own;
+        if (!columns) settings.push({ index, raw: raw.trim(), colorIds: seg.colorIds, categoryIds: seg.categoryIds, grade: seg.grade, qty: null, forAll: true, leftover: !!(own || unknown) });
+        return;
+      }
       if (rows.length && !flagged) ignored.push(raw.trim().replace(/\t+/g, '  '));
       return;
     }
     // A remark in a sheet's note column, or words on a row, hold for the rest of its block.
     if (own) ctx.note = [ctx.note, own].filter((v, i, a) => v && a.indexOf(v) === i).join(' · ');
+    if (pendingPlain.length) {
+      ctx.note = [ctx.note, ...pendingPlain.map((p) => p.raw)].filter(Boolean).join(' · ');
+      pendingPlain = [];
+    }
+    lastRowIndex = index;
     const sizes = seg.sizes.length ? seg.sizes : [null];
     sizes.forEach((sizeText, i) => {
       rows.push({
@@ -413,12 +462,35 @@ export function parsePastedList(text: string, map: CatalogueMap): PasteParse {
         block,
         hints: {
           colorIds: ctx.colorIds, shapeIds: ctx.shapeIds, categoryIds: ctx.categoryIds,
-          sizeText, qty: seg.qty, grade: seg.grade || ctx.grade, note: ctx.note, unknown: ctx.unknown,
+          sizeText, qty: seg.qty ?? defaultQty, grade: seg.grade || ctx.grade, note: ctx.note, unknown: ctx.unknown,
         },
       });
     });
   });
-  return { rows, ignored };
+
+  // Lines after the list that name a stone, colour or quality fill it in on
+  // every line that didn't say ("7a white" under a list of shapes and sizes).
+  const applied: PasteApplied[] = [];
+  const remarks: { index: number; raw: string }[] = [];
+  for (const x of settings) {
+    const footer = rows.length > 0 && x.index > lastRowIndex;
+    if (x.qty !== null) {
+      if (x.forAll) applied.push({ raw: x.raw, colorIds: [], categoryIds: null, grade: null, qty: x.qty });
+      if (x.leftover) remarks.push(x);
+      continue;
+    }
+    if (!footer) continue;
+    let filled = false;
+    for (const r of rows) {
+      if (!r.hints.colorIds.length && x.colorIds.length) { r.hints.colorIds = x.colorIds; filled = true; }
+      if (!r.hints.categoryIds && x.categoryIds) { r.hints.categoryIds = x.categoryIds; filled = true; }
+      if (!r.hints.grade && x.grade) { r.hints.grade = x.grade; filled = true; }
+    }
+    if (filled || x.colorIds.length || x.categoryIds || x.grade) applied.push({ raw: x.raw, colorIds: x.colorIds, categoryIds: x.categoryIds, grade: x.grade, qty: null });
+    if (x.leftover) remarks.push(x);
+  }
+  if (rows.length) remarks.push(...pendingPlain);
+  return { rows, ignored, applied, remarks: remarks.sort((a, b) => a.index - b.index).map((x) => x.raw) };
 }
 
 // ---------------------------------------------------------------------------

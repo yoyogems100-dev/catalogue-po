@@ -8,7 +8,7 @@ import { lineQualities } from '@/lib/qualities';
 import { SWISS_CATEGORY_ID } from '@/lib/swiss-weights';
 import {
   isReady, parsePastedList, resolveAll,
-  type PasteField, type PastedLine, type PastePick, type PasteResolved, type PasteRow, type ResolveContext,
+  type PasteField, type PastedLine, type PasteParse, type PastePick, type PasteResolved, type PasteRow, type ResolveContext,
 } from '@/lib/paste-order';
 import { useCategoryQualities, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
 import { useCatalogueMap } from './useCatalogueMap';
@@ -36,8 +36,8 @@ export default function PasteListDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Called with the lines to add. */
-  onAdd: (lines: PastedLine[]) => void;
+  /** Called with the lines to add, and the message's words that aren't an order ("Proper 7A quality"). */
+  onAdd: (lines: PastedLine[], extra?: { remarks: string[] }) => void;
   /** The team's order builder: the buyer's own usual picks don't apply. */
   forAdmin?: boolean;
   /** Where a stone ordered on its own page lives (category slug -> URL). */
@@ -48,7 +48,7 @@ export default function PasteListDialog({
   const [slow, setSlow] = useState(false);
   const [text, setText] = useState('');
   const [stage, setStage] = useState<'write' | 'review'>('write');
-  const [parsed, setParsed] = useState<{ rows: PasteRow[]; ignored: string[] }>({ rows: [], ignored: [] });
+  const [parsed, setParsed] = useState<PasteParse>({ rows: [], ignored: [] });
   const [picks, setPicks] = useState<Record<string, PastePick>>({});
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Set<string>>(new Set());
@@ -181,7 +181,8 @@ export default function PasteListDialog({
         l.qtyUnit = o.qtyUnit ?? null;
       }
     } catch { /* lines still add with the shared shape photo */ }
-    onAdd(lines);
+    // The remarks go with the first lines added, once.
+    onAdd(lines, { remarks: added ? [] : parsed.remarks || [] });
     setAdding(false);
     setAdded((n) => n + lines.length);
     const left = live.filter((r) => !doneKeys.includes(r.key));
@@ -311,9 +312,30 @@ export default function PasteListDialog({
                 {askCount > 0 && <> · <b className="pl-summary-ask">{fmt(askCount)}</b> need a choice</>}
               </p>
             )}
+            {(parsed.applied?.length || 0) > 0 && (
+              <div className="pl-applied">
+                <span>For every line that didn&rsquo;t say:</span>
+                <ul>
+                  {parsed.applied!.map((a, i) => (
+                    <li key={i}>
+                      <q>{a.raw}</q> &rarr; {[
+                        a.categoryIds?.length === 1 ? catName(a.categoryIds[0]) : null,
+                        a.colorIds.length === 1 ? colourName(a.colorIds[0]) : null,
+                        a.grade, a.qty ? `${fmt(a.qty)} pcs` : null,
+                      ].filter(Boolean).join(' · ') || 'see the lines'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <ol className="pl-rows">
               {live.map((row, i) => resolved[i] && rowView(row, resolved[i], i))}
             </ol>
+            {(parsed.remarks?.length || 0) > 0 && (
+              <p className="pl-remarks">
+                {forAdmin ? 'Kept for the order note' : 'Also in your message'}: {parsed.remarks!.map((r, i) => <q key={i}>{r}</q>)}
+              </p>
+            )}
             {parsed.ignored.length > 0 && (
               <details className="pl-ignored">
                 <summary>{parsed.ignored.length} {parsed.ignored.length === 1 ? 'line' : 'lines'} not read</summary>
