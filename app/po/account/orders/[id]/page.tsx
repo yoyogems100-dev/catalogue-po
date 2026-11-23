@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { buyerPaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { getOrderStages } from '@/lib/order-stages-server';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
@@ -129,7 +130,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
         </div>
 
         {order.comment && <p><strong>Order description:</strong> {order.comment}</p>}
-        <p>Payment: {order.payment_status || 'pending'}</p>
+        {buyerPaymentStatus(order.payment_status) && <p>Payment: {paymentStatusLabel(order.payment_status)}</p>}
         {order.pdf_url && <p><a className="btn-ghost" href={order.pdf_url} target="_blank" rel="noopener noreferrer">Download latest order PDF</a></p>}
         {order.status === 'placed' && <p>Our team will confirm pricing and availability.</p>}
 

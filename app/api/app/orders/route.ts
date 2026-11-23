@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { buyerPaymentStatus } from '@/lib/payment-status';
 import { getCustomerId } from '@/lib/customer-auth';
 
 // JSON equivalent of app/po/account/orders/page.tsx -- powers the app's My Orders list.
@@ -31,7 +32,7 @@ export async function GET() {
     id: o.id,
     status: o.status,
     created_at: o.created_at,
-    payment_status: o.payment_status,
+    payment_status: buyerPaymentStatus(o.payment_status),
     lines: statsByOrder[o.id]?.lines || 0,
     pieces: statsByOrder[o.id]?.pieces || 0
   }));
