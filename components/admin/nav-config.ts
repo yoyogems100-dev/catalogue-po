@@ -116,6 +116,7 @@ export const WORKSPACES: Workspace[] = [
         links: [
           { href: '/admin/content', label: '/po setup home' },
           { href: '/admin/content/home-sections', label: 'Home page sections', detail: 'Shelves like Most ordered and New in: which categories, and in what order.' },
+          { href: '/admin/accessories', label: 'Accessories page', detail: 'Every accessory range and style: find any ID, rename, edit codes and descriptions, hide, mark out of stock, reorder, download Excel.' },
           { href: '/admin/catalogue-map', label: 'Colour buttons & map', detail: 'Colour buttons buyers see and the stone each opens; stones by colour, size and material.' },
           { href: '/admin/brand-upload', label: 'Header logo', detail: 'The logo in the /po header.' }
         ]
