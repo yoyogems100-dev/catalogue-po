@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.tsx",
+    "accessories:index": "node scripts/accessories-index.mjs",
     "test:local-db": "node scripts/check-local-db.mjs",
     "test:pearl-migration": "node scripts/check-pearl-migration.mjs",
     "test:hot-selling-migration": "node scripts/check-hot-selling-migration.mjs",
