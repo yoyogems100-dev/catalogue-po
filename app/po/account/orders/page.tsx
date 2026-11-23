@@ -4,7 +4,8 @@ import { formatQtyTotals } from '@/lib/quantity-field';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { buyerPaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { getStageSets, jaipurOrderIds } from '@/lib/order-stages-server';
+import { stagesFor } from '@/lib/order-milestones';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
@@ -13,7 +14,7 @@ import ProfileGate from './ProfileGate';
 import RepeatOrderButton from './RepeatOrderButton';
 
 export default async function AccountOrdersPage() {
-  const stages = await getOrderStages();
+  const stageSets = await getStageSets();
   const customerId = await getCustomerId();
   if (!customerId) redirect('/po/account/login');
 
@@ -36,6 +37,7 @@ export default async function AccountOrdersPage() {
     .order('created_at', { ascending: false });
 
   const orderIds = (orders || []).map((o) => o.id);
+  const fromJaipur = await jaipurOrderIds(orderIds);
   const { data: items } = orderIds.length
     ? await supabaseAdmin.from('order_items').select('order_id, category_id, quantity').in('order_id', orderIds)
     : { data: [] };
@@ -75,7 +77,7 @@ export default async function AccountOrdersPage() {
                       {new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
-                  <OrderStepper status={o.status} stages={stages} compact />
+                  <OrderStepper status={o.status} stages={stagesFor(stageSets, fromJaipur.has(o.id))} compact />
                   <div className="account-order-row-bottom">
                     <span>{stats.lines} item{stats.lines !== 1 ? 's' : ''} · {formatQtyTotals(stats.qty)}</span>
                     {/* Nothing about payment while it is N/A (not set by the team yet). */}

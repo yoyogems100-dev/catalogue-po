@@ -56,3 +56,42 @@ test('buyer tracker uses edited names and skips hidden stages', () => {
   assert.ok(!/Delivered/.test(html));
   assert.equal((html.match(/stepper-step done/g) || []).length, 3);
 });
+
+test('courier lines appear only once a courier is chosen', async () => {
+  const sent = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7, courier: 'Sainath Courier' });
+  assert.equal(sent, 'Hi Rajesh, your YOYO GEMS order #7 parcel has been sent.\nSent through Sainath Courier.');
+  const none = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7 });
+  assert.equal(none, 'Hi Rajesh, your YOYO GEMS order #7 parcel has been sent.');
+  assert.match(renderStageMessage(DEFAULT_ORDER_STAGES, 'packed', { name: 'R', order: 7, courier: 'DTDC' }), /received in Jaipur[\s\S]*It will be sent through DTDC\./);
+});
+
+test('Jaipur dispatch skips the China stages and names the courier', async () => {
+  const { DEFAULT_JAIPUR_STAGES, resolveJaipurStages, stagesFor } = await import('../lib/order-milestones');
+  assert.deepEqual(visibleMilestones(DEFAULT_JAIPUR_STAGES).map((s) => s.label), ['Order placed', 'Order received', 'Dispatched from Jaipur']);
+  assert.doesNotMatch(DEFAULT_JAIPUR_STAGES.find((s) => s.key === 'placed')!.message, /China/);
+  assert.equal(
+    renderStageMessage(DEFAULT_JAIPUR_STAGES, 'confirmed', { name: 'Rajesh', order: 9 }),
+    'Hi Rajesh, your YOYO GEMS order #9 is received and being prepared.'
+  );
+  assert.equal(
+    renderStageMessage(DEFAULT_JAIPUR_STAGES, 'shipped', { name: 'Rajesh', order: 9, courier: 'BVC' }),
+    'Hi Rajesh, your YOYO GEMS order #9 has been dispatched from Jaipur.\nSent through BVC.'
+  );
+  // A save can't switch the China stages back on for Jaipur orders.
+  const saved = resolveJaipurStages(JSON.stringify([{ key: 'sourcing', hidden: false }, { key: 'shipped', label: 'Sent from JPR' }]));
+  assert.equal(saved.find((s) => s.key === 'sourcing')!.hidden, true);
+  assert.equal(milestoneLabel('shipped', saved), 'Sent from JPR');
+  const sets = { china: DEFAULT_ORDER_STAGES, jaipur: DEFAULT_JAIPUR_STAGES };
+  assert.equal(stagesFor(sets, true), DEFAULT_JAIPUR_STAGES);
+  assert.equal(stagesFor(sets, false), DEFAULT_ORDER_STAGES);
+  // China route list is unchanged by the Jaipur one.
+  assert.equal(milestoneLabel('shipped', DEFAULT_ORDER_STAGES), 'Parcel sent');
+});
+
+test('courier list: defaults, trimming and no repeats', async () => {
+  const { resolveCouriers, DEFAULT_COURIERS } = await import('../lib/couriers');
+  assert.equal(resolveCouriers(null).length, 13);
+  assert.deepEqual(resolveCouriers('bad json'), DEFAULT_COURIERS);
+  assert.deepEqual(resolveCouriers(JSON.stringify(['  DTDC ', 'dtdc', '', 5, 'Shyam   Parcel'])), ['DTDC', 'Shyam Parcel']);
+  assert.deepEqual(resolveCouriers('[]'), []);
+});

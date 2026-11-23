@@ -41,7 +41,8 @@ export const STAGE_PLACEHOLDERS: { token: string; meaning: string }[] = [
   { token: '{link}', meaning: 'Link to the order on the website' },
   { token: '{login}', meaning: "Buyer's WhatsApp number (their login)" },
   { token: '{pin}', meaning: "Buyer's login PIN" },
-  { token: '{pdf}', meaning: 'Order PDF link, once generated' }
+  { token: '{pdf}', meaning: 'Order PDF link, once generated' },
+  { token: '{courier}', meaning: 'Courier chosen on the order' }
 ];
 
 const DEFAULT_MESSAGES: Record<string, string> = {
@@ -59,8 +60,8 @@ const DEFAULT_MESSAGES: Record<string, string> = {
   confirmed: "Hi {name}, we've received your YOYO GEMS order #{order}. We'll notify you when the supplier confirms.",
   sourcing: 'Hi {name}, your YOYO GEMS order #{order} has been confirmed by the supplier. Your order is getting prepared in China.',
   quality_check: "Hi {name}, your YOYO GEMS order #{order} has been dispatched from China. We'll notify you when it reaches Jaipur.",
-  packed: "Hi {name}, your YOYO GEMS order #{order} has been received in Jaipur. We'll notify you when your parcel is sent.",
-  shipped: 'Hi {name}, your YOYO GEMS order #{order} parcel has been sent.',
+  packed: "Hi {name}, your YOYO GEMS order #{order} has been received in Jaipur. We'll notify you when your parcel is sent.\nIt will be sent through {courier}.",
+  shipped: 'Hi {name}, your YOYO GEMS order #{order} parcel has been sent.\nSent through {courier}.',
   delivered: 'Hi {name}, your YOYO GEMS order #{order} has been delivered. Thank you for ordering with YOYO GEMS.',
   cancelled: 'Hi {name}, your YOYO GEMS order #{order} has been cancelled.'
 };
@@ -75,6 +76,31 @@ export const DEFAULT_ORDER_STAGES: OrderStage[] = ORDER_STATUS_OPTIONS.map((m) =
   hidden: DEFAULT_HIDDEN.has(m.key)
 }));
 
+// Orders sent straight from Jaipur stock skip the China steps: only
+// placed -> Order received -> Dispatched from Jaipur (Delivered/Cancelled as
+// usual). Same status keys, own names and messages, saved separately.
+export const JAIPUR_STAGES_SETTING_KEY = 'order_stages_jaipur';
+export const JAIPUR_SKIPPED = new Set(['sourcing', 'quality_check', 'packed']);
+const JAIPUR_OVERRIDES: Record<string, { label: string; message: string }> = {
+  placed: {
+    label: 'Order placed',
+    message: DEFAULT_MESSAGES.placed.replace('dispatched from China', 'dispatched from Jaipur')
+  },
+  confirmed: {
+    label: 'Order received',
+    message: 'Hi {name}, your YOYO GEMS order #{order} is received and being prepared.'
+  },
+  shipped: {
+    label: 'Dispatched from Jaipur',
+    message: 'Hi {name}, your YOYO GEMS order #{order} has been dispatched from Jaipur.\nSent through {courier}.'
+  }
+};
+export const DEFAULT_JAIPUR_STAGES: OrderStage[] = DEFAULT_ORDER_STAGES.map((s) => ({
+  ...s,
+  ...(JAIPUR_OVERRIDES[s.key] || {}),
+  hidden: s.hidden || JAIPUR_SKIPPED.has(s.key)
+}));
+
 export const MAX_STAGE_LABEL = 60;
 export const MAX_STAGE_MESSAGE = 1500;
 
@@ -83,7 +109,8 @@ export const MAX_STAGE_MESSAGE = 1500;
  * partial data falls back per field, so a broken save can never leave a status
  * without a name. Cancelled can't be hidden (it isn't a step).
  */
-export function resolveOrderStages(raw: unknown): OrderStage[] {
+export function resolveOrderStages(raw: unknown, defaults: OrderStage[] = DEFAULT_ORDER_STAGES): OrderStage[] {
+  const jaipur = defaults === DEFAULT_JAIPUR_STAGES;
   let saved: unknown = raw;
   if (typeof raw === 'string') {
     try { saved = JSON.parse(raw); } catch { saved = null; }
@@ -94,7 +121,9 @@ export function resolveOrderStages(raw: unknown): OrderStage[] {
       if (s && typeof s === 'object' && typeof (s as any).key === 'string') byKey.set((s as any).key, s as Record<string, unknown>);
     }
   }
-  return DEFAULT_ORDER_STAGES.map((d) => {
+  return defaults.map((d) => {
+    // The China steps can't be switched on for a Jaipur dispatch.
+    if (jaipur && JAIPUR_SKIPPED.has(d.key)) return { ...d };
     const s = byKey.get(d.key);
     if (!s) return { ...d };
     const label = typeof s.label === 'string' && s.label.trim() ? s.label.trim().slice(0, MAX_STAGE_LABEL) : d.label;
@@ -118,6 +147,15 @@ export function milestoneIndex(status: string) {
   return ORDER_MILESTONES.findIndex((m) => m.key === status);
 }
 
+export function resolveJaipurStages(raw: unknown): OrderStage[] {
+  return resolveOrderStages(raw, DEFAULT_JAIPUR_STAGES);
+}
+
+/** The stage list an order follows: Jaipur dispatch or the usual China route. */
+export function stagesFor(sets: { china: OrderStage[]; jaipur: OrderStage[] }, fromJaipur: boolean | null | undefined) {
+  return fromJaipur ? sets.jaipur : sets.china;
+}
+
 export function milestoneLabel(status: string, stages?: OrderStage[]) {
   return (stages || DEFAULT_ORDER_STAGES).find((m) => m.key === status)?.label || status;
 }
@@ -129,6 +167,7 @@ export type StageMessageValues = {
   login?: string | null;
   pin?: string | null;
   pdf?: string | null;
+  courier?: string | null;
 };
 
 /**
@@ -139,6 +178,8 @@ export type StageMessageValues = {
 export function renderStageMessage(stages: OrderStage[], status: string, values: StageMessageValues) {
   const stage = stages.find((s) => s.key === status);
   const template = stage?.message?.trim() ? stage.message : (DEFAULT_MESSAGES[status] || 'Hi {name}, your YOYO GEMS order #{order} is now: {stage}.');
+  // A line about the courier ("Sent through {courier}.") is dropped while no
+  // courier is chosen, even if it also has other placeholders.
   const map: Record<string, string> = {
     name: (values.name || '').trim(),
     order: String(values.order),
@@ -146,11 +187,13 @@ export function renderStageMessage(stages: OrderStage[], status: string, values:
     link: values.link || '',
     login: values.login || '',
     pin: values.pin || '',
-    pdf: values.pdf || ''
+    pdf: values.pdf || '',
+    courier: (values.courier || '').trim()
   };
   const lines = template.split('\n').flatMap((line) => {
     const tokens = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((t) => t in map);
     if (tokens.length && tokens.every((t) => !map[t])) return [];
+    if (tokens.includes('courier') && !map.courier) return [];
     return [line.replace(/\{(\w+)\}/g, (whole, t) => (t in map ? map[t] : whole))];
   });
   return lines

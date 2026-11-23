@@ -4,7 +4,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { buyerPaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { stagesForOrder } from '@/lib/order-stages-server';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
@@ -18,9 +18,8 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
   const customerId = await getCustomerId();
   // Back to this order after signing in -- the WhatsApp updates link here.
   if (!customerId) redirect(`/po/account/login?next=${encodeURIComponent(`/po/account/orders/${params.id}`)}`);
-  const stages = await getOrderStages();
-
   const orderId = Number(params.id);
+  const stages = await stagesForOrder(orderId);
 
   const { data: order } = await supabaseAdmin
     .from('orders')

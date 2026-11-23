@@ -79,6 +79,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [cart, setCart] = useState<CartItem[]>(repeatItems);
   const [requestType, setRequestType] = useState(initialRequestType);
   const [comment, setComment] = useState('');
+  const [fromJaipur, setFromJaipur] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
@@ -285,6 +286,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         newCustomerName: customerMode === 'new' ? newName : null,
         requestType,
         comment,
+        fromJaipur,
         cart: cart.map((i) => ({
           orderSpecs: i.orderSpecs,
           categoryId: i.categoryId,
@@ -527,6 +529,13 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           <label className="po-block-label">
             Note
             <textarea rows={2} placeholder="e.g. Taken over phone call" value={comment} onChange={(e) => setComment(e.target.value)} />
+          </label>
+          <label className="dispatch-jaipur" style={{ marginTop: 0, marginBottom: 10 }}>
+            <input type="checkbox" checked={fromJaipur} onChange={(e) => setFromJaipur(e.target.checked)} />
+            <span>
+              <strong>Dispatch from Jaipur</strong>
+              <small>Stock is in Jaipur: stages go Order received &rarr; Dispatched from Jaipur.</small>
+            </span>
           </label>
           <button type="button" className="po-send-btn" onClick={submit} disabled={submitting}>
             {submitting ? 'Creating…' : 'Create order'}

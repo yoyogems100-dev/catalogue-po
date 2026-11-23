@@ -119,6 +119,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: itemsError.message }, { status: 400 });
   }
 
+  // Admin chose "Dispatch from Jaipur". Set on its own so an order is still
+  // created if the column isn't in the database yet.
+  if (body.fromJaipur === true) {
+    await supabaseAdmin.from('orders').update({ dispatch_from_jaipur: true }).eq('id', order.id);
+  }
+
   await supabaseAdmin.from('order_status_history').insert({ order_id: order.id, status: 'placed' });
   await supabaseAdmin.from('order_notes').insert({
     order_id: order.id,

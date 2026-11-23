@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { buyerPaymentStatus } from '@/lib/payment-status';
 import { getCustomerId } from '@/lib/customer-auth';
 import { milestoneLabel } from '@/lib/order-milestones';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { stagesForOrder } from '@/lib/order-stages-server';
 import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 // JSON equivalent of app/po/account/orders/[id]/page.tsx + OrderDetailClient's data --
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
       .eq('order_id', orderId)
       .eq('internal_only', false)
       .order('created_at', { ascending: true }),
-    getOrderStages()
+    stagesForOrder(orderId)
   ]);
 
   const timeline = [

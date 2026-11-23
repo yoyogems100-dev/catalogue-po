@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
-import { milestoneLabel, statusChoices, renderStageMessage, orderPageUrl, stageUsesPin, type OrderStage } from '@/lib/order-milestones';
+import { milestoneLabel, statusChoices, renderStageMessage, orderPageUrl, stageUsesPin, stagesFor, type OrderStage } from '@/lib/order-milestones';
 import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
 import { confirmAction } from '@/components/admin/AdminDialogs';
 import { PAYMENT_STATUS_OPTIONS, normalizePaymentStatus } from '@/lib/payment-status';
@@ -76,7 +76,11 @@ const rowInputStyle = { fontSize: 12.5, padding: '6px 9px', borderRadius: 5, bor
 export default function OrderAdminClient({
   orderId,
   status,
-  stages,
+  stageSets,
+  fromJaipur = false,
+  courier = null,
+  couriers = [],
+  dispatchReady = true,
   customerPin = null,
   paymentStatus,
   pdfUrl,
@@ -97,7 +101,13 @@ export default function OrderAdminClient({
 }: {
   orderId: number;
   status: string;
-  stages: OrderStage[];
+  stageSets: { china: OrderStage[]; jaipur: OrderStage[] };
+  /** Ships straight from Jaipur stock: skips the China stages. Admin only. */
+  fromJaipur?: boolean;
+  courier?: string | null;
+  couriers?: string[];
+  /** False until the courier/Jaipur columns exist in the database. */
+  dispatchReady?: boolean;
   customerPin?: string | null;
   paymentStatus: string | null;
   pdfUrl: string | null;
@@ -118,6 +128,10 @@ export default function OrderAdminClient({
 }) {
   const router = useRouter();
   const [statusValue, setStatusValue] = useState(status);
+  const [jaipurValue, setJaipurValue] = useState(fromJaipur);
+  const [courierValue, setCourierValue] = useState(courier || '');
+  // Follows the switch straight away, so the status choices change with it.
+  const stages = stagesFor(stageSets, jaipurValue);
   const [paymentValue, setPaymentValue] = useState<string>(normalizePaymentStatus(paymentStatus));
   const [noteText, setNoteText] = useState('');
   const [internalOnly, setInternalOnly] = useState(false);
@@ -191,6 +205,33 @@ export default function OrderAdminClient({
       else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update status.'); setStatusValue(status); }
     } catch { setToast('Connection failed. Please check the saved order before retrying.'); setStatusValue(status); }
     finally { setBusy(false); }
+  }
+
+  // Admin-only: Jaipur dispatch switch and courier. Saved on change.
+  async function updateDispatch(patch: { fromJaipur?: boolean; courier?: string }) {
+    const prevJaipur = jaipurValue;
+    const prevCourier = courierValue;
+    if (patch.fromJaipur !== undefined) setJaipurValue(patch.fromJaipur);
+    if (patch.courier !== undefined) setCourierValue(patch.courier);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/dispatch`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+      });
+      if (res.ok) {
+        setToast(patch.fromJaipur !== undefined ? (patch.fromJaipur ? 'Set to dispatch from Jaipur.' : 'Set to the usual China route.') : 'Courier saved.');
+        router.refresh();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setToast(d.error || 'Could not save.');
+        setJaipurValue(prevJaipur); setCourierValue(prevCourier);
+      }
+    } catch {
+      setToast('Connection failed. Please check the saved order before retrying.');
+      setJaipurValue(prevJaipur); setCourierValue(prevCourier);
+    } finally { setBusy(false); }
   }
 
   async function updatePayment(next: string) {
@@ -413,7 +454,8 @@ export default function OrderAdminClient({
     link: orderPageUrl(orderId),
     login: customer?.phone,
     pin: customerPin,
-    pdf: currentPdfUrl
+    pdf: currentPdfUrl,
+    courier: courierValue || null
   });
   const pinMissing = stageUsesPin(stages, status) && !customerPin;
   const manualWaUrl = customer?.phone ? buildWhatsAppUrl(customer.phone, stageMessage) : null;
@@ -485,6 +527,21 @@ export default function OrderAdminClient({
             </select>
           </div>
           <div>
+            <h3 className="section-label">Courier</h3>
+            <select
+              value={courierValue}
+              onChange={(e) => updateDispatch({ courier: e.target.value })}
+              disabled={busy || !dispatchReady}
+              style={{ fontSize: 13, maxWidth: 200 }}
+              aria-label="Courier"
+            >
+              <option value="">Not chosen</option>
+              {/* A name since removed from the list still shows on this order. */}
+              {courierValue && !couriers.includes(courierValue) && <option value={courierValue}>{courierValue}</option>}
+              {couriers.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
             <h3 className="section-label">Payment status</h3>
             <select value={paymentValue} onChange={(e) => updatePayment(e.target.value)} disabled={busy} style={{ fontSize: 13 }}>
               {PAYMENT_STATUS_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
@@ -505,10 +562,23 @@ export default function OrderAdminClient({
             )}
           </div>
         </div>
+        <label className="dispatch-jaipur">
+          <input
+            type="checkbox"
+            checked={jaipurValue}
+            onChange={(e) => updateDispatch({ fromJaipur: e.target.checked })}
+            disabled={busy || !dispatchReady}
+          />
+          <span>
+            <strong>Dispatch from Jaipur</strong>
+            <small>Skips the China stages: Order received &rarr; Dispatched from Jaipur. Only you see this switch.</small>
+          </span>
+        </label>
+        {!dispatchReady && <p style={{ fontSize: 11, color: '#756e5c', margin: '4px 0 0' }}>Courier and Jaipur dispatch need a database update before they can be saved.</p>}
         {manualWaUrl && (
           <details style={{ marginTop: 10 }}>
             <summary style={{ fontSize: 12, color: '#756e5c', cursor: 'pointer' }}>Preview WhatsApp update</summary>
-            <p style={{ fontSize: 11.5, color: '#756e5c', margin: '6px 0 0' }}>Wording is set per stage in <a href="/admin/orders/stages">Stages &amp; messages</a>.</p>
+            <p style={{ fontSize: 11.5, color: '#756e5c', margin: '6px 0 0' }}>Wording is set per stage in <a href="/admin/orders/stages">Stages &amp; messages</a>{jaipurValue ? ' (Jaipur dispatch)' : ''}.</p>
             <p style={{ fontSize: 12 }}>To: {customer?.phone}</p>
             <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 12.5 }}>{new URL(manualWaUrl).searchParams.get('text')}</pre>
           </details>

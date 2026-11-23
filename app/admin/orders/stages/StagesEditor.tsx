@@ -8,14 +8,18 @@ import {
 } from '@/lib/order-milestones';
 
 // Sample values for the live preview only -- nothing is sent from this page.
-const SAMPLE = { name: 'Rajesh', order: 1234, link: orderPageUrl(1234), login: '919876543210', pin: '4821', pdf: '' };
+const SAMPLE = { name: 'Rajesh', order: 1234, link: orderPageUrl(1234), login: '919876543210', pin: '4821', pdf: '', courier: 'DTDC' };
 
 export default function StagesEditor({
-  initial, defaults, placeholders
+  initial, defaults, placeholders, settingKey = ORDER_STAGES_SETTING_KEY, skip = []
 }: {
   initial: OrderStage[];
   defaults: OrderStage[];
   placeholders: { token: string; meaning: string }[];
+  /** Which saved list this edits (China route by default, or Jaipur dispatch). */
+  settingKey?: string;
+  /** Stages this route never uses -- not shown at all. */
+  skip?: string[];
 }) {
   const router = useRouter();
   const [stages, setStages] = useState(initial);
@@ -55,7 +59,7 @@ export default function StagesEditor({
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: ORDER_STAGES_SETTING_KEY, value: JSON.stringify(value) })
+        body: JSON.stringify({ key: settingKey, value: JSON.stringify(value) })
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error || 'Could not save.'); return; }
       setStages(value);
@@ -72,22 +76,22 @@ export default function StagesEditor({
   let step = 0;
   return (
     <div className="stage-editor">
-      {stages.map((s) => {
+      {stages.filter((s) => !skip.includes(s.key)).map((s) => {
         const isCancelled = s.key === CANCELLED_STATUS.key;
         if (!isCancelled && !s.hidden) step += 1;
         const def = defaults.find((d) => d.key === s.key);
         const changed = def && (def.label !== s.label || def.message !== s.message || def.hidden !== s.hidden);
         return (
-          <section key={s.key} className={`card stage-card ${s.hidden ? 'is-hidden' : ''}`} aria-labelledby={`stage-${s.key}`}>
+          <section key={s.key} className={`card stage-card ${s.hidden ? 'is-hidden' : ''}`} aria-labelledby={`${settingKey}-${s.key}`}>
             <header className="stage-card-head">
               <span className="stage-num" aria-hidden="true">{isCancelled ? '×' : s.hidden ? '–' : step}</span>
               <label className="stage-name">
-                <span className="visually-hidden" id={`stage-${s.key}`}>Stage name</span>
+                <span className="visually-hidden" id={`${settingKey}-${s.key}`}>Stage name</span>
                 <input
                   value={s.label}
                   maxLength={MAX_STAGE_LABEL}
                   onChange={(e) => update(s.key, { label: e.target.value })}
-                  aria-labelledby={`stage-${s.key}`}
+                  aria-labelledby={`${settingKey}-${s.key}`}
                 />
               </label>
               {!isCancelled && (
