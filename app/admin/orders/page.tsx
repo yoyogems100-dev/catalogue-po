@@ -11,6 +11,7 @@ import CategoryChips from '@/components/admin/CategoryChips';
 import AutoSubmitField from '@/components/admin/AutoSubmitField';
 import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
+import { normalizePaymentStatus } from '@/lib/payment-status';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 // (searchParams usage likely already forces this dynamic, but making it
@@ -22,11 +23,12 @@ const PURCHASE_TYPES = ['Place Order'];
 // quotation follow-up -- it belongs in the RQ table, not just the purchase one.
 const RQ_TYPES = ['Request Quotation', 'Mixed'];
 const PAYMENT_FILTERS = [
+  { key: 'na', label: 'Payment N/A' },
   { key: 'pending', label: 'Payment outstanding' },
   { key: 'partial', label: 'Partial payment' },
   { key: 'paid', label: 'Paid' }
 ];
-const PAYMENT_LABEL: Record<string, string> = { pending: 'Outstanding', partial: 'Partial', paid: 'Paid' };
+const PAYMENT_LABEL: Record<string, string> = { na: 'N/A', pending: 'Outstanding', partial: 'Partial', paid: 'Paid' };
 const PAGE_SIZE = 50;
 
 export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
@@ -140,7 +142,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     return <>₹{Math.round(s.value).toLocaleString('en-IN')}{s.unpriced > 0 && <span className="admin-muted"> + {s.unpriced} unpriced</span>}</>;
   }
   function PaymentTag({ status }: { status: string | null }) {
-    const key = status || 'pending';
+    const key = normalizePaymentStatus(status);
     return <span className={`payment-badge payment-${key}`}>{PAYMENT_LABEL[key] || key}</span>;
   }
 

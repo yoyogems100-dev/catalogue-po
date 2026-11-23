@@ -3,6 +3,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { formatQtyTotals } from '@/lib/quantity-field';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { buyerPaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { getOrderStages } from '@/lib/order-stages-server';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
@@ -77,7 +78,10 @@ export default async function AccountOrdersPage() {
                   <OrderStepper status={o.status} stages={stages} compact />
                   <div className="account-order-row-bottom">
                     <span>{stats.lines} item{stats.lines !== 1 ? 's' : ''} · {formatQtyTotals(stats.qty)}</span>
-                    <span className={`payment-badge payment-${o.payment_status}`}>{o.payment_status}</span>
+                    {/* Nothing about payment while it is N/A (not set by the team yet). */}
+                    {buyerPaymentStatus(o.payment_status) && (
+                      <span className={`payment-badge payment-${buyerPaymentStatus(o.payment_status)}`}>{paymentStatusLabel(o.payment_status)}</span>
+                    )}
                     <RepeatOrderButton orderId={o.id} />
                   </div>
                 </Link>

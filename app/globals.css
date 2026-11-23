@@ -1003,6 +1003,7 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 .payment-pending { background: #f4e6d0; color: #8a5a1f; }
 .payment-partial { background: #dde6f4; color: #1B3A6B; }
 .payment-paid { background: #d9f0e0; color: #1a6b3a; }
+.payment-na { background: #eeece6; color: #756e5c; }
 
 /* Footer */
 .site-footer { background: var(--ink); color: #cbd3e0; padding: 36px 20px 0; margin-top: 20px; }

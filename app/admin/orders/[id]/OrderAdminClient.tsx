@@ -17,6 +17,7 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { milestoneLabel, statusChoices, renderStageMessage, orderPageUrl, stageUsesPin, type OrderStage } from '@/lib/order-milestones';
 import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
 import { confirmAction } from '@/components/admin/AdminDialogs';
+import { PAYMENT_STATUS_OPTIONS, normalizePaymentStatus } from '@/lib/payment-status';
 
 // Shown both as the disabled button's tooltip and as text beside it, so the
 // reason is readable on touch devices too -- a title attribute never appears
@@ -98,7 +99,7 @@ export default function OrderAdminClient({
   status: string;
   stages: OrderStage[];
   customerPin?: string | null;
-  paymentStatus: string;
+  paymentStatus: string | null;
   pdfUrl: string | null;
   invoiceUrl: string | null;
   createdAt: string;
@@ -117,7 +118,7 @@ export default function OrderAdminClient({
 }) {
   const router = useRouter();
   const [statusValue, setStatusValue] = useState(status);
-  const [paymentValue, setPaymentValue] = useState(paymentStatus);
+  const [paymentValue, setPaymentValue] = useState<string>(normalizePaymentStatus(paymentStatus));
   const [noteText, setNoteText] = useState('');
   const [internalOnly, setInternalOnly] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -202,8 +203,8 @@ export default function OrderAdminClient({
         body: JSON.stringify({ paymentStatus: next })
       });
       if (res.ok) { setToast('Payment status updated.'); router.refresh(); }
-      else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update payment status.'); setPaymentValue(paymentStatus); }
-    } catch { setToast('Connection failed. Please check the saved order before retrying.'); setPaymentValue(paymentStatus); }
+      else { const d = await res.json().catch(() => ({})); setToast(d.error || 'Failed to update payment status.'); setPaymentValue(normalizePaymentStatus(paymentStatus)); }
+    } catch { setToast('Connection failed. Please check the saved order before retrying.'); setPaymentValue(normalizePaymentStatus(paymentStatus)); }
     finally { setBusy(false); }
   }
 
@@ -486,9 +487,7 @@ export default function OrderAdminClient({
           <div>
             <h3 className="section-label">Payment status</h3>
             <select value={paymentValue} onChange={(e) => updatePayment(e.target.value)} disabled={busy} style={{ fontSize: 13 }}>
-              <option value="pending">Pending</option>
-              <option value="partial">Partial</option>
-              <option value="paid">Paid</option>
+              {PAYMENT_STATUS_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </div>
           <div>
