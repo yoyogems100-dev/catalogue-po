@@ -13,6 +13,7 @@ import { nameMatchScore, nameWordScore } from '@/lib/name-match';
 import { categoryIconUrl } from '@/lib/category-icons';
 import CategoryMenu from '@/components/CategoryMenu';
 import { FOR_YOU_TITLE, MAX_INTERESTS, toggleInterest, withInterests } from '@/lib/customer-interests';
+import CategoryLink from '@/components/CategoryLink';
 
 // Covers hosted on Google Drive (photos.drive_id) are hotlinked from
 // lh3.googleusercontent.com, which starts returning 429 when a page asks for
@@ -373,7 +374,7 @@ function CategoryCard({ cat, cardIndex, label, star }: { cat: Category; cardInde
           {starIcon}
         </Link>
       )}
-    <Link href={`/po/category/${cat.slug}`}>
+    <CategoryLink slug={cat.slug}>
       <div className="cat-card">
         <div className="cat-thumb">
           {/* Painted under the cover, so a missing or failed photo still shows something. */}
@@ -391,7 +392,7 @@ function CategoryCard({ cat, cardIndex, label, star }: { cat: Category; cardInde
           {cat.description && <p className="cat-desc">{cat.description}</p>}
         </div>
       </div>
-    </Link>
+    </CategoryLink>
     </div>
   );
 }

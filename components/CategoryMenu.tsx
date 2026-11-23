@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { categoryIconUrl } from '@/lib/category-icons';
 import type { MenuGroup } from '@/lib/home-sections';
+import CategoryLink from '@/components/CategoryLink';
 
 type MenuCategory = { id: number; name: string; slug: string };
 
@@ -78,10 +78,10 @@ export default function CategoryMenu({ groups, all }: { groups: MenuGroup<MenuCa
                       <ul id={`cm-${g.key}`} className="cm-list">
                         {g.categories.map((c) => (
                           <li key={c.id}>
-                            <Link href={`/po/category/${c.slug}`} onClick={() => setOpen(false)}>
+                            <CategoryLink slug={c.slug} onClick={() => setOpen(false)}>
                               <Icon slug={c.slug} name={c.name} size={26} />
                               {c.name}
-                            </Link>
+                            </CategoryLink>
                           </li>
                         ))}
                       </ul>
