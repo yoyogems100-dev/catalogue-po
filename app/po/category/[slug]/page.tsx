@@ -21,6 +21,7 @@ import { parseExploreFilter } from '@/lib/explore-filter';
 import { parseQuantityFields, quantityFieldFor, QUANTITY_FIELDS_SETTING_KEY } from '@/lib/quantity-field';
 import { parseCategoryQualities, parseShapeQualities, qualitiesFor, QUALITIES_SETTING_KEY, SHAPE_QUALITIES_SETTING_KEY } from '@/lib/qualities';
 import { FORM_FIELDS_SETTING_KEY, formFieldsFor, parseFormFields } from '@/lib/form-fields';
+import { fittingSizes } from '@/lib/shape-size-fit';
 
 export const revalidate = 30;
 
@@ -131,7 +132,8 @@ async function loadCategoryData(slug: string) {
     shapes: shapesFormatted,
     colors: colorsFormatted,
     tags: tags || [],
-    sizes: (sizes || []).map((z: any) => ({ ...z, pcs_per_ct: pcsPerCt.get(z.id) ?? null })),
+    // A 6x9 linked under Square or 3x4 under Round is left out (lib/shape-size-fit).
+    sizes: fittingSizes((sizes || []) as any[], (shapes || []) as any[]).map((z: any) => ({ ...z, pcs_per_ct: pcsPerCt.get(z.id) ?? null })),
     // The shape & size chart shown on the page (Moissanite): same content as the PDF.
     sizeChart: category.id === 34 ? sizeChartSections(shapesFormatted, sizes || [], pcsPerCt, dewBySize) : null,
     photos: photosWithUrl,

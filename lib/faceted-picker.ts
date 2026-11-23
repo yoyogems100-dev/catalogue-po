@@ -1,4 +1,4 @@
-import { sizeKey } from './size-options';
+import { sameSizeKey } from './size-label';
 
 /**
  * Shape, size and colour/material can be picked in any order.
@@ -27,10 +27,12 @@ function sizeNum(s: string): number {
 }
 
 /** Every size the category offers, one entry per millimetre size, smallest first. */
+// "3", "3.0" and "3x3" are one size (lib/size-label), so a square listed
+// both ways shows once instead of as "3 mm" and "3x3 mm" side by side.
 export function sizeGroupsOf<R extends FacetRow>(rows: R[]): SizeGroup<R>[] {
   const byKey = new Map<string, SizeGroup<R>>();
   for (const row of rows) {
-    const key = sizeKey(row.sizeMm);
+    const key = sameSizeKey(row.sizeMm);
     const group = byKey.get(key) || { key, sizeMm: row.sizeMm.trim(), rows: [] };
     group.rows.push(row);
     byKey.set(key, group);

@@ -3,6 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCategoryPricing } from '@/lib/pricing';
 import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
+import { fittingSizes } from '@/lib/shape-size-fit';
 
 // Returns the shapes/colors/sizes linked to a category -- used by the admin
 // "create order" builder to populate pickers as each category is added,
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     }),
     // adminCode: the owner's own code, shown after the name in admin only.
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url, adminCode: codes[c.id] || null })),
-    sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
+    // A 6x9 linked under Square or 3x4 under Round is left out (lib/shape-size-fit).
+    sizes: fittingSizes(sizes || [], shapes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     tags: (tags || []).map((t: any) => ({ id: t.id, name: t.name })),
     pricing
   });

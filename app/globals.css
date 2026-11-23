@@ -3915,3 +3915,28 @@ input.cp-cell::placeholder { color: #b9bec6; }
   .wrong-account-actions { flex-direction: column; align-items: stretch; }
   .wrong-account-actions .btn, .wrong-account-actions .btn-ghost { width: 100%; }
 }
+
+/* Admin order builder: "+ Add" a shape, colour or size the category lacks. */
+.icon-select-add-new { display: flex; align-items: baseline; gap: 6px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-top: 1px solid var(--line); background: #fdfaf2; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.icon-select-add-new:hover { background: #f6efdc; }
+.icon-select-add-new span { color: #9C7A25; font-size: 16px; line-height: 1; }
+.icon-select-add-new small { font-weight: 400; color: #756e5c; font-size: 12px; }
+.ao-dialog { max-width: 560px; }
+.ao-tabs { margin-bottom: 12px; }
+.ao-shape-pick { margin-bottom: 10px; }
+.ao-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ao-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px; border: 1px solid #d9d2c0; border-radius: 999px; background: #fff; color: #3A3F44; font: inherit; font-size: 13px; cursor: pointer; }
+.ao-chip.active { border-color: #1B3A6B; background: #1B3A6B; color: #fff; }
+.ao-search { width: 100%; min-height: 42px; margin-bottom: 10px; font-size: 15px; }
+.ao-typed { width: 100%; margin: 0 0 10px; }
+.ao-section { margin: 12px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: #756e5c; }
+.ao-list { list-style: none; margin: 0; padding: 0; border: 1px solid #e6e0d2; border-radius: 10px; background: #fff; }
+.ao-list li { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border-top: 1px solid #f0ebde; font-size: 14px; }
+.ao-list li:first-child { border-top: 0; }
+.ao-list li span { flex: 1; min-width: 0; }
+.ao-add { min-height: 36px; padding: 0 14px; border: 1px solid #9C7A25; border-radius: 999px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ao-add:disabled, .ao-size:disabled { opacity: .5; cursor: default; }
+.ao-sizes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ao-size { min-height: 36px; padding: 0 12px; border: 1px solid #9C7A25; border-radius: 8px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; }
+.ao-size--in { border-color: #e6e0d2; background: #f4f1e8; color: #3A3F44; font-weight: 400; cursor: default; }
+.ao-foot-note { font-size: 12px; color: #756e5c; }
