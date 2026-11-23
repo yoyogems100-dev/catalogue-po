@@ -21,6 +21,8 @@ import ColorSwatch from '@/components/ColorSwatch';
 import { planQuantities } from '@/lib/qty-mode';
 import { expandQtyShorthand } from '@/lib/quantity';
 import { shapeAbbrevs } from '@/lib/shape-abbrev';
+import { groupSizeLabel, shapeSizeLabel } from '@/lib/size-label';
+import AddOptionDialog, { type AddKind } from '@/components/admin/AddOptionDialog';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
@@ -94,6 +96,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
+  // "+ Add" in the Shape, Color or Size list: what to add, and what was typed.
+  const [adding, setAdding] = useState<{ kind: AddKind; typed: string } | null>(null);
 
   // UI/UX audit ("Make customer lookup search-first instead of immediately
   // exposing the entire customer list"): an empty query now shows nothing
@@ -157,11 +161,46 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   );
   const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
   const sizeOptions = useMemo(
-    () => sizeGroups
-      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
-      .filter((o) => available.sizeIdxs.has(o.id)),
-    [sizeGroups, available, pickShapeIds]
+    () => {
+      const shapeName = new Map((currentOptions?.shapes || []).map((s) => [s.id, s.name]));
+      return sizeGroups
+        .map((g, i) => {
+          const rows = g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId));
+          // "3.00 mm" under Round, "3 x 3" under Square (lib/size-label).
+          const name = groupSizeLabel((rows.length ? rows : g.rows).map((r) => ({ shapeName: shapeName.get(r.shapeId), sizeMm: r.sizeMm })));
+          return { id: i, hotIds: rows.map((row) => row.id), name };
+        })
+        .filter((o) => available.sizeIdxs.has(o.id));
+    },
+    [sizeGroups, available, pickShapeIds, currentOptions]
   );
+
+  // After "+ Add": reload the category's lists and pick what was just added,
+  // keeping the sizes already picked (their place in the list may move).
+  async function afterAdd(kind: AddKind, id: number, extra?: { shape?: { id: number } }) {
+    if (pickCategoryId === 'all') return;
+    const categoryId = pickCategoryId;
+    const res = await fetch(`/api/admin/categories/${categoryId}/options`);
+    const data: Options | null = await res.json().catch(() => null);
+    if (!data || !Array.isArray(data.sizes)) return;
+    const pickedKeys = pickSizeIdxs.map((i) => sizeGroups[i]?.key).filter(Boolean);
+    const groups = sizeGroupsOf(data.sizes);
+    setOptionsCache((prev) => ({ ...prev, [categoryId]: data }));
+    const keep = groups.map((g, i) => (pickedKeys.includes(g.key) ? i : -1)).filter((i) => i >= 0);
+    if (kind === 'shape') {
+      setPickShapeIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+      setPickSizeIdxs(keep);
+    } else if (kind === 'color') {
+      setPickColorIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+      setPickSizeIdxs(keep);
+    } else {
+      const idx = groups.findIndex((g) => g.rows.some((r) => r.id === id));
+      const shapeId = extra?.shape?.id;
+      if (shapeId) setPickShapeIds((cur) => (cur.includes(shapeId) ? cur : [...cur, shapeId]));
+      setPickSizeIdxs(idx >= 0 && !keep.includes(idx) ? [...keep, idx] : keep);
+    }
+  }
+  const addNew = (kind: AddKind) => (pickCategoryId === 'all' ? undefined : (typed: string) => setAdding({ kind, typed }));
 
   async function handleCategoryChange(categoryId: number | 'all') {
     setPickCategoryId(categoryId);
@@ -437,6 +476,18 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
         </div>
         <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} forAdmin />
+        {adding && pickCategoryId !== 'all' && (
+          <AddOptionDialog
+            kind={adding.kind}
+            typed={adding.typed}
+            categoryId={pickCategoryId}
+            categoryName={allCategories.find((c) => c.id === pickCategoryId)?.name || 'this category'}
+            categoryShapes={currentOptions?.shapes || []}
+            pickedShapeIds={pickShapeIds}
+            onClose={() => setAdding(null)}
+            onAdded={afterAdd}
+          />
+        )}
         <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
@@ -468,6 +519,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
+              onAddNew={addNew('shape')}
+              addNewNoun="shape"
             />
           </div>
           <div>
@@ -484,6 +537,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               closeOnFirstPick={pickShapeIds.length === 0}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"
+              onAddNew={pickCategoryId === 34 ? undefined : addNew('color')}
+              addNewNoun="color"
             />
           </div>
           <div>
@@ -496,6 +551,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
               placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
+              onAddNew={addNew('size')}
+              addNewNoun="size"
             />
           </div>
           <div>
@@ -530,14 +587,14 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
                         const bad = !/^\d*$/.test(v.trim());
                         return (
                           <label key={c.key} className="po-line-qty-row">
-                            <span className="po-line-qty-name" title={`${c.shape.name} ${c.size.sizeMm} mm · ${c.color.name}`}>
-                              <b>{shortShape.get(c.shape.id)}</b> {c.size.sizeMm}
+                            <span className="po-line-qty-name" title={`${c.shape.name} ${shapeSizeLabel(c.shape.name, c.size.sizeMm)} · ${c.color.name}`}>
+                              <b>{shortShape.get(c.shape.id)}</b> {shapeSizeLabel(c.shape.name, c.size.sizeMm)}
                             </span>
                             <input
                               type="text"
                               inputMode="numeric"
                               className="po-qty-input"
-                              aria-label={`Quantity for ${c.shape.name} ${c.size.sizeMm} mm ${c.color.name}`}
+                              aria-label={`Quantity for ${c.shape.name} ${shapeSizeLabel(c.shape.name, c.size.sizeMm)} ${c.color.name}`}
                               aria-invalid={bad || undefined}
                               placeholder="0"
                               value={v}
@@ -576,7 +633,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               return (
                 <div key={item.id} className="po-item-row po-item-row--simple">
                   <div className="po-item-main">
-                    <strong>{item.shapeName} · {item.sizeMm}mm</strong>
+                    <strong>{item.shapeName} · {shapeSizeLabel(item.shapeName, item.sizeMm)}</strong>
                     <span>{item.categoryName} · {adminColorLabel(item.colorName, item.colorCode)}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
                     {item.note && <span className="po-line-note-text">Note: {item.note}</span>}
                     {unit !== null && (
