@@ -8,7 +8,8 @@ import SpecialOrderComposer from './SpecialOrderComposer';
 import { photoForHoles, type HoleCount } from '@/lib/drill-data';
 import {specialCategory,specKey,specText,quantityFactor,categoryGrades,gradeSpec,caratSpec,caratsFor,drilledHoles,type OrderSpecs} from '@/lib/order-specs';
 import { fieldHidden, type FormFields } from '@/lib/form-fields';
-import { useCategoryQualities, useOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { useCategoryQualities, useOrderPreferences, useShapeQualities, useUsualPicks } from './useOrderPreferences';
+import { usualInCategory, usualSizeIndexes } from '@/lib/usual-picks';
 import { pickQualities, lineQualities, type ShapeQualities } from '@/lib/qualities';
 import IconSelect from './IconSelect';
 import { allowedColorsOf, facetAvailability, keepAvailable, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
@@ -338,6 +339,11 @@ export default function POSelector({
   // Every shape is listed; those cut in the picked size(s) and colour(s) come
   // first. Picking one of the others clears the picks it doesn't come in.
   const shapeOptions = shapes;
+  // A signed-in buyer's usual picks for this stone lead each list ("Your
+  // usual"); nothing is picked for them.
+  const usual = useUsualPicks();
+  const usualHere = useMemo(() => usualInCategory(usual, categoryId), [usual, categoryId]);
+  const usualSizeIdxs = useMemo(() => usualSizeIndexes(sizeGroups, usualHere.sizeKeys), [sizeGroups, usualHere]);
   const fittingShapeIds = useMemo(() => shapes.filter((s) => available.shapeIds.has(s.id)).map((s) => s.id), [shapes, available]);
   const colorOptions = useMemo(() => colors.filter((c) => available.colorIds.has(c.id)), [colors, available]);
   const sizeOptions = useMemo(
@@ -897,6 +903,7 @@ export default function POSelector({
         doneBar={categoryId === CRUSHED_ICE_CATEGORY_ID}
         placeholder={colorOptions.length === 0 ? `No ${lowerLabel} for this shape and size` : `Choose ${lowerLabel}(s)`}
         leading="swatch"
+        usualIds={usualHere.colorIds}
       />
     </div>
   );
@@ -955,6 +962,7 @@ export default function POSelector({
               placeholder={`Choose ${shapeLabel.toLowerCase()}`}
               leading="icon"
               fitIds={fittingShapeIds.length < shapes.length ? fittingShapeIds : undefined}
+              usualIds={usualHere.shapeIds}
               otherLabel={pickSizeIdxs.length ? `Not in ${pickSizeIdxs.length === 1 ? 'this size' : 'these sizes'} — picking one changes the size` : `Not in the chosen ${lowerLabel.toLowerCase()}`}
               disabledIds={swapNext.shape ? [] : incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
@@ -971,6 +979,7 @@ export default function POSelector({
               values={pickSizeIdxs}
               onChange={changeSizes}
               replaceOnPick={swapNext.size}
+              usualIds={usualSizeIdxs}
               // A shape that comes in just one size shows that size, already
               // chosen and read-only -- there is nothing to pick.
               locked={pickShapeIds.length > 0 && sizeOptions.length === 1}

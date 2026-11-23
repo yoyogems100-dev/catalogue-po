@@ -9,6 +9,7 @@ import {specialCategory,specKey,specText,gradeSpec,type OrderSpecs} from '@/lib/
 import IconSelect from '@/components/IconSelect';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
+import { usualDropdownIds, type UsualSource } from '@/lib/usual-picks';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -56,7 +57,7 @@ type CartItem = {
   note?: string | null;
 };
 
-export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
+export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', usualByCustomer = {} }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; usualByCustomer?: Record<number, UsualSource> }) {
   const router = useRouter();
 
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
@@ -144,6 +145,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     [currentOptions, sizeGroups, pickShapeIds, pickSizeIdxs, pickColorIds]
   );
   const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
+  // The chosen buyer's go-to categories and usual picks lead each list ("Their usual").
+  const usualSource = customerMode === 'existing' && selectedCustomerId ? usualByCustomer[selectedCustomerId] : undefined;
+  const usual = useMemo(() => usualDropdownIds(usualSource, pickCategoryId === 'all' ? null : pickCategoryId, sizeGroups), [usualSource, pickCategoryId, sizeGroups]);
   const sizeOptions = useMemo(
     () => sizeGroups
       .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
@@ -419,6 +423,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               allLabel="Choose category"
               leading="photo"
               searchable
+              usualIds={usual.categoryIds}
+              usualLabel="Their usual"
             />
           </div>
           {/* Same IconSelect the customer-facing pickers use: shape icons and
@@ -437,6 +443,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               closeOnFirstPick={pickColorIds.length === 0}
               placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
               leading="icon"
+              usualIds={usual.shapeIds}
+              usualLabel="Their usual"
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
@@ -454,6 +462,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               closeOnFirstPick={pickShapeIds.length === 0}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"
+              usualIds={usual.colorIds}
+              usualLabel="Their usual"
             />
           </div>
           <div>
@@ -465,6 +475,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               options={sizeOptions}
               values={pickSizeIdxs}
               onChange={setPickSizeIdxs}
+              usualIds={usual.sizeIdxs}
+              usualLabel="Their usual"
               placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
             />
           </div>

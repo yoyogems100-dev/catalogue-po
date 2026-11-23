@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
+import { usualFromCustomer } from '@/lib/usual-picks';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
@@ -199,6 +200,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         requestType={order.request_type}
         contactName={order.contact_name}
         customer={customer}
+        usual={usualFromCustomer(customer)}
         customerOrderHistory={customerOrderHistory || []}
         items={itemsFormatted}
         categoryOptions={categoryOptions}

@@ -7,6 +7,8 @@ import type { PacketWeights as PacketWeightsValue } from '@/lib/packet-weights';
 import { formatQty, type WeightUnit } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from '@/components/IconSelect';
+import UsualOptions from '@/components/admin/UsualOptions';
+import { usualCategoryIds, usualInCategory, usualSizeIds, EMPTY_USUAL, type UsualSource } from '@/lib/usual-picks';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import StatusTag from '@/components/admin/StatusTag';
 
@@ -85,6 +87,7 @@ export default function OrderAdminClient({
   requestType,
   contactName,
   customer,
+  usual = EMPTY_USUAL,
   customerOrderHistory,
   items,
   categoryOptions,
@@ -106,6 +109,8 @@ export default function OrderAdminClient({
   requestType: string | null;
   contactName: string | null;
   customer: Customer;
+  /** This buyer's go-to categories and usual picks, listed first in the line editor. */
+  usual?: UsualSource;
   customerOrderHistory: CustomerOrder[];
   items: Item[];
   categoryOptions: Record<number, CategoryOption>;
@@ -536,6 +541,7 @@ export default function OrderAdminClient({
             const rowSpecial = specialCategory(i.categoryId);
             const opts = categoryOptions[i.categoryId];
             const sizesForShape = opts?.sizes.filter((s) => s.shapeId === shapeIds[i.id]) || [];
+            const usualHere = usualInCategory(usual, i.categoryId);
             return (
               <tr key={i.id}>
                 <td>
@@ -554,21 +560,21 @@ export default function OrderAdminClient({
                 <td>
                   {rowEditing && !rowSpecial && opts ? (
                     <select value={shapeIds[i.id] ?? ''} onChange={(e) => setShapeIds({ ...shapeIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
-                      {opts.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      <UsualOptions options={opts.shapes} usualIds={usualHere.shapeIds} render={(s) => <option key={s.id} value={s.id}>{s.name}</option>} />
                     </select>
                   ) : i.shapeName}
                 </td>
                 <td>
                   {rowEditing && !rowSpecial && opts ? (
                     <select value={sizeIds[i.id] ?? ''} onChange={(e) => setSizeIds({ ...sizeIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
-                      {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+                      <UsualOptions options={sizesForShape} usualIds={usualSizeIds(sizesForShape, usualHere.sizeKeys)} render={(s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>} />
                     </select>
                   ) : `${i.sizeMm} mm`}
                 </td>
                 <td>
                   {rowEditing && !rowSpecial && opts && i.categoryId !== 34 ? (
                     <select value={colorIds[i.id] ?? ''} onChange={(e) => setColorIds({ ...colorIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
-                      {opts.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      <UsualOptions options={opts.colors} usualIds={usualHere.colorIds} render={(c) => <option key={c.id} value={c.id}>{c.name}</option>} />
                     </select>
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -654,31 +660,33 @@ export default function OrderAdminClient({
                   {includeNewLines && newLines.map((l) => {
                     const opts = categoryOptions[l.categoryId];
                     const sizesForShape = opts?.sizes.filter((s) => s.shapeId === l.shapeId) || [];
+                    const usualHere = usualInCategory(usual, l.categoryId);
+                    const categoryChoices = <UsualOptions options={orderCategories.map(([id, name]) => ({ id, name }))} usualIds={usualCategoryIds(usual)} render={(c) => <option key={c.id} value={c.id}>{c.name}</option>} />;
                     if(specialCategory(l.categoryId)&&opts)return <tr key={l.tempId}><td colSpan={10 + (hasPricing ? 1 : 0)}>
-                      <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+                      <select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),orderSpecs:undefined,shapeId:'',sizeId:'',colorId:'',quantity:''})}>{categoryChoices}</select>
                       {l.orderSpecs?<p>{specText(l.orderSpecs,Number(l.quantity))} · {l.quantity} pcs <button onClick={()=>updateNewLine(l.tempId,{orderSpecs:undefined})}>Change options</button></p>:<SpecialOrderComposer showRequestType={false} key={l.categoryId} categoryId={l.categoryId} categoryName={orderCategories.find(([id])=>id===l.categoryId)?.[1]||''} shapes={opts.shapes} sizes={opts.sizes} colors={opts.colors} onAdd={line=>updateNewLine(l.tempId,{shapeId:line.shapeId,sizeId:line.sizeId,colorId:line.colorId,quantity:String(line.qty),orderSpecs:line.orderSpecs})}/>}
                       <button type="button" onClick={()=>removeNewLine(l.tempId)}>Remove new line</button>
                     </td></tr>;
                     return (
                       <tr key={l.tempId}>
                         <td />
-                        <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{orderCategories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></td>
+                        <td><select aria-label="New line category" value={l.categoryId} onChange={e=>updateNewLine(l.tempId,{categoryId:Number(e.target.value),shapeId:'',sizeId:'',colorId:'',quantity:'',orderSpecs:undefined})}>{categoryChoices}</select></td>
                         <td>
                           <select value={l.shapeId} onChange={(e) => updateNewLine(l.tempId, { shapeId: e.target.value ? Number(e.target.value) : '', sizeId: '' })} style={{ fontSize: 12 }}>
                             <option value="">Choose shape</option>
-                            {opts?.shapes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            <UsualOptions options={opts?.shapes || []} usualIds={usualHere.shapeIds} render={(s) => <option key={s.id} value={s.id}>{s.name}</option>} />
                           </select>
                         </td>
                         <td>
                           <select value={l.sizeId} onChange={(e) => updateNewLine(l.tempId, { sizeId: e.target.value ? Number(e.target.value) : '' })} disabled={!l.shapeId} style={{ fontSize: 12 }}>
                             <option value="">Choose size</option>
-                            {sizesForShape.map((s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>)}
+                            <UsualOptions options={sizesForShape} usualIds={usualSizeIds(sizesForShape, usualHere.sizeKeys)} render={(s) => <option key={s.id} value={s.id}>{s.sizeMm} mm</option>} />
                           </select>
                         </td>
                         <td>
                           <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
                             <option value="">Choose color</option>
-                            {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            <UsualOptions options={opts?.colors || []} usualIds={usualHere.colorIds} render={(c) => <option key={c.id} value={c.id}>{c.name}</option>} />
                           </select>
                         </td>
                         <td>

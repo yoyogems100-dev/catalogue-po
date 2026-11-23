@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import { hasUsual, usualFromCustomer, type UsualSource } from '@/lib/usual-picks';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -14,8 +15,15 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     // Binned customers stay out of the picker, and every page is read so the
     // list doesn't silently stop at Supabase's 1000-row response cap.
-    fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
+    fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place, order_preferences, interest_category_ids', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
   ]);
+  // Each regular buyer's go-to categories and usual picks, so the builder can
+  // list them first once that buyer is chosen. Only buyers who have some.
+  const usualByCustomer: Record<number, UsualSource> = {};
+  for (const c of (customers || []) as any[]) {
+    const usual = usualFromCustomer(c);
+    if (hasUsual(usual)) usualByCustomer[c.id] = usual;
+  }
   let repeatItems: any[] = [];
   let initialRequestType = 'Place Order';
   if (initialCustomerId && fromOrderId) {
@@ -41,6 +49,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
         allCategories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name, slug: c.slug }))}
         allCustomers={(customers || []).map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, company: c.company, place: c.place }))}
         initialCustomerId={initialCustomerId}
+        usualByCustomer={usualByCustomer}
         repeatItems={repeatItems}
         initialRequestType={initialRequestType}
       />

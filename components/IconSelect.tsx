@@ -4,7 +4,8 @@ import { useDropdownBounds } from './useDropdownBounds';
 
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { HotMark, useHotSelling } from './HotSelling';
-import { isHot, rankOptions, type OptionKind } from '@/lib/hot-selling';
+import { isHot, type OptionKind } from '@/lib/hot-selling';
+import { panelOrder } from '@/lib/usual-picks';
 import { sizeSearchScore } from '@/lib/size-options';
 import { searchOptions } from '@/lib/option-search';
 import ShapeIcon from './ShapeIcon';
@@ -44,6 +45,13 @@ type CommonProps = {
    */
   fitIds?: number[];
   otherLabel?: string;
+  /**
+   * This buyer's usual options (lib/usual-picks): listed first under a small
+   * `usualLabel` heading, ahead of hot-selling and the rest. Empty or absent
+   * leaves the order exactly as it was.
+   */
+  usualIds?: number[];
+  usualLabel?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -183,11 +191,7 @@ export default function IconSelect(props: Props) {
     // re-sorting on every click -- otherwise a row jumps to the top the moment
     // you check it, right out from under the cursor mid multi-select.
     const selectedIds = new Set(isMulti ? multi.values : (single.value !== 'all' ? [single.value] : []));
-    const fit = props.fitIds ? new Set(props.fitIds) : null;
-    const ranked = rankOptions(options, selectedIds, hot)
-      .map((o, i) => ({ o, i }))
-      .sort((a, b) => (fit ? Number(fit.has(b.o.id)) - Number(fit.has(a.o.id)) : 0) || a.i - b.i)
-      .map(({ o }) => o);
+    const ranked = panelOrder(options, { selected: selectedIds, hot, fitIds: props.fitIds, usualIds: props.usualIds });
     setOrderSnapshot(ranked.map((o) => o.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ready]);
@@ -406,9 +410,16 @@ export default function IconSelect(props: Props) {
               // A selected option is never disabled -- the buyer must always be
               // able to deselect their way out of a combination.
               const isDisabled = !isActive && (props.disabledIds || []).includes(o.id);
+              // The buyer's usual options lead the list under a small heading;
+              // a search reorders by match, so the heading only shows unsearched.
+              const usualRow = (x: Option | undefined) => !!x && !!props.usualIds?.includes(x.id);
+              const usualHead = !search.trim() && usualRow(o) && !usualRow(filtered[index - 1]);
+              const usualEnd = !search.trim() && !firstOther && index > 0 && !usualRow(o) && usualRow(filtered[index - 1]);
               return (
                 <Fragment key={o.id}>
                 {firstOther && props.otherLabel && <div className="icon-select-divider" role="presentation">{props.otherLabel}</div>}
+                {usualEnd && <div className="icon-select-divider" role="presentation">More</div>}
+                {usualHead && <div className="icon-select-divider icon-select-usual-head" role="presentation">{props.usualLabel || 'Your usual'}</div>}
                 <div
                   role="option"
                   aria-selected={isActive}

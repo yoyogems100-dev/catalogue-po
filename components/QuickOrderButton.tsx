@@ -12,7 +12,8 @@ import type { OrderReferencePhoto } from '@/lib/order-reference-photos';
 import { specialCategory, specText, quantityFactor, categoryGrades, gradeSpec } from '@/lib/order-specs';
 import { DEFAULT_COLOR_BUTTONS, colorButtonFamilies, colorFamilyId } from '@/lib/color-family';
 import { preferenceForFamily } from '@/lib/customer-preferences';
-import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences, useOwnOrderPreferences, useShapeQualities } from './useOrderPreferences';
+import { useCategoryQualities, useColorButtons, useColorFamilies, useOrderPreferences, useOwnOrderPreferences, useShapeQualities, useUsualPicks } from './useOrderPreferences';
+import { usualCategoryIds } from '@/lib/usual-picks';
 import { lineQualities, pickQualities } from '@/lib/qualities';
 import { useCatalogueMap } from './useCatalogueMap';
 import { anyLines, shapesOf, sizeKeysOf, stonesForFamilies, stonesForPicks } from '@/lib/quick-order-any';
@@ -76,6 +77,9 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
   // 2026-11-03). The shop defaults still supply a usual quality.
   const preferences = useOrderPreferences();
   const ownPreferences = useOwnOrderPreferences();
+  // The buyer's go-to stones lead the Stone list ("Your usual").
+  const usualPicks = useUsualPicks();
+  const usualStoneIds = useMemo(() => usualCategoryIds(usualPicks), [usualPicks]);
   const families = useColorFamilies();
   const qualities = useCategoryQualities();
   const shapeQualities = useShapeQualities();
@@ -538,6 +542,7 @@ export default function QuickOrderButton({ label = 'Quick Order', listenForColor
                 onChange={(v) => handleCategoryChange(v === 'all' ? '' : String(v))}
                 allLabel={loadingCategories ? 'Loading stones…' : 'Any stone — we confirm'}
                 leading="photo"
+                usualIds={usualStoneIds}
                 searchable
               />
             </div>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import ColorSwatch from './ColorSwatch';
 import { useCatalogueMap } from './useCatalogueMap';
 import { searchStones, type StoneHit } from '@/lib/stone-search';
+import { useUsualPicks } from './useOrderPreferences';
+import { usualCategoriesFirst, usualCategoryIds } from '@/lib/usual-picks';
 
 /** The colour the next stone's form should open on, set by the stone search. */
 export const PICK_COLOR_KEY = 'yoyo-pick-color';
@@ -26,7 +28,10 @@ export default function StoneSwitch({ categoryId, onPickColor }: { categoryId: n
   const [active, setActive] = useState(0);
   const [touched, setTouched] = useState(false);
   const map = useCatalogueMap(touched);
-  const hits = useMemo(() => (map ? searchStones(map, text) : []), [map, text]);
+  // A signed-in buyer's go-to stones lead the matches, marked "your usual".
+  const usualPicks = useUsualPicks();
+  const usualStones = useMemo(() => usualCategoryIds(usualPicks), [usualPicks]);
+  const hits = useMemo(() => (map ? (usualStones.length ? usualCategoriesFirst(searchStones(map, text, 24), usualStones).slice(0, 8) : searchStones(map, text)) : []), [map, text, usualStones]);
   const box = useRef<HTMLInputElement>(null);
   const open = focused && text.trim().length > 0;
 
@@ -83,7 +88,7 @@ export default function StoneSwitch({ categoryId, onPickColor }: { categoryId: n
               <button type="button" className={i === active ? 'active' : ''} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(hit)}>
                 {hit.colorId ? <ColorSwatch hex={hit.hex || '#ccc'} refPhotoUrl={hit.refPhotoUrl} name={hit.colorName || ''} size={18} /> : <span className="po-stone-switch-dot" aria-hidden="true" />}
                 <span><strong>{hit.colorName || hit.categoryName}</strong>{hit.colorName && <small>{hit.categoryName}</small>}</span>
-                {hit.categoryId === categoryId && <em>this stone</em>}
+                {hit.categoryId === categoryId ? <em>this stone</em> : usualStones.includes(hit.categoryId) && <em>your usual</em>}
               </button>
             </li>
           ))}
