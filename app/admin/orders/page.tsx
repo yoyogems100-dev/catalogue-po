@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ORDER_STATUS_OPTIONS } from '@/lib/order-milestones';
+import { ORDER_STATUS_OPTIONS, statusChoices } from '@/lib/order-milestones';
+import { getOrderStages } from '@/lib/order-stages-server';
 import { getUsedPlaces } from '@/lib/customer-places-server';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
@@ -29,6 +30,7 @@ const PAYMENT_LABEL: Record<string, string> = { pending: 'Outstanding', partial:
 const PAGE_SIZE = 50;
 
 export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
+  const stages = await getOrderStages();
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
   // The Overview's "Payment outstanding" and "Partial payment" cards open these.
@@ -166,7 +168,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                 </p>
                 <dl>
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
-                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
+                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} stages={stages} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
                   <div><dt>Lines</dt><dd>{s.lines}</dd></div>
                   <div><dt>Value</dt><dd><OrderValue s={s} /></dd></div>
@@ -199,7 +201,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     <td>{s.lines}</td>
                     <td style={{ whiteSpace: 'nowrap' }}><OrderValue s={s} /></td>
                     <td><PaymentTag status={o.payment_status} /></td>
-                    <td><OrderRowStatus orderId={o.id} status={o.status} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
+                    <td><OrderRowStatus orderId={o.id} status={o.status} stages={stages} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>
                       <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
@@ -225,7 +227,10 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
         <h1>Orders</h1>
-        <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
+        <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link href="/admin/orders/stages" className="btn-ghost" style={{ display: 'inline-block' }}>Stages &amp; messages</Link>
+          <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
+        </span>
       </div>
       <Form action="" replace scroll={false} id="admin-order-search-form" className="admin-order-search">
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
@@ -248,7 +253,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
           within reach without hiding it behind a disclosure. */}
       <div className="admin-status-chips">
         <Link href={filterUrl(undefined)} className={`tag-chip ${!statusFilter ? 'active' : ''}`} aria-current={!statusFilter ? 'page' : undefined}>All statuses</Link>
-        {ORDER_STATUS_OPTIONS.map((m) => (
+        {statusChoices(stages, statusFilter).map((m) => (
           <Link
             key={m.key}
             href={filterUrl(m.key)}

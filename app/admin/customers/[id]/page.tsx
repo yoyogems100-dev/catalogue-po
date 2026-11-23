@@ -11,10 +11,12 @@ import { COLOR_BUTTONS_SETTING_KEY, COLOR_NAMES_SETTING_KEY, parseColorButtons, 
 import { DEFAULT_PICKS_SETTING_KEY, parseDefaultPreferences, sanitizePreferences } from '@/lib/customer-preferences';
 import CategoryChips from '@/components/admin/CategoryChips';
 import StatusTag from '@/components/admin/StatusTag';
+import { getOrderStages } from '@/lib/order-stages-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const stages = await getOrderStages();
   const customerId = Number((await params).id);
   const requested = (await searchParams).tab;
   const tab = requested === 'orders' || requested === 'colours' ? requested : 'details';
@@ -81,7 +83,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                 <Link className="admin-record-main" href={`/admin/orders/${order.id}`}>
                   <strong>Order #{order.id}</strong>
                   <span>{new Date(order.created_at).toLocaleDateString('en-IN')}{order.request_type && order.request_type !== 'Place Order' ? ` · ${order.request_type}` : ''}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} /> · {order.payment_status || 'pending'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} stages={stages} /> · {order.payment_status || 'pending'}</span>
                 </Link>
                 {/* Outside the record-main link -- CategoryChips' "+N more"
                     is a real button, and nesting it inside that whole-card

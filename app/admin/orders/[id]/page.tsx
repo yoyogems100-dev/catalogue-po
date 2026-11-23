@@ -7,6 +7,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
 import { ANY_CATEGORY_NAME } from '@/lib/cart-storage';
+import { getOrderStages, customerPin } from '@/lib/order-stages-server';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -64,7 +65,9 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     { data: colorsData },
     { data: catShapes },
     { data: catColors },
-    { data: catSizes }
+    { data: catSizes },
+    stages,
+    pin
   ] = await Promise.all([
     order.customer_id
       ? supabaseAdmin.from('customers').select('*').eq('id', order.customer_id).single()
@@ -86,6 +89,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     categoryIds.length ? supabaseAdmin.from('category_shapes').select('category_id, shape_id').in('category_id', categoryIds) : Promise.resolve({ data: [] }),
     categoryIds.length ? supabaseAdmin.from('category_colors').select('category_id, color_id').in('category_id', categoryIds) : Promise.resolve({ data: [] }),
     categoryIds.length ? fetchAllRows<{ category_id: number; shape_size_id: number }>((from, to) => supabaseAdmin.from('category_shape_sizes').select('category_id, shape_size_id', { count: 'exact' }).in('category_id', categoryIds).order('category_id').order('shape_size_id').range(from, to)) : Promise.resolve({ data: [] })
+,
+    // Stage names + WhatsApp messages (admin-edited), and the buyer's PIN for
+    // the "Order placed" message's login details.
+    getOrderStages(),
+    customerPin(order.customer_id)
   ]);
   // Only shown for a customer record that still exists, as before.
   const customerOrderHistory = customer ? customerOrderHistoryRaw : [];
@@ -181,6 +189,8 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
       <OrderAdminClient
         orderId={order.id}
         status={order.status}
+        stages={stages}
+        customerPin={pin}
         paymentStatus={order.payment_status}
         pdfUrl={order.pdf_url}
         invoiceUrl={order.invoice_url}

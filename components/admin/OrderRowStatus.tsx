@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import StatusTag from './StatusTag';
-import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
+import { milestoneLabel, statusChoices, type OrderStage } from '@/lib/order-milestones';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import WhatsAppIcon from './WhatsAppIcon';
 
@@ -15,13 +15,14 @@ import WhatsAppIcon from './WhatsAppIcon';
 export default function OrderRowStatus({
   orderId,
   status,
-  isQuotation,
+  stages,
   customerName,
   customerPhone
 }: {
   orderId: number;
   status: string;
-  isQuotation: boolean;
+  stages: OrderStage[];
+  isQuotation?: boolean;
   customerName: string | null;
   customerPhone: string | null;
 }) {
@@ -53,14 +54,26 @@ export default function OrderRowStatus({
     }
   }
 
-  function notify() {
+  // The wording comes from Orders > Stages & messages and is built on the
+  // server (the "Order placed" message carries the buyer's login PIN, which
+  // the list doesn't load). The tab is opened before the fetch so phones
+  // don't treat it as a blocked pop-up.
+  async function notify() {
     if (!customerPhone) { setToast("No phone on file -- can't notify."); return; }
-    const url = buildWhatsAppUrl(
-      customerPhone,
-      `Hi ${customerName || ''}, your YOYO GEMS ${isQuotation ? 'quotation' : 'order'} #${orderId} status has been updated to: ${milestoneLabel(value)}.\nLog in to your account to view full details.`
-    );
-    window.open(url, '_blank', 'noopener,noreferrer');
-    fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
+    const tab = window.open('', '_blank');
+    setToast('');
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/stage-message`, { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.phone) throw new Error(data.error || 'Could not build the message.');
+      const url = buildWhatsAppUrl(data.phone, data.text);
+      if (tab) { tab.opener = null; tab.location.href = url; } else window.open(url, '_blank', 'noopener,noreferrer');
+      if (data.pinMissing) setToast('No PIN set for this buyer -- PIN line left out.');
+      fetch(`/api/admin/orders/${orderId}/mark-notified`, { method: 'POST' }).then(() => router.refresh());
+    } catch (e) {
+      tab?.close();
+      setToast(e instanceof Error ? e.message : 'Could not build the message.');
+    }
   }
 
   return (
@@ -76,7 +89,7 @@ export default function OrderRowStatus({
             onBlur={() => setEditing(false)}
             style={{ fontSize: 11.5, padding: '2px 4px' }}
           >
-            {ORDER_MILESTONES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+            {statusChoices(stages, value).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
           </select>
         ) : (
           <button
@@ -84,9 +97,9 @@ export default function OrderRowStatus({
             onClick={() => setEditing(true)}
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
             title="Click to change status"
-            aria-label={`Change status, currently ${milestoneLabel(value)}`}
+            aria-label={`Change status, currently ${milestoneLabel(value, stages)}`}
           >
-            <StatusTag status={value} />
+            <StatusTag status={value} stages={stages} />
           </button>
         )}
         {/* Was a bare green circle emoji, which said nothing about what it

@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
 import { sendPushToCustomer } from '@/lib/expo-push';
 import { catalogueChanged } from '@/lib/catalogue-cache';
+import { getOrderStages } from '@/lib/order-stages-server';
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     sendPushToCustomer(
       order.customer_id,
       'Order update',
-      `Your YOYO GEMS order #${orderId} is now: ${milestoneLabel(status)}`,
+      `Your YOYO GEMS order #${orderId} is now: ${milestoneLabel(status, await getOrderStages())}`,
       { orderId, status }
     ).catch(() => {});
   }
