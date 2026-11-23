@@ -142,6 +142,7 @@ export default function StagesEditor({
           {placeholders.map((p) => <li key={p.token}><code>{p.token}</code> {p.meaning}</li>)}
         </ul>
         <p>A line is left out when what it needs is missing &mdash; for example the PIN line, if the buyer has no PIN yet.</p>
+        <p>Put words in <code>[square brackets]</code> to drop just that part when a placeholder is empty: <code>placed[ and dispatched from {'{courier}'}].</code> reads &ldquo;placed.&rdquo; until a courier is chosen.</p>
       </details>
 
       <div className="stage-save-bar">
