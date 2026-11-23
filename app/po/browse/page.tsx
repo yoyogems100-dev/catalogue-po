@@ -9,6 +9,7 @@ import HomeButton from '@/components/HomeButton';
 import Footer from '@/components/Footer';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
 import { getSettings } from '@/lib/settings';
+import CategoryLink from '@/components/CategoryLink';
 
 export const revalidate = 30;
 
@@ -114,13 +115,13 @@ export default async function BrowsePage({ searchParams: searchParamsPromise }: 
             <section key={category.id} className="browse-category-section">
               <div className="browse-category-head">
                 <h2>{category.name}</h2>
-                <Link href={`/po/category/${category.slug}`}>View category &rarr;</Link>
+                <CategoryLink slug={category.slug}>View category &rarr;</CategoryLink>
               </div>
               <div className="browse-photo-grid">
                 {photos.map((p) => (
-                  <Link key={p.id} href={`/po/category/${category.slug}`} className="browse-photo-tile">
+                  <CategoryLink key={p.id} slug={category.slug} className="browse-photo-tile">
                     {p.url && <img src={p.url} alt={category.name} loading="lazy" />}
-                  </Link>
+                  </CategoryLink>
                 ))}
               </div>
             </section>
