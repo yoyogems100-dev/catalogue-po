@@ -3846,7 +3846,7 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .po-line-group-head .requirement-stone .shape-reference-fallback { color: #12233f; }
 
 /* Admin > Orders > Stages & messages */
-.stage-editor { display: grid; gap: 12px; max-width: 760px; padding-bottom: 72px; }
+.stage-editor { display: grid; gap: 12px; max-width: 760px; padding-bottom: 24px; }
 .stage-card { padding: 12px 14px; display: grid; gap: 10px; }
 .stage-card.is-hidden { background: #f7f5ef; }
 .stage-card-head { display: flex; align-items: center; gap: 10px; }
@@ -3872,3 +3872,26 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .stage-help p { margin: 0; color: var(--text-dim); font-size: 12.5px; }
 .stage-save-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 10px 0; background: linear-gradient(transparent, var(--ivory) 30%); }
 .stage-save-bar [role="status"] { font-size: 12.5px; color: var(--gold); }
+
+/* Admin order: "Dispatch from Jaipur" switch under status/courier. */
+.dispatch-jaipur { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; max-width: 520px; cursor: pointer; background: #fff; }
+.dispatch-jaipur input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--navy, #1B3A6B); }
+.dispatch-jaipur span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.dispatch-jaipur small { font-size: 11.5px; color: #756e5c; line-height: 1.35; }
+.dispatch-jaipur:has(input:checked) { border-color: var(--gold, #9C7A25); background: #fbf7ec; }
+.dispatch-jaipur:has(input:disabled) { cursor: default; opacity: .7; }
+
+/* Orders > Stages & messages: route headings and the courier list. */
+.stage-jump { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; margin: 0 0 14px; }
+.stage-group-title { font-size: 18px; margin: 18px 0 8px; scroll-margin-top: 72px; }
+.courier-editor { max-width: 760px; margin: 0 0 40px; padding: 16px; scroll-margin-top: 72px; }
+.courier-editor h2 { font-size: 18px; margin: 0 0 4px; }
+.courier-help { font-size: 12.5px; color: #756e5c; margin: 0 0 12px; }
+.courier-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.courier-list li { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; background: #fff; }
+.courier-list li button { width: 28px; height: 28px; border: 0; background: none; border-radius: 50%; font-size: 17px; line-height: 1; color: #756e5c; cursor: pointer; }
+.courier-list li button:hover { background: #f3eee2; color: #a3341f; }
+.courier-list .courier-empty { border-style: dashed; padding-right: 10px; color: #756e5c; }
+.courier-add { display: flex; gap: 8px; max-width: 420px; }
+.courier-add input { flex: 1; min-width: 0; font-size: 13px; }
+.courier-save { position: static; padding-bottom: 0; background: none; }

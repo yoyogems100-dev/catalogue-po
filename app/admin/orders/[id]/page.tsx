@@ -7,7 +7,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
 import { ANY_CATEGORY_NAME } from '@/lib/cart-storage';
-import { getOrderStages, customerPin } from '@/lib/order-stages-server';
+import { getStageSets, getCouriers, customerPin } from '@/lib/order-stages-server';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -66,7 +66,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     { data: catShapes },
     { data: catColors },
     { data: catSizes },
-    stages,
+    stageSets,
     pin
   ] = await Promise.all([
     order.customer_id
@@ -92,7 +92,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
 ,
     // Stage names + WhatsApp messages (admin-edited), and the buyer's PIN for
     // the "Order placed" message's login details.
-    getOrderStages(),
+    getStageSets(),
     customerPin(order.customer_id)
   ]);
   // Only shown for a customer record that still exists, as before.
@@ -100,10 +100,15 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
 
   const catMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.name]));
   // Read on its own so the page still opens if the column isn't there yet.
-  const [fieldOf, { data: packetRow }] = await Promise.all([
+  const [fieldOf, { data: packetRow }, couriers] = await Promise.all([
     getQuantityFields(),
-    supabaseAdmin.from('orders').select('*').eq('id', orderId).maybeSingle()
+    supabaseAdmin.from('orders').select('*').eq('id', orderId).maybeSingle(),
+    getCouriers()
   ]);
+  // Admin-only dispatch details; absent columns read as China route, no courier.
+  const fromJaipur = (packetRow as any)?.dispatch_from_jaipur === true;
+  const courier = typeof (packetRow as any)?.courier === 'string' ? (packetRow as any).courier : null;
+  const dispatchReady = !!packetRow && 'dispatch_from_jaipur' in (packetRow as any);
   // Who entered it, when an account allowed to order for others placed it for this buyer.
   const placedById = (packetRow as any)?.placed_by_customer_id as number | null | undefined;
   const { data: placedBy } = placedById
@@ -189,7 +194,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
       <OrderAdminClient
         orderId={order.id}
         status={order.status}
-        stages={stages}
+        stageSets={stageSets}
+        fromJaipur={fromJaipur}
+        courier={courier}
+        couriers={couriers}
+        dispatchReady={dispatchReady}
         customerPin={pin}
         paymentStatus={order.payment_status}
         pdfUrl={order.pdf_url}

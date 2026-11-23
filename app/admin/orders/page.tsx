@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ORDER_STATUS_OPTIONS, statusChoices } from '@/lib/order-milestones';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { ORDER_STATUS_OPTIONS, statusChoices, stagesFor } from '@/lib/order-milestones';
+import { getStageSets, jaipurOrderIds } from '@/lib/order-stages-server';
 import { getUsedPlaces } from '@/lib/customer-places-server';
 import OrderRowStatus from '@/components/admin/OrderRowStatus';
 import DeleteRowButton from '@/components/admin/DeleteRowButton';
@@ -32,7 +32,8 @@ const PAYMENT_LABEL: Record<string, string> = { na: 'N/A', pending: 'Outstanding
 const PAGE_SIZE = 50;
 
 export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
-  const stages = await getOrderStages();
+  const stageSets = await getStageSets();
+  const stages = stageSets.china;
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
   // The Overview's "Payment outstanding" and "Partial payment" cards open these.
@@ -113,6 +114,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
   const custMap: Record<number, any> = Object.fromEntries((customers || []).map((c: any) => [c.id, c]));
 
   const orderIds = allOrders.map((o: any) => o.id);
+  const fromJaipur = await jaipurOrderIds(orderIds);
   const [{ data: items }, { data: categories }] = await Promise.all([
     orderIds.length
       ? supabaseAdmin.from('order_items').select('order_id, quantity, unit_price, request_type, category_id').in('order_id', orderIds)
@@ -170,7 +172,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                 </p>
                 <dl>
                   <div><dt>Placed</dt><dd>{new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</dd></div>
-                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} stages={stages} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
+                  <div><dt>Status</dt><dd><OrderRowStatus orderId={o.id} status={o.status} stages={stagesFor(stageSets, fromJaipur.has(o.id))} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></dd></div>
                   <div><dt>Category</dt><dd><CategoryChips names={s.categoryNames} /></dd></div>
                   <div><dt>Lines</dt><dd>{s.lines}</dd></div>
                   <div><dt>Value</dt><dd><OrderValue s={s} /></dd></div>
@@ -203,7 +205,7 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
                     <td>{s.lines}</td>
                     <td style={{ whiteSpace: 'nowrap' }}><OrderValue s={s} /></td>
                     <td><PaymentTag status={o.payment_status} /></td>
-                    <td><OrderRowStatus orderId={o.id} status={o.status} stages={stages} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
+                    <td><OrderRowStatus orderId={o.id} status={o.status} stages={stagesFor(stageSets, fromJaipur.has(o.id))} isQuotation={o.request_type === 'Request Quotation' || o.request_type === 'Mixed'} customerName={cust?.name || o.contact_name || null} customerPhone={cust?.phone || null} /></td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <Link href={`/admin/orders/${o.id}`} aria-label={`Manage order ${o.id}`} className="btn-ghost" style={{ display: 'inline-block' }}>Manage &rarr;</Link>
                       <DeleteRowButton endpoint={`/api/admin/orders/${o.id}`} label={`Move order ${o.id} to bin`} confirmText={`Move order #${o.id} to the bin? You can restore it later from Admin → Bin.`} />
