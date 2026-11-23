@@ -3903,3 +3903,15 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .courier-add { display: flex; gap: 8px; max-width: 420px; }
 .courier-add input { flex: 1; min-width: 0; font-size: 13px; }
 .courier-save { position: static; padding-bottom: 0; background: none; }
+
+/* Order link opened while signed in to another account */
+.wrong-account-card { max-width: 560px; }
+.wrong-account-card h2 { font-size: 19px; color: var(--ink); margin: 0 0 8px; }
+.wrong-account-card p { margin: 0 0 16px; line-height: 1.5; }
+.wrong-account-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.wrong-account-actions form { margin: 0; }
+.wrong-account-actions .btn, .wrong-account-actions .btn-ghost { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+@media (max-width: 480px) {
+  .wrong-account-actions { flex-direction: column; align-items: stretch; }
+  .wrong-account-actions .btn, .wrong-account-actions .btn-ghost { width: 100%; }
+}

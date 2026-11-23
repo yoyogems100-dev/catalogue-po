@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { buyerPaymentStatus, paymentStatusLabel } from '@/lib/payment-status';
 import { stagesForOrder } from '@/lib/order-stages-server';
-import { getCustomerId } from '@/lib/customer-auth';
+import { canOrderForOthers, getCustomerSession } from '@/lib/customer-auth';
+import { isAdminAuthed } from '@/lib/auth';
+import { OrderOnAnotherAccount, SwitchToOrderBuyer } from './WrongAccount';
 import AccountHeader from '@/components/AccountHeader';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
 import OrderStepper, { milestoneLabel } from '@/components/OrderStepper';
@@ -15,7 +17,8 @@ import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
-  const customerId = await getCustomerId();
+  const session = await getCustomerSession();
+  const customerId = session?.customerId ?? null;
   // Back to this order after signing in -- the WhatsApp updates link here.
   if (!customerId) redirect(`/po/account/login?next=${encodeURIComponent(`/po/account/orders/${params.id}`)}`);
   const orderId = Number(params.id);
@@ -27,8 +30,9 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     .eq('id', orderId)
     .single();
 
-  if (!order || order.customer_id !== customerId) {
-    notFound();
+  if (!order) notFound();
+  if (order.customer_id !== customerId) {
+    return <OrderForAnotherAccount orderId={order.id} ownerId={order.customer_id} actorId={session!.actorId} />;
   }
 
   const { data: items } = await supabaseAdmin
@@ -141,6 +145,37 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
           allCategories={allCategories}
           timeline={timeline}
         />
+      </div>
+    </>
+  );
+}
+
+// The order exists but belongs to someone other than the account in use -- most
+// often a WhatsApp order link opened on a phone signed in as another buyer.
+// Never names the order's buyer to someone who could not switch to them anyway.
+async function OrderForAnotherAccount({ orderId, ownerId, actorId }: { orderId: number; ownerId: number | null; actorId: number }) {
+  let body;
+  if (ownerId && (ownerId === actorId || (await canOrderForOthers(actorId)))) {
+    // Their own order while switched to a buyer, or a buyer they may order for.
+    const { data: owner } = ownerId === actorId
+      ? { data: { name: 'your own account' } }
+      : await supabaseAdmin.from('customers').select('name, phone').eq('id', ownerId).is('deleted_at', null).maybeSingle();
+    if (owner) body = <SwitchToOrderBuyer buyerId={ownerId} buyerName={(owner as any).name || (owner as any).phone || 'this buyer'} />;
+  }
+  if (!body) {
+    const [{ data: me }, admin] = await Promise.all([
+      supabaseAdmin.from('customers').select('name, phone').eq('id', actorId).maybeSingle(),
+      isAdminAuthed()
+    ]);
+    const signedInAs = [me?.name, me?.phone].filter(Boolean).join(' · ') || 'another account';
+    body = <OrderOnAnotherAccount orderId={orderId} signedInAs={signedInAs} adminHref={admin ? `/admin/orders/${orderId}` : null} />;
+  }
+  return (
+    <>
+      <AccountHeader />
+      <div className="container" style={{ padding: '28px 20px 80px' }}>
+        <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 16px' }}>Order #{orderId}</h1>
+        {body}
       </div>
     </>
   );
