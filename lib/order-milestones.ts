@@ -45,25 +45,21 @@ export const STAGE_PLACEHOLDERS: { token: string; meaning: string }[] = [
   { token: '{courier}', meaning: 'Courier chosen on the order' }
 ];
 
+// Every message: "Hi {name}," on its own line, the news with the key words in
+// WhatsApp *bold*, then what the buyer will hear about next. [square brackets]
+// drop their words while a placeholder inside is empty (no courier yet).
+const greet = (news: string, ...rest: string[]) => ['Hi {name},', `Your YOYO GEMS *Order #{order}* ${news}`, ...rest].join('\n');
+const LOGIN_LINES = ['', 'You can view your order and explore more using this link:', '{link}', '', 'Login: {login}', 'PIN: {pin}'];
+
 const DEFAULT_MESSAGES: Record<string, string> = {
-  placed: [
-    'Hi {name}, your YOYO GEMS order #{order} has been placed.',
-    '',
-    'You can view your order and explore more using this link:',
-    '{link}',
-    '',
-    'Login: {login}',
-    'PIN: {pin}',
-    '',
-    "We'll notify you when the order is dispatched from China."
-  ].join('\n'),
-  confirmed: "Hi {name}, we've received your YOYO GEMS order #{order}. We'll notify you when the supplier confirms.",
-  sourcing: 'Hi {name}, your YOYO GEMS order #{order} has been confirmed by the supplier. Your order is getting prepared in China.',
-  quality_check: "Hi {name}, your YOYO GEMS order #{order} has been dispatched from China. We'll notify you when it reaches Jaipur.",
-  packed: "Hi {name}, your YOYO GEMS order #{order} has been received in Jaipur. We'll notify you when your parcel is sent.\nIt will be sent through {courier}.",
-  shipped: 'Hi {name}, your YOYO GEMS order #{order} parcel has been sent.\nSent through {courier}.',
-  delivered: 'Hi {name}, your YOYO GEMS order #{order} has been delivered. Thank you for ordering with YOYO GEMS.',
-  cancelled: 'Hi {name}, your YOYO GEMS order #{order} has been cancelled.'
+  placed: greet('has been *Placed*.', ...LOGIN_LINES, '', "We'll notify you once your order is *Received* by our team."),
+  confirmed: greet('has been *Received*.', '', "We'll notify you once it is *Confirmed by the supplier*."),
+  sourcing: greet('has been *Confirmed by the supplier* and is being prepared in China.', '', "We'll notify you once it is *Dispatched from China*."),
+  quality_check: greet('has been *Dispatched from China*.', '', "We'll notify you once it is *Received in Jaipur*."),
+  packed: greet('has been *Received in Jaipur*.', '', "We'll notify you once your parcel is *Sent*[ via *{courier}*]."),
+  shipped: greet('has been *Sent*[ via *{courier}*].', '', 'You can view your order here:', '{link}'),
+  delivered: greet('has been *Delivered*.', '', 'Thank you for ordering with YOYO GEMS.'),
+  cancelled: greet('has been *Cancelled*.', '', 'For any questions, just reply to this message.')
 };
 
 // The owner's stage list stops at "Parcel sent", so Delivered starts hidden.
@@ -82,17 +78,19 @@ export const DEFAULT_ORDER_STAGES: OrderStage[] = ORDER_STATUS_OPTIONS.map((m) =
 export const JAIPUR_STAGES_SETTING_KEY = 'order_stages_jaipur';
 export const JAIPUR_SKIPPED = new Set(['sourcing', 'quality_check', 'packed']);
 const JAIPUR_OVERRIDES: Record<string, { label: string; message: string }> = {
+  // Jaipur stock usually goes out the same day, so the first message can
+  // already name the courier.
   placed: {
     label: 'Order placed',
-    message: DEFAULT_MESSAGES.placed.replace('dispatched from China', 'dispatched from Jaipur')
+    message: greet('has been *Placed*[ and *Dispatched* via *{courier}*].', ...LOGIN_LINES)
   },
   confirmed: {
     label: 'Order received',
-    message: 'Hi {name}, your YOYO GEMS order #{order} is received and being prepared.'
+    message: greet('has been *Received* and is being prepared.', '', "We'll notify you once it is *Dispatched*[ via *{courier}*].")
   },
   shipped: {
     label: 'Dispatched from Jaipur',
-    message: 'Hi {name}, your YOYO GEMS order #{order} has been dispatched from Jaipur.\nSent through {courier}.'
+    message: greet('has been *Dispatched* from Jaipur[ via *{courier}*].', '', 'You can view your order here:', '{link}')
   }
 };
 export const DEFAULT_JAIPUR_STAGES: OrderStage[] = DEFAULT_ORDER_STAGES.map((s) => ({
@@ -190,7 +188,15 @@ export function renderStageMessage(stages: OrderStage[], status: string, values:
     pdf: values.pdf || '',
     courier: (values.courier || '').trim()
   };
-  const lines = template.split('\n').flatMap((line) => {
+  // [optional text] keeps its words only when every placeholder inside it is
+  // filled, e.g. "placed[ and dispatched from {courier}]." -> "placed." when
+  // there's no courier yet. Brackets with no placeholder are left as typed.
+  const filled = template.replace(/\[([^\[\]\n]*)\]/g, (whole, inner: string) => {
+    const inside = [...inner.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((t) => t in map);
+    if (!inside.length) return whole;
+    return inside.every((t) => map[t]) ? inner : '';
+  });
+  const lines = filled.split('\n').flatMap((line) => {
     const tokens = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((t) => t in map);
     if (tokens.length && tokens.every((t) => !map[t])) return [];
     if (tokens.includes('courier') && !map.courier) return [];

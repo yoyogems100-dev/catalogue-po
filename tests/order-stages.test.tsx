@@ -35,17 +35,17 @@ test('order placed message carries the login details', () => {
   const text = renderStageMessage(DEFAULT_ORDER_STAGES, 'placed', {
     name: 'Rajesh', order: 55, link: 'https://www.yoyogems.co.in/po/account/orders/55', login: '919876543210', pin: '4821'
   });
-  assert.match(text, /^Hi Rajesh, your YOYO GEMS order #55 has been placed\./);
+  assert.match(text, /^Hi Rajesh,\nYour YOYO GEMS \*Order #55\* has been \*Placed\*\./);
   assert.match(text, /https:\/\/www\.yoyogems\.co\.in\/po\/account\/orders\/55/);
   assert.match(text, /Login: 919876543210\nPIN: 4821/);
-  assert.match(text, /dispatched from China\.$/);
+  assert.match(text, /We'll notify you once your order is \*Received\* by our team\.$/);
   assert.ok(stageUsesPin(DEFAULT_ORDER_STAGES, 'placed'));
 });
 
 test('a line whose placeholders are empty is left out', () => {
   const text = renderStageMessage(DEFAULT_ORDER_STAGES, 'placed', { name: '', order: 7, link: 'L', login: '9198', pin: null });
   assert.ok(!/PIN/.test(text));
-  assert.match(text, /^Hi, your YOYO GEMS order #7/);
+  assert.match(text, /^Your YOYO GEMS \*Order #7\*/);
   assert.ok(!/\n{3}/.test(text));
 });
 
@@ -58,11 +58,13 @@ test('buyer tracker uses edited names and skips hidden stages', () => {
 });
 
 test('courier lines appear only once a courier is chosen', async () => {
-  const sent = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7, courier: 'Sainath Courier' });
-  assert.equal(sent, 'Hi Rajesh, your YOYO GEMS order #7 parcel has been sent.\nSent through Sainath Courier.');
-  const none = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7 });
-  assert.equal(none, 'Hi Rajesh, your YOYO GEMS order #7 parcel has been sent.');
-  assert.match(renderStageMessage(DEFAULT_ORDER_STAGES, 'packed', { name: 'R', order: 7, courier: 'DTDC' }), /received in Jaipur[\s\S]*It will be sent through DTDC\./);
+  const link = 'https://www.yoyogems.co.in/po/account/orders/7';
+  const sent = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7, link, courier: 'Sainath Courier' });
+  assert.equal(sent, `Hi Rajesh,\nYour YOYO GEMS *Order #7* has been *Sent* via *Sainath Courier*.\n\nYou can view your order here:\n${link}`);
+  const none = renderStageMessage(DEFAULT_ORDER_STAGES, 'shipped', { name: 'Rajesh', order: 7, link });
+  assert.match(none, /^Hi Rajesh,\nYour YOYO GEMS \*Order #7\* has been \*Sent\*\.\n/);
+  assert.match(renderStageMessage(DEFAULT_ORDER_STAGES, 'packed', { name: 'R', order: 7, courier: 'DTDC' }), /\*Received in Jaipur\*[\s\S]*parcel is \*Sent\* via \*DTDC\*\./);
+  assert.match(renderStageMessage(DEFAULT_ORDER_STAGES, 'packed', { name: 'R', order: 7 }), /parcel is \*Sent\*\.$/);
 });
 
 test('Jaipur dispatch skips the China stages and names the courier', async () => {
@@ -71,11 +73,11 @@ test('Jaipur dispatch skips the China stages and names the courier', async () =>
   assert.doesNotMatch(DEFAULT_JAIPUR_STAGES.find((s) => s.key === 'placed')!.message, /China/);
   assert.equal(
     renderStageMessage(DEFAULT_JAIPUR_STAGES, 'confirmed', { name: 'Rajesh', order: 9 }),
-    'Hi Rajesh, your YOYO GEMS order #9 is received and being prepared.'
+    "Hi Rajesh,\nYour YOYO GEMS *Order #9* has been *Received* and is being prepared.\n\nWe'll notify you once it is *Dispatched*."
   );
   assert.equal(
-    renderStageMessage(DEFAULT_JAIPUR_STAGES, 'shipped', { name: 'Rajesh', order: 9, courier: 'BVC' }),
-    'Hi Rajesh, your YOYO GEMS order #9 has been dispatched from Jaipur.\nSent through BVC.'
+    renderStageMessage(DEFAULT_JAIPUR_STAGES, 'shipped', { name: 'Rajesh', order: 9, link: 'L', courier: 'BVC' }),
+    'Hi Rajesh,\nYour YOYO GEMS *Order #9* has been *Dispatched* from Jaipur via *BVC*.\n\nYou can view your order here:\nL'
   );
   // A save can't switch the China stages back on for Jaipur orders.
   const saved = resolveJaipurStages(JSON.stringify([{ key: 'sourcing', hidden: false }, { key: 'shipped', label: 'Sent from JPR' }]));
@@ -94,4 +96,26 @@ test('courier list: defaults, trimming and no repeats', async () => {
   assert.deepEqual(resolveCouriers('bad json'), DEFAULT_COURIERS);
   assert.deepEqual(resolveCouriers(JSON.stringify(['  DTDC ', 'dtdc', '', 5, 'Shyam   Parcel'])), ['DTDC', 'Shyam Parcel']);
   assert.deepEqual(resolveCouriers('[]'), []);
+});
+
+test('Jaipur order placed message names the courier in the first line', async () => {
+  const { DEFAULT_JAIPUR_STAGES } = await import('../lib/order-milestones');
+  const values = { name: 'Lodhiya GO. Ajit Ji', order: 33, link: 'https://www.yoyogems.co.in/po/account/orders/33', login: '9429500358', pin: '5003' };
+  assert.equal(renderStageMessage(DEFAULT_JAIPUR_STAGES, 'placed', { ...values, courier: 'Sainath Courier' }), [
+    'Hi Lodhiya GO. Ajit Ji,',
+    'Your YOYO GEMS *Order #33* has been *Placed* and *Dispatched* via *Sainath Courier*.',
+    '',
+    'You can view your order and explore more using this link:',
+    'https://www.yoyogems.co.in/po/account/orders/33',
+    '',
+    'Login: 9429500358',
+    'PIN: 5003'
+  ].join('\n'));
+  // No courier yet: the greeting stays, only the bracketed part goes.
+  assert.match(renderStageMessage(DEFAULT_JAIPUR_STAGES, 'placed', values), /^Hi Lodhiya GO\. Ajit Ji,\nYour YOYO GEMS \*Order #33\* has been \*Placed\*\.\n/);
+  // No name: the greeting line goes, the rest stays.
+  assert.match(renderStageMessage(DEFAULT_JAIPUR_STAGES, 'placed', { ...values, name: '', courier: 'BVC' }), /^Your YOYO GEMS \*Order #33\* has been \*Placed\* and \*Dispatched\* via \*BVC\*\.\n/);
+  // Brackets without a placeholder are left alone.
+  const custom = [{ ...DEFAULT_JAIPUR_STAGES[0], message: 'Order #{order} [urgent]' }];
+  assert.equal(renderStageMessage(custom, 'placed', { order: 1 }), 'Order #1 [urgent]');
 });
