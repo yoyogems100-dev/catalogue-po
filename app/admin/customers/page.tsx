@@ -3,6 +3,7 @@ import Form from 'next/form';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import StatusTag from '@/components/admin/StatusTag';
+import { getOrderStages } from '@/lib/order-stages-server';
 import { placeSuggestions } from '@/lib/customer-places';
 import { getUsedPlaces } from '@/lib/customer-places-server';
 import CustomerCreateForm from './CustomerCreateForm';
@@ -34,6 +35,7 @@ async function customerIdsOrderedFromCategories(categoryIds: number[]) {
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; place?: string; category?: string; workStream?: string; new?: string }> }) {
+  const stages = await getOrderStages();
   const params = await searchParams;
   const q = params.q?.trim().slice(0, 80) || '';
   // Filter by the places customers actually have, not the whole city list.
@@ -109,7 +111,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           <strong>{customer.name || 'Unnamed customer'}</strong>
           <span>{customer.company || 'No company'} · {customer.phone || 'No WhatsApp number'}</span>
           <span>{customer.work_stream || 'Work stream not added'}{customer.place ? ` · ${customer.place}` : ''}</span>
-            <small>{customerStats?.count || 0} orders{customerStats?.latest ? <> · Latest: <StatusTag status={customerStats.latest.status} /></> : ''}</small>
+            <small>{customerStats?.count || 0} orders{customerStats?.latest ? <> · Latest: <StatusTag status={customerStats.latest.status} stages={stages} /></> : ''}</small>
           </Link>
           <Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link>
           <DeleteRowButton endpoint={`/api/admin/customers/${customer.id}`} label={`Move ${customer.name || 'this customer'} to bin`} confirmText={`Move ${customer.name || 'this customer'} to the bin? Their past orders are kept. You can restore them later from Admin → Bin.`} />
@@ -121,7 +123,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       <tbody>{(customers || []).map((customer: any) => { const customerStats = stats.get(customer.id); return <tr key={customer.id}>
         <td><Link href={`/admin/customers/${customer.id}`} className="admin-table-link">{customer.name || 'Unnamed customer'}</Link></td>
         <td>{customer.company || '—'}</td><td>{customer.phone || '—'}</td><td>{customer.place || '—'}</td><td>{customer.work_stream || '—'}</td><td className="admin-table-wrap-text">{customer.go_to_requirements || '—'}</td>
-        <td>{customerStats?.count || 0}</td><td>{customerStats?.latest ? <StatusTag status={customerStats.latest.status} /> : '—'}</td>
+        <td>{customerStats?.count || 0}</td><td>{customerStats?.latest ? <StatusTag status={customerStats.latest.status} stages={stages} /> : '—'}</td>
         <td style={{ whiteSpace: 'nowrap' }}>
           <Link className="btn-ghost admin-row-action" href={`/admin/orders/new?customer=${customer.id}`}>New order</Link>
           <DeleteRowButton endpoint={`/api/admin/customers/${customer.id}`} label={`Move ${customer.name || 'this customer'} to bin`} confirmText={`Move ${customer.name || 'this customer'} to the bin? Their past orders are kept. You can restore them later from Admin → Bin.`} />

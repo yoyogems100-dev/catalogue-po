@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getCustomerId } from '@/lib/customer-auth';
 import { milestoneLabel } from '@/lib/order-milestones';
+import { getOrderStages } from '@/lib/order-stages-server';
 import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 
 // JSON equivalent of app/po/account/orders/[id]/page.tsx + OrderDetailClient's data --
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     );
   }
 
-  const [{ data: history }, { data: notes }] = await Promise.all([
+  const [{ data: history }, { data: notes }, stages] = await Promise.all([
     supabaseAdmin
       .from('order_status_history')
       .select('id, status, changed_at')
@@ -117,11 +118,12 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
       .select('id, author_type, message, created_at')
       .eq('order_id', orderId)
       .eq('internal_only', false)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: true }),
+    getOrderStages()
   ]);
 
   const timeline = [
-    ...(history || []).map((h: any) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status) })),
+    ...(history || []).map((h: any) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status, stages) })),
     ...(notes || []).map((n: any) => ({ type: 'note' as const, at: n.created_at, author: n.author_type, message: n.message }))
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 

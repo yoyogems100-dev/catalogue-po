@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
-import { ORDER_MILESTONES, milestoneLabel } from '@/lib/order-milestones';
+import { milestoneLabel, statusChoices, renderStageMessage, orderPageUrl, stageUsesPin, type OrderStage } from '@/lib/order-milestones';
 import WhatsAppIcon from '@/components/admin/WhatsAppIcon';
 import { confirmAction } from '@/components/admin/AdminDialogs';
 
@@ -75,6 +75,8 @@ const rowInputStyle = { fontSize: 12.5, padding: '6px 9px', borderRadius: 5, bor
 export default function OrderAdminClient({
   orderId,
   status,
+  stages,
+  customerPin = null,
   paymentStatus,
   pdfUrl,
   invoiceUrl,
@@ -94,6 +96,8 @@ export default function OrderAdminClient({
 }: {
   orderId: number;
   status: string;
+  stages: OrderStage[];
+  customerPin?: string | null;
   paymentStatus: string;
   pdfUrl: string | null;
   invoiceUrl: string | null;
@@ -401,20 +405,20 @@ export default function OrderAdminClient({
   // generated, its link is included so the customer can view/download it -- no manual
   // file attachment needed, since wa.me only supports pre-filled text.
   const isQuotation = requestType === 'Request Quotation';
-  const manualWaUrl = customer?.phone
-    ? buildWhatsAppUrl(
-        customer.phone,
-        [
-          `Hi ${customer.name || ''}, your YOYO GEMS ${isQuotation ? 'quotation' : 'order'} #${orderId} status has been updated to: ${milestoneLabel(status)}.`,
-          ...notes.filter(note => !note.internal_only && note.author_type === 'admin').slice(-3).map(note => `\nUpdate: ${note.message}\n`),
-          currentPdfUrl ? `\n${isQuotation ? 'View your quotation' : 'View your order summary'}: ${currentPdfUrl}` : '',
-          '\nLog in to your account to view full details.'
-        ].join('')
-      )
-    : null;
+  // The message is the one set for this stage in Orders > Stages & messages.
+  const stageMessage = renderStageMessage(stages, status, {
+    name: customer?.name,
+    order: orderId,
+    link: orderPageUrl(orderId),
+    login: customer?.phone,
+    pin: customerPin,
+    pdf: currentPdfUrl
+  });
+  const pinMissing = stageUsesPin(stages, status) && !customerPin;
+  const manualWaUrl = customer?.phone ? buildWhatsAppUrl(customer.phone, stageMessage) : null;
 
   const timeline = [
-    ...history.map((h) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status), messageSent: h.message_sent })),
+    ...history.map((h) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status, stages), messageSent: h.message_sent })),
     ...notes.map((n) => ({ type: 'note' as const, at: n.created_at, author: n.author_type, message: n.message, internalOnly: n.internal_only }))
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
@@ -459,7 +463,7 @@ export default function OrderAdminClient({
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {customerOrderHistory.map((o) => (
                 <Link key={o.id} href={`/admin/orders/${o.id}`} className="tag-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  #{o.id} <StatusTag status={o.status} />
+                  #{o.id} <StatusTag status={o.status} stages={stages} />
                 </Link>
               ))}
             </div>
@@ -476,7 +480,7 @@ export default function OrderAdminClient({
           <div>
             <h3 className="section-label">Status</h3>
             <select value={statusValue} onChange={(e) => updateStatus(e.target.value)} disabled={busy} style={{ fontSize: 13 }}>
-              {ORDER_MILESTONES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {statusChoices(stages, statusValue).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
           <div>
@@ -495,11 +499,17 @@ export default function OrderAdminClient({
                 the actual reason: a guest order with no linked customer phone
                 has nothing to send a WhatsApp message to. */}
             {!manualWaUrl && <p style={{ fontSize: 11, color: '#756e5c', margin: '4px 0 0' }}>No phone number on file -- can't notify via WhatsApp.</p>}
+            {manualWaUrl && pinMissing && customer && (
+              <p style={{ fontSize: 11, color: '#a3341f', margin: '4px 0 0' }}>
+                No login PIN set for this buyer, so the PIN line is left out. <a href={`/admin/customers/${customer.id}#pw-heading`}>Set PIN</a>
+              </p>
+            )}
           </div>
         </div>
         {manualWaUrl && (
           <details style={{ marginTop: 10 }}>
             <summary style={{ fontSize: 12, color: '#756e5c', cursor: 'pointer' }}>Preview WhatsApp update</summary>
+            <p style={{ fontSize: 11.5, color: '#756e5c', margin: '6px 0 0' }}>Wording is set per stage in <a href="/admin/orders/stages">Stages &amp; messages</a>.</p>
             <p style={{ fontSize: 12 }}>To: {customer?.phone}</p>
             <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 12.5 }}>{new URL(manualWaUrl).searchParams.get('text')}</pre>
           </details>

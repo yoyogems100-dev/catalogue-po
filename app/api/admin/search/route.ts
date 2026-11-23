@@ -3,6 +3,7 @@ import { isAdminAuthed } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { cleanQuery, type SearchItem } from '@/lib/admin-search';
 import { milestoneLabel } from '@/lib/order-milestones';
+import { getOrderStages } from '@/lib/order-stages-server';
 
 // The database half of the admin search: customers, suppliers, shapes, sizes,
 // colours and orders whose name (or phone, size, order number) matches ?q=.
@@ -69,8 +70,9 @@ export async function GET(req: NextRequest) {
   };
   const orderDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
 
+  const stages = await getOrderStages();
   const items: SearchItem[] = [
-    ...orderRows.map((o: any) => ({ kind: 'order' as const, label: `Order #${o.id}`, detail: [o.contact_name || buyerName(o.customer_id), milestoneLabel(o.status), orderDate(o.created_at)].filter(Boolean).join(' · '), href: `/admin/orders/${o.id}` })),
+    ...orderRows.map((o: any) => ({ kind: 'order' as const, label: `Order #${o.id}`, detail: [o.contact_name || buyerName(o.customer_id), milestoneLabel(o.status, stages), orderDate(o.created_at)].filter(Boolean).join(' · '), href: `/admin/orders/${o.id}` })),
     ...(customers.data || []).map((c: any) => ({ kind: 'customer' as const, label: c.name || c.company || c.phone || `Customer ${c.id}`, detail: [c.name && c.company?.trim().toLowerCase() !== c.name.trim().toLowerCase() ? c.company : null, c.place, c.phone].filter(Boolean).join(' · '), href: `/admin/customers/${c.id}`, keywords: `${c.company || ''} ${c.place || ''} ${c.phone || ''}` })),
     ...(suppliers.data || []).map((s: any) => ({ kind: 'supplier' as const, label: s.name || s.company || `Supplier ${s.id}`, detail: [s.company !== s.name ? s.company : null, s.contact_name, s.phone].filter(Boolean).join(' · '), href: `/admin/suppliers/${s.id}`, keywords: `${s.company || ''} ${s.contact_name || ''} ${s.phone || ''}` })),
     ...(shapes.data || []).map((s: any) => ({ kind: 'shape' as const, label: s.name, detail: 'Shapes & sizes', href: `/admin/shapes?q=${encodeURIComponent(s.name)}&open=${s.id}` })),

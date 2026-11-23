@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import StatusTag from '@/components/admin/StatusTag';
+import { getOrderStages } from '@/lib/order-stages-server';
+import { milestoneLabel } from '@/lib/order-milestones';
 import { NotificationsPreview } from '@/components/admin/NotificationsFeed';
 import { AdminSearchBar } from '@/components/admin/AdminSearch';
 import DashboardQuickActions from '@/components/admin/DashboardQuickActions';
@@ -10,6 +12,7 @@ import { ADMIN_PRICING_ENABLED } from '@/lib/pricing-calc';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
+  const stages = await getOrderStages();
   const today = new Date(Date.now() + 330 * 60 * 1000).toISOString().slice(0,10);
   // Every count excludes binned orders, matching what the list these cards
   // link to actually shows -- otherwise a card could read 3 and open a page
@@ -21,7 +24,7 @@ export default async function AdminDashboard() {
     { title: 'Awaiting confirmation', href: '/admin/orders?status=placed', query: countable().eq('status','placed') },
     // Quotation requests nobody has answered yet (still at Placed).
     { title: 'Quotations to price', href: '/admin/orders?status=placed#request-quotations', query: countable().eq('status','placed').in('request_type', ['Request Quotation','Mixed']) },
-    { title: 'Sourcing', href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },
+    { title: milestoneLabel('sourcing', stages), href: '/admin/orders?status=sourcing', query: countable().eq('status','sourcing') },
     { title: 'Ready to dispatch', href: '/admin/orders?status=packed', query: countable().eq('status','packed') },
     { title: 'Payment outstanding', href: '/admin/orders?payment=pending', query: countable().eq('payment_status','pending') },
     { title: 'Partial payment', href: '/admin/orders?payment=partial', query: countable().eq('payment_status','partial') }
@@ -86,7 +89,7 @@ export default async function AdminDashboard() {
     <nav className="admin-coverage-filters" aria-label="Shortcuts"><Link className="btn-ghost" href="/admin/categories">Review catalogue completeness</Link>{ADMIN_PRICING_ENABLED && <Link className="btn-ghost" href="/admin/pricing">Manage prices</Link>}<Link className="btn-ghost" href="/admin/bulk-link">Bulk link shapes &amp; colours</Link><Link className="btn-ghost" href="/admin/site">Manage website</Link></nav>
     <DashboardQuickActions categories={qaCategories || []} tags={qaTags || []} />
     <h2>Recent orders</h2>
-    {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}
+    {error ? <p role="alert">Recent orders could not be loaded. Please refresh.</p> : <ul className="admin-recent-orders">{(recent || []).map(order => <li key={order.id}><Link href={`/admin/orders/${order.id}`}><strong>#{order.id}</strong> · {recentName(order)}{lineCount[order.id] ? ` · ${lineCount[order.id]} ${lineCount[order.id] === 1 ? 'line' : 'lines'}` : ''}</Link><span className="admin-recent-orders-meta"><StatusTag status={order.status} stages={stages} /><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})}</time></span></li>)}</ul>}
     {!error && !recent?.length && <p>No orders yet.</p>}
   </>;
 }

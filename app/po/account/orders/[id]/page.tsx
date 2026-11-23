@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getOrderStages } from '@/lib/order-stages-server';
 import { getCustomerId } from '@/lib/customer-auth';
 import AccountHeader from '@/components/AccountHeader';
 import BreadcrumbHome from '@/components/BreadcrumbHome';
@@ -14,7 +15,9 @@ import { ANY_CATEGORY_ID, ANY_CATEGORY_NAME } from '@/lib/cart-storage';
 export default async function AccountOrderDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
   const customerId = await getCustomerId();
-  if (!customerId) redirect('/po/account/login');
+  // Back to this order after signing in -- the WhatsApp updates link here.
+  if (!customerId) redirect(`/po/account/login?next=${encodeURIComponent(`/po/account/orders/${params.id}`)}`);
+  const stages = await getOrderStages();
 
   const orderId = Number(params.id);
 
@@ -104,7 +107,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
     .order('created_at', { ascending: true });
 
   const timeline = [
-    ...(history || []).map((h: any) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status) })),
+    ...(history || []).map((h: any) => ({ type: 'status' as const, at: h.changed_at, label: milestoneLabel(h.status, stages) })),
     ...(notes || []).map((n: any) => ({ type: 'note' as const, at: n.created_at, author: n.author_type, message: n.message }))
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
@@ -122,7 +125,7 @@ export default async function AccountOrderDetailPage({ params: paramsPromise }: 
         <h1 style={{ fontSize: 26, color: 'var(--ink)', margin: '0 0 16px' }}>Order #{order.id}</h1>
 
         <div className="po-card" style={{ marginBottom: 20 }}>
-          <OrderStepper status={order.status} />
+          <OrderStepper status={order.status} stages={stages} />
         </div>
 
         {order.comment && <p><strong>Order description:</strong> {order.comment}</p>}
