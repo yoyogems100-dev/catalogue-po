@@ -4,7 +4,7 @@ import { PGlite } from '@electric-sql/pglite';
 
 // Runs the real migration twice against a disposable in-memory copy of the
 // tables it touches. The live database is not contacted.
-const sql = readFileSync(new URL('../supabase/migrations/20261103120000_color_admin_codes.sql', import.meta.url), 'utf8');
+const sql = readFileSync(new URL('../supabase/migrations/20261123120000_color_admin_codes.sql', import.meta.url), 'utf8');
 const db = new PGlite();
 try {
   await db.exec(`
