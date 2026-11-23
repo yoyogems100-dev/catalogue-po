@@ -17,6 +17,10 @@ import { lineInrPrice } from '@/lib/pricing-calc';
 import { maskPhone } from '@/lib/mask';
 import MatchText from '@/components/MatchText';
 import { adminColorLabel } from '@/lib/color-admin-codes';
+import ColorSwatch from '@/components/ColorSwatch';
+import { planQuantities } from '@/lib/qty-mode';
+import { expandQtyShorthand } from '@/lib/quantity';
+import { shapeAbbrevs } from '@/lib/shape-abbrev';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
@@ -78,6 +82,10 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickQty, setPickQty] = useState('');
+  // Same as the buyer's order form: one quantity for every line the picks
+  // make, or a different quantity against each.
+  const [qtyEach, setQtyEach] = useState(false);
+  const [lineQty, setLineQty] = useState<Record<string, string>>({});
 
   const [cart, setCart] = useState<CartItem[]>(repeatItems);
   const [requestType, setRequestType] = useState(initialRequestType);
@@ -181,22 +189,17 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setPickSizeIdxs([]);
     setPickColorIds([]);
     setPickQty('');
+    setLineQty({});
   }
 
   const hasSelection =
     pickCategoryId !== 'all' || pickShapeIds.length > 0 || pickColorIds.length > 0 ||
-    pickSizeIdxs.length > 0 || pickQty !== '';
+    pickSizeIdxs.length > 0 || pickQty !== '' || Object.keys(lineQty).length > 0;
 
-  const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = pickCategoryId !== 'all' && pickShapeIds.length > 0 && pickSizeIdxs.length > 0 && pickColorIds.length > 0 && qtyNum > 0;
-  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
-
-  // One line per shape x colour x size combination, each at the entered
-  // quantity -- same rule as the customer-facing builder.
-  function addLine() {
-    if (!canAdd || !currentOptions) return;
-    const category = allCategories.find((c) => c.id === pickCategoryId)!;
-    const added: CartItem[] = [];
+  // Every shape x colour x size line the picks make.
+  const combos = useMemo(() => {
+    if (!currentOptions) return [];
+    const list: { key: string; shape: Options['shapes'][number]; color: Options['colors'][number]; size: { id: number; sizeMm: string } }[] = [];
     for (const shapeId of pickShapeIds) {
       const shape = currentOptions.shapes.find((s) => s.id === shapeId);
       if (!shape) continue;
@@ -204,33 +207,52 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         const color = currentOptions.colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizeGroups[sizeIdx];
-          const match = group?.rows.find((r) => r.shapeId === shapeId);
-          if (!match) continue;
-          added.push({
-            id: `${Date.now()}-${Math.random().toString(16).slice(2)}-${shapeId}-${colorId}-${sizeIdx}`,
-            categoryId: category.id,
-            categoryName: category.name,
-            shapeId: shape.id,
-            shapeName: shape.name,
-            sizeId: match.id,
-            sizeMm: match.sizeMm,
-            colorId: color.id,
-            colorName: color.name,
-            colorCode: color.adminCode || null,
-            qty: qtyNum
-          });
+          const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shapeId === shapeId);
+          if (match) list.push({ key: `${shapeId}-${match.id}-${colorId}`, shape, color, size: { id: match.id, sizeMm: match.sizeMm } });
         }
       }
     }
+    return list;
+  }, [currentOptions, pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups]);
+  const perLineOffered = combos.length > 1;
+  const perLine = perLineOffered && qtyEach;
+  const plan = useMemo(() => planQuantities(combos, perLine, pickQty, lineQty), [combos, perLine, pickQty, lineQty]);
+  const lineText = (key: string) => lineQty[key] ?? pickQty;
+  const shortShape = useMemo(() => shapeAbbrevs((currentOptions?.shapes || []).filter((x) => pickShapeIds.includes(x.id))), [currentOptions, pickShapeIds]);
+  const qtyInvalid = !/^\d*$/.test(pickQty.trim());
+  const canAdd = pickCategoryId !== 'all' && plan.lines.length > 0;
+
+  // One line per shape x colour x size combination, at the one quantity or
+  // each at its own -- same rule as the customer-facing builder.
+  function addLine() {
+    if (!canAdd) return;
+    const category = allCategories.find((c) => c.id === pickCategoryId)!;
+    const stamp = Date.now();
+    const added: CartItem[] = plan.lines.map(({ combo, qty }) => ({
+      id: `${stamp}-${Math.random().toString(16).slice(2)}-${combo.key}`,
+      categoryId: category.id,
+      categoryName: category.name,
+      shapeId: combo.shape.id,
+      shapeName: combo.shape.name,
+      sizeId: combo.size.id,
+      sizeMm: combo.size.sizeMm,
+      colorId: combo.color.id,
+      colorName: combo.color.name,
+      colorCode: combo.color.adminCode || null,
+      qty
+    }));
     if (!added.length) return;
     setCart([...cart, ...added]);
-    // The quantity stays for the next line; only the sizes clear.
+    // The quantity stays for the next line; the sizes and per-line quantities clear.
     setPickSizeIdxs([]);
+    setLineQty({});
   }
 
   // A list pasted from WhatsApp or the order sheet, already matched line by line.
-  function addPasted(lines: PastedLine[]) {
+  function addPasted(lines: PastedLine[], extra?: { remarks: string[] }) {
+    // Words in the message that aren't lines ("Proper 7A", "Quality") go in the order note.
+    const remarks = (extra?.remarks || []).join(' · ');
+    if (remarks) setComment((c) => (c.includes(remarks) ? c : [c.trim(), remarks].filter(Boolean).join('\n')));
     setCart((current) => [...current, ...lines.map((l, i) => ({
       id: `${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
       categoryId: l.categoryId,
@@ -477,13 +499,64 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             />
           </div>
           <div>
-            <label className="po-label">Qty (pcs)</label>
-            <input type="text" inputMode="numeric" className="po-qty-input" placeholder="e.g. 5000" value={pickQty} onChange={(e) => setPickQty(e.target.value.replace(/\D/g, ''))} />
+            <label className="po-label" htmlFor="admin-new-qty">Qty (pcs){perLine && <span className="po-label-note"> · all lines</span>}</label>
+            <input id="admin-new-qty" type="text" inputMode="numeric" className="po-qty-input" placeholder="e.g. 5000" value={pickQty} aria-invalid={qtyInvalid || undefined} onChange={(e) => setPickQty(expandQtyShorthand(e.target.value).replace(/\D/g, ''))} />
           </div>
         </div>
+        {perLineOffered && !specialCategory(Number(pickCategoryId)) && (
+          <div className="po-qty-mode">
+            <div className="po-type-toggle" role="group" aria-label="Quantity for these lines">
+              <button type="button" aria-pressed={!qtyEach} className={!qtyEach ? 'active' : ''} onClick={() => setQtyEach(false)}>Same qty for all {combos.length}</button>
+              <button type="button" aria-pressed={qtyEach} className={qtyEach ? 'active' : ''} onClick={() => setQtyEach(true)}>Different qty each</button>
+            </div>
+            {perLine && <>
+              <div className="po-line-qty-head">
+                <span>Type a quantity against each line; leave one empty to skip it.</span>
+                {Object.keys(lineQty).length > 0 && (
+                  <button type="button" className="po-clear-selection" onClick={() => setLineQty({})}>
+                    {pickQty ? `Set all to ${Number(pickQty).toLocaleString('en-IN')}` : 'Clear all'}
+                  </button>
+                )}
+              </div>
+              {pickColorIds.map((colorId) => {
+                const rows = combos.filter((c) => c.color.id === colorId);
+                if (!rows.length) return null;
+                return (
+                  <div key={colorId} className="po-line-qty-group">
+                    {pickColorIds.length > 1 && <p className="po-line-qty-colour"><ColorSwatch hex={rows[0].color.hex || '#ccc'} refPhotoUrl={rows[0].color.refPhotoUrl} size={14} /> {adminColorLabel(rows[0].color.name, rows[0].color.adminCode)}</p>}
+                    <div className="po-line-qty-grid">
+                      {rows.map((c) => {
+                        const v = lineText(c.key);
+                        const bad = !/^\d*$/.test(v.trim());
+                        return (
+                          <label key={c.key} className="po-line-qty-row">
+                            <span className="po-line-qty-name" title={`${c.shape.name} ${c.size.sizeMm} mm · ${c.color.name}`}>
+                              <b>{shortShape.get(c.shape.id)}</b> {c.size.sizeMm}
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="po-qty-input"
+                              aria-label={`Quantity for ${c.shape.name} ${c.size.sizeMm} mm ${c.color.name}`}
+                              aria-invalid={bad || undefined}
+                              placeholder="0"
+                              value={v}
+                              onChange={(e) => setLineQty((cur) => ({ ...cur, [c.key]: expandQtyShorthand(e.target.value) }))}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {plan.invalid && <p className="po-field-error" role="alert">Whole numbers only — fix the highlighted line.</p>}
+            </>}
+          </div>
+        )}
         {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer showRequestType={false} key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setCart(current=>[...current,line])} />}
 <div hidden={!!specialCategory(Number(pickCategoryId))}>
-          <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button>
+          <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add {plan.lines.length > 1 ? `${plan.lines.length} lines` : 'line'} to order{perLine && plan.total > 0 ? ` · ${plan.total.toLocaleString('en-IN')} pcs` : ''}</button>
           {hasSelection && <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>}
         </div>
       </section>
