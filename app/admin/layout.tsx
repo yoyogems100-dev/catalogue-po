@@ -13,10 +13,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!(await isAdminAuthed())) redirect('/login');
   // Both category lists feed the side pane's "Categories" drill-downs.
   const [{ data: po }, { data: site }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id, num, name').order('num'),
+    supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     supabaseAdmin.from('site_categories').select('id, name, parent_id, sort_order').order('sort_order')
   ]);
-  const poCategories: NavCategory[] = (po || []).map((c) => ({ id: c.id, name: c.name }));
+  const poCategories: NavCategory[] = (po || []).map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
   // Website categories as a tree flattened in order: each parent, then its sub-categories.
   const siteRows = site || [];
   const siteCategories: NavCategory[] = siteRows.filter((c) => c.parent_id == null).flatMap((p) => [

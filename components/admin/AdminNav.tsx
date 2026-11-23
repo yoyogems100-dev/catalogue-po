@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { WordMark } from '@/components/Logo';
 import NotificationBell from '@/components/admin/NotificationBell';
 import AdminSearch from '@/components/admin/AdminSearch';
-import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf, type NavGroup, type NavLink } from '@/components/admin/nav-config';
+import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryHref, workspaceOf, type NavGroup, type NavLink } from '@/components/admin/nav-config';
 import ScrollJump from './ScrollJump';
 
-export type NavCategory = { id: number; name: string; parent?: string };
+export type NavCategory = { id: number; name: string; parent?: string; slug?: string | null };
 
 const MenuIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -48,18 +48,15 @@ const ExternalIcon = () => (
 // crowded the page on desktop too. The drawer switches between the two
 // independent workspaces, Website and PO portal (see nav-config.ts), and
 // shows only a handful of entries: bigger groups are drill-downs that slide
-// to their own links, and "Categories" drills into every category (then, on
-// the PO side, into that category's pages). Home, the current workspace's
+// to their own links, and "Categories" lists every category; tapping one opens
+// its page (a /po category on its Overview tab). Home, the current workspace's
 // public view, and notifications stay on the persistent top bar.
 export default function AdminNav({ poCategories, siteCategories }: { poCategories: NavCategory[]; siteCategories: NavCategory[] }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [ws, setWs] = useState(workspaceOf(pathname));
-  // Drill-down position: the open group (by title) and, inside the PO
-  // categories list, the category whose pages are shown.
+  // Drill-down position: the open group (by title).
   const [panel, setPanel] = useState<string | null>(null);
-  const [category, setCategory] = useState<NavCategory | null>(null);
   const [query, setQuery] = useState('');
   useEffect(() => { setWs(workspaceOf(pathname)); }, [pathname]);
 
@@ -71,22 +68,19 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
   // The category page being viewed, if any, so its row and tab can be marked.
   const catMatch = pathname?.match(/^\/admin\/(site\/)?categories\/(\d+)/);
   const currentCat = catMatch ? { site: !!catMatch[1], id: Number(catMatch[2]) } : null;
-  const currentTab = searchParams.get('tab') || 'photos';
 
   function close() {
     setOpen(false);
     setPanel(null);
-    setCategory(null);
     setQuery('');
   }
   function openGroup(title: string) {
     setPanel(title);
-    setCategory(null);
     setQuery('');
   }
   function back() {
-    if (category) setCategory(null);
-    else { setPanel(null); setQuery(''); }
+    setPanel(null);
+    setQuery('');
   }
 
   const link = (l: NavLink, current_ = l.href === current) => (
@@ -163,28 +157,15 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
             const isHere = currentCat?.id === c.id && currentCat.site === (g.list === 'site-categories');
             const cls = c.parent && !q ? 'admin-nav-sub' : undefined;
             const label = <>{c.name}{c.parent && q ? <small> · {c.parent}</small> : null}</>;
-            // Website categories are one page each; a PO category drills on to its tabs.
-            return g.list === 'site-categories'
-              ? <Link key={c.id} role="listitem" href={`/admin/site/categories/${c.id}`} onClick={close} className={cls} aria-current={isHere ? 'page' : undefined}>{label}</Link>
-              : (
-                <button key={c.id} role="listitem" type="button" className={`admin-nav-drill ${isHere ? 'admin-nav-drill-here' : ''}`} onClick={() => setCategory(c)} aria-label={c.name}>
-                  <span>{c.name}</span><ChevronIcon />
-                </button>
-              );
+            // Tapping a category opens its page straight away (a /po category on its Overview tab;
+            // Accessories on its own editor) -- its other pages are the tabs at the top of that page.
+            const href = g.list === 'site-categories' ? `/admin/site/categories/${c.id}` : poCategoryHref(c);
+            const here = isHere || (c.slug === 'accessories' && pathname === '/admin/accessories');
+            return <Link key={c.id} role="listitem" href={href} onClick={close} className={cls} aria-current={here ? 'page' : undefined}>{label}</Link>;
           })}
           {!matches.length && <p className="admin-nav-empty">No category matches “{query}”.</p>}
         </div>
       </>}
-    </>;
-  }
-
-  // The pages of one PO category: its workspace tabs.
-  function categoryPanel(c: NavCategory) {
-    const viewing = currentCat && !currentCat.site && currentCat.id === c.id;
-    return <>
-      {backButton('Categories')}
-      <p className="admin-nav-title">{c.name}</p>
-      {poCategoryPages(c.id).map((l) => link(l, !!viewing && l.href.endsWith(`tab=${currentTab}`)))}
     </>;
   }
 
@@ -218,7 +199,7 @@ export default function AdminNav({ poCategories, siteCategories }: { poCategorie
             <CloseIcon />
           </button>
         </div>
-        {category ? categoryPanel(category) : group ? groupPanel(group) : rootPanel()}
+        {group ? groupPanel(group) : rootPanel()}
       </nav>
       {/* On every admin page, alongside the menu. */}
       <ScrollJump />

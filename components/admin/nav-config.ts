@@ -125,10 +125,16 @@ export const WORKSPACES: Workspace[] = [
   }
 ];
 
+/** Where tapping a /po category goes: straight to its page, which opens on Overview. Accessories has its own editor. */
+export function poCategoryHref(c: { id: number; slug?: string | null }): string {
+  return c.slug === 'accessories' ? '/admin/accessories' : `/admin/categories/${c.id}`;
+}
+
 /** The pages inside one /po category, in the order of its tabs (Strip counts is Rainbow Corundum only). */
 export function poCategoryPages(id: number): NavLink[] {
   const base = `/admin/categories/${id}`;
   return [
+    { href: `${base}?tab=overview`, label: 'Overview' },
     { href: `${base}?tab=photos`, label: 'Photos' },
     { href: `${base}?tab=shapes`, label: 'Shapes/cuts & sizes' },
     { href: `${base}?tab=colors`, label: 'Colours' },
