@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TallyData } from '@/lib/tally/types';
 import { buildIndex } from '@/lib/tally/query';
 import TallyPortal from './TallyPortal';
@@ -68,8 +68,9 @@ type Load = { state: 'loading' } | { state: 'empty' } | { state: 'error'; messag
 function DataLoader({ onLocked }: { onLocked: () => void }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
 
-  const fetchData = useCallback(async () => {
-    setLoad({ state: 'loading' });
+  // `silent` swaps in fresh data without the loading screen (used when a live sync lands).
+  const fetchData = useCallback(async (silent?: boolean) => {
+    if (!silent) setLoad({ state: 'loading' });
     try {
       const res = await fetch('/api/admin/tally/data', { cache: 'no-store' });
       if (res.status === 401) { onLocked(); return; }
@@ -77,7 +78,7 @@ function DataLoader({ onLocked }: { onLocked: () => void }) {
       if (!res.ok) throw new Error(`The data could not be loaded (${res.status}).`);
       setLoad({ state: 'ready', data: await res.json() });
     } catch (e) {
-      setLoad({ state: 'error', message: e instanceof Error ? e.message : 'The data could not be loaded.' });
+      if (!silent) setLoad({ state: 'error', message: e instanceof Error ? e.message : 'The data could not be loaded.' });
     }
   }, [onLocked]);
 
@@ -91,18 +92,121 @@ function DataLoader({ onLocked }: { onLocked: () => void }) {
   }
 
   if (load.state === 'loading') return <div className="tp-loading"><span className="tp-spinner" aria-hidden /> Opening your Tally data…</div>;
-  if (load.state === 'error') return <div className="tp-loading"><p className="tp-error">{load.message}</p><button className="btn" onClick={fetchData}>Try again</button></div>;
+  if (load.state === 'error') return <div className="tp-loading"><p className="tp-error">{load.message}</p><button className="btn" onClick={() => fetchData()}>Try again</button></div>;
   if (load.state === 'empty') {
     return (
       <div className="tp-empty">
         <h1>Tally accounts</h1>
-        <p>No Tally data yet. Upload the Excel extract from Tally (the workbook with Parties, Sales, Purchases, Vouchers and Stock Items sheets).</p>
-        <UploadBox onDone={fetchData} />
+        <p>No Tally data yet. Connect the live sync below so the portal reads straight from Tally — or upload the Excel extract from Tally once.</p>
+        <LiveSyncPanel onSynced={() => fetchData(true)} />
+        <UploadBox onDone={() => fetchData()} />
         <button className="tp-link" onClick={lock}>Lock</button>
       </div>
     );
   }
-  return <TallyPortal ix={ix!} onReload={fetchData} onLock={lock} />;
+  return <TallyPortal ix={ix!} onReload={() => fetchData()} onRefresh={() => fetchData(true)} onLock={lock} />;
+}
+
+/* ---------------- live sync ---------------- */
+
+export type SyncInfo = { hasKey: boolean; keyCreatedAt: string; requestedAt: string; lastSyncAt?: string; lastSeenAt?: string; computer?: string };
+
+async function syncCall(action?: string): Promise<SyncInfo & { key?: string }> {
+  const res = await fetch('/api/admin/tally/sync', action
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) }
+    : { cache: 'no-store' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Could not reach the sync settings.');
+  return json;
+}
+
+export function minutesAgo(iso?: string) {
+  if (!iso) return '';
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return m <= 0 ? 'just now' : m === 1 ? '1 min ago' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+}
+
+/** Polls sync status; calls onSynced when a newer sync has landed. */
+export function useLiveSync(onSynced: () => void) {
+  const [info, setInfo] = useState<SyncInfo | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const last = useRef<string | undefined>(undefined);
+  const cb = useRef(onSynced);
+  cb.current = onSynced;
+
+  const refresh = useCallback(async () => {
+    try {
+      const s = await syncCall();
+      setInfo(s);
+      if (last.current !== undefined && s.lastSyncAt && s.lastSyncAt !== last.current) { setWaiting(false); cb.current(); }
+      last.current = s.lastSyncAt || '';
+    } catch { /* keep the last known status */ }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 15_000);
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus); };
+  }, [refresh]);
+
+  const syncNow = useCallback(async () => {
+    setWaiting(true);
+    try { await syncCall('request'); } catch { setWaiting(false); }
+    setTimeout(() => setWaiting(false), 120_000);
+  }, []);
+
+  return { info, waiting, syncNow, refresh, setInfo };
+}
+
+/** Online = the sync program checked in within the last 3 minutes. */
+export function isOnline(info: SyncInfo | null) {
+  return Boolean(info?.lastSeenAt && Date.now() - Date.parse(info.lastSeenAt) < 180_000);
+}
+
+export function LiveSyncPanel({ onSynced }: { onSynced: () => void }) {
+  const { info, setInfo } = useLiveSync(onSynced);
+  const [key, setKey] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function act(action: 'create-key' | 'revoke-key') {
+    setErr('');
+    if (action === 'create-key' && info?.hasKey && !confirm('Make a new sync key? The computer using the old key will stop syncing until you set it up with the new one.')) return;
+    if (action === 'revoke-key' && !confirm('Stop live sync? The sync program will be refused until you make a new key.')) return;
+    try {
+      const r = await syncCall(action);
+      setKey(r.key || '');
+      setInfo(await syncCall());
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Failed.'); }
+  }
+
+  const online = isOnline(info);
+  return (
+    <div className="tp-sync">
+      <h2>Live sync from Tally</h2>
+      <p className="tp-muted">
+        {info?.lastSyncAt
+          ? <>Last synced <strong>{minutesAgo(info.lastSyncAt)}</strong> from <strong>{info.computer}</strong>. The sync program is <strong className={online ? 'tp-ok' : 'tp-error'}>{online ? 'running' : 'not running'}</strong>{info.lastSeenAt && !online ? ` (last seen ${minutesAgo(info.lastSeenAt)})` : ''}.</>
+          : info?.hasKey ? 'A sync key exists, but nothing has synced yet. Start the sync program on the Tally computer.'
+          : 'A small program on the Tally computer reads Tally every minute and sends changes here. It only reads — it can never change your books. Make a sync key to connect it.'}
+      </p>
+      {key && (
+        <div className="tp-key">
+          <p><strong>Your sync key</strong> — copy it now, it won’t be shown again:</p>
+          <code>{key}</code>
+          <button className="btn-ghost" onClick={async () => { await navigator.clipboard.writeText(key).catch(() => {}); setCopied(true); }}>{copied ? 'Copied' : 'Copy key'}</button>
+          <p className="tp-dim">On the Tally computer run <code>node tally-sync.mjs setup</code> and paste it when asked.</p>
+        </div>
+      )}
+      {err && <p className="tp-error">{err}</p>}
+      <div className="tp-sync-actions">
+        <button className="btn" onClick={() => act('create-key')}>{info?.hasKey ? 'Make a new sync key' : 'Make a sync key'}</button>
+        {info?.hasKey && <button className="btn-ghost" onClick={() => act('revoke-key')}>Stop live sync</button>}
+      </div>
+    </div>
+  );
 }
 
 export function UploadBox({ onDone, compact }: { onDone: () => void; compact?: boolean }) {
