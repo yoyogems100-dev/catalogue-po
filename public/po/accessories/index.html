@@ -200,6 +200,15 @@ body.selecting .card:hover{transform:none}
 .star svg{width:18px; height:18px}
 .shelf-hint{margin:10px 0 0; font-size:12px; color:var(--dim)}
 .sec-head.first{margin-top:6px}
+.grp-sec + .grp-sec{margin-top:26px; padding-top:22px; border-top:1px solid var(--line)}
+.grp-sec .sec-head h2 small{display:block; margin:4px 0 0; letter-spacing:.04em; color:var(--dim); font-weight:400; text-transform:none}
+.jump{display:flex; gap:8px; overflow-x:auto; padding:4px 0 10px; margin-bottom:6px; scrollbar-width:none}
+.jump::-webkit-scrollbar{display:none}
+.jump a{flex:none; padding:7px 14px; border:1px solid var(--line-strong); border-radius:20px; font-size:13px; color:inherit; text-decoration:none; background:var(--white); white-space:nowrap}
+.jump a:hover{border-color:var(--gold); color:var(--gold)}
+.srch-bar{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin:6px 0 12px; font-size:13px; color:var(--dim)}
+.linkbtn{border:0; background:none; padding:4px 0; font:inherit; font-size:13px; color:var(--gold); cursor:pointer; text-decoration:underline; text-underline-offset:3px}
+.section[id]{scroll-margin-top:130px}
 .section + .section{margin-top:36px}
 .selbar{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:45; display:flex; align-items:center; gap:6px; background:var(--ink); color:#fff; border-radius:32px; padding:7px 7px 7px 18px; box-shadow:0 14px 34px -10px rgba(15,30,56,.55); font-size:13.5px; max-width:calc(100vw - 20px); white-space:nowrap}
 .selbar[hidden]{display:none}
@@ -1525,6 +1534,17 @@ try{
 const PAGE_TITLE = OVP.title || "Bracelet Collection", PAGE_INTRO = OVP.intro || "Choose a category to see every colour, or search all styles by name, colour or code.";
 const OOS = '<span class="oos">Out of stock</span>';
 const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+/* Shop sections: the landing page and search results group categories by type.
+   Add every new category id to one section below; an unlisted one shows under "More styles". */
+const GROUPS = [
+  ["leather", "Leather Bracelets", "Leather straps, braided leather and leather cuffs", "y59 y51 y16 y52 y95 yyc"],
+  ["metal", "Metal & Crystal Bracelets", "Mesh, wire, stretch links, beads and crystal", "mesh y67 y12m y88 y23 y55 y46 y45 y89 y85 y83 y78 y94"],
+  ["cord", "Cord & Braid Bracelets", "Braids, ropes, shimmer twists, sliders and charm cords", "braided cord yxh yxc yxb y64 y26 y68 y1 y31g y31b y87 y80 y58r y58t y76 y74 y81 y40 y35 y62 y65 y12r y12b y12p y19 y5 y63 y93 y7 y43 y73 y56 y98 y17 y70 y75r y75f y42 y24b"],
+  ["cuff", "Cord Cuffs", "Open cord cuffs with gold-tone tips", "y82 y21 y60 y24c"],
+  ["neck", "Necklaces", "Cord, rope and wire necklaces", "y15 y9 y14 y4 y13 y20 y96 y49 y86"],
+  ["more", "More styles", "", ""]];
+const GROUP_OF = {}; GROUPS.forEach(([g,,,ids]) => ids.split(" ").forEach(id => { if(id) GROUP_OF[id] = g }));
+const grpOf = c => GROUP_OF[c.id] || "more", GNAME = Object.fromEntries(GROUPS.map(([g,n]) => [g, n]));
 const viewsOf = p => (p.views || CAT[p.cat].views).filter(([,l]) => !/^(Original|Another) photo$/.test(l)).map(([k,l]) => [k, l === "Group photo" ? "All colours" : l]);
 const noteOf = p => p.note || CAT[p.cat].note || (p.cat === B ? "Flat lay is an original photograph. Other views show this band's own braid on our standard Y-54 band." : "All views are original photographs of this bracelet.");
 /* Newer series ship their photos as one bundle per series, fetched when that series comes into view */
@@ -1539,7 +1559,7 @@ function kick(){ const h = innerHeight + 900; document.querySelectorAll(".card[d
 let kickT = 0; addEventListener("scroll", () => { if(!kickT) kickT = requestAnimationFrame(() => { kickT = 0; kick() }) }, {passive: true}); addEventListener("resize", kick);
 const thumb = (p,k) => { const f = FILES[`${p.sku}/${k}`]; return f ? "t/" + f.replace(/\.\w+$/, ".webp") : BLANK };
 const $ = id => document.getElementById(id);
-const st = {cat:"", q:"", fam:"", style:"", sort:"asc"};
+const st = {cat:"", q:"", fam:"", style:"", sort:"asc", flat:false};
 try{ if(localStorage.getItem("yoyo-sort") === "desc") st.sort = "desc" }catch(_){}
 
 /* Sort by number: series number for categories (Y-1, Y-12 ... Y-95; lettered series like Y-X, Y-Y after the numbers), then the style's own number */
@@ -1566,7 +1586,7 @@ function starSave(){ try{ localStorage.setItem("yoyo-star", JSON.stringify([...S
 const DIAMOND = on => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 4h10l4 5-9 11L3 9z"/><path d="M3 9h18M9.5 4L12 9l2.5-5M12 9v11" fill="none" stroke="${on ? "#fff" : "currentColor"}" stroke-width="1.2"/></svg>`;
 const starBtn = (kind, key, label, on) => `<button type="button" class="star${on ? " on" : ""}" data-star="${kind}" data-k="${key}" aria-pressed="${on}" aria-label="${on ? "Unstar" : "Star"} ${label}" title="${on ? "Remove from starred" : "Star to keep at the top"}">${DIAMOND(on)}</button>`;
 
-const hay = p => [CAT[p.cat].name, CAT[p.cat].series, p.sku, p.sku.replace("-",""), p.code, p.name, p.style, ...p.colours, ...p.fam.map(f => FAM[f])].join(" ").toLowerCase();
+const hay = p => [CAT[p.cat].name, CAT[p.cat].series, GNAME[grpOf(CAT[p.cat])], p.sku, p.sku.replace("-",""), p.code, p.name, p.style, ...p.colours, ...p.fam.map(f => FAM[f])].join(" ").toLowerCase();
 const hit = (p,q) => { q = q.trim().toLowerCase(); return !q || q.split(/\s+/).every(t => hay(p).includes(t)) };
 const shown = () => P.filter(p => (!st.cat || p.cat === st.cat) && hit(p, st.q) && (!st.fam || p.fam.includes(st.fam)) && (!st.style || p.style === st.style));
 
@@ -1586,8 +1606,8 @@ $("fam").addEventListener("change", e => { st.fam = e.target.value; render() });
 $("style").addEventListener("change", e => { st.style = e.target.value; render() });
 $("sort").value = st.sort;
 $("sort").addEventListener("change", e => { st.sort = e.target.value; try{ localStorage.setItem("yoyo-sort", st.sort) }catch(_){}; render() });
-$("q").addEventListener("input", e => { st.q = e.target.value; render() });
-$("clear").addEventListener("click", () => { st.q = st.fam = st.style = ""; $("q").value = ""; $("fam").value = ""; $("style").value = ""; render() });
+$("q").addEventListener("input", e => { st.q = e.target.value; st.flat = false; render() });
+$("clear").addEventListener("click", () => { st.q = st.fam = st.style = ""; st.flat = false; $("q").value = ""; $("fam").value = ""; $("style").value = ""; render() });
 
 const card = p => { const v = viewsOf(p); return `<div class="cw">
   <button class="card facet${SEL.has(p.sku) ? " sel" : ""}" data-i="${P.indexOf(p)}"${p.b ? ` data-b="${p.cat}"` : ""} aria-label="${p.name}, ${p.code}, ${CAT[p.cat].name}">
@@ -1596,18 +1616,18 @@ const card = p => { const v = viewsOf(p); return `<div class="cw">
   </button>${starBtn("p", p.sku, p.name + " " + p.code, STAR.has(p.sku))}</div>` };
 let COV = null;
 function covers(){ if(COV) return; COV = Object.fromEntries(Object.entries(COVF).map(([c,f]) => [c, "f/" + f])); document.querySelectorAll(".ccard img[data-cv]").forEach(i => { i.src = COV[i.dataset.cv] || i.src }) }
-const ccard = c => { const list = P.filter(p => p.cat === c.id); return `<div class="cw">
+const ccard = (c, hits) => { const list = P.filter(p => p.cat === c.id); return `<div class="cw">
   <button class="ccard" data-c="${c.id}" aria-label="${c.name}, ${list.length} ${list.length === 1 ? "style" : "styles"}">
     <div class="cv"><img data-cv="${c.id}" loading="lazy" decoding="async" src="${(COV && COV[c.id]) || BLANK}" alt=""></div>
     <div class="ci"><div class="eyebrow">Series ${c.series}</div><h3>${c.name}</h3>
-      <div class="m"><span>${list.length} ${list.length === 1 ? "style" : "styles"}</span><b>View all &rarr;</b></div></div>
+      <div class="m"><span>${hits != null ? `${hits} of ${list.length} match` : `${list.length} ${list.length === 1 ? "style" : "styles"}`}</span><b>${hits != null ? "View matches" : "View all"} &rarr;</b></div></div>
   </button>${starBtn("c", c.id, c.name, STARC.has(c.id))}</div>` };
 /* Select styles (across categories) and send their codes on WhatsApp */
 const WA_NUMBER = /^\d{8,15}$/.test(OVP.whatsapp || "") ? OVP.whatsapp : "919079914601";
 let SEL = new Set(), selecting = false;
 try{ SEL = new Set(JSON.parse(localStorage.getItem("yoyo-sel") || "[]").filter(s => P.some(p => p.sku === s))) }catch(_){}
 function selSave(){ try{ localStorage.setItem("yoyo-sel", JSON.stringify([...SEL])) }catch(_){} }
-const selShown = () => (!st.cat && !(st.q.trim() || st.fam || st.style)) ? [] : shown();
+const selShown = () => (!st.cat && !(st.flat && (st.q.trim() || st.fam || st.style))) ? [] : shown();
 function selUI(){
   const n = SEL.size, vis = selShown(), all = vis.length && vis.every(p => SEL.has(p.sku));
   $("waN").textContent = n; $("waN").hidden = !n;
@@ -1635,14 +1655,24 @@ function sendWA(){
 }
 function render(){
   const v = shown(), active = st.q.trim() || st.fam || st.style;
+  const nc = k => `${k} ${k === 1 ? "category" : "categories"}`, ns = k => `${k} ${k === 1 ? "style" : "styles"}`;
+  /* Categories split into shop sections (leather, metal, cord, cuffs, necklaces); on a search only the categories with matches show */
+  const sections = (cs, hits) => GROUPS.map(([g, name, sub]) => [g, name, sub, cs.filter(c => grpOf(c) === g)]).filter(x => x[3].length)
+    .map(([g, name, sub, list], i) => `<section class="section grp-sec" id="sec-${g}"><div class="sec-head${i ? "" : " first"}"><h2>${name}${sub ? `<small>${sub}</small>` : ""}</h2><span>${nc(list.length)}</span></div><div class="cgrid">${list.map(c => ccard(c, hits && hits[c.id])).join("")}</div></section>`).join("");
+  const jump = cs => { const gs = GROUPS.filter(([g]) => cs.some(c => grpOf(c) === g)); return gs.length > 1 ? `<nav class="jump" aria-label="Sections">${gs.map(([g, name]) => `<a href="#sec-${g}" data-g="${g}">${name}</a>`).join("")}</nav>` : "" };
   if(!st.cat && !active){
-    const cs = sortedCats(), top = cs.filter(c => STARC.has(c.id)), restC = cs.filter(c => !STARC.has(c.id));
-    $("sections").innerHTML = top.length
-      ? `<section class="section"><div class="sec-head first"><h2>Starred</h2><span>${top.length} ${top.length === 1 ? "category" : "categories"}</span></div><div class="cgrid">${top.map(ccard).join("")}</div></section>
-         <section class="section"><div class="sec-head"><h2>All categories</h2><span>${restC.length} ${restC.length === 1 ? "category" : "categories"}</span></div><div class="cgrid">${restC.map(ccard).join("")}</div></section>`
-      : `<div class="cgrid">${cs.map(ccard).join("")}</div><p class="shelf-hint">Tap the diamond on any category or style to star it and keep it at the top.</p>`;
+    const cs = sortedCats(), top = cs.filter(c => STARC.has(c.id));
+    $("sections").innerHTML = jump(cs) + (top.length ? `<section class="section"><div class="sec-head first"><h2>Starred</h2><span>${nc(top.length)}</span></div><div class="cgrid">${top.map(c => ccard(c)).join("")}</div></section>` : "")
+      + sections(cs) + (top.length ? "" : `<p class="shelf-hint">Tap the diamond on any category or style to star it and keep it at the top.</p>`);
     covers();
     $("empty").hidden = true; $("clear").hidden = true; $("count").textContent = `${CATS.length} categories · ${P.length} styles`; selUI(); return;
+  }
+  if(!st.cat && !st.flat){
+    const hits = {}; v.forEach(p => hits[p.cat] = (hits[p.cat] || 0) + 1);
+    const cs = sortedCats().filter(c => hits[c.id]);
+    $("sections").innerHTML = cs.length ? `<div class="srch-bar"><span>${ns(v.length)} in ${nc(cs.length)}</span><button type="button" class="linkbtn" id="flatBtn">Show all ${ns(v.length)} &rarr;</button></div>` + jump(cs) + sections(cs, hits) : "";
+    covers();
+    $("empty").hidden = !!v.length; $("clear").hidden = false; $("count").textContent = `${nc(cs.length)} · ${ns(v.length)}`; selUI(); return;
   }
   const sv = sortP(v), top = sv.filter(p => STAR.has(p.sku)), restP = sv.filter(p => !STAR.has(p.sku));
   const n = k => `${k} ${k === 1 ? "style" : "styles"}`;
@@ -1652,6 +1682,7 @@ function render(){
       ${h ? `<div class="sec-head${i ? "" : " first"}"><h2>${h}</h2><span>${n(list.length)}</span></div>` : ""}
       <div class="grid">${list.map(card).join("")}</div>
     </section>`).join("");
+  if(!st.cat && v.length) $("sections").insertAdjacentHTML("afterbegin", `<div class="srch-bar"><span>${n(v.length)}</span><button type="button" class="linkbtn" id="grpBtn">&larr; Show by category</button></div>`);
   setTimeout(kick, 0);
   $("empty").hidden = !!v.length;
   const scope = st.cat ? P.filter(p => p.cat === st.cat).length : P.length;
@@ -1663,6 +1694,9 @@ function goCat(id){ st.cat = id; drawTabs(); render(); try{ localStorage.setItem
 $("sections").addEventListener("click", e => {
   const sb = e.target.closest(".star");
   if(sb){ const S = sb.dataset.star === "c" ? STARC : STAR, k = sb.dataset.k, on = !S.has(k); on ? S.add(k) : S.delete(k); starSave(); render(); toast(on ? "Starred: it now shows at the top" : "Removed from starred"); return }
+  if(e.target.closest("#flatBtn")){ st.flat = true; render(); return }
+  if(e.target.closest("#grpBtn")){ st.flat = false; render(); return }
+  const jl = e.target.closest(".jump a"); if(jl){ e.preventDefault(); const t = $("sec-" + jl.dataset.g); if(t) t.scrollIntoView({behavior:"smooth", block:"start"}); return }
   const cc = e.target.closest(".ccard"); if(cc) return goCat(cc.dataset.c); const c = e.target.closest(".card"); if(!c) return; if(selecting) toggleSel(c); else openV(+c.dataset.i) });
 $("back").addEventListener("click", () => { if(st.cat) goCat(""); else location.href = "/po" });
 $("selBtn").addEventListener("click", () => { selecting = !selecting; selUI(); if(selecting && !SEL.size) toast(st.cat ? "Tap styles to select them" : "Open a category, then tap styles to select") });
