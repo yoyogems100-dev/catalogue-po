@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync } from 'node:fs';
-import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, currentHref, poCategoryHref, poCategoryPages, workspaceOf } from '../components/admin/nav-config';
 import { ADMIN_PRICING_ENABLED } from '../lib/pricing-calc';
 
 const links = [OVERVIEW, NOTIFICATIONS, BIN, ...WORKSPACES.flatMap((w) => w.groups.flatMap((g) => g.links))];
@@ -46,6 +47,15 @@ test('the side pane stays short: a few entries per workspace, the rest drill dow
     assert.ok(w.groups.length <= 8, `${w.label} shows at most 8 entries`);
     assert.equal(w.groups.filter((g) => g.list).length, 1, `${w.label} has one Categories drill-down`);
   }
-  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Photos', 'Shapes/cuts & sizes', 'Colours', ...(ADMIN_PRICING_ENABLED ? ['Pricing'] : []), 'Suppliers']);
+  assert.deepEqual(poCategoryPages(5).map((l) => l.label), ['Overview', 'Photos', 'Shapes/cuts & sizes', 'Colours', ...(ADMIN_PRICING_ENABLED ? ['Pricing'] : []), 'Suppliers']);
   assert.ok(poCategoryPages(29).some((l) => l.href === '/admin/categories/29?tab=strip-counts'), 'Rainbow Corundum has Strip counts');
+});
+
+test('tapping a /po category opens its page straight away; Accessories opens its own editor', () => {
+  assert.equal(poCategoryHref({ id: 12, slug: 'ice-crush' }), '/admin/categories/12');
+  assert.equal(poCategoryHref({ id: 50, slug: 'accessories' }), '/admin/accessories');
+  const src = readFileSync(path.join(process.cwd(), 'components/admin/AdminNav.tsx'), 'utf8');
+  assert.ok(!/setCategory|categoryPanel/.test(src), 'no second menu of category pages to pick from');
+  const page = readFileSync(path.join(process.cwd(), 'app/admin/categories/[id]/page.tsx'), 'utf8');
+  assert.match(page, /LEGACY_TABS\[raw\] \|\| 'overview'/, 'a category opens on Overview');
 });

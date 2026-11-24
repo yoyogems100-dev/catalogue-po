@@ -2,13 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { confirmAction } from '@/components/admin/AdminDialogs';
 import {
-  DEFAULT_PAGE_INTRO, DEFAULT_PAGE_TITLE, DEFAULT_WHATSAPP, effectiveCatalogue, orderedRanges, serializeOverrides,
+  DEFAULT_PAGE_INTRO, DEFAULT_PAGE_TITLE, DEFAULT_WHATSAPP, effectiveCatalogue, emptyOverrides, orderedRanges, serializeOverrides,
   type AccessoryCatalogue, type AccessoryOverrides, type EffectiveRange, type EffectiveStyle, type RangeEdit, type StyleEdit
 } from '@/lib/accessories/overrides';
 
-type Filter = 'all' | 'hidden' | 'out' | 'edited';
-const FILTERS: [Filter, string][] = [['all', 'All'], ['hidden', 'Hidden'], ['out', 'Out of stock'], ['edited', 'Edited']];
+// Admin > Accessories: the Accessories page as buyers see it -- category
+// cards, then a category's style cards -- with every name, code and
+// description editable in place, and Hide / Delete on each card. Everything is
+// saved together from the bar at the bottom; Discard puts it all back. Delete
+// takes an item off the page and out of this list; it can be restored from Deleted.
+
+type Filter = 'all' | 'hidden' | 'out' | 'edited' | 'deleted';
+const FILTERS: [Filter, string][] = [['all', 'All'], ['hidden', 'Hidden'], ['out', 'Out of stock'], ['edited', 'Edited'], ['deleted', 'Deleted']];
 
 // Drops keys set to undefined/false/'' so an edit put back to the original disappears.
 function patchOf<T extends object>(base: T | undefined, patch: Partial<T>): T | undefined {
@@ -20,6 +27,9 @@ function patchOf<T extends object>(base: T | undefined, patch: Partial<T>): T | 
 const styleHay = (s: EffectiveStyle) => [s.sku, s.sku.replace('-', ''), s.code, s.name, s.original.name, s.original.code, s.style, ...s.colours, ...s.families].join(' ').toLowerCase();
 const rangeHay = (r: EffectiveRange) => [r.id, r.series, r.series.replace('-', ''), r.name, r.original.name, r.text, r.finish].join(' ').toLowerCase();
 const matches = (hay: string, q: string) => q.split(/\s+/).every((t) => hay.includes(t));
+const rangeEdited = (r: EffectiveRange) => r.name !== r.original.name || r.text !== r.original.text || r.finish !== r.original.finish;
+const styleEdited = (s: EffectiveStyle) => s.name !== s.original.name || s.code !== s.original.code;
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export default function AccessoriesEditor({ catalogue, initial }: { catalogue: AccessoryCatalogue; initial: AccessoryOverrides }) {
   const router = useRouter();
@@ -29,13 +39,13 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const [covers, setCovers] = useState<Record<string, string>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const current = serializeOverrides(ov, catalogue);
   const dirty = current !== saved;
   const { ranges, styles } = useMemo(() => effectiveCatalogue(ov, catalogue), [ov, catalogue]);
-  const defaultOrder = useMemo(() => orderedRanges({ page: {}, order: [], ranges: {}, styles: {} }, catalogue).map((r) => r.id), [catalogue]);
+  const defaultOrder = useMemo(() => orderedRanges(emptyOverrides(), catalogue).map((r) => r.id), [catalogue]);
+  const opened = ranges.find((r) => r.id === openId) || null;
 
   useEffect(() => {
     if (!dirty) return;
@@ -43,44 +53,37 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
-
-  // The range covers live in one 4 MB file the page already uses; load it once, after the list is up.
-  useEffect(() => {
-    let live = true;
-    fetch('/po/accessories/data/covers.json').then((r) => (r.ok ? r.json() : {})).then((j) => { if (live) setCovers(j || {}); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
+  // Opening or leaving a category starts at its top, as on the live page.
+  useEffect(() => { if (openId !== null) document.querySelector('.accx')?.scrollIntoView({ block: 'start' }); }, [openId]);
 
   function setPage(patch: AccessoryOverrides['page']) {
     setOv((o) => ({ ...o, page: patchOf(o.page, patch) || {} }));
     setStatus(null);
   }
   function setRange(id: string, patch: Partial<RangeEdit>) {
-    setOv((o) => { const ranges = { ...o.ranges }; const e = patchOf(ranges[id], patch); if (e) ranges[id] = e; else delete ranges[id]; return { ...o, ranges }; });
+    setOv((o) => { const next = { ...o.ranges }; const e = patchOf(next[id], patch); if (e) next[id] = e; else delete next[id]; return { ...o, ranges: next }; });
     setStatus(null);
   }
   function setStyle(sku: string, patch: Partial<StyleEdit>) {
-    setOv((o) => { const styles = { ...o.styles }; const e = patchOf(styles[sku], patch); if (e) styles[sku] = e; else delete styles[sku]; return { ...o, styles }; });
+    setOv((o) => { const next = { ...o.styles }; const e = patchOf(next[sku], patch); if (e) next[sku] = e; else delete next[sku]; return { ...o, styles: next }; });
     setStatus(null);
   }
-  function setRangeStyles(id: string, patch: Partial<StyleEdit>) {
-    setOv((o) => {
-      const styles = { ...o.styles };
-      catalogue.styles.filter((s) => s.cat === id).forEach((s) => { const e = patchOf(styles[s.sku], patch); if (e) styles[s.sku] = e; else delete styles[s.sku]; });
-      return { ...o, styles };
-    });
-    setStatus(null);
-  }
-  function move(index: number, delta: number) {
+  function move(id: string, delta: number) {
     const ids = ranges.map((r) => r.id);
-    const to = index + delta;
-    if (to < 0 || to >= ids.length) return;
-    [ids[index], ids[to]] = [ids[to], ids[index]];
+    const from = ids.indexOf(id), to = from + delta;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
     setOv((o) => ({ ...o, order: ids.join() === defaultOrder.join() ? [] : ids }));
     setStatus(null);
   }
-  function toggle(id: string) {
-    setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  async function deleteRange(r: EffectiveRange) {
+    if (!(await confirmAction(`Delete ${r.name} (${r.series})? It comes off the Accessories page and out of this list once you save. You can restore it from Deleted.`))) return;
+    setRange(r.id, { deleted: true });
+    if (openId === r.id) setOpenId(null);
+  }
+  async function deleteStyle(s: EffectiveStyle) {
+    if (!(await confirmAction(`Delete ${s.sku} ${s.name}? It comes off the Accessories page once you save. You can restore it from Deleted.`))) return;
+    setStyle(s.sku, { deleted: true });
   }
 
   async function save() {
@@ -102,117 +105,117 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
     setStatus(null);
   }
 
-  // What the list shows: ranges matching the search (all their styles), or ranges holding matching styles (just those).
+  // What each filter keeps. Deleted items show only under Deleted.
   const q = query.trim().toLowerCase();
-  const isEdited = (s: EffectiveStyle) => s.name !== s.original.name || s.code !== s.original.code;
-  const styleFilter = (s: EffectiveStyle) =>
-    filter === 'all' ? true : filter === 'hidden' ? s.hidden : filter === 'out' ? s.out : isEdited(s) || s.hidden || s.out;
-  const view = ranges.map((r, index) => {
-    const mine = styles.filter((s) => s.cat === r.id);
-    const rangeHit = !q || matches(rangeHay(r), q);
-    const rangeEdited = r.name !== r.original.name || r.text !== r.original.text || r.finish !== r.original.finish || r.hidden;
-    let list = mine.filter((s) => (rangeHit || matches(styleHay(s), q)) && styleFilter(s));
-    if (filter === 'hidden' && r.hidden) list = mine.filter((s) => rangeHit || matches(styleHay(s), q));
-    const show = (rangeHit || list.length > 0) && (filter === 'all' || list.length > 0 || (filter === 'hidden' && r.hidden) || (filter === 'edited' && rangeEdited));
-    return { r, index, list, show, all: mine, rangeMatch: !!q && rangeHit };
-  }).filter((v) => v.show);
-  const narrowed = !!q || filter !== 'all';
-  const shownStyles = view.reduce((n, v) => n + v.list.length, 0);
-  const exact = q && styles.find((s) => s.sku.toLowerCase() === q || s.sku.replace('-', '').toLowerCase() === q);
-
-  const counts = {
-    hidden: styles.filter((s) => s.hidden).length + ranges.filter((r) => r.hidden).length,
-    out: styles.filter((s) => s.out).length,
-    edited: Object.keys(ov.styles).length + Object.keys(ov.ranges).length
+  const rangeById = new Map(ranges.map((r) => [r.id, r]));
+  const keepStyle = (s: EffectiveStyle) => {
+    if (filter === 'deleted') return s.deleted;
+    if (s.deleted) return false;
+    if (filter === 'hidden') return s.hidden;
+    if (filter === 'out') return s.out;
+    if (filter === 'edited') return styleEdited(s) || s.hidden || s.out;
+    return true;
   };
+  const stylesOf = (id: string) => styles.filter((s) => s.cat === id);
+  const keepRange = (r: EffectiveRange) => {
+    if (filter === 'deleted') return r.deleted || stylesOf(r.id).some(keepStyle);
+    if (r.deleted) return false;
+    if (filter === 'all') return true;
+    if (filter === 'hidden' && r.hidden) return true;
+    if (filter === 'edited' && (rangeEdited(r) || r.hidden)) return true;
+    return stylesOf(r.id).some(keepStyle);
+  };
+  const liveRanges = ranges.filter((r) => !r.deleted);
+  const liveStyles = styles.filter((s) => !s.deleted && !rangeById.get(s.cat)?.deleted);
+  const counts: Record<Filter, number> = {
+    all: 0,
+    hidden: liveRanges.filter((r) => r.hidden).length + liveStyles.filter((s) => s.hidden).length,
+    out: liveStyles.filter((s) => s.out).length,
+    edited: liveRanges.filter((r) => rangeEdited(r) || r.hidden).length + liveStyles.filter((s) => styleEdited(s) || s.hidden || s.out).length,
+    deleted: ranges.filter((r) => r.deleted).length + styles.filter((s) => s.deleted && !rangeById.get(s.cat)?.deleted).length
+  };
+
+  const rangeCard = (r: EffectiveRange) => (
+    <RangeCard key={r.id} r={r} position={ranges.indexOf(r) + 1}
+      onOpen={() => { setOpenId(r.id); setQuery(''); }}
+      onRename={(v) => setRange(r.id, { name: v })}
+      onHide={(hidden) => setRange(r.id, { hidden })}
+      onDelete={() => deleteRange(r)}
+      onRestore={() => setRange(r.id, { deleted: false })} />
+  );
+  const styleCard = (s: EffectiveStyle, showRange: boolean) => (
+    <StyleCard key={s.sku} s={s} rangeName={showRange ? rangeById.get(s.cat)?.name : undefined}
+      onChange={(patch) => setStyle(s.sku, patch)} onDelete={() => deleteStyle(s)} />
+  );
+  const searchAll = <SearchBar value={query} onChange={setQuery} placeholder="Search any ID, code, name or colour — e.g. Y54-03, CTS, lilac" />;
+
+  let body: React.ReactNode;
+  if (opened) {
+    const mine = stylesOf(opened.id);
+    const list = mine.filter((s) => (opened.deleted || keepStyle(s)) && (!q || matches(styleHay(s), q)));
+    const position = ranges.indexOf(opened);
+    body = <>
+      <section className="accx-intro">
+        <button type="button" className="accx-back" onClick={() => setOpenId(null)}>&larr; All Accessories</button>
+        <div className="accx-eyebrow">Series {opened.series} · ID {opened.id}{opened.hidden ? ' · Hidden' : ''}{opened.deleted ? ' · Deleted' : ''}</div>
+        <EditText kind="h1" label="Category name" value={opened.name} original={opened.original.name} max={80} onChange={(v) => setRange(opened.id, { name: v })} />
+        <EditText kind="p" label="Description" value={opened.text} original={opened.original.text} max={600} onChange={(v) => setRange(opened.id, { text: v })} />
+        <EditText kind="line" label="Finish" value={opened.finish} original={opened.original.finish} max={160} onChange={(v) => setRange(opened.id, { finish: v })} />
+        <div className="accx-actions">
+          {opened.deleted
+            ? <button type="button" className="btn" onClick={() => setRange(opened.id, { deleted: false })}>Restore category</button>
+            : <>
+              <button type="button" className="btn-ghost" aria-pressed={opened.hidden} onClick={() => setRange(opened.id, { hidden: !opened.hidden })}>{opened.hidden ? 'Show category' : 'Hide category'}</button>
+              <button type="button" className="btn-ghost accx-danger" onClick={() => deleteRange(opened)}>Delete category</button>
+            </>}
+          <span className="accx-pos">
+            Position {position + 1} of {ranges.length}
+            <button type="button" className="btn-ghost hs-icon" aria-label="Move earlier on the page" disabled={position === 0} onClick={() => move(opened.id, -1)}>&larr;</button>
+            <button type="button" className="btn-ghost hs-icon" aria-label="Move later on the page" disabled={position === ranges.length - 1} onClick={() => move(opened.id, 1)}>&rarr;</button>
+          </span>
+          <a href={`/po/accessories#${opened.id}`} target="_blank" rel="noopener">Open on the page ↗</a>
+        </div>
+      </section>
+      <SearchBar value={query} onChange={setQuery} placeholder={`Search ${plural(mine.length, 'style')} in this category`} />
+      <p className="accx-meta">{list.length === mine.length ? plural(mine.length, 'style') : `${list.length} of ${plural(mine.length, 'style')} shown`}{opened.views.length ? ` · Photo views: ${opened.views.join(', ')}` : ''}</p>
+      {list.length ? <div className="accx-grid">{list.map((s) => styleCard(s, false))}</div> : <Empty />}
+    </>;
+  } else if (q) {
+    const rs = ranges.filter((r) => keepRange(r) && matches(rangeHay(r), q));
+    const ss = styles.filter((s) => keepStyle(s) && (filter === 'deleted' || !rangeById.get(s.cat)?.deleted) && matches(styleHay(s), q));
+    const exact = styles.find((s) => s.sku.toLowerCase() === q || s.sku.replace('-', '').toLowerCase() === q);
+    body = <>
+      <PageIntro ov={ov} ranges={liveRanges.length} styles={liveStyles.length} setPage={setPage} />
+      {searchAll}
+      <p className="accx-meta">{plural(rs.length, 'category', 'categories')} · {plural(ss.length, 'style')} found{exact ? <> · <a href={`/po/accessories#${exact.sku}`} target="_blank" rel="noopener">Open {exact.sku} on the page ↗</a></> : null}</p>
+      {rs.length > 0 && <><h2 className="accx-h2">Categories</h2><div className="accx-cgrid">{rs.map(rangeCard)}</div></>}
+      {ss.length > 0 && <><h2 className="accx-h2">Styles</h2><div className="accx-grid">{ss.slice(0, 120).map((s) => styleCard(s, true))}</div></>}
+      {ss.length > 120 && <p className="accx-meta">Showing the first 120 styles. Type more to narrow it down.</p>}
+      {!rs.length && !ss.length && <Empty />}
+    </>;
+  } else {
+    const rs = ranges.filter(keepRange);
+    const label = FILTERS.find(([k]) => k === filter)![1].toLowerCase();
+    body = <>
+      <PageIntro ov={ov} ranges={liveRanges.length} styles={liveStyles.length} setPage={setPage} />
+      {searchAll}
+      <p className="accx-meta">{filter === 'all'
+        ? `${plural(liveRanges.length, 'category', 'categories')} · ${plural(liveStyles.length, 'style')}. Tap a category to edit its styles.`
+        : `${plural(rs.length, 'category', 'categories')} with ${label} items. Tap one to see them.`}</p>
+      {rs.length ? <div className="accx-cgrid">{rs.map(rangeCard)}</div> : <Empty />}
+    </>;
+  }
 
   return (
     <div className="acc-editor">
-      <section className="card acc-card" aria-label="Page text">
-        <h2 className="acc-h2">Page text</h2>
-        <label className="acc-field">Title
-          <input value={ov.page.title ?? ''} placeholder={DEFAULT_PAGE_TITLE} maxLength={80} onChange={(e) => setPage({ title: e.target.value || undefined })} />
-        </label>
-        <label className="acc-field">Intro
-          <textarea rows={2} value={ov.page.intro ?? ''} placeholder={DEFAULT_PAGE_INTRO} maxLength={400} onChange={(e) => setPage({ intro: e.target.value || undefined })} />
-        </label>
-        <label className="acc-field">WhatsApp number for enquiries <small>Country code and number, digits only</small>
-          <input inputMode="numeric" value={ov.page.whatsapp ?? ''} placeholder={DEFAULT_WHATSAPP} maxLength={15} onChange={(e) => setPage({ whatsapp: e.target.value.replace(/\D/g, '') || undefined })} />
-        </label>
-      </section>
-
-      <div className="acc-tools">
-        <input type="search" className="acc-search" value={query} placeholder="Find an ID, code, name or colour — e.g. Y54-03, CTS, lilac" aria-label="Find a range or style" onChange={(e) => setQuery(e.target.value)} />
-        <div className="acc-filters" role="group" aria-label="Show">
-          {FILTERS.map(([k, label]) => (
-            <button key={k} type="button" aria-pressed={filter === k} className={filter === k ? 'is-on' : ''} onClick={() => setFilter(k)}>
-              {label}{k !== 'all' && counts[k] ? <b>{counts[k]}</b> : null}
-            </button>
-          ))}
-        </div>
-        <p className="acc-count">
-          {narrowed ? `${view.length} ${view.length === 1 ? 'range' : 'ranges'} · ${shownStyles} ${shownStyles === 1 ? 'style' : 'styles'} found` : `${ranges.length} ranges · ${styles.length} styles`}
-          {exact ? <> · <a href={`/po/accessories#${exact.sku}`} target="_blank" rel="noopener">Open {exact.sku} on the page ↗</a></> : null}
-        </p>
+      <div className="accx-filters" role="group" aria-label="Show">
+        {FILTERS.map(([k, label]) => (
+          <button key={k} type="button" aria-pressed={filter === k} className={filter === k ? 'is-on' : ''} onClick={() => setFilter(k)}>
+            {label}{k !== 'all' && counts[k] ? <b>{counts[k]}</b> : null}
+          </button>
+        ))}
       </div>
-
-      {view.length === 0 && <p className="hs-hint">Nothing matches. Try another ID, code or colour, or choose All.</p>}
-
-      <ol className="acc-ranges">
-        {view.map(({ r, index, list, all, rangeMatch }) => {
-          const expanded = narrowed || open.has(r.id);
-          // A search that found styles shows just those; the range's own fields open when it matched itself or is tapped open.
-          const fields = !narrowed || rangeMatch || open.has(r.id);
-          const hiddenStyles = all.filter((s) => s.hidden).length;
-          return (
-            <li key={r.id} className={`card acc-range${r.hidden ? ' is-hidden' : ''}`}>
-              <div className="acc-range-head">
-                <span className="acc-num" title="Position on the page">{index + 1}</span>
-                <button type="button" className="acc-range-open" aria-expanded={expanded} onClick={() => toggle(r.id)}>
-                  <span className="acc-cover">{covers[r.id] ? <img src={covers[r.id]} alt="" /> : <span>{r.series}</span>}</span>
-                  <span className="acc-range-title">
-                    <small>Series {r.series} · ID {r.id}</small>
-                    <strong>{r.name}</strong>
-                    <small>{r.hidden ? 'Hidden from the page' : `${all.length - hiddenStyles} of ${all.length} styles shown`}{r.name !== r.original.name ? ` · was “${r.original.name}”` : ''}</small>
-                  </span>
-                </button>
-                <div className="acc-range-tools">
-                  <button type="button" className="btn-ghost hs-icon" aria-label={`Move ${r.name} up`} disabled={index === 0} onClick={() => move(index, -1)}>↑</button>
-                  <button type="button" className="btn-ghost hs-icon" aria-label={`Move ${r.name} down`} disabled={index === ranges.length - 1} onClick={() => move(index, 1)}>↓</button>
-                  <label className="hs-switch acc-switch">
-                    <input type="checkbox" checked={!r.hidden} onChange={(e) => setRange(r.id, { hidden: !e.target.checked })} />
-                    <span>{r.hidden ? 'Hidden' : 'Shown'}</span>
-                  </label>
-                </div>
-              </div>
-
-              {expanded && (
-                <div className="acc-range-body">
-                  {fields ? <div className="acc-range-fields">
-                    <EditField label="Name" value={r.name} original={r.original.name} max={80} onChange={(v) => setRange(r.id, { name: v })} />
-                    <EditField label="Description" value={r.text} original={r.original.text} max={600} multiline onChange={(v) => setRange(r.id, { text: v })} />
-                    <EditField label="Finish" value={r.finish} original={r.original.finish} max={160} onChange={(v) => setRange(r.id, { finish: v })} />
-                    <p className="acc-meta">Photo views: {r.views.join(', ') || '—'} · <a href={`/po/accessories#${r.id}`} target="_blank" rel="noopener">Open range ↗</a></p>
-                    <div className="acc-bulk">
-                      <button type="button" className="hs-link" onClick={() => setRangeStyles(r.id, { hidden: false })}>Show all styles</button>
-                      <button type="button" className="hs-link" onClick={() => setRangeStyles(r.id, { out: false })}>Clear out of stock</button>
-                    </div>
-                  </div> : <button type="button" className="hs-link acc-edit-range" onClick={() => toggle(r.id)}>Edit range name &amp; description</button>}
-                  {list.length > 0 ? (
-                    <ul className="acc-styles">
-                      {list.map((s) => <StyleRow key={s.sku} s={s} onChange={(patch) => setStyle(s.sku, patch)} />)}
-                    </ul>
-                  ) : <p className="hs-hint">No styles match here.</p>}
-                  {narrowed && list.length < all.length && (
-                    <p className="acc-meta">Showing {list.length} of {all.length} styles in this range.</p>
-                  )}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-
+      <div className="accx">{body}</div>
       <div className={`hs-savebar${dirty ? ' is-dirty' : ''}`} role="region" aria-label="Save changes">
         <span className="hs-savebar-text" role="status">
           {status ? <span className={status.ok ? 'hs-ok' : 'hs-err'}>{status.text}</span> : dirty ? 'You have unsaved changes.' : 'All changes saved.'}
@@ -224,51 +227,125 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
   );
 }
 
-function EditField({ label, value, original, max, multiline, onChange }: {
-  label: string; value: string; original: string; max: number; multiline?: boolean; onChange: (v: string | undefined) => void;
-}) {
-  const changed = value !== original;
-  const set = (v: string) => onChange(v.trim() && v !== original ? v : undefined);
+function PageIntro({ ov, ranges, styles, setPage }: { ov: AccessoryOverrides; ranges: number; styles: number; setPage: (p: AccessoryOverrides['page']) => void }) {
   return (
-    <label className="acc-field">
-      <span className="acc-field-label">{label}{changed && <button type="button" className="hs-link" onClick={(e) => { e.preventDefault(); onChange(undefined); }}>Put back original</button>}</span>
-      <DraftInput value={value} max={max} multiline={multiline} onChange={set} />
-      {changed && <small className="acc-was">Was: {original}</small>}
+    <section className="accx-intro">
+      <div className="accx-eyebrow">{ranges} categories · {styles} styles</div>
+      <EditText kind="h1" label="Page title" value={ov.page.title || DEFAULT_PAGE_TITLE} original={DEFAULT_PAGE_TITLE} max={80} onChange={(v) => setPage({ title: v })} />
+      <EditText kind="p" label="Intro" value={ov.page.intro || DEFAULT_PAGE_INTRO} original={DEFAULT_PAGE_INTRO} max={400} onChange={(v) => setPage({ intro: v })} />
+      <label className="accx-wa">WhatsApp number for enquiries
+        <input inputMode="numeric" value={ov.page.whatsapp ?? ''} placeholder={DEFAULT_WHATSAPP} maxLength={15} onChange={(e) => setPage({ whatsapp: e.target.value.replace(/\D/g, '') || undefined })} />
+      </label>
+    </section>
+  );
+}
+
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className="accx-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+      <input type="search" value={value} placeholder={placeholder} aria-label="Search accessories" onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
 
-function StyleRow({ s, onChange }: { s: EffectiveStyle; onChange: (patch: Partial<StyleEdit>) => void }) {
+const Empty = () => <div className="accx-empty"><strong>Nothing here</strong><span>Try another search, or choose All above.</span></div>;
+
+function RangeCard({ r, position, onOpen, onRename, onHide, onDelete, onRestore }: {
+  r: EffectiveRange; position: number; onOpen: () => void; onRename: (v: string | undefined) => void;
+  onHide: (hidden: boolean) => void; onDelete: () => void; onRestore: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  return (
+    <div className={`accx-ccard${r.hidden ? ' is-hidden' : ''}${r.deleted ? ' is-deleted' : ''}`}>
+      <button type="button" className="accx-cv" onClick={onOpen} aria-label={`Open ${r.name}`}>
+        {r.cover ? <img src={r.cover} alt="" loading="lazy" decoding="async" /> : <span>{r.series}</span>}
+        <span className="accx-pos-badge" title="Position on the page">{position}</span>
+        {r.hidden && <span className="accx-badge">Hidden</span>}
+        {r.deleted && <span className="accx-badge">Deleted</span>}
+      </button>
+      <div className="accx-ci">
+        <div className="accx-eyebrow">Series {r.series} · ID {r.id}</div>
+        {renaming
+          ? <DraftInput className="accx-rename" label={`${r.id} name`} value={r.name} max={80} autoFocus onDone={() => setRenaming(false)} onChange={(v) => onRename(v.trim() && v !== r.original.name ? v : undefined)} />
+          : <button type="button" className="accx-cname" onClick={onOpen}>{r.name}</button>}
+        {r.name !== r.original.name && <small className="accx-was">Was: {r.original.name}</small>}
+        <div className="accx-m"><span>{r.hidden ? 'Not on the page' : `${plural(r.shownCount, 'style')}${r.shownCount < r.styleCount ? ` of ${r.styleCount}` : ''}`}</span><button type="button" className="accx-link" onClick={onOpen}>Edit &rarr;</button></div>
+        <div className="accx-card-actions">
+          {r.deleted
+            ? <button type="button" onClick={onRestore}>Restore</button>
+            : <>
+              <button type="button" onClick={() => setRenaming((v) => !v)}>{renaming ? 'Done' : 'Edit name'}</button>
+              <button type="button" aria-pressed={r.hidden} onClick={() => onHide(!r.hidden)}>{r.hidden ? 'Show' : 'Hide'}</button>
+              <button type="button" className="accx-danger" onClick={onDelete}>Delete</button>
+            </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StyleCard({ s, rangeName, onChange, onDelete }: { s: EffectiveStyle; rangeName?: string; onChange: (patch: Partial<StyleEdit>) => void; onDelete: () => void }) {
   const set = (field: 'name' | 'code', v: string) => onChange({ [field]: v.trim() && v !== s.original[field] ? v : undefined });
   return (
-    <li className={`acc-style${s.hidden ? ' is-hidden' : ''}`}>
-      <span className="acc-dots" aria-hidden="true">{s.dots.slice(0, 4).map((d, i) => <i key={i} style={{ background: d }} />)}</span>
-      <a className="acc-sku" href={`/po/accessories#${s.sku}`} target="_blank" rel="noopener" title="Open on the page">{s.sku} ↗</a>
-      <DraftInput className="acc-code" label={`${s.sku} code`} value={s.code} max={24} onChange={(v) => set('code', v)} />
-      <DraftInput className="acc-name" label={`${s.sku} name`} value={s.name} max={80} onChange={(v) => set('name', v)} />
-      <span className="acc-style-meta">{s.style}{s.colours.length ? ` · ${s.colours.join(', ')}` : ''}
-        {(s.name !== s.original.name || s.code !== s.original.code) && <> · was {s.original.code} {s.original.name} <button type="button" className="hs-link" onClick={() => onChange({ name: undefined, code: undefined })}>Undo</button></>}
-      </span>
-      <span className="acc-style-flags">
-        <label><input type="checkbox" checked={s.out} onChange={(e) => onChange({ out: e.target.checked })} /> Out of stock</label>
-        <label><input type="checkbox" checked={!s.hidden} onChange={(e) => onChange({ hidden: !e.target.checked })} /> Shown</label>
-      </span>
-    </li>
+    <div className={`accx-card${s.hidden ? ' is-hidden' : ''}${s.deleted ? ' is-deleted' : ''}`}>
+      <a className="accx-thumb" href={`/po/accessories#${s.sku}`} target="_blank" rel="noopener" title="Open on the page">
+        {s.thumb ? <img src={s.thumb} alt="" loading="lazy" decoding="async" /> : <span className="accx-dots">{s.dots.slice(0, 4).map((d, i) => <i key={i} style={{ background: d }} />)}</span>}
+        {s.hidden && <span className="accx-badge">Hidden</span>}
+        {s.deleted && <span className="accx-badge">Deleted</span>}
+        {s.out && !s.deleted && <span className="accx-badge accx-oos">Out of stock</span>}
+      </a>
+      <div className="accx-info">
+        {rangeName && <div className="accx-eyebrow accx-cat">{rangeName}</div>}
+        <DraftInput className="accx-sname" label={`${s.sku} name`} value={s.name} max={80} onChange={(v) => set('name', v)} />
+        <div className="accx-n">
+          <DraftInput className="accx-code" label={`${s.sku} code`} value={s.code} max={24} onChange={(v) => set('code', v)} />
+          <span>· {s.sku}</span>
+        </div>
+        {styleEdited(s) && <small className="accx-was">Was: {s.original.code} {s.original.name} <button type="button" className="accx-link" onClick={() => onChange({ name: undefined, code: undefined })}>Undo</button></small>}
+        <div className="accx-card-actions">
+          {s.deleted
+            ? <button type="button" onClick={() => onChange({ deleted: false })}>Restore</button>
+            : <>
+              <button type="button" aria-pressed={s.out} className={s.out ? 'is-on' : ''} onClick={() => onChange({ out: !s.out })}>{s.out ? 'In stock' : 'Out of stock'}</button>
+              <button type="button" aria-pressed={s.hidden} onClick={() => onChange({ hidden: !s.hidden })}>{s.hidden ? 'Show' : 'Hide'}</button>
+              <button type="button" className="accx-danger" onClick={onDelete}>Delete</button>
+            </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Text that looks like the live page (a heading, a paragraph) but is edited in place.
+function EditText({ kind, label, value, original, max, onChange }: {
+  kind: 'h1' | 'p' | 'line'; label: string; value: string; original: string; max: number; onChange: (v: string | undefined) => void;
+}) {
+  const changed = value !== original;
+  return (
+    <div className={`accx-edit accx-edit-${kind}`}>
+      <span className="accx-edit-label">{label}</span>
+      <DraftInput className={`accx-${kind}`} label={label} value={value} max={max} multiline={kind === 'p'} placeholder={label}
+        onChange={(v) => onChange(v.trim() && v !== original ? v : undefined)} />
+      {changed && <small className="accx-was">Was: {original} <button type="button" className="accx-link" onClick={() => onChange(undefined)}>Put back</button></small>}
+    </div>
   );
 }
 
 // Keeps what is being typed (even an empty box while retyping); an empty box
 // means "the original", which it shows again once you leave it.
-function DraftInput({ value, max, multiline, className, label, onChange }: {
-  value: string; max: number; multiline?: boolean; className?: string; label?: string; onChange: (v: string) => void;
+function DraftInput({ value, max, multiline, className, label, placeholder, autoFocus, onChange, onDone }: {
+  value: string; max: number; multiline?: boolean; className?: string; label?: string; placeholder?: string; autoFocus?: boolean;
+  onChange: (v: string) => void; onDone?: () => void;
 }) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
   useEffect(() => { if (!focused) setDraft(value); }, [value, focused]);
   const props = {
-    className, 'aria-label': label, value: draft, maxLength: max,
+    className, 'aria-label': label, title: label, placeholder, value: draft, maxLength: max, autoFocus,
     onFocus: () => setFocused(true),
-    onBlur: () => { setFocused(false); setDraft(value); },
+    onBlur: () => { setFocused(false); setDraft(value); onDone?.(); },
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !multiline) (e.target as HTMLElement).blur(); },
     onChange: (e: { target: { value: string } }) => { setDraft(e.target.value); onChange(e.target.value); }
   };
   return multiline ? <textarea rows={3} {...props} /> : <input {...props} />;

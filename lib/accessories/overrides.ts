@@ -9,12 +9,13 @@ export const DEFAULT_PAGE_TITLE = 'Bracelet Collection';
 export const DEFAULT_PAGE_INTRO = 'Choose a category to see every colour, or search all styles by name, colour or code.';
 export const DEFAULT_WHATSAPP = '919079914601';
 
-export type AccessoryRange = { id: string; series: string; name: string; text: string; finish: string; views: string[] };
-export type AccessoryStyle = { sku: string; cat: string; code: string; name: string; style: string; colours: string[]; dots: string[]; families: string[] };
+export type AccessoryRange = { id: string; series: string; name: string; text: string; finish: string; views: string[]; cover?: string };
+export type AccessoryStyle = { sku: string; cat: string; code: string; name: string; style: string; colours: string[]; dots: string[]; families: string[]; thumb?: string };
 export type AccessoryCatalogue = { ranges: AccessoryRange[]; styles: AccessoryStyle[] };
 
-export type RangeEdit = { hidden?: boolean; name?: string; text?: string; finish?: string };
-export type StyleEdit = { hidden?: boolean; out?: boolean; name?: string; code?: string };
+/** `deleted` takes it off the page and out of the admin list; it can be restored from Deleted. */
+export type RangeEdit = { hidden?: boolean; deleted?: boolean; name?: string; text?: string; finish?: string };
+export type StyleEdit = { hidden?: boolean; deleted?: boolean; out?: boolean; name?: string; code?: string };
 export type AccessoryOverrides = {
   page: { title?: string; intro?: string; whatsapp?: string };
   /** Range ids in the order the owner arranged them; ranges not listed follow in series order. */
@@ -58,6 +59,7 @@ export function parseOverrides(raw: unknown): AccessoryOverrides {
     if (!ID.test(id)) continue;
     const e = obj(v), r: RangeEdit = {};
     if (e.hidden === true) r.hidden = true;
+    if (e.deleted === true) r.deleted = true;
     const name = text(e.name, 80), desc = text(e.text, 600), finish = text(e.finish, 160);
     if (name) r.name = name;
     if (desc) r.text = desc;
@@ -68,6 +70,7 @@ export function parseOverrides(raw: unknown): AccessoryOverrides {
     if (!ID.test(sku)) continue;
     const e = obj(v), s: StyleEdit = {};
     if (e.hidden === true) s.hidden = true;
+    if (e.deleted === true) s.deleted = true;
     if (e.out === true) s.out = true;
     const name = text(e.name, 80), code = text(e.code, 24);
     if (name) s.name = name;
@@ -122,19 +125,19 @@ export function orderedRanges(o: AccessoryOverrides, cat: AccessoryCatalogue = A
   });
 }
 
-export type EffectiveRange = AccessoryRange & { original: AccessoryRange; hidden: boolean; styleCount: number; shownCount: number };
-export type EffectiveStyle = AccessoryStyle & { original: AccessoryStyle; hidden: boolean; out: boolean; rangeHidden: boolean };
+export type EffectiveRange = AccessoryRange & { original: AccessoryRange; hidden: boolean; deleted: boolean; styleCount: number; shownCount: number };
+export type EffectiveStyle = AccessoryStyle & { original: AccessoryStyle; hidden: boolean; deleted: boolean; out: boolean; rangeHidden: boolean };
 
 /** Every range and style with the owner's edits applied, for the admin list and the Excel export. */
 export function effectiveCatalogue(o: AccessoryOverrides, cat: AccessoryCatalogue = ACCESSORIES) {
   const styles: EffectiveStyle[] = cat.styles.map((s) => {
     const e = o.styles[s.sku] || {};
-    return { ...s, name: e.name || s.name, code: e.code || s.code, original: s, hidden: !!e.hidden, out: !!e.out, rangeHidden: !!o.ranges[s.cat]?.hidden };
+    return { ...s, name: e.name || s.name, code: e.code || s.code, original: s, hidden: !!e.hidden, deleted: !!e.deleted, out: !!e.out, rangeHidden: !!(o.ranges[s.cat]?.hidden || o.ranges[s.cat]?.deleted) };
   });
   const ranges: EffectiveRange[] = orderedRanges(o, cat).map((r) => {
     const e = o.ranges[r.id] || {};
     const mine = styles.filter((s) => s.cat === r.id);
-    return { ...r, name: e.name || r.name, text: e.text || r.text, finish: e.finish || r.finish, original: r, hidden: !!e.hidden, styleCount: mine.length, shownCount: mine.filter((s) => !s.hidden).length };
+    return { ...r, name: e.name || r.name, text: e.text || r.text, finish: e.finish || r.finish, original: r, hidden: !!e.hidden, deleted: !!e.deleted, styleCount: mine.filter((s) => !s.deleted).length, shownCount: mine.filter((s) => !s.hidden && !s.deleted).length };
   });
   return { ranges, styles };
 }

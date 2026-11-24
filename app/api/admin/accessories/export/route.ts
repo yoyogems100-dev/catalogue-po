@@ -33,7 +33,7 @@ export async function GET() {
   ];
   ranges.forEach((r, i) => rs.addRow({
     pos: i + 1, id: r.id, series: r.series, name: r.name, text: r.text, finish: r.finish,
-    count: r.styleCount, shown: r.hidden ? 0 : r.shownCount, views: r.views.join(', '), visible: yes(!r.hidden),
+    count: r.styleCount, shown: r.hidden || r.deleted ? 0 : r.shownCount, views: r.views.join(', '), visible: r.deleted ? 'Deleted' : yes(!r.hidden),
     orig: r.name !== r.original.name ? r.original.name : '', link: `https://www.yoyogems.co.in/po/accessories#${r.id}`
   }));
 
@@ -62,7 +62,7 @@ export async function GET() {
     ss.addRow({
       sku: s.sku, code: s.code, name: s.name, cat: s.cat, series: r.series, range: r.name, style: s.style,
       colours: s.colours.join(', '), families: s.families.join(', '), text: r.text, finish: r.finish,
-      visible: yes(!s.hidden && !r.hidden), out: yes(s.out),
+      visible: s.deleted || r.deleted ? 'Deleted' : yes(!s.hidden && !r.hidden), out: yes(s.out),
       origName: s.name !== s.original.name ? s.original.name : '', origCode: s.code !== s.original.code ? s.original.code : '',
       link: `https://www.yoyogems.co.in/po/accessories#${s.sku}`
     });

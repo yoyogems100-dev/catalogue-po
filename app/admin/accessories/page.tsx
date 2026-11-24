@@ -17,10 +17,10 @@ export default async function AccessoriesAdminPage() {
         </div>
       </div>
       <p className="hs-intro">
-        Every range and style on the <a href="/po/accessories" target="_blank" rel="noopener">Accessories page</a>. Search any
-        ID, code, name or colour; rename, change codes and descriptions, hide what you don&rsquo;t want shown, mark styles out of
-        stock and arrange the ranges. Nothing is deleted: a hidden item comes back with one tap. Changes show on the page as soon as
-        you save. New ranges and photos are still added for you by Claude.
+        This is the <a href="/po/accessories" target="_blank" rel="noopener">Accessories page</a> as buyers see it. Tap any text to
+        change it; tap a category to edit its styles. Hide keeps an item but takes it off the page; Delete removes it from the page and
+        this list (restore it from <strong>Deleted</strong>). Nothing changes on the page until you press Save. New categories and photos
+        are still added for you by Claude.
       </p>
       <AccessoriesEditor catalogue={ACCESSORIES} initial={parseOverrides(data?.value ?? null)} />
     </>

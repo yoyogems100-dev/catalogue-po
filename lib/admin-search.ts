@@ -1,7 +1,7 @@
 // The admin's "search anything" box: pages, quick actions and categories are
 // known to the browser up front; customers, suppliers, shapes, sizes, colours
 // and orders come from /api/admin/search as you type. Both are ranked here.
-import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, poCategoryPages } from '@/components/admin/nav-config';
+import { BIN, NOTIFICATIONS, OVERVIEW, WORKSPACES, poCategoryHref, poCategoryPages } from '@/components/admin/nav-config';
 
 export type SearchKind = 'action' | 'page' | 'category' | 'site-category' | 'customer' | 'supplier' | 'shape' | 'size' | 'colour' | 'order';
 
@@ -35,7 +35,7 @@ export const QUICK_ACTIONS: SearchItem[] = [
   { kind: 'action', label: 'All categories', href: '/admin/categories', keywords: 'catalogue arrange order' }
 ];
 
-type Cat = { id: number; name: string; parent?: string };
+type Cat = { id: number; name: string; parent?: string; slug?: string | null };
 
 /** Everything findable without asking the server. */
 export function staticSearchItems(poCategories: Cat[], siteCategories: Cat[]): SearchItem[] {
@@ -48,9 +48,9 @@ export function staticSearchItems(poCategories: Cat[], siteCategories: Cat[]): S
       href: l.href,
       keywords: l.detail
     }));
-  const categories: SearchItem[] = poCategories.map((c) => ({ kind: 'category', label: c.name, detail: '/po catalogue', href: `/admin/categories/${c.id}` }));
+  const categories: SearchItem[] = poCategories.map((c) => ({ kind: 'category', label: c.name, detail: '/po catalogue', href: poCategoryHref(c) }));
   // "Moissanite pricing" goes straight to that tab.
-  const tabs: SearchItem[] = poCategories.flatMap((c) => poCategoryPages(c.id).map((p) => ({
+  const tabs: SearchItem[] = poCategories.filter((c) => c.slug !== 'accessories').flatMap((c) => poCategoryPages(c.id).map((p) => ({
     kind: 'page' as const, label: `${c.name} › ${p.label}`, detail: '/po category page', href: p.href
   })));
   const site: SearchItem[] = siteCategories.map((c) => ({

@@ -54,10 +54,11 @@ test('the page applies the edits before it draws', () => {
   const end = html.indexOf('const CAT = Object.fromEntries');
   const first = ACCESSORIES.styles.find((s) => s.cat === 'braided')!;
   const second = ACCESSORIES.styles.filter((s) => s.cat === 'braided')[1];
+  const third = ACCESSORIES.styles.filter((s) => s.cat === 'braided')[2];
   const ACC_OV = {
     page: { title: 'Accessories', whatsapp: '911234567890' }, order: ['y4'],
-    ranges: { mesh: { hidden: true }, braided: { name: 'Silk Bands' } },
-    styles: { [first.sku]: { hidden: true }, [second.sku]: { out: true, code: 'ZZZ' } }
+    ranges: { mesh: { hidden: true }, cord: { deleted: true }, braided: { name: 'Silk Bands' } },
+    styles: { [first.sku]: { hidden: true }, [second.sku]: { out: true, code: 'ZZZ' }, [third.sku]: { deleted: true } }
   };
   const ctx: any = { window: { ACC_OV }, document: { title: '' } };
   vm.runInNewContext(`${html.slice(start, end)}\n;globalThis.__out = { CATS, P, ORD, PAGE_TITLE };`, ctx, { timeout: 20000 });
@@ -66,6 +67,8 @@ test('the page applies the edits before it draws', () => {
   assert.ok(!P.some((p: any) => p.cat === 'mesh'));
   assert.equal(CATS.find((c: any) => c.id === 'braided').name, 'Silk Bands');
   assert.ok(!P.some((p: any) => p.sku === first.sku));
+  assert.ok(!P.some((p: any) => p.sku === third.sku), 'a deleted style is gone');
+  assert.ok(!CATS.some((c: any) => c.id === 'cord'), 'a deleted category is gone');
   const p2 = P.find((p: any) => p.sku === second.sku);
   assert.equal(p2.out, true);
   assert.equal(p2.code, 'ZZZ');
