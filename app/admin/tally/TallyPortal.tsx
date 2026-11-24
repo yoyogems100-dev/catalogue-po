@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ask, type Answer, type TallyIndex } from '@/lib/tally/query';
 import { day, ago } from '@/lib/tally/format';
-import { UploadBox, changePassword } from './TallyApp';
+import { LiveSyncPanel, UploadBox, changePassword, isOnline, minutesAgo, useLiveSync } from './TallyApp';
 import { AskTab, CustomersTab, DaybookTab, ItemsTab, ItemView, PartyView } from './views';
 
 export type Route =
@@ -34,7 +34,9 @@ const TABS: { key: 'ask' | 'customers' | 'items' | 'daybook'; label: string }[] 
   { key: 'daybook', label: 'Day book' }
 ];
 
-export default function TallyPortal({ ix, onReload, onLock }: { ix: TallyIndex; onReload: () => void; onLock: () => void }) {
+export default function TallyPortal({ ix, onReload, onRefresh, onLock }: { ix: TallyIndex; onReload: () => void; onRefresh: () => void; onLock: () => void }) {
+  // New data from the Tally computer swaps in by itself, without a reload.
+  const live = useLiveSync(onRefresh);
   const [route, setRoute] = useState<Route>({ tab: 'ask' });
   const [thread, setThread] = useState<Turn[]>([]);
   const [settings, setSettings] = useState(false);
@@ -71,10 +73,24 @@ export default function TallyPortal({ ix, onReload, onLock }: { ix: TallyIndex; 
       <header className="tp-head">
         <div>
           <h1>Tally accounts</h1>
-          <p className="tp-sub">{m.company} · entries from {day(m.firstDate)} to {day(m.lastDate)} · uploaded {ago(m.uploadedAt.slice(0, 10), new Date().toISOString().slice(0, 10))}</p>
+          <p className="tp-sub">{m.company} · entries from {day(m.firstDate)} to {day(m.lastDate)}</p>
+          {live.info?.hasKey ? (
+            <p className={`tp-live-badge ${isOnline(live.info) ? 'on' : 'off'}`}>
+              <i aria-hidden /> {isOnline(live.info) ? 'Live from Tally' : 'Sync program offline'}
+              {live.info.lastSyncAt && <> · updated {minutesAgo(live.info.lastSyncAt)}</>}
+              {live.info.computer && <span className="tp-dim"> · {live.info.computer}</span>}
+            </p>
+          ) : (
+            <p className="tp-sub">From an uploaded Excel · {ago(m.uploadedAt.slice(0, 10), new Date().toISOString().slice(0, 10))}</p>
+          )}
         </div>
         <div className="tp-head-actions">
-          <button className="btn-ghost" onClick={() => setSettings(true)}>Update data</button>
+          {live.info?.hasKey && (
+            <button className="btn" onClick={live.syncNow} disabled={live.waiting || !isOnline(live.info)} title={isOnline(live.info) ? 'Read Tally again now' : 'The sync program on the Tally computer is not running'}>
+              {live.waiting ? 'Syncing…' : 'Sync now'}
+            </button>
+          )}
+          <button className="btn-ghost" onClick={() => setSettings(true)}>Sync settings</button>
           <button className="btn-ghost" onClick={onLock} title="Lock the Tally accounts on this device">Lock</button>
         </div>
       </header>
@@ -92,12 +108,12 @@ export default function TallyPortal({ ix, onReload, onLock }: { ix: TallyIndex; 
         : route.tab === 'daybook' ? <DaybookTab ix={ix} go={go} />
         : <AskTab ix={ix} thread={thread} onAsk={onAsk} go={go} onClear={() => setThread([])} />}
 
-      {settings && <Settings onClose={() => setSettings(false)} onReload={() => { setSettings(false); onReload(); }} fileName={m.fileName} uploadedAt={m.uploadedAt} />}
+      {settings && <Settings onClose={() => setSettings(false)} onReload={() => { setSettings(false); onReload(); }} onRefresh={onRefresh} fileName={m.fileName} uploadedAt={m.uploadedAt} />}
     </div>
   );
 }
 
-function Settings({ onClose, onReload, fileName, uploadedAt }: { onClose: () => void; onReload: () => void; fileName: string; uploadedAt: string }) {
+function Settings({ onClose, onReload, onRefresh, fileName, uploadedAt }: { onClose: () => void; onReload: () => void; onRefresh: () => void; fileName: string; uploadedAt: string }) {
   const [cur, setCur] = useState('');
   const [next, setNext] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -121,8 +137,10 @@ function Settings({ onClose, onReload, fileName, uploadedAt }: { onClose: () => 
     <div className="tp-modal" role="dialog" aria-modal="true" aria-label="Update data and password" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="tp-modal-card">
         <button className="tp-close" onClick={onClose} aria-label="Close">×</button>
-        <h2>Update Tally data</h2>
-        <p className="tp-muted">Now showing <strong>{fileName}</strong>, uploaded {day(uploadedAt.slice(0, 10))}. Export a fresh Excel from Tally and upload it here — it replaces the current data.</p>
+        <LiveSyncPanel onSynced={onRefresh} />
+        <hr />
+        <h2>Or upload an Excel once</h2>
+        <p className="tp-muted">Now showing <strong>{fileName}</strong>, from {day(uploadedAt.slice(0, 10))}. An uploaded Excel replaces the current data until the next live sync.</p>
         <UploadBox compact onDone={onReload} />
         <hr />
         <h2>Change the Tally password</h2>

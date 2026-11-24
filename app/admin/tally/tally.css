@@ -256,3 +256,18 @@ button.tp-tile:hover { border-color: var(--gold); transform: translateY(-1px); }
   .tp-modal-card { border-radius: 16px; }
   .tp-party-head h2 { font-size: 28px; }
 }
+
+/* live sync */
+.tp-live-badge { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12.5px; margin-top: 6px; color: var(--charcoal); }
+.tp-live-badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); display: inline-block; margin-right: 2px; }
+.tp-live-badge.on i { background: #2a9d63; box-shadow: 0 0 0 0 rgba(42,157,99,.5); animation: tp-beat 2s infinite; }
+.tp-live-badge.on { color: var(--tp-in); font-weight: 500; }
+.tp-live-badge.off i { background: var(--tp-out); }
+.tp-live-badge.off { color: var(--tp-out); }
+@keyframes tp-beat { 70% { box-shadow: 0 0 0 7px rgba(42,157,99,0); } 100% { box-shadow: 0 0 0 0 rgba(42,157,99,0); } }
+.tp-head-actions .btn { min-height: 40px; padding: 8px 16px; font-size: 13px; }
+.tp-sync h2 { margin-bottom: 6px; }
+.tp-sync-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tp-sync-actions .btn, .tp-sync-actions .btn-ghost { min-height: 44px; }
+.tp-key { background: var(--ivory); border: 1px dashed var(--gold-soft); border-radius: 10px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tp-key code { font-size: 13px; word-break: break-all; background: #fff; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); width: 100%; user-select: all; }

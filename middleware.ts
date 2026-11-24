@@ -67,6 +67,7 @@ const PUBLIC_PATHS = new Set([
   '/po/account/login', // customer sign-in, and the catalogue's front door
   '/api/admin-login',
   '/api/admin-logout',
+  '/api/tally-sync', // the Tally sync program: no cookie, the route checks its sync key on every call
   '/api/account/otp/request',
   '/api/account/otp/verify',
   '/api/account/password/login',

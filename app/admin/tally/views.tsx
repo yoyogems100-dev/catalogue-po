@@ -139,7 +139,6 @@ function LineTable({ ix, lines, go, showParty, showDate }: { ix: TallyIndex; lin
 const SUGGESTIONS = [
   'Who owes me money?',
   'Top customers',
-  'What does Sorabh buy?',
   'Who buys nano ps?',
   'Who supplies mozonite?',
   'Sales last month',
@@ -149,6 +148,14 @@ const SUGGESTIONS = [
   'Goods returns',
   'Bank and cash'
 ];
+
+/** The fixed examples plus "What does <your biggest customer> buy?", taken from the data (no names in code). */
+function suggestionsFor(ix: TallyIndex): string[] {
+  let top = -1;
+  ix.agg.forEach((a, i) => { if (a.salesAmt > (top >= 0 ? ix.agg[top].salesAmt : 0)) top = i; });
+  const first = top >= 0 ? ix.data.parties[top].name.split(' ')[0] : '';
+  return first ? [SUGGESTIONS[0], SUGGESTIONS[1], `What does ${first} buy?`, ...SUGGESTIONS.slice(2)] : SUGGESTIONS;
+}
 
 type SpeechRec = { lang: string; interimResults: boolean; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onend: () => void; onerror: () => void; start: () => void; stop: () => void };
 
@@ -213,7 +220,7 @@ export function AskTab({ ix, thread, onAsk, go, onClear }: { ix: TallyIndex; thr
       {speech.listening && <p className="tp-listening">Listening… speak your question</p>}
 
       <div className="tp-chips" aria-label="Try asking">
-        {SUGGESTIONS.map((s) => <button key={s} onClick={() => onAsk(s)}>{s}</button>)}
+        {suggestionsFor(ix).map((s) => <button key={s} onClick={() => onAsk(s)}>{s}</button>)}
       </div>
 
       {thread.length === 0 ? (
@@ -321,7 +328,7 @@ function AnswerCard({ ix, q, a, go, onAsk, fresh }: { ix: TallyIndex; q: string;
           {a.stock.length > 0 && <><h3>Stock items</h3><StockList ix={ix} rows={a.stock} go={go} /></>}
           {a.vouchers.length > 0 && <><h3>Entries</h3><ul className="tp-vchs">{a.vouchers.map((vi) => <VoucherRow key={vi} ix={ix} vi={vi} go={go} showParty />)}</ul></>}
           {!a.parties.length && !a.stock.length && !a.vouchers.length && (
-            <div className="tp-chips">{SUGGESTIONS.slice(0, 5).map((s) => <button key={s} onClick={() => onAsk(s)}>{s}</button>)}</div>
+            <div className="tp-chips">{suggestionsFor(ix).slice(0, 5).map((s) => <button key={s} onClick={() => onAsk(s)}>{s}</button>)}</div>
           )}
         </>
       )}
