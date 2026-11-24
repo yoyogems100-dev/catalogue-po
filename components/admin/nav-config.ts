@@ -108,7 +108,8 @@ export const WORKSPACES: Workspace[] = [
         title: 'Buyers & suppliers',
         links: [
           { href: '/admin/customers', label: 'Customers', detail: 'Buyer accounts, their orders, usual picks and colour buttons.' },
-          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' }
+          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' },
+          { href: '/admin/tally', label: 'Tally accounts', detail: 'Ask your Tally data: what each customer buys, who owes you, past orders, stock. Has its own password.' }
         ]
       },
       {

@@ -11,9 +11,13 @@ function routeFiles(dir: string): string[] {
   });
 }
 
+// Admin routes that never touch catalogue data, so there's nothing to expire.
+const NOT_CATALOGUE = ['app/api/admin/tally/'];
+
 test('every admin write expires the cached catalogue, so an edit shows on the next load', () => {
   const missing: string[] = [];
   for (const file of routeFiles(path.join(process.cwd(), 'app/api'))) {
+    if (NOT_CATALOGUE.some((p) => path.relative(process.cwd(), file).startsWith(p))) continue;
     const src = readFileSync(file, 'utf8');
     const handlers = [...src.matchAll(/export\s+(?:async\s+)?function\s+(POST|PATCH|PUT|DELETE)\b/g)];
     for (const h of handlers) {
