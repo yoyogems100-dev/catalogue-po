@@ -18,12 +18,15 @@
 //   node tally-sync.mjs           keep syncing (leave it running)
 //   node tally-sync.mjs once      sync one time and stop
 //   node tally-sync.mjs check     only test the Tally connection
+//   node tally-sync.mjs install   Windows: keep it running in the background (no admin needed)
+//   node tally-sync.mjs uninstall Windows: stop it and remove it from startup
 
-import { readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, chmodSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 
 const CONFIG = process.env.YOYO_TALLY_SYNC_CONFIG || join(homedir(), '.yoyo-tally-sync.json');
@@ -56,7 +59,7 @@ async function tally(cfg, xml) {
 }
 
 /** A read-only collection export. `filter` is an optional Tally formula rows must match. */
-const collection = (id, type, fetchFields, filter = '', vars = '') => `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>${id}</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>${vars}</STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="${id}" ISMODIFY="No"><TYPE>${type}</TYPE><FETCH>${fetchFields}</FETCH>${filter ? `<FILTER>${id}Filter</FILTER>` : ''}</COLLECTION>${filter ? `<SYSTEM TYPE="Formulae" NAME="${id}Filter">${filter}</SYSTEM>` : ''}</TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
+const collection = (id, type, fetchFields, filter = '', vars = '') => `<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>${id}</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>${currentCompany && id !== 'YyCo' ? `<SVCURRENTCOMPANY>${escXml(currentCompany)}</SVCURRENTCOMPANY>` : ''}${vars}</STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="${id}" ISMODIFY="No"><TYPE>${type}</TYPE><FETCH>${fetchFields}</FETCH>${filter ? `<FILTER>${id}Filter</FILTER>` : ''}</COLLECTION>${filter ? `<SYSTEM TYPE="Formulae" NAME="${id}Filter">${filter}</SYSTEM>` : ''}</TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>`;
 
 /* ---------------- tiny XML helpers (Tally's XML is very regular) ---------------- */
 
@@ -71,10 +74,21 @@ const qtyUnit = (s) => { const m = String(s).replace(/,/g, '').match(/(-?\d+(?:\
 
 /* ---------------- reading the books ---------------- */
 
+// The company every request reads from (set once we know which is open).
+let currentCompany = '';
+const escXml = (v) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 async function changeMarker(cfg) {
+  currentCompany = '';
   const xml = await tally(cfg, collection('YyCo', 'Company', 'Name,AltVchId,AltMstId'));
-  const co = blocks(xml, 'COMPANY')[0] || '';
-  return { company: attr(co, 'NAME') || tag(co, 'NAME'), vch: num(tag(co, 'ALTVCHID')), mst: num(tag(co, 'ALTMSTID')) };
+  const all = blocks(xml, 'COMPANY').filter((b) => /NAME="/.test(b)).map((co) => ({
+    company: attr(co, 'NAME') || tag(co, 'NAME'), vch: num(tag(co, 'ALTVCHID')), mst: num(tag(co, 'ALTMSTID'))
+  }));
+  if (!all.length) throw new Error('Tally is open but no company is loaded. In TallyPrime, open the company (Alt+F3 → Select Company → Yoyo Gems).');
+  const want = (cfg.company || '').toLowerCase();
+  const pick = all.find((c) => want && c.company.toLowerCase() === want) || all.find((c) => /yoyo/i.test(c.company)) || all[0];
+  currentCompany = pick.company;
+  return pick;
 }
 
 async function readMasters(cfg) {
@@ -172,6 +186,10 @@ async function sync(cfg, { full = false, reason = '' } = {}) {
   }
   state.marker = marker;
 
+  // Never replace the portal's data with an empty copy (e.g. Tally opened without the company).
+  if (!state.masters.ledgers.length) throw new Error('Tally sent no ledgers, so nothing was uploaded. Is the right company open in Tally?');
+  if (!state.vouchers.size) throw new Error('Tally sent no entries for this year, so nothing was uploaded. Is the right company open in Tally?');
+
   const raw = {
     format: 'yoyo-tally-raw-1', company: marker.company, computer: cfg.computer || hostname(), syncedAt: new Date().toISOString(),
     fromDate: from, toDate: to, ...state.masters, vouchers: [...state.vouchers.values()]
@@ -185,8 +203,10 @@ async function sync(cfg, { full = false, reason = '' } = {}) {
 
 async function run(cfg, once) {
   log(`Tally live sync started on ${cfg.computer || hostname()}. Tally: ${cfg.tally} → ${cfg.site}`);
-  await sync(cfg, { full: true, reason: 'start' });
-  if (once) return;
+  if (once) { await sync(cfg, { full: true, reason: 'one-off' }); return; }
+  if (!takeLock()) { log('Already running on this computer — leaving it to the other copy.'); return; }
+  // When Tally is closed or the company isn't open yet, keep waiting instead of stopping.
+  await sync(cfg, { full: true, reason: 'start' }).catch((e) => log('Problem:', e.message));
   let lastCheck = Date.now();
   let busy = false;
   setInterval(async () => {
@@ -226,6 +246,46 @@ async function setup() {
   console.log(`Saved to ${CONFIG}. Now run: node tally-sync.mjs`);
 }
 
+/* ---------------- running in the background ---------------- */
+
+// One copy per computer: a small lock file with the running copy's process id.
+const LOCK = join(homedir(), '.yoyo-tally-sync.lock');
+function takeLock() {
+  try {
+    const pid = Number(readFileSync(LOCK, 'utf8'));
+    if (pid && pid !== process.pid) { try { process.kill(pid, 0); return false; } catch { /* stale */ } }
+  } catch { /* no lock yet */ }
+  writeFileSync(LOCK, String(process.pid));
+  return true;
+}
+
+// Windows: a hidden starter in the user's Startup folder — no Administrator rights needed.
+// Mac: use install-mac.sh (launchd).
+const HOME_DIR = join(homedir(), 'yoyo-tally-sync');
+const startupFile = () => join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'YOYO Tally Sync.vbs');
+
+function install() {
+  if (process.platform !== 'win32') { console.log('On a Mac, run: bash install-mac.sh'); return; }
+  mkdirSync(HOME_DIR, { recursive: true });
+  const self = fileURLToPath(import.meta.url);
+  const target = join(HOME_DIR, 'tally-sync.mjs');
+  if (self.toLowerCase() !== target.toLowerCase()) copyFileSync(self, target);
+  const q = (v) => v.replace(/"/g, '""');
+  const cmdLine = `cmd /c ""${q(process.execPath)}" "${q(target)}" >> "${q(join(HOME_DIR, 'sync.log'))}" 2>&1"`;
+  const vbs = `' Starts the YOYO GEMS Tally live sync, hidden, when you log in.\r\nCreateObject("WScript.Shell").Run "${q(cmdLine)}", 0, False\r\n`;
+  writeFileSync(startupFile(), vbs);
+  spawn('wscript.exe', [startupFile()], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  console.log(`Installed. The sync now runs in the background and starts by itself when you log in.\nLog: ${join(HOME_DIR, 'sync.log')}`);
+}
+
+function uninstall() {
+  if (process.platform !== 'win32') { console.log('On a Mac, run: bash install-mac.sh remove'); return; }
+  try { rmSync(startupFile()); } catch { /* not installed */ }
+  try { const pid = Number(readFileSync(LOCK, 'utf8')); if (pid) process.kill(pid); } catch { /* not running */ }
+  try { rmSync(LOCK); } catch { /* none */ }
+  console.log('Removed. The sync is stopped and will not start at login.');
+}
+
 // Exported for tests: turning Tally's XML into the upload format.
 export { parseGroups, parseLedgers, parseStock, parseVouchers };
 
@@ -239,9 +299,13 @@ async function main() {
   if (!cfg && cmd !== 'check') { console.error('Not set up yet. Run: node tally-sync.mjs setup'); process.exit(1); }
   const c = cfg || { tally: process.env.TALLY_URL || 'http://127.0.0.1:9000' };
   if (cmd === 'check') {
-    const m = await changeMarker(c);
-    console.log(`Tally is reachable. Company: ${m.company}. Change markers: entries ${m.vch}, masters ${m.mst}.`);
+    try {
+      const m = await changeMarker(c);
+      console.log(`OK — Tally is reachable and "${m.company}" is open. Change markers: entries ${m.vch}, masters ${m.mst}.`);
+    } catch (e) { console.error(`Not ready: ${e.message}`); process.exit(1); }
     return;
   }
+  if (cmd === 'install') return install();
+  if (cmd === 'uninstall') return uninstall();
   await run(c, cmd === 'once').catch((e) => { log('Stopped:', e.message); process.exit(1); });
 }

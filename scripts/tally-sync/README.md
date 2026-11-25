@@ -31,10 +31,12 @@ Needs [Node.js](https://nodejs.org) 18 or newer. Nothing else to install.
    ```
 
 4. Keep it running in the background, starting automatically at login:
-   - **Windows (the Tally PC):** `install-windows.cmd`
+   - **Windows (the Tally PC):** `node tally-sync.mjs install`. No Administrator rights needed; it adds a hidden starter to your Startup folder.
    - **Mac:** `bash install-mac.sh`
 
-To stop it, run `install-windows.cmd remove` or `bash install-mac.sh remove`. Problems are written to `sync.log` in `yoyo-tally-sync` in your home folder.
+To stop it, run `node tally-sync.mjs uninstall` (Windows) or `bash install-mac.sh remove` (Mac). Problems are written to `sync.log` in `yoyo-tally-sync` in your home folder.
+
+If `check` says **no company is loaded**, open the company in TallyPrime (Alt+F3 → Select Company). The program never sends an empty copy, so the portal keeps the last good data until Tally is ready again.
 
 ## Best place to run it
 
