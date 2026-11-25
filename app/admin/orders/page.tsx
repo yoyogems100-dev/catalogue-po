@@ -12,6 +12,7 @@ import AutoSubmitField from '@/components/admin/AutoSubmitField';
 import DebouncedSearchField from '@/components/admin/DebouncedSearchField';
 import MultiSelectFilter from '@/components/admin/MultiSelectFilter';
 import { normalizePaymentStatus } from '@/lib/payment-status';
+import { countOrderDrafts } from '@/lib/order-drafts';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 // (searchParams usage likely already forces this dynamic, but making it
@@ -32,7 +33,7 @@ const PAYMENT_LABEL: Record<string, string> = { na: 'N/A', pending: 'Outstanding
 const PAGE_SIZE = 50;
 
 export default async function AdminOrdersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; page?: string; rqPage?: string; q?: string; from?: string; to?: string; sort?: string; place?: string; payment?: string }> }) {
-  const stageSets = await getStageSets();
+  const [stageSets, draftCount] = await Promise.all([getStageSets(), countOrderDrafts()]);
   const stages = stageSets.china;
   const searchParams = await searchParamsPromise;
   const statusFilter = ORDER_STATUS_OPTIONS.some((m) => m.key === searchParams.status) ? searchParams.status : undefined;
@@ -233,6 +234,9 @@ export default async function AdminOrdersPage({ searchParams: searchParamsPromis
         <h1>Orders</h1>
         <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
           <Link href="/admin/orders/stages" className="btn-ghost" style={{ display: 'inline-block' }}>Stages &amp; messages</Link>
+          <Link href="/admin/orders/drafts" className="btn-ghost orders-drafts-link" style={{ display: 'inline-block' }}>
+            Draft orders{draftCount > 0 && <span className="orders-drafts-count" aria-label={`${draftCount} drafts`}>{draftCount}</span>}
+          </Link>
           <Link href="/admin/orders/new" className="btn" style={{ display: 'inline-block' }}>+ New order</Link>
         </span>
       </div>

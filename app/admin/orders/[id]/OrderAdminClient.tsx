@@ -7,6 +7,7 @@ import type { PacketWeights as PacketWeightsValue } from '@/lib/packet-weights';
 import { formatQty, type WeightUnit } from '@/lib/quantity-field';
 import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@/lib/order-specs';
 import IconSelect from '@/components/IconSelect';
+import AddOptionDialog from '@/components/admin/AddOptionDialog';
 import CustomerNameDisplay from '@/components/admin/CustomerNameDisplay';
 import StatusTag from '@/components/admin/StatusTag';
 
@@ -186,6 +187,15 @@ export default function OrderAdminClient({
   const allItemsPriced = items.length > 0 && items.every((i) => i.unitPrice != null);
 
   const orderCategories = [...new Map(items.map((i) => [i.categoryId, i.categoryName])).entries()];
+  // "+ Add a colour…" in a line's colour list: opens the same dialog as the
+  // new-order builder, then picks the colour on that line once the lists reload.
+  const ADD_COLOR = '__add-color';
+  const [addingColor, setAddingColor] = useState<{ categoryId: number; row?: number; tempId?: string } | null>(null);
+  function colorAdded(id: number) {
+    if (!addingColor) return;
+    if (addingColor.row !== undefined) setColorIds((cur) => ({ ...cur, [addingColor.row!]: id }));
+    if (addingColor.tempId) updateNewLine(addingColor.tempId, { colorId: id });
+  }
   const hasPricing = items.some((i) => prices[i.id]);
   const grandTotal = items.reduce((sum, i) => sum + (parseFloat(prices[i.id]) || 0) * i.quantity, 0);
   const visibleItems = items.filter((i) => categoryFilter === 'all' || i.categoryId === categoryFilter);
@@ -467,6 +477,18 @@ export default function OrderAdminClient({
 
   return (
     <div style={{ marginTop: 16 }}>
+      {addingColor && categoryOptions[addingColor.categoryId] && (
+        <AddOptionDialog
+          kind="color"
+          typed=""
+          categoryId={addingColor.categoryId}
+          categoryName={orderCategories.find(([id]) => id === addingColor.categoryId)?.[1] || 'this category'}
+          categoryShapes={categoryOptions[addingColor.categoryId].shapes}
+          pickedShapeIds={[]}
+          onClose={() => setAddingColor(null)}
+          onAdded={(kind, id) => { if (kind === 'color') colorAdded(id); router.refresh(); }}
+        />
+      )}
       {/* Order # and PDF controls share one row -- side by side on desktop,
           wraps to stacked on mobile (flex-wrap, no fixed widths). */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -636,8 +658,9 @@ export default function OrderAdminClient({
                 </td>
                 <td>
                   {rowEditing && !rowSpecial && opts && i.categoryId !== 34 ? (
-                    <select value={colorIds[i.id] ?? ''} onChange={(e) => setColorIds({ ...colorIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
+                    <select value={colorIds[i.id] ?? ''} onChange={(e) => e.target.value === ADD_COLOR ? setAddingColor({ categoryId: i.categoryId, row: i.id }) : setColorIds({ ...colorIds, [i.id]: Number(e.target.value) })} style={rowInputStyle}>
                       {opts.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      <option value={ADD_COLOR}>+ Add a colour…</option>
                     </select>
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -745,9 +768,10 @@ export default function OrderAdminClient({
                           </select>
                         </td>
                         <td>
-                          <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
+                          <select disabled={l.categoryId === 34} value={l.colorId} onChange={(e) => e.target.value === ADD_COLOR ? setAddingColor({ categoryId: l.categoryId, tempId: l.tempId }) : updateNewLine(l.tempId, { colorId: e.target.value ? Number(e.target.value) : '' })} style={{ fontSize: 12 }}>
                             <option value="">Choose color</option>
                             {opts?.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {opts && <option value={ADD_COLOR}>+ Add a colour…</option>}
                           </select>
                         </td>
                         <td>

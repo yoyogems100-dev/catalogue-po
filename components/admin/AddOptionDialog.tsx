@@ -45,6 +45,11 @@ export default function AddOptionDialog({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [done, setDone] = useState<string[]>([]);
+  // A colour the catalogue has never had: made right here, so the order being
+  // built is never left for Admin › Colors.
+  const [newColorName, setNewColorName] = useState(startKind === 'color' ? typed : '');
+  const [newColorHex, setNewColorHex] = useState('#B0AFAC');
+  const [newColorOpen, setNewColorOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -106,6 +111,21 @@ export default function AddOptionDialog({
     setBusy(null);
   }
 
+  async function createColor() {
+    const name = newColorName.trim();
+    if (!name) { setError('Type a name for the new colour.'); return; }
+    const data = await add({ kind: 'new-color', name, hex: newColorHex }, name) as { id: number; created?: boolean; name?: string } | null;
+    if (!data) return;
+    // A shared colour of the same name was linked rather than made twice.
+    if (data.created === false) setDone((d) => [...d.slice(0, -1), `${data.name || name} (already in the catalogue, now in ${categoryName})`]);
+    setColors((list) => (list || []).filter((c) => c.id !== data.id));
+    await onAdded('color', data.id);
+    setBusy(null);
+    setNewColorName('');
+    setNewColorOpen(false);
+    setQuery('');
+  }
+
   async function addSize(sizeMm: string) {
     if (!sizeShapeId) return;
     const shape = allShapes.find((s) => s.id === sizeShapeId);
@@ -124,6 +144,9 @@ export default function AddOptionDialog({
   const sizeShape = allShapes.find((s) => s.id === sizeShapeId) || null;
   const shapeList = useMemo(() => (shapes ? (q ? searchOptions(shapes, q, false) : shapes) : null), [shapes, q]);
   const colorList = useMemo(() => (colors ? (q ? searchOptions(colors, q, true) : colors) : null), [colors, q]);
+  // Offer "make a new colour" up front when nothing in the catalogue has the typed name.
+  const exactColor = !!q && (colors || []).some((c) => c.name.trim().toLowerCase() === q.toLowerCase());
+  const showNewColor = kind === 'color' && colors !== null && (newColorOpen || (!!q && !exactColor));
   const sortedSizes = useMemo(() => {
     const byDims = (a: SizeRow, b: SizeRow) => {
       const da = sizeDims(a.sizeMm) || [Infinity], db = sizeDims(b.sizeMm) || [Infinity];
@@ -181,7 +204,7 @@ export default function AddOptionDialog({
             placeholder={kind === 'size' ? 'Type a size, e.g. 2.5 or 6x8' : kind === 'shape' ? 'Search shapes…' : 'Search colors…'}
             aria-label={kind === 'size' ? 'Size' : `Search ${kind}s`}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); if (kind === 'color' && !newColorOpen) setNewColorName(e.target.value); }}
             autoFocus
           />
 
@@ -197,7 +220,7 @@ export default function AddOptionDialog({
                     {shapeList.map((s) => (
                       <li key={s.id}>
                         <ShapeIcon iconKey={s.iconKey} size={22} />
-                        <span>{s.name}</span>
+                        <span className="ao-name">{s.name}</span>
                         <button type="button" className="ao-add" disabled={!!busy} onClick={() => addShape(s)}>{busy === s.name ? 'Adding…' : '+ Add'}</button>
                       </li>
                     ))}
@@ -210,13 +233,26 @@ export default function AddOptionDialog({
           {kind === 'color' && (
             colorList === null ? <p className="pl-hint">Loading colors…</p> : (
               <>
+                {showNewColor ? (
+                  <form className="ao-new" onSubmit={(e) => { e.preventDefault(); if (!busy) createColor(); }}>
+                    <p className="ao-section">New colour</p>
+                    <div className="ao-new-row">
+                      <input type="color" className="ao-new-swatch" aria-label="Swatch colour" value={newColorHex} onChange={(e) => setNewColorHex(e.target.value)} />
+                      <input type="text" className="ao-new-name" aria-label="New colour name" placeholder="Colour name, e.g. Peach Pink" value={newColorName} maxLength={80} onChange={(e) => setNewColorName(e.target.value)} />
+                      <button type="submit" className="ao-add" disabled={!!busy || !newColorName.trim()}>{busy && busy === newColorName.trim() ? 'Adding…' : '+ Make & add'}</button>
+                    </div>
+                    <p className="ao-new-note">Made once for the catalogue and added to {categoryName} only. Add a photo later in Admin › Colors.</p>
+                  </form>
+                ) : (
+                  <button type="button" className="ao-new-open" onClick={() => { setNewColorOpen(true); setNewColorName(q); }}>+ Make a new colour that isn&rsquo;t listed</button>
+                )}
                 <p className="ao-section">Not in {categoryName} yet{q ? ` · matching “${q}”` : ''}</p>
-                {colorList.length === 0 ? <p className="pl-hint">{q ? `No color called “${q}”. New colors are made in Admin › Colors.` : 'Every color is already in this category.'}</p> : (
+                {colorList.length === 0 ? <p className="pl-hint">{q ? `No color called “${q}” in the catalogue — make it as a new colour above.` : 'Every color is already in this category.'}</p> : (
                   <ul className="ao-list">
                     {colorList.slice(0, 80).map((c) => (
                       <li key={c.id}>
                         <ColorSwatch hex={c.hex || '#ccc'} refPhotoUrl={c.refPhotoUrl} size={22} />
-                        <span>{c.name}</span>
+                        <span className="ao-name">{c.name}</span>
                         <button type="button" className="ao-add" disabled={!!busy} onClick={() => addColor(c)}>{busy === c.name ? 'Adding…' : '+ Add'}</button>
                       </li>
                     ))}

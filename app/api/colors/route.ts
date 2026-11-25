@@ -3,22 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isExistingPhoto } from '@/lib/reuse-options';
 import { catalogueChanged } from '@/lib/catalogue-cache';
+import { createSharedColor } from '@/lib/create-color';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   catalogueChanged();
   const { name, hex_value } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
-  const { data, error } = await supabaseAdmin
-    .from('colors')
-    .insert({ name: name.trim(), hex_value: hex_value || '#B0AFAC' })
-    .select()
-    .single();
-  if (error) {
-    const message = error.code === '23505' ? 'A color with this name already exists.' : error.message;
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-  return NextResponse.json(data);
+  const result = await createSharedColor(name, hex_value);
+  if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json(result.row);
 }
 
 export async function PATCH(req: NextRequest) {

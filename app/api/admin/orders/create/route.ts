@@ -11,6 +11,7 @@ import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { catalogueChanged } from '@/lib/catalogue-cache';
 import { ANY_CATEGORY_ID } from '@/lib/cart-storage';
+import { deleteOrderDraft } from '@/lib/order-drafts';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -132,6 +133,10 @@ export async function POST(req: NextRequest) {
     message: 'Order created by admin (offline/phone request)',
     internal_only: false
   });
+
+  // Placed from a saved draft: the draft is now a real order, so it goes.
+  const draftId = Number(body.draftId);
+  if (Number.isSafeInteger(draftId) && draftId > 0) await deleteOrderDraft(draftId);
 
   return NextResponse.json({ orderId: order.id });
 }

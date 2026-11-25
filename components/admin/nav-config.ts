@@ -65,6 +65,7 @@ export const WORKSPACES: Workspace[] = [
         title: 'Orders',
         links: [
           { href: '/admin/orders', label: 'Orders', detail: 'Orders: prices, status, payment, PDFs.' },
+          { href: '/admin/orders/drafts', label: 'Draft orders', detail: 'Orders saved half-way with “Save as draft”: continue or delete them.' },
           { href: '/admin/orders/stages', label: 'Stages & messages', detail: 'Name the order stages and set the WhatsApp message for each.' },
           { href: '/admin/pending', label: 'Pending lines', detail: 'Everything still to send, buyer by buyer. Mark what went out.' }
         ]
