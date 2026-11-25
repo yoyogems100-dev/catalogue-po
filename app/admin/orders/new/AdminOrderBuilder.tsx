@@ -10,7 +10,7 @@ import IconSelect from '@/components/IconSelect';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
@@ -23,6 +23,8 @@ import { expandQtyShorthand } from '@/lib/quantity';
 import { shapeAbbrevs } from '@/lib/shape-abbrev';
 import { groupSizeLabel, shapeSizeLabel } from '@/lib/size-label';
 import AddOptionDialog, { type AddKind } from '@/components/admin/AddOptionDialog';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
+import type { DraftPayload } from '@/lib/order-draft-payload';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
@@ -65,14 +67,15 @@ type CartItem = {
   note?: string | null;
 };
 
-export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order' }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string }) {
+export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', initialDraft = null }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; initialDraft?: { id: number; payload: DraftPayload } | null }) {
   const router = useRouter();
+  const draft = initialDraft?.payload;
 
-  const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
+  const [customerMode, setCustomerMode] = useState<'existing' | 'new'>(draft?.customerMode ?? 'existing');
   const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(initialCustomerId);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(draft ? draft.selectedCustomerId : initialCustomerId);
+  const [newName, setNewName] = useState(draft?.newName ?? '');
+  const [newPhone, setNewPhone] = useState(draft?.newPhone ?? '');
 
   const [pickCategoryId, setPickCategoryId] = useState<number | 'all'>('all');
   const [optionsCache, setOptionsCache] = useState<Record<number, Options>>({});
@@ -89,15 +92,85 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [qtyEach, setQtyEach] = useState(false);
   const [lineQty, setLineQty] = useState<Record<string, string>>({});
 
-  const [cart, setCart] = useState<CartItem[]>(repeatItems);
-  const [requestType, setRequestType] = useState(initialRequestType);
-  const [comment, setComment] = useState('');
-  const [fromJaipur, setFromJaipur] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>((draft?.cart as CartItem[] | undefined) ?? repeatItems);
+  const [requestType, setRequestType] = useState(draft?.requestType ?? initialRequestType);
+  const [comment, setComment] = useState(draft?.comment ?? '');
+  const [fromJaipur, setFromJaipur] = useState(draft?.fromJaipur ?? false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
   // "+ Add" in the Shape, Color or Size list: what to add, and what was typed.
   const [adding, setAdding] = useState<{ kind: AddKind; typed: string } | null>(null);
+
+  // Draft orders: "Save as draft" keeps everything below without making an
+  // order (no number, no notification, no WhatsApp, not in any order list).
+  // The draft is placed from here later, which deletes it.
+  const [draftId, setDraftId] = useState<number | null>(initialDraft?.id ?? null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const draftState: DraftPayload = { customerMode, selectedCustomerId: customerMode === 'existing' ? selectedCustomerId : null, newName: customerMode === 'new' ? newName : '', newPhone: customerMode === 'new' ? newPhone : '', requestType, comment, fromJaipur, cart };
+  const snapshot = JSON.stringify(draftState);
+  // What was last saved (or what the page opened with): anything else is unsaved work.
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
+  const dirty = snapshot !== savedSnapshot;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  // Warn before the work is lost: closing or reloading the tab, or following
+  // any link in the admin (side pane, "All orders", the header).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    const onClick = async (e: MouseEvent) => {
+      if (!dirtyRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const leave = await confirmAction('Leave this order without saving? Your lines and customer will be lost. Use “Save as draft” to keep them.', { label: 'Leave without saving', danger: true });
+      if (leave) { dirtyRef.current = false; router.push(url.pathname + url.search + url.hash); }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [router]);
+
+  async function saveDraft() {
+    setToast('');
+    if (!cart.length && !draftState.selectedCustomerId && !draftState.newName.trim() && !draftState.newPhone.trim() && !comment.trim()) {
+      setToast('Pick a customer or add a line before saving a draft.');
+      return;
+    }
+    setSavingDraft(true);
+    const send = (id: number | null) => fetch(id ? `/api/admin/order-drafts/${id}` : '/api/admin/order-drafts', {
+      method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: snapshot
+    });
+    let res = await send(draftId).catch(() => null);
+    let data = res ? await res.json().catch(() => ({})) : {};
+    // Deleted or placed from another tab meanwhile: keep this work as a new draft.
+    if (res?.status === 404 && data.gone) {
+      res = await send(null).catch(() => null);
+      data = res ? await res.json().catch(() => ({})) : {};
+    }
+    setSavingDraft(false);
+    if (!res?.ok) {
+      setToast(data.error || 'Could not save the draft. Check your connection and try again.');
+      return;
+    }
+    setDraftId(data.id);
+    setSavedSnapshot(snapshot);
+    // Reloading the page (or sharing the link) reopens this draft.
+    window.history.replaceState(window.history.state, '', `/admin/orders/new?draft=${data.id}`);
+    notify(`Draft saved. Find it under Orders › Draft orders.`, 'ok');
+  }
 
   // UI/UX audit ("Make customer lookup search-first instead of immediately
   // exposing the entire customer list"): an empty query now shows nothing
@@ -352,6 +425,7 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         requestType,
         comment,
         fromJaipur,
+        draftId,
         cart: cart.map((i) => ({
           orderSpecs: i.orderSpecs,
           categoryId: i.categoryId,
@@ -371,6 +445,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setSubmitting(false);
 
     if (res.ok) {
+      dirtyRef.current = false;
+      setSavedSnapshot(snapshot);
       router.push(`/admin/orders/${data.orderId}`);
     } else {
       setToast(data.error || 'Failed to create order.');
@@ -673,9 +749,19 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               <small>Stock is in Jaipur: stages go Order received &rarr; Dispatched from Jaipur.</small>
             </span>
           </label>
-          <button type="button" className="po-send-btn" onClick={submit} disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create order'}
-          </button>
+          <div className="po-send-actions">
+            <button type="button" className="po-draft-btn" onClick={saveDraft} disabled={savingDraft || submitting}>
+              {savingDraft ? 'Saving…' : draftId && !dirty ? 'Draft saved' : draftId ? 'Save draft' : 'Save as draft'}
+            </button>
+            <button type="button" className="po-send-btn" onClick={submit} disabled={submitting || savingDraft}>
+              {submitting ? 'Creating…' : 'Create order'}
+            </button>
+          </div>
+          <p className="po-draft-hint">
+            {draftId
+              ? (dirty ? 'Unsaved changes to this draft.' : 'Saved as a draft — not an order yet. Create order places it.')
+              : 'A draft is not an order: the customer is not told and it gets no order number.'}
+          </p>
         </div>
 
         {toast && <p style={{ fontSize: 12.5, color: '#a3341f', marginTop: 10 }}>{toast}</p>}

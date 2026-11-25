@@ -3,11 +3,13 @@ import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
 import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import { isMissingTable } from '@/lib/order-drafts';
+import { cleanDraftPayload, type DraftPayload } from '@/lib/order-draft-payload';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function NewAdminOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; from?: string }> }) {
+export default async function NewAdminOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; from?: string; draft?: string }> }) {
   const params = await searchParams;
   const initialCustomerId = Number(params.customer) || null;
   const fromOrderId = Number(params.from) || null;
@@ -17,6 +19,16 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
     // list doesn't silently stop at Supabase's 1000-row response cap.
     fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
   ]);
+  // "Continue" on a draft order: reopen the builder exactly as it was saved.
+  const draftParam = Number(params.draft);
+  let initialDraft: { id: number; payload: DraftPayload } | null = null;
+  let draftProblem = '';
+  if (Number.isSafeInteger(draftParam) && draftParam > 0) {
+    const { data: row, error } = await supabaseAdmin.from('order_drafts').select('id, payload').eq('id', draftParam).maybeSingle();
+    const parsed = row ? cleanDraftPayload(row.payload) : null;
+    if (row && parsed && 'payload' in parsed) initialDraft = { id: row.id, payload: parsed.payload };
+    else draftProblem = error && !isMissingTable(error) ? 'This draft could not be opened. Please retry.' : 'That draft was already placed or deleted. Starting a new order.';
+  }
   let repeatItems: any[] = [];
   let initialRequestType = 'Place Order';
   if (initialCustomerId && fromOrderId) {
@@ -33,8 +45,12 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
 
   return (
     <>
-      <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
-      <h1 style={{ marginTop: 8 }}>New order (offline / phone request)</h1>
+      <div className="order-new-links">
+        <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
+        <Link href="/admin/orders/drafts" className="back-link">Draft orders &rarr;</Link>
+      </div>
+      <h1 style={{ marginTop: 8 }}>{initialDraft ? `Draft order #D${initialDraft.id}` : 'New order (offline / phone request)'}</h1>
+      {draftProblem && <p role="alert" style={{ fontSize: 13, color: '#a3341f' }}>{draftProblem}</p>}
       <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 20 }}>
         Build a purchase order on a customer's behalf -- for orders taken by phone, WhatsApp, or in person.
       </p>
@@ -44,6 +60,8 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
         initialCustomerId={initialCustomerId}
         repeatItems={repeatItems}
         initialRequestType={initialRequestType}
+        initialDraft={initialDraft}
+        key={initialDraft ? `draft-${initialDraft.id}` : 'new'}
       />
     </>
   );

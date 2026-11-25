@@ -11,8 +11,9 @@ function routeFiles(dir: string): string[] {
   });
 }
 
-// Admin routes that never touch catalogue data, so there's nothing to expire.
-const NOT_CATALOGUE = ['app/api/admin/tally/'];
+// Admin routes that never touch catalogue data, so there's nothing to expire
+// (Tally sync; draft orders, which live in their own table).
+const NOT_CATALOGUE = ['app/api/admin/tally/', 'app/api/admin/order-drafts/'];
 
 test('every admin write expires the cached catalogue, so an edit shows on the next load', () => {
   const missing: string[] = [];

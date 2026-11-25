@@ -912,6 +912,13 @@ body:has(.po-summary-bar) .po-toast { bottom: calc(84px + env(safe-area-inset-bo
 }
 .po-send-btn:hover { background: #dfc477; }
 .po-send-btn:disabled { opacity: 0.6; cursor: default; }
+/* Admin new-order: "Save as draft" beside "Create order". */
+.po-send-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; align-items: stretch; }
+.po-send-actions .po-send-btn { margin-top: 0; }
+.po-draft-btn { min-height: 46px; padding: 0 10px; border: 1px solid rgba(255,255,255,0.55); background: transparent; color: #fff; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.po-draft-btn:hover { border-color: #fff; background: rgba(255,255,255,0.08); }
+.po-draft-btn:disabled { opacity: 0.6; cursor: default; }
+.po-draft-hint { margin: 8px 0 0; font-size: 11.5px; color: rgba(255,255,255,0.6); }
 
 .po-toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff;
@@ -3933,13 +3940,27 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .ao-list { list-style: none; margin: 0; padding: 0; border: 1px solid #e6e0d2; border-radius: 10px; background: #fff; }
 .ao-list li { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border-top: 1px solid #f0ebde; font-size: 14px; }
 .ao-list li:first-child { border-top: 0; }
-.ao-list li span { flex: 1; min-width: 0; }
+.ao-list li .ao-name { flex: 1; min-width: 0; }
 .ao-add { min-height: 36px; padding: 0 14px; border: 1px solid #9C7A25; border-radius: 999px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .ao-add:disabled, .ao-size:disabled { opacity: .5; cursor: default; }
 .ao-sizes { display: flex; flex-wrap: wrap; gap: 6px; }
 .ao-size { min-height: 36px; padding: 0 12px; border: 1px solid #9C7A25; border-radius: 8px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; }
 .ao-size--in { border-color: #e6e0d2; background: #f4f1e8; color: #3A3F44; font-weight: 400; cursor: default; }
 .ao-foot-note { font-size: 12px; color: #756e5c; }
+/* "+ Make a new colour" inside the order builder's Add dialog. */
+.ao-new { margin: 0 0 4px; padding: 0 12px 10px; border: 1px solid #e6dcc0; border-radius: 10px; background: #FAF8F3; }
+.ao-new-row { display: flex; align-items: center; gap: 8px; }
+/* Out-ranks the site-wide input:not(...) rule, which makes every input full width. */
+.ao-dialog .ao-new .ao-new-row input.ao-new-swatch[type="color"] { flex: none; width: 42px; height: 42px; padding: 2px; border: 1px solid #d9d2c0; border-radius: 8px; background: #fff; cursor: pointer; }
+.ao-dialog .ao-new .ao-new-row input.ao-new-name[type="text"] { flex: 1; width: auto; min-width: 0; min-height: 42px; font-size: 15px; }
+.ao-new-row .ao-add { flex: none; min-height: 42px; }
+.ao-new-note { margin: 8px 0 0; font-size: 12px; color: #756e5c; }
+.ao-new-open { display: block; width: 100%; min-height: 42px; margin: 2px 0 0; border: 1px dashed #9C7A25; border-radius: 10px; background: #fff; color: #1B3A6B; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+@media (max-width: 420px) {
+  .ao-new-row { flex-wrap: wrap; }
+  .ao-dialog .ao-new .ao-new-row input.ao-new-name[type="text"] { flex-basis: calc(100% - 50px); }
+  .ao-new-row .ao-add { flex: 1 1 100%; }
+}
 /* Admin > Accessories: the live Accessories page's look (ivory page, white
    faceted cards, Playfair headings), with its text editable in place. */
 .acc-editor { max-width: 1180px; padding-bottom: 96px; }
@@ -4033,3 +4054,25 @@ input.cp-cell::placeholder { color: #b9bec6; }
   .accx .accx-code { width: 64px !important; }
   .accx .accx-n { flex-wrap: wrap; }
 }
+
+/* Admin > Orders > Draft orders. */
+.order-new-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.drafts-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 8px 0 4px; }
+.drafts-intro { font-size: 13px; color: #756e5c; margin: 0 0 16px; max-width: 640px; }
+.drafts-empty { padding: 18px; border: 1px dashed #d9d2c0; border-radius: 10px; background: #fff; font-size: 14px; color: #756e5c; }
+.drafts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.drafts-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e6e0d2; border-radius: 10px; background: #fff; }
+.drafts-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.drafts-main strong { font-size: 15px; color: #12233F; overflow-wrap: anywhere; }
+.drafts-meta { font-size: 13px; color: #3A3F44; }
+.drafts-note { font-size: 12.5px; color: #756e5c; overflow-wrap: anywhere; }
+.drafts-time { font-size: 12px; color: #9a927e; }
+.drafts-actions { display: flex; gap: 8px; flex: none; }
+.drafts-actions .btn, .drafts-actions .draft-delete { box-sizing: border-box; height: 42px; min-height: 42px; padding: 0 18px; margin: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 13.5px; }
+.drafts-actions .draft-delete { color: #a3341f; }
+@media (max-width: 560px) {
+  .drafts-card { flex-direction: column; align-items: stretch; }
+  .drafts-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
+.orders-drafts-link { position: relative; }
+.orders-drafts-count { display: inline-block; min-width: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #9C7A25; color: #fff; font-size: 11.5px; line-height: 20px; text-align: center; }

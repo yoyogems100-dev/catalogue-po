@@ -5,6 +5,7 @@ import { catalogueChanged } from '@/lib/catalogue-cache';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { ROUND_SIZE_MESSAGE, sizeFitsShape } from '@/lib/shape-size-fit';
 import { sameSizeKey } from '@/lib/size-label';
+import { createSharedColor } from '@/lib/create-color';
 
 // "+ Add" in the admin order builder: a shape, colour or size the buyer asked
 // for that this category doesn't list yet.
@@ -12,7 +13,8 @@ import { sameSizeKey } from '@/lib/size-label';
 // GET lists what can be added -- master shapes/colours not linked to the
 // category, or every size of the chosen shapes (with which are linked).
 // POST links them. Only category join rows are written, plus a new master
-// size when the shape has never had that size; nothing is ever removed.
+// size when the shape has never had that size, or a new shared colour the
+// catalogue has never had ("new-color"); nothing is ever removed.
 
 const ids = (raw: string | null) => (raw || '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
 
@@ -120,5 +122,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, id: sizeId, created });
   }
 
-  return NextResponse.json({ error: 'kind must be shape, color or size' }, { status: 400 });
+  // A colour the catalogue has never had: made as a shared master colour
+  // (same as Admin > Colors' "Add") and linked to this category only. A
+  // shared colour of the same name is linked instead of making a twin.
+  if (kind === 'new-color') {
+    const color = await createSharedColor(body.name, body.hex, { reuseSameName: true });
+    if ('error' in color) return NextResponse.json({ error: color.error }, { status: color.status });
+    const { error } = await supabaseAdmin.from('category_colors').upsert({ category_id: categoryId, color_id: color.id }, { onConflict: 'category_id,color_id', ignoreDuplicates: true });
+    if (error) return NextResponse.json({ error: `${color.created ? 'Colour made' : 'Colour found'}, but it could not be linked to this category: ${error.message}` }, { status: 400 });
+    catalogueChanged();
+    return NextResponse.json({ ok: true, id: color.id, name: color.name, created: color.created });
+  }
+
+  return NextResponse.json({ error: 'kind must be shape, color, new-color or size' }, { status: 400 });
 }
