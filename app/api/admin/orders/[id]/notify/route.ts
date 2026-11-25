@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } from '@/lib/wasarthi';
 import { milestoneLabel } from '@/lib/order-milestones';
 import { catalogueChanged } from '@/lib/catalogue-cache';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { stagesForOrder } from '@/lib/order-stages-server';
 
 export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     return NextResponse.json({ error: 'No phone number on file for this customer' }, { status: 400 });
   }
 
-  const statusLabel = milestoneLabel(order.status, await getOrderStages());
+  const statusLabel = milestoneLabel(order.status, await stagesForOrder(orderId));
   const result = await sendWhatsAppTemplate(customer.phone, WHATSAPP_TEMPLATES.orderStatus, [
     customer.name || 'there',
     String(orderId),

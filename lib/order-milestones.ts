@@ -41,28 +41,25 @@ export const STAGE_PLACEHOLDERS: { token: string; meaning: string }[] = [
   { token: '{link}', meaning: 'Link to the order on the website' },
   { token: '{login}', meaning: "Buyer's WhatsApp number (their login)" },
   { token: '{pin}', meaning: "Buyer's login PIN" },
-  { token: '{pdf}', meaning: 'Order PDF link, once generated' }
+  { token: '{pdf}', meaning: 'Order PDF link, once generated' },
+  { token: '{courier}', meaning: 'Courier chosen on the order' }
 ];
 
+// Every message: "Hi {name}," on its own line, the news with the key words in
+// WhatsApp *bold*, then what the buyer will hear about next. [square brackets]
+// drop their words while a placeholder inside is empty (no courier yet).
+const greet = (news: string, ...rest: string[]) => ['Hi {name},', `Your YOYO GEMS *Order #{order}* ${news}`, ...rest].join('\n');
+const LOGIN_LINES = ['', 'You can view your order and explore more using this link:', '{link}', '', 'Login: {login}', 'PIN: {pin}'];
+
 const DEFAULT_MESSAGES: Record<string, string> = {
-  placed: [
-    'Hi {name}, your YOYO GEMS order #{order} has been placed.',
-    '',
-    'You can view your order and explore more using this link:',
-    '{link}',
-    '',
-    'Login: {login}',
-    'PIN: {pin}',
-    '',
-    "We'll notify you when the order is dispatched from China."
-  ].join('\n'),
-  confirmed: "Hi {name}, we've received your YOYO GEMS order #{order}. We'll notify you when the supplier confirms.",
-  sourcing: 'Hi {name}, your YOYO GEMS order #{order} has been confirmed by the supplier. Your order is getting prepared in China.',
-  quality_check: "Hi {name}, your YOYO GEMS order #{order} has been dispatched from China. We'll notify you when it reaches Jaipur.",
-  packed: "Hi {name}, your YOYO GEMS order #{order} has been received in Jaipur. We'll notify you when your parcel is sent.",
-  shipped: 'Hi {name}, your YOYO GEMS order #{order} parcel has been sent.',
-  delivered: 'Hi {name}, your YOYO GEMS order #{order} has been delivered. Thank you for ordering with YOYO GEMS.',
-  cancelled: 'Hi {name}, your YOYO GEMS order #{order} has been cancelled.'
+  placed: greet('has been *Placed*.', ...LOGIN_LINES, '', "We'll notify you once your order is *Received* by our team."),
+  confirmed: greet('has been *Received*.', '', "We'll notify you once it is *Confirmed by the supplier*."),
+  sourcing: greet('has been *Confirmed by the supplier* and is being prepared in China.', '', "We'll notify you once it is *Dispatched from China*."),
+  quality_check: greet('has been *Dispatched from China*.', '', "We'll notify you once it is *Received in Jaipur*."),
+  packed: greet('has been *Received in Jaipur*.', '', "We'll notify you once your parcel is *Sent*[ via *{courier}*]."),
+  shipped: greet('has been *Sent*[ via *{courier}*].', '', 'You can view your order here:', '{link}'),
+  delivered: greet('has been *Delivered*.', '', 'Thank you for ordering with YOYO GEMS.'),
+  cancelled: greet('has been *Cancelled*.', '', 'For any questions, just reply to this message.')
 };
 
 // The owner's stage list stops at "Parcel sent", so Delivered starts hidden.
@@ -75,6 +72,33 @@ export const DEFAULT_ORDER_STAGES: OrderStage[] = ORDER_STATUS_OPTIONS.map((m) =
   hidden: DEFAULT_HIDDEN.has(m.key)
 }));
 
+// Orders sent straight from Jaipur stock skip the China steps: only
+// placed -> Order received -> Dispatched from Jaipur (Delivered/Cancelled as
+// usual). Same status keys, own names and messages, saved separately.
+export const JAIPUR_STAGES_SETTING_KEY = 'order_stages_jaipur';
+export const JAIPUR_SKIPPED = new Set(['sourcing', 'quality_check', 'packed']);
+const JAIPUR_OVERRIDES: Record<string, { label: string; message: string }> = {
+  // Jaipur stock usually goes out the same day, so the first message can
+  // already name the courier.
+  placed: {
+    label: 'Order placed',
+    message: greet('has been *Placed*[ and *Dispatched* via *{courier}*].', ...LOGIN_LINES)
+  },
+  confirmed: {
+    label: 'Order received',
+    message: greet('has been *Received* and is being prepared.', '', "We'll notify you once it is *Dispatched*[ via *{courier}*].")
+  },
+  shipped: {
+    label: 'Dispatched from Jaipur',
+    message: greet('has been *Dispatched* from Jaipur[ via *{courier}*].', '', 'You can view your order here:', '{link}')
+  }
+};
+export const DEFAULT_JAIPUR_STAGES: OrderStage[] = DEFAULT_ORDER_STAGES.map((s) => ({
+  ...s,
+  ...(JAIPUR_OVERRIDES[s.key] || {}),
+  hidden: s.hidden || JAIPUR_SKIPPED.has(s.key)
+}));
+
 export const MAX_STAGE_LABEL = 60;
 export const MAX_STAGE_MESSAGE = 1500;
 
@@ -83,7 +107,8 @@ export const MAX_STAGE_MESSAGE = 1500;
  * partial data falls back per field, so a broken save can never leave a status
  * without a name. Cancelled can't be hidden (it isn't a step).
  */
-export function resolveOrderStages(raw: unknown): OrderStage[] {
+export function resolveOrderStages(raw: unknown, defaults: OrderStage[] = DEFAULT_ORDER_STAGES): OrderStage[] {
+  const jaipur = defaults === DEFAULT_JAIPUR_STAGES;
   let saved: unknown = raw;
   if (typeof raw === 'string') {
     try { saved = JSON.parse(raw); } catch { saved = null; }
@@ -94,7 +119,9 @@ export function resolveOrderStages(raw: unknown): OrderStage[] {
       if (s && typeof s === 'object' && typeof (s as any).key === 'string') byKey.set((s as any).key, s as Record<string, unknown>);
     }
   }
-  return DEFAULT_ORDER_STAGES.map((d) => {
+  return defaults.map((d) => {
+    // The China steps can't be switched on for a Jaipur dispatch.
+    if (jaipur && JAIPUR_SKIPPED.has(d.key)) return { ...d };
     const s = byKey.get(d.key);
     if (!s) return { ...d };
     const label = typeof s.label === 'string' && s.label.trim() ? s.label.trim().slice(0, MAX_STAGE_LABEL) : d.label;
@@ -118,6 +145,15 @@ export function milestoneIndex(status: string) {
   return ORDER_MILESTONES.findIndex((m) => m.key === status);
 }
 
+export function resolveJaipurStages(raw: unknown): OrderStage[] {
+  return resolveOrderStages(raw, DEFAULT_JAIPUR_STAGES);
+}
+
+/** The stage list an order follows: Jaipur dispatch or the usual China route. */
+export function stagesFor(sets: { china: OrderStage[]; jaipur: OrderStage[] }, fromJaipur: boolean | null | undefined) {
+  return fromJaipur ? sets.jaipur : sets.china;
+}
+
 export function milestoneLabel(status: string, stages?: OrderStage[]) {
   return (stages || DEFAULT_ORDER_STAGES).find((m) => m.key === status)?.label || status;
 }
@@ -129,6 +165,7 @@ export type StageMessageValues = {
   login?: string | null;
   pin?: string | null;
   pdf?: string | null;
+  courier?: string | null;
 };
 
 /**
@@ -139,6 +176,8 @@ export type StageMessageValues = {
 export function renderStageMessage(stages: OrderStage[], status: string, values: StageMessageValues) {
   const stage = stages.find((s) => s.key === status);
   const template = stage?.message?.trim() ? stage.message : (DEFAULT_MESSAGES[status] || 'Hi {name}, your YOYO GEMS order #{order} is now: {stage}.');
+  // A line about the courier ("Sent through {courier}.") is dropped while no
+  // courier is chosen, even if it also has other placeholders.
   const map: Record<string, string> = {
     name: (values.name || '').trim(),
     order: String(values.order),
@@ -146,11 +185,21 @@ export function renderStageMessage(stages: OrderStage[], status: string, values:
     link: values.link || '',
     login: values.login || '',
     pin: values.pin || '',
-    pdf: values.pdf || ''
+    pdf: values.pdf || '',
+    courier: (values.courier || '').trim()
   };
-  const lines = template.split('\n').flatMap((line) => {
+  // [optional text] keeps its words only when every placeholder inside it is
+  // filled, e.g. "placed[ and dispatched from {courier}]." -> "placed." when
+  // there's no courier yet. Brackets with no placeholder are left as typed.
+  const filled = template.replace(/\[([^\[\]\n]*)\]/g, (whole, inner: string) => {
+    const inside = [...inner.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((t) => t in map);
+    if (!inside.length) return whole;
+    return inside.every((t) => map[t]) ? inner : '';
+  });
+  const lines = filled.split('\n').flatMap((line) => {
     const tokens = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((t) => t in map);
     if (tokens.length && tokens.every((t) => !map[t])) return [];
+    if (tokens.includes('courier') && !map.courier) return [];
     return [line.replace(/\{(\w+)\}/g, (whole, t) => (t in map ? map[t] : whole))];
   });
   return lines

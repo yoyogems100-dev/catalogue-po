@@ -17,6 +17,15 @@ import type { CategoryPricing } from '@/lib/pricing-calc';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { maskPhone } from '@/lib/mask';
 import MatchText from '@/components/MatchText';
+import { adminColorLabel } from '@/lib/color-admin-codes';
+import ColorSwatch from '@/components/ColorSwatch';
+import { planQuantities } from '@/lib/qty-mode';
+import { expandQtyShorthand } from '@/lib/quantity';
+import { shapeAbbrevs } from '@/lib/shape-abbrev';
+import { groupSizeLabel, shapeSizeLabel } from '@/lib/size-label';
+import AddOptionDialog, { type AddKind } from '@/components/admin/AddOptionDialog';
+import { confirmAction, notify } from '@/components/admin/AdminDialogs';
+import type { DraftPayload } from '@/lib/order-draft-payload';
 
 type Category = { id: number; num: number; name: string; slug: string | null };
 type Customer = { id: number; name: string | null; phone: string | null; company: string | null; place: string | null };
@@ -31,7 +40,7 @@ const customerDetails = (c: Customer) => {
 };
 type Options = {
   shapes: { id: number; name: string; iconKey?: string | null; refPhotoUrl?: string | null }[];
-  colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null }[];
+  colors: { id: number; name: string; hex: string | null; refPhotoUrl?: string | null; adminCode?: string | null }[];
   sizes: { id: number; shapeId: number; sizeMm: string }[];
   pricing?: CategoryPricing;
 };
@@ -53,18 +62,21 @@ type CartItem = {
   sizeMm: string;
   colorId: number;
   colorName: string;
+  /** The owner's own code, shown here only -- never sent with the order. */
+  colorCode?: string | null;
   qty: number;
   note?: string | null;
 };
 
-export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', usualByCustomer = {} }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; usualByCustomer?: Record<number, UsualSource> }) {
+export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', usualByCustomer = {}, initialDraft = null }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; usualByCustomer?: Record<number, UsualSource>; initialDraft?: { id: number; payload: DraftPayload } | null }) {
   const router = useRouter();
+  const draft = initialDraft?.payload;
 
-  const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing');
+  const [customerMode, setCustomerMode] = useState<'existing' | 'new'>(draft?.customerMode ?? 'existing');
   const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(initialCustomerId);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(draft ? draft.selectedCustomerId : initialCustomerId);
+  const [newName, setNewName] = useState(draft?.newName ?? '');
+  const [newPhone, setNewPhone] = useState(draft?.newPhone ?? '');
 
   const [pickCategoryId, setPickCategoryId] = useState<number | 'all'>('all');
   const [optionsCache, setOptionsCache] = useState<Record<number, Options>>({});
@@ -76,13 +88,90 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
   const [pickSizeIdxs, setPickSizeIdxs] = useState<number[]>([]);
   const [pickColorIds, setPickColorIds] = useState<number[]>([]);
   const [pickQty, setPickQty] = useState('');
+  // Same as the buyer's order form: one quantity for every line the picks
+  // make, or a different quantity against each.
+  const [qtyEach, setQtyEach] = useState(false);
+  const [lineQty, setLineQty] = useState<Record<string, string>>({});
 
-  const [cart, setCart] = useState<CartItem[]>(repeatItems);
-  const [requestType, setRequestType] = useState(initialRequestType);
-  const [comment, setComment] = useState('');
+  const [cart, setCart] = useState<CartItem[]>((draft?.cart as CartItem[] | undefined) ?? repeatItems);
+  const [requestType, setRequestType] = useState(draft?.requestType ?? initialRequestType);
+  const [comment, setComment] = useState(draft?.comment ?? '');
+  const [fromJaipur, setFromJaipur] = useState(draft?.fromJaipur ?? false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
+  // "+ Add" in the Shape, Color or Size list: what to add, and what was typed.
+  const [adding, setAdding] = useState<{ kind: AddKind; typed: string } | null>(null);
+
+  // Draft orders: "Save as draft" keeps everything below without making an
+  // order (no number, no notification, no WhatsApp, not in any order list).
+  // The draft is placed from here later, which deletes it.
+  const [draftId, setDraftId] = useState<number | null>(initialDraft?.id ?? null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const draftState: DraftPayload = { customerMode, selectedCustomerId: customerMode === 'existing' ? selectedCustomerId : null, newName: customerMode === 'new' ? newName : '', newPhone: customerMode === 'new' ? newPhone : '', requestType, comment, fromJaipur, cart };
+  const snapshot = JSON.stringify(draftState);
+  // What was last saved (or what the page opened with): anything else is unsaved work.
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
+  const dirty = snapshot !== savedSnapshot;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  // Warn before the work is lost: closing or reloading the tab, or following
+  // any link in the admin (side pane, "All orders", the header).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    const onClick = async (e: MouseEvent) => {
+      if (!dirtyRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const leave = await confirmAction('Leave this order without saving? Your lines and customer will be lost. Use “Save as draft” to keep them.', { label: 'Leave without saving', danger: true });
+      if (leave) { dirtyRef.current = false; router.push(url.pathname + url.search + url.hash); }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [router]);
+
+  async function saveDraft() {
+    setToast('');
+    if (!cart.length && !draftState.selectedCustomerId && !draftState.newName.trim() && !draftState.newPhone.trim() && !comment.trim()) {
+      setToast('Pick a customer or add a line before saving a draft.');
+      return;
+    }
+    setSavingDraft(true);
+    const send = (id: number | null) => fetch(id ? `/api/admin/order-drafts/${id}` : '/api/admin/order-drafts', {
+      method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: snapshot
+    });
+    let res = await send(draftId).catch(() => null);
+    let data = res ? await res.json().catch(() => ({})) : {};
+    // Deleted or placed from another tab meanwhile: keep this work as a new draft.
+    if (res?.status === 404 && data.gone) {
+      res = await send(null).catch(() => null);
+      data = res ? await res.json().catch(() => ({})) : {};
+    }
+    setSavingDraft(false);
+    if (!res?.ok) {
+      setToast(data.error || 'Could not save the draft. Check your connection and try again.');
+      return;
+    }
+    setDraftId(data.id);
+    setSavedSnapshot(snapshot);
+    // Reloading the page (or sharing the link) reopens this draft.
+    window.history.replaceState(window.history.state, '', `/admin/orders/new?draft=${data.id}`);
+    notify(`Draft saved. Find it under Orders › Draft orders.`, 'ok');
+  }
 
   // UI/UX audit ("Make customer lookup search-first instead of immediately
   // exposing the entire customer list"): an empty query now shows nothing
@@ -173,11 +262,46 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     cartCount.current = cart.length;
   }, [cart.length]);
   const sizeOptions = useMemo(
-    () => sizeGroups
-      .map((g, i) => ({ id: i, hotIds: g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId)).map((row) => row.id), name: `${g.sizeMm} mm` }))
-      .filter((o) => available.sizeIdxs.has(o.id)),
-    [sizeGroups, available, pickShapeIds]
+    () => {
+      const shapeName = new Map((currentOptions?.shapes || []).map((s) => [s.id, s.name]));
+      return sizeGroups
+        .map((g, i) => {
+          const rows = g.rows.filter((r) => !pickShapeIds.length || pickShapeIds.includes(r.shapeId));
+          // "3.00 mm" under Round, "3 x 3" under Square (lib/size-label).
+          const name = groupSizeLabel((rows.length ? rows : g.rows).map((r) => ({ shapeName: shapeName.get(r.shapeId), sizeMm: r.sizeMm })));
+          return { id: i, hotIds: rows.map((row) => row.id), name };
+        })
+        .filter((o) => available.sizeIdxs.has(o.id));
+    },
+    [sizeGroups, available, pickShapeIds, currentOptions]
   );
+
+  // After "+ Add": reload the category's lists and pick what was just added,
+  // keeping the sizes already picked (their place in the list may move).
+  async function afterAdd(kind: AddKind, id: number, extra?: { shape?: { id: number } }) {
+    if (pickCategoryId === 'all') return;
+    const categoryId = pickCategoryId;
+    const res = await fetch(`/api/admin/categories/${categoryId}/options`);
+    const data: Options | null = await res.json().catch(() => null);
+    if (!data || !Array.isArray(data.sizes)) return;
+    const pickedKeys = pickSizeIdxs.map((i) => sizeGroups[i]?.key).filter(Boolean);
+    const groups = sizeGroupsOf(data.sizes);
+    setOptionsCache((prev) => ({ ...prev, [categoryId]: data }));
+    const keep = groups.map((g, i) => (pickedKeys.includes(g.key) ? i : -1)).filter((i) => i >= 0);
+    if (kind === 'shape') {
+      setPickShapeIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+      setPickSizeIdxs(keep);
+    } else if (kind === 'color') {
+      setPickColorIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+      setPickSizeIdxs(keep);
+    } else {
+      const idx = groups.findIndex((g) => g.rows.some((r) => r.id === id));
+      const shapeId = extra?.shape?.id;
+      if (shapeId) setPickShapeIds((cur) => (cur.includes(shapeId) ? cur : [...cur, shapeId]));
+      setPickSizeIdxs(idx >= 0 && !keep.includes(idx) ? [...keep, idx] : keep);
+    }
+  }
+  const addNew = (kind: AddKind) => (pickCategoryId === 'all' ? undefined : (typed: string) => setAdding({ kind, typed }));
 
   async function handleCategoryChange(categoryId: number | 'all') {
     setPickCategoryId(categoryId);
@@ -205,22 +329,17 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setPickSizeIdxs([]);
     setPickColorIds([]);
     setPickQty('');
+    setLineQty({});
   }
 
   const hasSelection =
     pickCategoryId !== 'all' || pickShapeIds.length > 0 || pickColorIds.length > 0 ||
-    pickSizeIdxs.length > 0 || pickQty !== '';
+    pickSizeIdxs.length > 0 || pickQty !== '' || Object.keys(lineQty).length > 0;
 
-  const qtyNum = parseInt(pickQty, 10) || 0;
-  const canAdd = pickCategoryId !== 'all' && pickShapeIds.length > 0 && pickSizeIdxs.length > 0 && pickColorIds.length > 0 && qtyNum > 0;
-  const comboCount = pickShapeIds.length * pickColorIds.length * pickSizeIdxs.length;
-
-  // One line per shape x colour x size combination, each at the entered
-  // quantity -- same rule as the customer-facing builder.
-  function addLine() {
-    if (!canAdd || !currentOptions) return;
-    const category = allCategories.find((c) => c.id === pickCategoryId)!;
-    const added: CartItem[] = [];
+  // Every shape x colour x size line the picks make.
+  const combos = useMemo(() => {
+    if (!currentOptions) return [];
+    const list: { key: string; shape: Options['shapes'][number]; color: Options['colors'][number]; size: { id: number; sizeMm: string } }[] = [];
     for (const shapeId of pickShapeIds) {
       const shape = currentOptions.shapes.find((s) => s.id === shapeId);
       if (!shape) continue;
@@ -228,32 +347,52 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         const color = currentOptions.colors.find((c) => c.id === colorId);
         if (!color) continue;
         for (const sizeIdx of pickSizeIdxs) {
-          const group = sizeGroups[sizeIdx];
-          const match = group?.rows.find((r) => r.shapeId === shapeId);
-          if (!match) continue;
-          added.push({
-            id: `${Date.now()}-${Math.random().toString(16).slice(2)}-${shapeId}-${colorId}-${sizeIdx}`,
-            categoryId: category.id,
-            categoryName: category.name,
-            shapeId: shape.id,
-            shapeName: shape.name,
-            sizeId: match.id,
-            sizeMm: match.sizeMm,
-            colorId: color.id,
-            colorName: color.name,
-            qty: qtyNum
-          });
+          const match = sizeGroups[sizeIdx]?.rows.find((r) => r.shapeId === shapeId);
+          if (match) list.push({ key: `${shapeId}-${match.id}-${colorId}`, shape, color, size: { id: match.id, sizeMm: match.sizeMm } });
         }
       }
     }
+    return list;
+  }, [currentOptions, pickShapeIds, pickColorIds, pickSizeIdxs, sizeGroups]);
+  const perLineOffered = combos.length > 1;
+  const perLine = perLineOffered && qtyEach;
+  const plan = useMemo(() => planQuantities(combos, perLine, pickQty, lineQty), [combos, perLine, pickQty, lineQty]);
+  const lineText = (key: string) => lineQty[key] ?? pickQty;
+  const shortShape = useMemo(() => shapeAbbrevs((currentOptions?.shapes || []).filter((x) => pickShapeIds.includes(x.id))), [currentOptions, pickShapeIds]);
+  const qtyInvalid = !/^\d*$/.test(pickQty.trim());
+  const canAdd = pickCategoryId !== 'all' && plan.lines.length > 0;
+
+  // One line per shape x colour x size combination, at the one quantity or
+  // each at its own -- same rule as the customer-facing builder.
+  function addLine() {
+    if (!canAdd) return;
+    const category = allCategories.find((c) => c.id === pickCategoryId)!;
+    const stamp = Date.now();
+    const added: CartItem[] = plan.lines.map(({ combo, qty }) => ({
+      id: `${stamp}-${Math.random().toString(16).slice(2)}-${combo.key}`,
+      categoryId: category.id,
+      categoryName: category.name,
+      shapeId: combo.shape.id,
+      shapeName: combo.shape.name,
+      sizeId: combo.size.id,
+      sizeMm: combo.size.sizeMm,
+      colorId: combo.color.id,
+      colorName: combo.color.name,
+      colorCode: combo.color.adminCode || null,
+      qty
+    }));
     if (!added.length) return;
     setCart([...cart, ...added]);
-    // The quantity stays for the next line; only the sizes clear.
+    // The quantity stays for the next line; the sizes and per-line quantities clear.
     setPickSizeIdxs([]);
+    setLineQty({});
   }
 
   // A list pasted from WhatsApp or the order sheet, already matched line by line.
-  function addPasted(lines: PastedLine[]) {
+  function addPasted(lines: PastedLine[], extra?: { remarks: string[] }) {
+    // Words in the message that aren't lines ("Proper 7A", "Quality") go in the order note.
+    const remarks = (extra?.remarks || []).join(' · ');
+    if (remarks) setComment((c) => (c.includes(remarks) ? c : [c.trim(), remarks].filter(Boolean).join('\n')));
     setCart((current) => [...current, ...lines.map((l, i) => ({
       id: `${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
       categoryId: l.categoryId,
@@ -313,6 +452,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
         newCustomerName: customerMode === 'new' ? newName : null,
         requestType,
         comment,
+        fromJaipur,
+        draftId,
         cart: cart.map((i) => ({
           orderSpecs: i.orderSpecs,
           categoryId: i.categoryId,
@@ -332,6 +473,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     setSubmitting(false);
 
     if (res.ok) {
+      dirtyRef.current = false;
+      setSavedSnapshot(snapshot);
       router.push(`/admin/orders/${data.orderId}`);
     } else {
       setToast(data.error || 'Failed to create order.');
@@ -437,6 +580,18 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
           <button type="button" className="po-paste-btn" onClick={() => setPasteOpen(true)}>Paste a list</button>
         </div>
         <PasteListDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onAdd={addPasted} forAdmin />
+        {adding && pickCategoryId !== 'all' && (
+          <AddOptionDialog
+            kind={adding.kind}
+            typed={adding.typed}
+            categoryId={pickCategoryId}
+            categoryName={allCategories.find((c) => c.id === pickCategoryId)?.name || 'this category'}
+            categoryShapes={currentOptions?.shapes || []}
+            pickedShapeIds={pickShapeIds}
+            onClose={() => setAdding(null)}
+            onAdded={afterAdd}
+          />
+        )}
         <div className="po-add-form" data-special-category={specialCategory(Number(pickCategoryId)) || undefined}>
           <div>
             <label className="po-label">Category</label>
@@ -477,6 +632,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
+              onAddNew={addNew('shape')}
+              addNewNoun="shape"
             />
           </div>
           <div>
@@ -484,7 +641,9 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             <IconSelect
               categoryId={Number(pickCategoryId) || undefined}
               multiple
-              options={currentOptions?.colors || []}
+              // "YOTCF-05 (#39)": the owner's code in the list, while the
+              // line itself keeps the plain name the buyer and invoice see.
+              options={(currentOptions?.colors || []).map((c) => ({ ...c, name: adminColorLabel(c.name, c.adminCode) }))}
               locked={pickCategoryId === 34}
               values={pickColorIds}
               onChange={(ids) => { setClearNext((c) => ({ ...c, color: false })); setPickColorIds(ids); }}
@@ -496,6 +655,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               usualLabel="Their usual"
               recentIds={usual.recent.colorIds}
               recentLabel="Their last order"
+              onAddNew={pickCategoryId === 34 ? undefined : addNew('color')}
+              addNewNoun="color"
             />
           </div>
           <div>
@@ -513,16 +674,69 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               recentLabel="Their last order"
               usualLabel="Their usual"
               placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
+              onAddNew={addNew('size')}
+              addNewNoun="size"
             />
           </div>
           <div>
-            <label className="po-label">Qty (pcs)</label>
-            <input type="text" inputMode="numeric" className="po-qty-input" placeholder="e.g. 5000" value={pickQty} onChange={(e) => setPickQty(e.target.value.replace(/\D/g, ''))} />
+            <label className="po-label" htmlFor="admin-new-qty">Qty (pcs){perLine && <span className="po-label-note"> · all lines</span>}</label>
+            <input id="admin-new-qty" type="text" inputMode="numeric" className="po-qty-input" placeholder="e.g. 5000" value={pickQty} aria-invalid={qtyInvalid || undefined} onChange={(e) => setPickQty(expandQtyShorthand(e.target.value).replace(/\D/g, ''))} />
           </div>
         </div>
+        {perLineOffered && !specialCategory(Number(pickCategoryId)) && (
+          <div className="po-qty-mode">
+            <div className="po-type-toggle" role="group" aria-label="Quantity for these lines">
+              <button type="button" aria-pressed={!qtyEach} className={!qtyEach ? 'active' : ''} onClick={() => setQtyEach(false)}>Same qty for all {combos.length}</button>
+              <button type="button" aria-pressed={qtyEach} className={qtyEach ? 'active' : ''} onClick={() => setQtyEach(true)}>Different qty each</button>
+            </div>
+            {perLine && <>
+              <div className="po-line-qty-head">
+                <span>Type a quantity against each line; leave one empty to skip it.</span>
+                {Object.keys(lineQty).length > 0 && (
+                  <button type="button" className="po-clear-selection" onClick={() => setLineQty({})}>
+                    {pickQty ? `Set all to ${Number(pickQty).toLocaleString('en-IN')}` : 'Clear all'}
+                  </button>
+                )}
+              </div>
+              {pickColorIds.map((colorId) => {
+                const rows = combos.filter((c) => c.color.id === colorId);
+                if (!rows.length) return null;
+                return (
+                  <div key={colorId} className="po-line-qty-group">
+                    {pickColorIds.length > 1 && <p className="po-line-qty-colour"><ColorSwatch hex={rows[0].color.hex || '#ccc'} refPhotoUrl={rows[0].color.refPhotoUrl} size={14} /> {adminColorLabel(rows[0].color.name, rows[0].color.adminCode)}</p>}
+                    <div className="po-line-qty-grid">
+                      {rows.map((c) => {
+                        const v = lineText(c.key);
+                        const bad = !/^\d*$/.test(v.trim());
+                        return (
+                          <label key={c.key} className="po-line-qty-row">
+                            <span className="po-line-qty-name" title={`${c.shape.name} ${shapeSizeLabel(c.shape.name, c.size.sizeMm)} · ${c.color.name}`}>
+                              <b>{shortShape.get(c.shape.id)}</b> {shapeSizeLabel(c.shape.name, c.size.sizeMm)}
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="po-qty-input"
+                              aria-label={`Quantity for ${c.shape.name} ${shapeSizeLabel(c.shape.name, c.size.sizeMm)} ${c.color.name}`}
+                              aria-invalid={bad || undefined}
+                              placeholder="0"
+                              value={v}
+                              onChange={(e) => setLineQty((cur) => ({ ...cur, [c.key]: expandQtyShorthand(e.target.value) }))}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {plan.invalid && <p className="po-field-error" role="alert">Whole numbers only — fix the highlighted line.</p>}
+            </>}
+          </div>
+        )}
         {specialCategory(Number(pickCategoryId)) && currentOptions && <SpecialOrderComposer showRequestType={false} key={pickCategoryId} categoryId={Number(pickCategoryId)} categoryName={allCategories.find(c=>c.id===Number(pickCategoryId))?.name||''} shapes={currentOptions.shapes} colors={currentOptions.colors} sizes={currentOptions.sizes} onAdd={line=>setCart(current=>[...current,line])} />}
 <div hidden={!!specialCategory(Number(pickCategoryId))}>
-          <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add line to order</button>
+          <button type="button" className="po-add-line-btn" onClick={addLine} disabled={!canAdd}>+ Add {plan.lines.length > 1 ? `${plan.lines.length} lines` : 'line'} to order{perLine && plan.total > 0 ? ` · ${plan.total.toLocaleString('en-IN')} pcs` : ''}</button>
           {hasSelection && <button type="button" className="po-clear-selection" onClick={clearSelection}>Clear selection</button>}
         </div>
       </section>
@@ -542,8 +756,8 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               return (
                 <div key={item.id} className="po-item-row po-item-row--simple">
                   <div className="po-item-main">
-                    <strong>{item.shapeName} · {item.sizeMm}mm</strong>
-                    <span>{item.categoryName} · {item.colorName}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
+                    <strong>{item.shapeName} · {shapeSizeLabel(item.shapeName, item.sizeMm)}</strong>
+                    <span>{item.categoryName} · {adminColorLabel(item.colorName, item.colorCode)}{item.orderSpecs && <small style={{display:"block"}}>{specText(item.orderSpecs,item.qty)}</small>} · {item.qty} pcs</span>
                     {item.note && <span className="po-line-note-text">Note: {item.note}</span>}
                     {unit !== null && (
                       <span className="mono po-item-price">&#8377;{unit.toFixed(2)} &times; {item.qty} = &#8377;{(unit * item.qty).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
@@ -575,9 +789,26 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
             Note
             <textarea rows={2} placeholder="e.g. Taken over phone call" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
-          <button type="button" className="po-send-btn" onClick={submit} disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create order'}
-          </button>
+          <label className="dispatch-jaipur" style={{ marginTop: 0, marginBottom: 10 }}>
+            <input type="checkbox" checked={fromJaipur} onChange={(e) => setFromJaipur(e.target.checked)} />
+            <span>
+              <strong>Dispatch from Jaipur</strong>
+              <small>Stock is in Jaipur: stages go Order received &rarr; Dispatched from Jaipur.</small>
+            </span>
+          </label>
+          <div className="po-send-actions">
+            <button type="button" className="po-draft-btn" onClick={saveDraft} disabled={savingDraft || submitting}>
+              {savingDraft ? 'Saving…' : draftId && !dirty ? 'Draft saved' : draftId ? 'Save draft' : 'Save as draft'}
+            </button>
+            <button type="button" className="po-send-btn" onClick={submit} disabled={submitting || savingDraft}>
+              {submitting ? 'Creating…' : 'Create order'}
+            </button>
+          </div>
+          <p className="po-draft-hint">
+            {draftId
+              ? (dirty ? 'Unsaved changes to this draft.' : 'Saved as a draft — not an order yet. Create order places it.')
+              : 'A draft is not an order: the customer is not told and it gets no order number.'}
+          </p>
         </div>
 
         {toast && <p style={{ fontSize: 12.5, color: '#a3341f', marginTop: 10 }}>{toast}</p>}

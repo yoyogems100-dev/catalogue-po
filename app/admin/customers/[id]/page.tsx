@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { paymentStatusLabel } from '@/lib/payment-status';
 import CustomerProfileEditor from './CustomerProfileEditor';
 import CustomerColourSetup from './CustomerColourSetup';
 import CustomerPasswordPanel from './CustomerPasswordPanel';
@@ -83,7 +84,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                 <Link className="admin-record-main" href={`/admin/orders/${order.id}`}>
                   <strong>Order #{order.id}</strong>
                   <span>{new Date(order.created_at).toLocaleDateString('en-IN')}{order.request_type && order.request_type !== 'Place Order' ? ` · ${order.request_type}` : ''}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} stages={stages} /> · {order.payment_status || 'pending'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusTag status={order.status} stages={stages} /> · Payment {paymentStatusLabel(order.payment_status)}</span>
                 </Link>
                 {/* Outside the record-main link -- CategoryChips' "+N more"
                     is a real button, and nesting it inside that whole-card

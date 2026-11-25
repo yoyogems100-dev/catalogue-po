@@ -55,6 +55,14 @@ type CommonProps = {
   /** Options from the buyer's last order: listed next under `recentLabel`. */
   recentIds?: number[];
   recentLabel?: string;
+  /**
+   * Admin only: a "+ Add" row at the foot of the open list for a shape,
+   * colour or size the category doesn't list yet. Called with what was typed
+   * in the search box ("2.5"), so the add dialog can start from it.
+   */
+  onAddNew?: (typed: string) => void;
+  /** The thing being added, for the row's text: "shape", "color", "size". */
+  addNewNoun?: string;
 };
 
 type SingleProps = CommonProps & {
@@ -111,7 +119,7 @@ type Props = SingleProps | MultiProps;
 // automatic discriminated-union narrowing -- TS doesn't narrow reliably here
 // because the discriminant (`multiple`) is optional on one side of the union.
 export default function IconSelect(props: Props) {
-  const { options, leading = 'none', searchable = options.length > 5 } = props;
+  const { options, leading = 'none', searchable = options.length > 5 || !!props.onAddNew } = props;
   const { flags, ready } = useHotSelling();
   const kind = props.optionKind || (leading === 'swatch' ? 'color' : leading === 'icon' ? 'shape' : undefined);
   const hot = (o: Option) => isHot(flags, props.categoryId, kind, o.hotIds || [o.id]);
@@ -465,8 +473,18 @@ export default function IconSelect(props: Props) {
               );
             })}
 
-            {filtered.length === 0 && <div className="icon-select-empty">No matches.</div>}
+            {filtered.length === 0 && <div className="icon-select-empty">No matches{props.onAddNew && search.trim() ? ` for “${search.trim()}” in this category` : ''}.</div>}
           </div>
+          {props.onAddNew && (
+            <button
+              type="button"
+              className="icon-select-add-new"
+              onClick={() => { const typed = search.trim(); setOpen(false); setSearch(''); props.onAddNew!(typed); }}
+            >
+              <span aria-hidden="true">+</span> Add {search.trim() ? `“${search.trim()}”` : `a ${props.addNewNoun || 'new option'}`}
+              <small>{search.trim() ? `as a ${props.addNewNoun || 'new option'}` : 'not in this list'}</small>
+            </button>
+          )}
           {isMulti && multi.doneBar && (
             <div className="icon-select-done">
               <span>{multi.values.length ? `${multi.values.length} selected` : 'Pick as many as you need'}</span>

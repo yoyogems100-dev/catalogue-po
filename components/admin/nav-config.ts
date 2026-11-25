@@ -65,6 +65,7 @@ export const WORKSPACES: Workspace[] = [
         title: 'Orders',
         links: [
           { href: '/admin/orders', label: 'Orders', detail: 'Orders: prices, status, payment, PDFs.' },
+          { href: '/admin/orders/drafts', label: 'Draft orders', detail: 'Orders saved half-way with “Save as draft”: continue or delete them.' },
           { href: '/admin/orders/stages', label: 'Stages & messages', detail: 'Name the order stages and set the WhatsApp message for each.' },
           { href: '/admin/pending', label: 'Pending lines', detail: 'Everything still to send, buyer by buyer. Mark what went out.' }
         ]
@@ -108,7 +109,8 @@ export const WORKSPACES: Workspace[] = [
         title: 'Buyers & suppliers',
         links: [
           { href: '/admin/customers', label: 'Customers', detail: 'Buyer accounts, their orders, usual picks and colour buttons.' },
-          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' }
+          { href: '/admin/suppliers', label: 'Suppliers', detail: 'Supplier contacts and what they supply.' },
+          { href: '/admin/tally', label: 'Tally accounts', detail: 'Ask your Tally data: what each customer buys, who owes you, past orders, stock. Has its own password.' }
         ]
       },
       {
@@ -116,6 +118,7 @@ export const WORKSPACES: Workspace[] = [
         links: [
           { href: '/admin/content', label: '/po setup home' },
           { href: '/admin/content/home-sections', label: 'Home page sections', detail: 'Shelves like Most ordered and New in: which categories, and in what order.' },
+          { href: '/admin/accessories', label: 'Accessories page', detail: 'Every accessory range and style: find any ID, rename, edit codes and descriptions, hide, mark out of stock, reorder, download Excel.' },
           { href: '/admin/catalogue-map', label: 'Colour buttons & map', detail: 'Colour buttons buyers see and the stone each opens; stones by colour, size and material.' },
           { href: '/admin/brand-upload', label: 'Header logo', detail: 'The logo in the /po header.' }
         ]
@@ -124,10 +127,16 @@ export const WORKSPACES: Workspace[] = [
   }
 ];
 
+/** Where tapping a /po category goes: straight to its page, which opens on Overview. Accessories has its own editor. */
+export function poCategoryHref(c: { id: number; slug?: string | null }): string {
+  return c.slug === 'accessories' ? '/admin/accessories' : `/admin/categories/${c.id}`;
+}
+
 /** The pages inside one /po category, in the order of its tabs (Strip counts is Rainbow Corundum only). */
 export function poCategoryPages(id: number): NavLink[] {
   const base = `/admin/categories/${id}`;
   return [
+    { href: `${base}?tab=overview`, label: 'Overview' },
     { href: `${base}?tab=photos`, label: 'Photos' },
     { href: `${base}?tab=shapes`, label: 'Shapes/cuts & sizes' },
     { href: `${base}?tab=colors`, label: 'Colours' },

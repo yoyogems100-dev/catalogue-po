@@ -11,6 +11,7 @@ import { getCategoryPricing } from '@/lib/pricing';
 import { lineInrPrice } from '@/lib/pricing-calc';
 import { catalogueChanged } from '@/lib/catalogue-cache';
 import { ANY_CATEGORY_ID } from '@/lib/cart-storage';
+import { deleteOrderDraft } from '@/lib/order-drafts';
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -119,6 +120,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: itemsError.message }, { status: 400 });
   }
 
+  // Admin chose "Dispatch from Jaipur". Set on its own so an order is still
+  // created if the column isn't in the database yet.
+  if (body.fromJaipur === true) {
+    await supabaseAdmin.from('orders').update({ dispatch_from_jaipur: true }).eq('id', order.id);
+  }
+
   await supabaseAdmin.from('order_status_history').insert({ order_id: order.id, status: 'placed' });
   await supabaseAdmin.from('order_notes').insert({
     order_id: order.id,
@@ -126,6 +133,10 @@ export async function POST(req: NextRequest) {
     message: 'Order created by admin (offline/phone request)',
     internal_only: false
   });
+
+  // Placed from a saved draft: the draft is now a real order, so it goes.
+  const draftId = Number(body.draftId);
+  if (Number.isSafeInteger(draftId) && draftId > 0) await deleteOrderDraft(draftId);
 
   return NextResponse.json({ orderId: order.id });
 }

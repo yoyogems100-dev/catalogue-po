@@ -3,6 +3,7 @@ import { supabasePublic } from '@/lib/supabase-public';
 import { photoUrl } from '@/lib/photos';
 import { getCategoryPricing } from '@/lib/pricing';
 import { cachedCatalogue, SHARED_JSON_CACHE } from '@/lib/catalogue-cache';
+import { fittingSizes } from '@/lib/shape-size-fit';
 
 // JSON equivalent of getCategoryData() in app/po/category/[slug]/page.tsx -- powers the
 // app's category detail / Place Order flow (needs the linked shapes/colors/sizes to
@@ -61,7 +62,7 @@ const load = cachedCatalogue(async (slug: string) => {
       return { id: s.id, name: s.name, iconKey: s.icon_key, refPhotoUrl: photoUrl };
     }),
     colors: (colors || []).map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value, refPhotoUrl: c.ref_photo_url })),
-    sizes: (sizes || []).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
+    sizes: fittingSizes((sizes || []) as any[], (shapes || []) as any[]).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm })),
     photos: (photos || []).map((p: any) => ({
       id: p.id,
       url: photoUrl(p, 600),

@@ -46,7 +46,16 @@ const nextConfig = {
       source: '/products/:path*',
       has: [{ type: 'query', key }],
       headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }]
-    }));
+    })).concat([
+      // Accessories pictures are named by a hash of their bytes (built by
+      // final edit/_tools/deploy/fastfiles.py), so a file never changes:
+      // let the signed-in browser keep it for a year instead of re-checking.
+      // "private" because they sit behind the trade sign-in.
+      {
+        source: '/po/accessories/:dir(f|t)/:file*',
+        headers: [{ key: 'Cache-Control', value: 'private, max-age=31536000, immutable' }]
+      }
+    ]);
   },
   images: {
     // Website pictures are resized through /_next/image (lib/site/optimize.ts).

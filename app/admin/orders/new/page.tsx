@@ -1,13 +1,16 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
+import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import { hasUsual, usualFromCustomer, type UsualSource } from '@/lib/usual-picks';
+import { isMissingTable } from '@/lib/order-drafts';
+import { cleanDraftPayload, type DraftPayload } from '@/lib/order-draft-payload';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
-export default async function NewAdminOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; from?: string }> }) {
+export default async function NewAdminOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; from?: string; draft?: string }> }) {
   const params = await searchParams;
   const initialCustomerId = Number(params.customer) || null;
   const fromOrderId = Number(params.from) || null;
@@ -24,6 +27,16 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
     const usual = usualFromCustomer(c);
     if (hasUsual(usual)) usualByCustomer[c.id] = usual;
   }
+  // "Continue" on a draft order: reopen the builder exactly as it was saved.
+  const draftParam = Number(params.draft);
+  let initialDraft: { id: number; payload: DraftPayload } | null = null;
+  let draftProblem = '';
+  if (Number.isSafeInteger(draftParam) && draftParam > 0) {
+    const { data: row, error } = await supabaseAdmin.from('order_drafts').select('id, payload').eq('id', draftParam).maybeSingle();
+    const parsed = row ? cleanDraftPayload(row.payload) : null;
+    if (row && parsed && 'payload' in parsed) initialDraft = { id: row.id, payload: parsed.payload };
+    else draftProblem = error && !isMissingTable(error) ? 'This draft could not be opened. Please retry.' : 'That draft was already placed or deleted. Starting a new order.';
+  }
   let repeatItems: any[] = [];
   let initialRequestType = 'Place Order';
   if (initialCustomerId && fromOrderId) {
@@ -33,15 +46,19 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
       const { data: rows } = await supabaseAdmin.from('order_items').select('*').eq('order_id', fromOrderId);
       const categoryIds = [...new Set((rows || []).map((row: any) => row.category_id))], shapeIds = [...new Set((rows || []).map((row: any) => row.shape_id))], sizeIds = [...new Set((rows || []).map((row: any) => row.shape_size_id).filter(Boolean))], colorIds = [...new Set((rows || []).map((row: any) => row.color_id).filter(Boolean))];
       const [{ data: rowCategories }, { data: shapes }, { data: sizes }, { data: colors }] = await Promise.all([supabaseAdmin.from('categories').select('id,name').in('id', categoryIds), supabaseAdmin.from('shapes').select('id,name').in('id', shapeIds), sizeIds.length ? supabaseAdmin.from('shape_sizes').select('id,size_mm').in('id', sizeIds) : Promise.resolve({ data: [] }), colorIds.length ? supabaseAdmin.from('colors').select('id,name').in('id', colorIds) : Promise.resolve({ data: [] })]);
-      const names = (list: any[] | null, field: string) => new Map((list || []).map((row: any) => [row.id, row[field]])); const categoryNames = names(rowCategories, 'name'), shapeNames = names(shapes, 'name'), sizeNames = names(sizes, 'size_mm'), colorNames = names(colors, 'name');
-      repeatItems = (rows || []).map((row: any) => ({ id: `repeat-${row.id}`, categoryId: row.category_id ?? 0, categoryName: row.category_id == null ? 'Stone to confirm' : categoryNames.get(row.category_id) || 'Category', shapeId: row.shape_id, shapeName: shapeNames.get(row.shape_id) || 'Shape', sizeId: row.shape_size_id, sizeMm: sizeNames.get(row.shape_size_id) || row.custom_size || 'Custom', colorId: row.color_id, colorName: colorNames.get(row.color_id) || 'Custom', qty: row.quantity, orderSpecs: row.order_specs || undefined, note: row.note || null }));
+      const names = (list: any[] | null, field: string) => new Map((list || []).map((row: any) => [row.id, row[field]])); const categoryNames = names(rowCategories, 'name'), shapeNames = names(shapes, 'name'), sizeNames = names(sizes, 'size_mm'), colorNames = names(colors, 'name'); const colorCodes = await fetchAdminColorCodes(supabaseAdmin, colorIds);
+      repeatItems = (rows || []).map((row: any) => ({ id: `repeat-${row.id}`, categoryId: row.category_id ?? 0, categoryName: row.category_id == null ? 'Stone to confirm' : categoryNames.get(row.category_id) || 'Category', shapeId: row.shape_id, shapeName: shapeNames.get(row.shape_id) || 'Shape', sizeId: row.shape_size_id, sizeMm: sizeNames.get(row.shape_size_id) || row.custom_size || 'Custom', colorId: row.color_id, colorName: colorNames.get(row.color_id) || 'Custom', colorCode: colorCodes[row.color_id] || null, qty: row.quantity, orderSpecs: row.order_specs || undefined, note: row.note || null }));
     }
   }
 
   return (
     <>
-      <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
-      <h1 style={{ marginTop: 8 }}>New order (offline / phone request)</h1>
+      <div className="order-new-links">
+        <Link href="/admin/orders" className="back-link">&larr; All orders</Link>
+        <Link href="/admin/orders/drafts" className="back-link">Draft orders &rarr;</Link>
+      </div>
+      <h1 style={{ marginTop: 8 }}>{initialDraft ? `Draft order #D${initialDraft.id}` : 'New order (offline / phone request)'}</h1>
+      {draftProblem && <p role="alert" style={{ fontSize: 13, color: '#a3341f' }}>{draftProblem}</p>}
       <p style={{ fontSize: 13, color: '#756e5c', marginBottom: 20 }}>
         Build a purchase order on a customer's behalf -- for orders taken by phone, WhatsApp, or in person.
       </p>
@@ -52,6 +69,8 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
         usualByCustomer={usualByCustomer}
         repeatItems={repeatItems}
         initialRequestType={initialRequestType}
+        initialDraft={initialDraft}
+        key={initialDraft ? `draft-${initialDraft.id}` : 'new'}
       />
     </>
   );

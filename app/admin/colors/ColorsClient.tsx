@@ -13,7 +13,7 @@ import ReusePicker from '@/components/admin/ReusePicker';
 import { useDragReorder, moveItem } from '@/hooks/useDragReorder';
 import { confirmAction, notify } from '@/components/admin/AdminDialogs';
 
-type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null; owner_category_id?: number | null };
+type ColorRow = { id: number; name: string; hex_value: string | null; ref_photo_url?: string | null; owner_category_id?: number | null; admin_code?: string | null };
 type Category = { id: number; num: number; name: string; slug: string | null };
 type CatColor = { category_id: number; color_id: number };
 type Palette = { id: number; name: string; colorIds: number[] };
@@ -360,6 +360,7 @@ export default function ColorsClient({
                   {c.owner_category_id && <span className="admin-owned-pill" title="This category's own colour -- kept apart from the shared one of the same name, and shown to buyers without this tag">{categories.find((cat) => cat.id === c.owner_category_id)?.name || 'This category'} only</span>}
                 </span>
                 <span style={{ fontSize: 11, color: '#756e5c', fontFamily: 'monospace' }}>{c.hex_value}</span>
+                <AdminCodeCell colorId={c.id} name={c.name} initial={c.admin_code || ''} onSaved={(msg) => setToast(msg)} />
                 <label className="btn-ghost" style={{ fontSize: 11, cursor: 'pointer' }}>
                   {c.ref_photo_url ? 'Change photo' : 'Add photo'}
                   <input
@@ -437,6 +438,30 @@ export default function ColorsClient({
       </section>}
       {toast && <p className="po-toast" role="status" aria-live="polite">{toast}</p>}
     </>
+  );
+}
+
+// The owner's own code for this colour ("#39"), shown after its name in
+// admin order screens only. Saved when the box loses focus or on Enter.
+function AdminCodeCell({ colorId, name, initial, onSaved }: { colorId: number; name: string; initial: string; onSaved: (msg: string) => void }) {
+  const [value, setValue] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  async function save() {
+    const code = value.trim().replace(/^#\s*/, '');
+    if (code === saved) return;
+    const res = await fetch('/api/admin/color-codes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ colorId, code }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { notify(data.error || 'Could not save the code.'); setValue(saved); return; }
+    setValue(data.code || ''); setSaved(data.code || '');
+    onSaved(data.code ? `${name} is #${data.code} in admin orders.` : `Code removed from ${name}.`);
+  }
+  return (
+    <label className="admin-color-code" title="Your own code -- shown only in admin orders, never to buyers or on invoices">
+      <span>#</span>
+      <input value={value} maxLength={30} placeholder="code" aria-label={`Admin code for ${name}`}
+        onChange={(e) => setValue(e.target.value)} onBlur={save}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }} />
+    </label>
   );
 }
 

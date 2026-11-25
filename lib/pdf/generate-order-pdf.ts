@@ -3,7 +3,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { supabaseAdmin, PHOTOS_BUCKET } from '@/lib/supabase-admin';
 import { getSettings } from '@/lib/settings';
 import { milestoneLabel } from '@/lib/order-milestones';
-import { getOrderStages } from '@/lib/order-stages-server';
+import { stagesForOrder } from '@/lib/order-stages-server';
 import OrderPdfDocument from './OrderPdfDocument';
 import { getPdfLogoDataUrl } from './brand';
 import { buildPdfItems } from './build-pdf-items';
@@ -82,7 +82,7 @@ export async function generateOrderPdf(orderId: number, { isInvoice = false }: {
     React.createElement(OrderPdfDocument, {
       data: {
         orderId: order.id,
-        statusLabel: milestoneLabel(order.status, await getOrderStages()),
+        statusLabel: milestoneLabel(order.status, await stagesForOrder(order.id)),
         requestType: order.request_type || 'Place Order',
         createdAt: order.created_at,
         customerName: customer?.name || order.contact_name || null,

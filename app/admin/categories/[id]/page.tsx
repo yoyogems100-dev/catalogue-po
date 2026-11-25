@@ -7,6 +7,7 @@ import CategoryAdminClient from './CategoryAdminClient';
 import CategoryDescriptionField from '@/components/admin/CategoryDescriptionField';
 import CategoryArchiveToggle from '@/components/admin/CategoryArchiveToggle';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ColorsWorkspace } from '../../colors/ColorsWorkspace';
 import PricingClient from '../../pricing/PricingClient';
 import PriceListDownloadButton from '@/components/admin/PriceListDownloadButton';
@@ -35,8 +36,8 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // Eight tabs collapsed to five. Overview was a signpost plus a count list,
   // so the counts are now a strip visible on every tab and the tab is gone;
   // Color chart belongs with Colors, and Specifications with Shapes & sizes,
-  // rather than each being a tab of one control. Photos leads, because that is
-  // what the team opens a category to do.
+  // rather than each being a tab of one control. A category opens on Overview
+  // (owner's ask, 2026-11-23); the other tabs are one tap away.
   const LEGACY_TABS: Record<string, string> = {
     'color-chart': 'colors',
     specifications: 'shapes'
@@ -46,17 +47,20 @@ export default async function CategoryAdminPage({ params: paramsPromise, searchP
   // keeps its shapes, sizes and materials on one Materials tab instead of the
   // shared Shapes & sizes and Colors tabs.
   const [{ data: head }, { data: qualityRow }] = await Promise.all([
-    supabaseAdmin.from('categories').select('option_label').eq('id', categoryId).maybeSingle(),
+    supabaseAdmin.from('categories').select('option_label, slug').eq('id', categoryId).maybeSingle(),
     supabaseAdmin.from('settings').select('key, value').in('key', [QUALITIES_SETTING_KEY, SHAPE_QUALITIES_SETTING_KEY, FORM_FIELDS_SETTING_KEY, QUANTITY_FIELDS_SETTING_KEY])
   ]);
   const settingValue = (key: string) => (qualityRow || []).find((row: { key: string }) => row.key === key)?.value as string | undefined;
   const allQualities = parseCategoryQualities(settingValue(QUALITIES_SETTING_KEY));
+  // Accessories is its own hand-built page, edited at Admin > Accessories; its
+  // tabs here (shapes, colours...) don't apply. ?tab=photos still opens its card photo.
+  if (head?.slug === 'accessories' && !raw) redirect('/admin/accessories');
   const optionLabel: string | null = head?.option_label ?? null;
   const TABS = (optionLabel
     ? ['overview','photos','materials','pricing','suppliers']
     : ['overview','photos','shapes','colors','pricing','suppliers',...(categoryId===29?['strip-counts']:[])])
     .filter((t) => ADMIN_PRICING_ENABLED || t !== 'pricing');
-  const tab = TABS.includes(raw) ? raw : (optionLabel && ['shapes','colors','color-chart','specifications'].includes(raw) ? 'materials' : (LEGACY_TABS[raw] || 'photos'));
+  const tab = TABS.includes(raw) ? raw : (optionLabel && ['shapes','colors','color-chart','specifications'].includes(raw) ? 'materials' : (LEGACY_TABS[raw] || 'overview'));
 
   // Only the "Shapes & sizes" tab needs the full, catalogue-wide shape/size
   // lists (to offer shapes/sizes that aren't linked to this category yet) --

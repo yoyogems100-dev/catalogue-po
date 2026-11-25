@@ -1,4 +1,5 @@
 import { hasFulfilmentColumns, sentOf } from '@/lib/line-fulfilment';
+import { adminColorLabel, fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Link from 'next/link';
@@ -9,7 +10,7 @@ import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
 import { ANY_CATEGORY_NAME } from '@/lib/cart-storage';
-import { getOrderStages, customerPin } from '@/lib/order-stages-server';
+import { getStageSets, getCouriers, customerPin } from '@/lib/order-stages-server';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
@@ -68,7 +69,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
     { data: catShapes },
     { data: catColors },
     { data: catSizes },
-    stages,
+    stageSets,
     pin
   ] = await Promise.all([
     order.customer_id
@@ -94,7 +95,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
 ,
     // Stage names + WhatsApp messages (admin-edited), and the buyer's PIN for
     // the "Order placed" message's login details.
-    getOrderStages(),
+    getStageSets(),
     customerPin(order.customer_id)
   ]);
   // Only shown for a customer record that still exists, as before.
@@ -102,10 +103,15 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
 
   const catMap: Record<number, string> = Object.fromEntries((cats || []).map((c: any) => [c.id, c.name]));
   // Read on its own so the page still opens if the column isn't there yet.
-  const [fieldOf, { data: packetRow }] = await Promise.all([
+  const [fieldOf, { data: packetRow }, couriers] = await Promise.all([
     getQuantityFields(),
-    supabaseAdmin.from('orders').select('*').eq('id', orderId).maybeSingle()
+    supabaseAdmin.from('orders').select('*').eq('id', orderId).maybeSingle(),
+    getCouriers()
   ]);
+  // Admin-only dispatch details; absent columns read as China route, no courier.
+  const fromJaipur = (packetRow as any)?.dispatch_from_jaipur === true;
+  const courier = typeof (packetRow as any)?.courier === 'string' ? (packetRow as any).courier : null;
+  const dispatchReady = !!packetRow && 'dispatch_from_jaipur' in (packetRow as any);
   // Who entered it, when an account allowed to order for others placed it for this buyer.
   const placedById = (packetRow as any)?.placed_by_customer_id as number | null | undefined;
   const { data: placedBy } = placedById
@@ -115,8 +121,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
   const weightUnitOf: Record<number, WeightUnit> = Object.fromEntries(categoryIds.map((id: number) => [id, fieldOf(id).weightUnit || 'g']));
   const shapeMap: Record<number, string> = Object.fromEntries((shapesData || []).map((s: any) => [s.id, s.name]));
   const sizeMap: Record<number, string> = Object.fromEntries((sizesData || []).map((s: any) => [s.id, s.size_mm]));
+  // Admin only: "YOTCF-05 (#39)" -- the owner's own code after the name. The
+  // PDF, WhatsApp text and the buyer's views read the plain name elsewhere.
+  const colorCodes = await fetchAdminColorCodes(supabaseAdmin, [...new Set([...colorIds, ...((catColors || []).map((r: any) => r.color_id))])] as number[]);
   const colorMap: Record<number, { name: string; hex: string | null }> = Object.fromEntries(
-    (colorsData || []).map((c: any) => [c.id, { name: c.name, hex: c.hex_value }])
+    (colorsData || []).map((c: any) => [c.id, { name: adminColorLabel(c.name, colorCodes[c.id]), hex: c.hex_value }])
   );
 
   const suppliersFormatted = (suppliers || []).map((supplier: any) => ({
@@ -177,7 +186,7 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
             .filter((r: any) => r.category_id === cid)
             .map((r: any) => colorById[r.color_id])
             .filter(Boolean)
-            .map((c: any) => ({ id: c.id, name: c.name, hex: c.hex_value })),
+            .map((c: any) => ({ id: c.id, name: adminColorLabel(c.name, colorCodes[c.id]), hex: c.hex_value })),
           sizes: (catSizes || []).filter((r: any) => r.category_id === cid).map((r: any) => sizeById[r.shape_size_id]).filter(Boolean).map((s: any) => ({ id: s.id, shapeId: s.shape_id, sizeMm: s.size_mm }))
         }
       ])
@@ -191,7 +200,11 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
       <OrderAdminClient
         orderId={order.id}
         status={order.status}
-        stages={stages}
+        stageSets={stageSets}
+        fromJaipur={fromJaipur}
+        courier={courier}
+        couriers={couriers}
+        dispatchReady={dispatchReady}
         customerPin={pin}
         paymentStatus={order.payment_status}
         pdfUrl={order.pdf_url}
