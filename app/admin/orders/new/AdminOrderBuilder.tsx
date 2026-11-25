@@ -9,6 +9,7 @@ import {specialCategory,specKey,specText,gradeSpec,type OrderSpecs} from '@/lib/
 import IconSelect from '@/components/IconSelect';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
+import { cleanLastOrder, usualDropdownIds, EMPTY_USUAL, type LastOrder, type UsualSource } from '@/lib/usual-picks';
 import { categoryIconUrl } from '@/lib/category-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,7 +68,7 @@ type CartItem = {
   note?: string | null;
 };
 
-export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', initialDraft = null }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; initialDraft?: { id: number; payload: DraftPayload } | null }) {
+export default function AdminOrderBuilder({ allCategories, allCustomers, initialCustomerId = null, repeatItems = [], initialRequestType = 'Place Order', usualByCustomer = {}, initialDraft = null }: { allCategories: Category[]; allCustomers: Customer[]; initialCustomerId?: number | null; repeatItems?: CartItem[]; initialRequestType?: string; usualByCustomer?: Record<number, UsualSource>; initialDraft?: { id: number; payload: DraftPayload } | null }) {
   const router = useRouter();
   const draft = initialDraft?.payload;
 
@@ -233,6 +234,33 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
     [currentOptions, sizeGroups, pickShapeIds, pickSizeIdxs, pickColorIds]
   );
   const shapeOptions = useMemo(() => (currentOptions?.shapes || []).filter((s) => available.shapeIds.has(s.id)), [currentOptions, available]);
+  // The chosen buyer's go-to categories and usual picks lead each list
+  // ("Their usual"), then what they ordered last ("Their last order").
+  const buyerId = customerMode === 'existing' ? selectedCustomerId : null;
+  const [lastOrders, setLastOrders] = useState<Record<number, LastOrder>>({});
+  useEffect(() => {
+    if (!buyerId || lastOrders[buyerId]) return;
+    let live = true;
+    fetch(`/api/admin/customers/${buyerId}/last-order`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (live && data) setLastOrders((cur) => ({ ...cur, [buyerId]: cleanLastOrder(data.lastOrder) })); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [buyerId, lastOrders]);
+  const usualSource = useMemo<UsualSource | undefined>(
+    () => (buyerId ? { ...(usualByCustomer[buyerId] || EMPTY_USUAL), lastOrder: lastOrders[buyerId] } : undefined),
+    [buyerId, usualByCustomer, lastOrders]
+  );
+  const usual = useMemo(() => usualDropdownIds(usualSource, pickCategoryId === 'all' ? null : pickCategoryId, sizeGroups), [usualSource, pickCategoryId, sizeGroups]);
+
+  // After a line is added the picks stay; opening one field's list clears just
+  // that field for a fresh pick (owner, 2026-11-23), as on /po.
+  const [clearNext, setClearNext] = useState({ shape: false, color: false, size: false });
+  const cartCount = useRef(cart.length);
+  useEffect(() => {
+    if (cart.length > cartCount.current) setClearNext({ shape: true, color: true, size: true });
+    cartCount.current = cart.length;
+  }, [cart.length]);
   const sizeOptions = useMemo(
     () => {
       const shapeName = new Map((currentOptions?.shapes || []).map((s) => [s.id, s.name]));
@@ -574,6 +602,10 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               allLabel="Choose category"
               leading="photo"
               searchable
+              usualIds={usual.categoryIds}
+              usualLabel="Their usual"
+              recentIds={usual.recent.categoryIds}
+              recentLabel="Their last order"
             />
           </div>
           {/* Same IconSelect the customer-facing pickers use: shape icons and
@@ -588,10 +620,15 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               multiple
               options={shapeOptions}
               values={pickShapeIds}
-              onChange={setPickShapeIds}
+              onChange={(ids) => { setClearNext((c) => ({ ...c, shape: false })); setPickShapeIds(ids); }}
+              clearOnOpen={clearNext.shape}
               closeOnFirstPick={pickColorIds.length === 0}
               placeholder={!currentOptions ? (loadingOptions ? 'Loading…' : 'Pick a category first') : 'Choose shape(s)'}
               leading="icon"
+              usualIds={usual.shapeIds}
+              usualLabel="Their usual"
+              recentIds={usual.recent.shapeIds}
+              recentLabel="Their last order"
               disabledIds={incompatibleShapes}
               disabledReason={NO_SHARED_SIZE_REASON}
               disabledNote={NO_SHARED_SIZE_NOTE}
@@ -609,10 +646,15 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               options={(currentOptions?.colors || []).map((c) => ({ ...c, name: adminColorLabel(c.name, c.adminCode) }))}
               locked={pickCategoryId === 34}
               values={pickColorIds}
-              onChange={setPickColorIds}
+              onChange={(ids) => { setClearNext((c) => ({ ...c, color: false })); setPickColorIds(ids); }}
+              clearOnOpen={clearNext.color}
               closeOnFirstPick={pickShapeIds.length === 0}
               placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
               leading="swatch"
+              usualIds={usual.colorIds}
+              usualLabel="Their usual"
+              recentIds={usual.recent.colorIds}
+              recentLabel="Their last order"
               onAddNew={pickCategoryId === 34 ? undefined : addNew('color')}
               addNewNoun="color"
             />
@@ -625,7 +667,12 @@ export default function AdminOrderBuilder({ allCategories, allCustomers, initial
               optionKind="size"
               options={sizeOptions}
               values={pickSizeIdxs}
-              onChange={setPickSizeIdxs}
+              onChange={(idxs) => { setClearNext((c) => ({ ...c, size: false })); setPickSizeIdxs(idxs); }}
+              clearOnOpen={clearNext.size}
+              usualIds={usual.sizeIdxs}
+              recentIds={usual.recent.sizeIdxs}
+              recentLabel="Their last order"
+              usualLabel="Their usual"
               placeholder={!currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'}
               onAddNew={addNew('size')}
               addNewNoun="size"

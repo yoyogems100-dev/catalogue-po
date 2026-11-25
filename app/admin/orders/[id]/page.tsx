@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
 import Link from 'next/link';
 import OrderAdminClient from './OrderAdminClient';
+import { usualFromCustomer } from '@/lib/usual-picks';
+import { getLastOrder } from '@/lib/last-order-server';
 import { getQuantityFields } from '@/lib/quantity-fields-server';
 import { normalizePacketWeights } from '@/lib/packet-weights';
 import type { WeightUnit } from '@/lib/quantity-field';
@@ -212,6 +214,8 @@ export default async function AdminOrderDetailPage({ params: paramsPromise }: { 
         requestType={order.request_type}
         contactName={order.contact_name}
         customer={customer}
+        // Their last order other than this one comes next in the line editor.
+        usual={{ ...usualFromCustomer(customer), lastOrder: customer ? await getLastOrder(customer.id, orderId) : null }}
         customerOrderHistory={customerOrderHistory || []}
         items={itemsFormatted}
         categoryOptions={categoryOptions}

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import AdminOrderBuilder from './AdminOrderBuilder';
 import { fetchAdminColorCodes } from '@/lib/color-admin-codes';
 import { fetchAllRows } from '@/lib/fetch-all-rows';
+import { hasUsual, usualFromCustomer, type UsualSource } from '@/lib/usual-picks';
 import { isMissingTable } from '@/lib/order-drafts';
 import { cleanDraftPayload, type DraftPayload } from '@/lib/order-draft-payload';
 
@@ -17,8 +18,15 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
     supabaseAdmin.from('categories').select('id, num, name, slug').order('num'),
     // Binned customers stay out of the picker, and every page is read so the
     // list doesn't silently stop at Supabase's 1000-row response cap.
-    fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
+    fetchAllRows((from, to) => supabaseAdmin.from('customers').select('id, name, phone, company, place, order_preferences, interest_category_ids', { count: 'exact' }).is('deleted_at', null).order('name').range(from, to))
   ]);
+  // Each regular buyer's go-to categories and usual picks, so the builder can
+  // list them first once that buyer is chosen. Only buyers who have some.
+  const usualByCustomer: Record<number, UsualSource> = {};
+  for (const c of (customers || []) as any[]) {
+    const usual = usualFromCustomer(c);
+    if (hasUsual(usual)) usualByCustomer[c.id] = usual;
+  }
   // "Continue" on a draft order: reopen the builder exactly as it was saved.
   const draftParam = Number(params.draft);
   let initialDraft: { id: number; payload: DraftPayload } | null = null;
@@ -58,6 +66,7 @@ export default async function NewAdminOrderPage({ searchParams }: { searchParams
         allCategories={(categories || []).map((c: any) => ({ id: c.id, num: c.num, name: c.name, slug: c.slug }))}
         allCustomers={(customers || []).map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, company: c.company, place: c.place }))}
         initialCustomerId={initialCustomerId}
+        usualByCustomer={usualByCustomer}
         repeatItems={repeatItems}
         initialRequestType={initialRequestType}
         initialDraft={initialDraft}

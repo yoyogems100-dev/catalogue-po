@@ -7,6 +7,8 @@ import {specialCategory,specKey,specText,quantityFactor,type OrderSpecs} from '@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IconSelect from '@/components/IconSelect';
+import { useUsualPicks } from '@/components/useOrderPreferences';
+import { usualDropdownIds } from '@/lib/usual-picks';
 import { facetAvailability, pickedSizeRows, sizeGroupsOf } from '@/lib/faceted-picker';
 import { incompatibleShapeIds, NO_SHARED_SIZE_NOTE, NO_SHARED_SIZE_REASON } from '@/lib/shape-size-compat';
 import { categoryIconUrl } from '@/lib/category-icons';
@@ -148,6 +150,9 @@ export default function OrderDetailClient({
   // goes with the other's picks (lib/faceted-picker). Sizes index into the
   // category's full size list, so a size picked first survives a shape pick.
   const sizeGroups = useMemo(() => sizeGroupsOf(currentOptions?.sizes || []), [currentOptions]);
+  // The buyer's go-to stones and usual picks lead each list ("Your usual").
+  const usualPicks = useUsualPicks();
+  const usual = useMemo(() => usualDropdownIds(usualPicks, typeof pickCategoryId === 'number' ? pickCategoryId : null, sizeGroups), [usualPicks, pickCategoryId, sizeGroups]);
   const available = useMemo(
     () => facetAvailability((currentOptions?.shapes || []).map((s) => s.id), (currentOptions?.colors || []).map((c) => c.id), sizeGroups, null,
       { shapeIds: pickShapeIds, sizeIdxs: pickSizeIdxs, colorIds: pickColorIds }),
@@ -406,6 +411,8 @@ export default function OrderDetailClient({
                     allLabel="Choose category"
                     leading="photo"
                     searchable
+                    usualIds={usual.categoryIds}
+                    recentIds={usual.recent.categoryIds}
                   />
                 </div>
                 <div>
@@ -420,6 +427,8 @@ export default function OrderDetailClient({
               closeOnFirstPick={pickShapeIds.length === 0}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose color(s)'}
                     leading="swatch"
+                    usualIds={usual.colorIds}
+                    recentIds={usual.recent.colorIds}
                   />
                 </div>
                 <div>
@@ -433,6 +442,8 @@ export default function OrderDetailClient({
               closeOnFirstPick={pickColorIds.length === 0}
                     placeholder={!currentOptions ? 'Pick a category first' : 'Choose shape/cut'}
                     leading="icon"
+                    usualIds={usual.shapeIds}
+                    recentIds={usual.recent.shapeIds}
                     disabledIds={incompatibleShapes}
                     disabledReason={NO_SHARED_SIZE_REASON}
                     disabledNote={NO_SHARED_SIZE_NOTE}
@@ -447,6 +458,8 @@ export default function OrderDetailClient({
               options={sizeOptions}
                     values={pickSizeIdxs}
                     onChange={setPickSizeIdxs}
+                    usualIds={usual.sizeIdxs}
+                    recentIds={usual.recent.sizeIdxs}
                     placeholder={
                       !currentOptions ? 'Pick a category first' : sizeOptions.length === 0 ? 'No size matches these picks' : 'Choose size(s)'
                     }
