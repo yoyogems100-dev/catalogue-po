@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DiscussionCard from '@/components/DiscussionCard';
+import DiscussionPhotos from '@/components/DiscussionPhotos';
+import { prepareForUpload } from '@/components/admin/site/MediaPicker';
 import { confirmAction, notify } from '@/components/admin/AdminDialogs';
-import { OTHER_PLACE, PLACE_MAX, type Discussion } from '@/lib/discussions';
+import { DISCUSSION_PHOTO_UPLOAD_LIMIT, OTHER_PLACE, PHOTOS_PER_ITEM_MAX, PLACE_MAX, type Discussion } from '@/lib/discussions';
 
 type Category = { id: number; name: string };
-type Row = { category_id: number | null; label: string; details: string };
+type Row = { category_id: number | null; label: string; details: string; photos: string[] };
 type Form = { heldOn: string; placePick: string; otherPlace: string; items: Row[]; notes: string };
 
 const today = () => {
@@ -15,7 +17,7 @@ const today = () => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   return parts;
 };
-const blankRow = (): Row => ({ category_id: null, label: 'General', details: '' });
+const blankRow = (): Row => ({ category_id: null, label: 'General', details: '', photos: [] });
 
 function formFor(d: Discussion | null, places: string[]): Form {
   if (!d) return { heldOn: today(), placePick: places[0] || OTHER_PLACE, otherPlace: '', items: [blankRow()], notes: '' };
@@ -24,7 +26,7 @@ function formFor(d: Discussion | null, places: string[]): Form {
     heldOn: d.held_on.slice(0, 10),
     placePick: known || (d.place ? OTHER_PLACE : ''),
     otherPlace: known ? '' : d.place || '',
-    items: d.items.length ? d.items.map((i) => ({ ...i })) : [blankRow()],
+    items: d.items.length ? d.items.map((i) => ({ ...i, photos: [...(i.photos || [])] })) : [blankRow()],
     notes: d.notes || '',
   };
 }
@@ -42,6 +44,7 @@ export default function CustomerDiscussions({ customerId, initialDiscussions, in
   const [message, setMessage] = useState('');
   const [addingPlace, setAddingPlace] = useState(false);
   const [newPlace, setNewPlace] = useState('');
+  const [uploading, setUploading] = useState<number | null>(null);
 
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const setRow = (i: number, patch: Partial<Row>) => setForm((f) => ({ ...f, items: f.items.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
@@ -50,6 +53,30 @@ export default function CustomerDiscussions({ customerId, initialDiscussions, in
     setMessage('');
     if (target === 'new') { setForm(formFor(null, places)); setEditing('new'); }
     else { setForm(formFor(target, places)); setEditing(target.id); }
+  }
+
+  // Photos upload one at a time as they are picked; they join the item when
+  // the discussion is saved.
+  async function addPhotos(i: number, files: FileList | null) {
+    const picked = Array.from(files || []);
+    if (!picked.length) return;
+    const room = PHOTOS_PER_ITEM_MAX - (form.items[i]?.photos.length || 0);
+    if (room <= 0) return notify(`Up to ${PHOTOS_PER_ITEM_MAX} photos per item.`);
+    setUploading(i); setMessage('');
+    const errors: string[] = [];
+    for (const file of picked.slice(0, room)) {
+      const prepared = await prepareForUpload(file);
+      if (prepared.size > DISCUSSION_PHOTO_UPLOAD_LIMIT + 400_000) { errors.push(`${file.name}: too large -- use a JPG under 4 MB.`); continue; }
+      const body = new FormData();
+      body.append('file', prepared);
+      const res = await fetch(`/api/admin/customers/${customerId}/discussions/photos`, { method: 'POST', body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.path) { errors.push(data.error || `${file.name}: upload failed.`); continue; }
+      setForm((f) => ({ ...f, items: f.items.map((r, j) => (j === i ? { ...r, photos: [...r.photos, data.path] } : r)) }));
+    }
+    if (picked.length > room) errors.push(`Only ${PHOTOS_PER_ITEM_MAX} photos per item -- ${picked.length - room} skipped.`);
+    setUploading(null);
+    if (errors.length) setMessage(errors.join(' '));
   }
 
   async function savePlaces(next: string[]) {
@@ -166,6 +193,14 @@ export default function CustomerDiscussions({ customerId, initialDiscussions, in
               placeholder="e.g. G White, Canary Yellow, Light Pink" onChange={(e) => setRow(i, { details: e.target.value })} />
             <button type="button" className="btn-ghost discussion-icon-btn" aria-label={`Remove item ${i + 1}`} title="Remove item"
               onClick={() => setForm((f) => ({ ...f, items: f.items.length > 1 ? f.items.filter((_, j) => j !== i) : [blankRow()] }))}>×</button>
+            <div className="discussion-row-photos">
+              <DiscussionPhotos paths={row.photos} label={row.label} onRemove={(p) => setRow(i, { photos: row.photos.filter((x) => x !== p) })} />
+              <label className={`btn-ghost discussion-photo-add${uploading !== null ? ' is-disabled' : ''}`}>
+                {uploading === i ? 'Uploading…' : row.photos.length ? '+ More photos' : '+ Add photos'}
+                <input type="file" accept="image/*" multiple hidden disabled={uploading !== null || busy}
+                  onChange={(e) => { addPhotos(i, e.target.files); e.target.value = ''; }} />
+              </label>
+            </div>
           </div>
         ))}
       </div>
@@ -175,7 +210,7 @@ export default function CustomerDiscussions({ customerId, initialDiscussions, in
         <textarea rows={3} value={form.notes} placeholder="Anything else agreed: samples, follow-up, timelines…" onChange={(e) => set({ notes: e.target.value })} />
       </label>
       <div className="admin-form-actions">
-        <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing === 'new' ? 'Save discussion' : 'Save changes'}</button>
+        <button type="button" className="btn" onClick={save} disabled={busy || uploading !== null}>{busy ? 'Saving…' : editing === 'new' ? 'Save discussion' : 'Save changes'}</button>
         {(initialDiscussions.length > 0 || editing !== 'new') && <button type="button" className="btn-ghost" onClick={() => { setEditing(null); setMessage(''); }} disabled={busy}>Cancel</button>}
       </div>
       {message && <p role="status" className="admin-inline-status">{message}</p>}

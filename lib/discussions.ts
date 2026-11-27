@@ -12,8 +12,38 @@ export const LABEL_MAX = 120;
 export const DETAILS_MAX = 2000;
 export const NOTES_MAX = 5000;
 export const ITEMS_MAX = 40;
+export const PHOTOS_PER_ITEM_MAX = 12;
+export const DISCUSSION_PHOTO_UPLOAD_LIMIT = 4 * 1024 * 1024;
 
-export type DiscussionItem = { category_id: number | null; label: string; details: string };
+/** photos are storage paths in the public `photos` bucket:
+ *  discussions/<customer id>/<uuid>.webp */
+export type DiscussionItem = { category_id: number | null; label: string; details: string; photos: string[] };
+
+const PHOTO_PATH = /^discussions\/(\d+)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$/;
+
+export function discussionPhotoPath(customerId: number, uuid: string) {
+  return `discussions/${customerId}/${uuid}.webp`;
+}
+
+/** Public URL of a saved photo path. */
+export function discussionPhotoUrl(path: string) {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
+}
+
+/** Only photos uploaded through the discussion upload (for this buyer, when
+ *  customerId is given), once each, capped. */
+export function sanitizePhotos(raw: unknown, customerId?: number): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const m = PHOTO_PATH.exec(v);
+    if (!m || (customerId !== undefined && Number(m[1]) !== customerId) || out.includes(v)) continue;
+    out.push(v);
+    if (out.length >= PHOTOS_PER_ITEM_MAX) break;
+  }
+  return out;
+}
 export type Discussion = {
   id: number;
   customer_id: number;
@@ -60,7 +90,7 @@ export function cleanDate(v: unknown): string | null {
 }
 
 /** Discussed items: drops blank rows; label falls back to "General". */
-export function sanitizeItems(raw: unknown): DiscussionItem[] {
+export function sanitizeItems(raw: unknown, customerId?: number): DiscussionItem[] {
   if (!Array.isArray(raw)) return [];
   const out: DiscussionItem[] = [];
   for (const r of raw.slice(0, ITEMS_MAX)) {
@@ -69,17 +99,18 @@ export function sanitizeItems(raw: unknown): DiscussionItem[] {
     const details = clean(row.details, DETAILS_MAX);
     const id = Number(row.category_id);
     const category_id = Number.isSafeInteger(id) && id > 0 ? id : null;
-    if (!details && !category_id) continue;
-    out.push({ category_id, label: oneLine(row.label, LABEL_MAX) || 'General', details });
+    const photos = sanitizePhotos(row.photos, customerId);
+    if (!details && !category_id && !photos.length) continue;
+    out.push({ category_id, label: oneLine(row.label, LABEL_MAX) || 'General', details, photos });
   }
   return out;
 }
 
 /** Body of a save → the row values, or an error for the team. */
-export function discussionFromBody(body: any): { values: { held_on: string; place: string | null; items: DiscussionItem[]; notes: string | null } } | { error: string } {
+export function discussionFromBody(body: any, customerId: number): { values: { held_on: string; place: string | null; items: DiscussionItem[]; notes: string | null } } | { error: string } {
   const held_on = cleanDate(body?.heldOn);
   if (!held_on) return { error: 'Pick the date it was held.' };
-  const items = sanitizeItems(body?.items);
+  const items = sanitizeItems(body?.items, customerId);
   const notes = clean(body?.notes, NOTES_MAX) || null;
   if (!items.length && !notes) return { error: 'Add at least one discussed item or a note.' };
   const place = oneLine(body?.place, PLACE_MAX) || null;
