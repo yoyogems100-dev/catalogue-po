@@ -55,6 +55,7 @@ export default function AccountMenu({ loggedIn, customerName, canSwitch = false,
               )}
               <div className="account-menu-links">
                 <Link href="/po/account/orders" prefetch={false} onClick={() => setOpen(false)}>My Orders</Link>
+                <Link href="/po/account/discussions" prefetch={false} onClick={() => setOpen(false)}>Recent Discussions</Link>
                 <Link href="/po/account/profile" prefetch={false} onClick={() => setOpen(false)}>My Info</Link>
               </div>
               <form action="/api/account/logout" method="post">

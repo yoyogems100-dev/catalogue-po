@@ -18,6 +18,7 @@ export default async function AccountHeader() {
         <QuickOrderButton />
         <VoiceOrderButton listenForOpen />
         <Link href="/po/account/orders" style={{ fontSize: 13, color: '#fff' }}>My Orders</Link>
+        <Link href="/po/account/discussions" style={{ fontSize: 13, color: '#fff' }}>Discussions</Link>
         <Link href="/po/account/profile" style={{ fontSize: 13, color: '#fff' }}>My Info</Link>
         <form action="/api/account/logout" method="post">
           <button type="submit" style={{ background: 'none', border: 'none', color: '#cbd3e0', fontSize: 13, cursor: 'pointer' }}>

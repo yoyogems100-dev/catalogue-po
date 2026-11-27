@@ -5,6 +5,8 @@ import CustomerProfileEditor from './CustomerProfileEditor';
 import CustomerColourSetup from './CustomerColourSetup';
 import CustomerPasswordPanel from './CustomerPasswordPanel';
 import CustomerOrderForOthers from './CustomerOrderForOthers';
+import CustomerDiscussions from './CustomerDiscussions';
+import { getDiscussions, getDiscussionPlaces } from '@/lib/discussions-server';
 import { getCredentials } from '@/lib/customer-credentials';
 import { placeSuggestions } from '@/lib/customer-places';
 import { getUsedPlaces } from '@/lib/customer-places-server';
@@ -20,12 +22,14 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const stages = await getOrderStages();
   const customerId = Number((await params).id);
   const requested = (await searchParams).tab;
-  const tab = requested === 'orders' || requested === 'colours' ? requested : 'details';
-  const [{ data: customer }, { data: orders }, creds, usedPlaces] = await Promise.all([
+  const tab = requested === 'orders' || requested === 'colours' || requested === 'discussions' ? requested : 'details';
+  const [{ data: customer }, { data: orders }, creds, usedPlaces, discussions, discussionPlaces] = await Promise.all([
     supabaseAdmin.from('customers').select('*').eq('id', customerId).maybeSingle(),
     supabaseAdmin.from('orders').select('id,status,payment_status,request_type,created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
     getCredentials(customerId),
     getUsedPlaces(),
+    getDiscussions(customerId),
+    getDiscussionPlaces(),
   ]);
   // Only whether a password exists and when -- the password itself is fetched
   // by the panel's Show button, so it is never part of this page.
@@ -56,6 +60,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
       <Link href={`/admin/customers/${customerId}`} className={`tag-chip ${tab === 'details' ? 'active' : ''}`} aria-current={tab === 'details' ? 'page' : undefined}>Details</Link>
       <Link href={`/admin/customers/${customerId}?tab=colours`} className={`tag-chip ${tab === 'colours' ? 'active' : ''}`} aria-current={tab === 'colours' ? 'page' : undefined}>Colour buttons &amp; picks</Link>
       <Link href={`/admin/customers/${customerId}?tab=orders`} className={`tag-chip ${tab === 'orders' ? 'active' : ''}`} aria-current={tab === 'orders' ? 'page' : undefined}>Order history ({orders?.length || 0})</Link>
+      <Link href={`/admin/customers/${customerId}?tab=discussions`} className={`tag-chip ${tab === 'discussions' ? 'active' : ''}`} aria-current={tab === 'discussions' ? 'page' : undefined}>Discussions ({discussions.discussions.length})</Link>
     </nav>
     {tab === 'details' ? (
       <>
@@ -63,6 +68,14 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
         <CustomerPasswordPanel customerId={customer.id} phone={customer.phone} status={passwordStatus} />
         <CustomerOrderForOthers customerId={customer.id} initial={customer.can_order_for_others === true} />
       </>
+    ) : tab === 'discussions' ? (
+      <CustomerDiscussions
+        customerId={customer.id}
+        initialDiscussions={discussions.discussions}
+        initialPlaces={discussionPlaces}
+        categories={(categories || []).filter((c: any) => !c.archived_at).map((c: any) => ({ id: c.id, name: c.name }))}
+        tableMissing={discussions.missing}
+      />
     ) : tab === 'colours' ? (
       <CustomerColourSetup
         customerId={customer.id}
