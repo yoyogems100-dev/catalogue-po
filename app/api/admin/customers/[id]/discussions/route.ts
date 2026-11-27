@@ -8,7 +8,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const customerId = Number((await params).id);
   if (!Number.isSafeInteger(customerId) || customerId < 1) return NextResponse.json({ error: 'Invalid customer.' }, { status: 400 });
-  const parsed = discussionFromBody(await request.json().catch(() => null));
+  const parsed = discussionFromBody(await request.json().catch(() => null), customerId);
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { data, error } = await supabaseAdmin.from('customer_discussions')
     .insert({ customer_id: customerId, ...parsed.values }).select('id').single();

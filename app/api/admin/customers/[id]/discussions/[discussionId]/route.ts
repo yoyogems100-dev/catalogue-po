@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const target = await ids(ctx);
   if (!target) return NextResponse.json({ error: 'Invalid discussion.' }, { status: 400 });
-  const parsed = discussionFromBody(await request.json().catch(() => null));
+  const parsed = discussionFromBody(await request.json().catch(() => null), target.customerId);
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { data, error } = await supabaseAdmin.from('customer_discussions')
     .update({ ...parsed.values, updated_at: new Date().toISOString() })

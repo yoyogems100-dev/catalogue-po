@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import DiscussionPhotos from '@/components/DiscussionPhotos';
 import { formatDiscussionDate, formatUpdatedAt, type Discussion } from '@/lib/discussions';
 
 // One discussion as the buyer sees it (admin shows the same card, with its
@@ -20,6 +21,7 @@ export default function DiscussionCard({ discussion: d, actions }: { discussion:
             <div key={i} className="discussion-item">
               <dt>{item.label}</dt>
               {item.details && <dd>{item.details}</dd>}
+              {item.photos?.length > 0 && <dd><DiscussionPhotos paths={item.photos} label={item.label} /></dd>}
             </div>
           ))}
         </dl>
