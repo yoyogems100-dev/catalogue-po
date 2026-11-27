@@ -2359,6 +2359,23 @@ const GROUPS = [
   ["neckl", "Leather Necklaces", "Braided leather cords and chokers", "y14 y3 y22"],
   ["neckw", "Wire & Metal Necklaces", "Wire collars, snake chains and cables", "y49 y86 y84 y48 y47 y97"],
   ["more", "More styles", "", ""]];
+/* Admin > Accessories sections (OV.sections): move a category to another section, reorder categories inside a section,
+   reorder and rename sections. None = GROUPS exactly as above. If anything goes wrong the built-in GROUPS stay.
+   KEEP THIS BLOCK when rebuilding this page. */
+const SECT_OV = !!(OV.sections && typeof OV.sections === "object" && Object.keys(OV.sections).length);
+try{ if(SECT_OV){
+  const S = OV.sections, ob = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {}, num = s => { const m = /(\d+)\D*$/.exec(s); return m ? +m[1] : Infinity };
+  const gs = GROUPS.map(([g, n, s, ids]) => [g, n, s, ids.split(" ").filter(Boolean)]), byId = Object.fromEntries(gs.map(x => [x[0], x]));
+  const listed = new Set(gs.flatMap(x => x[3]));
+  if(byId.more) byId.more[3].push(...CATS.filter(c => !listed.has(c.id)).sort((a, b) => num(a.series) - num(b.series) || a.series.localeCompare(b.series)).map(c => c.id));
+  const nm = ob(S.names); for(const g in nm){ const x = byId[g], e = ob(nm[g]); if(!x) continue; if(typeof e.name === "string" && e.name) x[1] = e.name; if(typeof e.sub === "string" && e.sub) x[2] = e.sub }
+  const mv = ob(S.move); for(const id in mv){ const t = byId[mv[id]]; if(!t) continue; gs.forEach(x => { const i = x[3].indexOf(id); if(i >= 0) x[3].splice(i, 1) }); t[3].push(id) }
+  const od = ob(S.order); for(const g in od){ const x = byId[g]; if(!x || !Array.isArray(od[g])) continue; const r = new Map(od[g].map((id, i) => [id, i]));
+    x[3] = x[3].map((id, i) => [id, i]).sort((a, b) => (r.has(a[0]) ? r.get(a[0]) : Infinity) - (r.has(b[0]) ? r.get(b[0]) : Infinity) || a[1] - b[1]).map(a => a[0]) }
+  const rk = new Map((Array.isArray(S.seq) ? S.seq : []).map((g, i) => [g, i]));
+  const sorted = gs.map((x, i) => [x, i]).sort((a, b) => (a[0][0] === "more") - (b[0][0] === "more") || (rk.has(a[0][0]) ? rk.get(a[0][0]) : Infinity) - (rk.has(b[0][0]) ? rk.get(b[0][0]) : Infinity) || a[1] - b[1]).map(a => a[0]);
+  GROUPS.splice(0, GROUPS.length, ...sorted.map(([g, n, s, ids]) => [g, n, s, ids.join(" ")]));
+}}catch(_){}
 const GROUP_OF = {}, LOOK = {}; GROUPS.forEach(([g,,,ids]) => ids.split(" ").forEach(id => { if(id){ GROUP_OF[id] = g; LOOK[id] = Object.keys(LOOK).length } }));
 const grpOf = c => GROUP_OF[c.id] || "more", GNAME = Object.fromEntries(GROUPS.map(([g,n]) => [g, n]));
 const viewsOf = p => (p.views || CAT[p.cat].views).filter(([,l]) => !/^(Original|Another) photo$/.test(l)).map(([k,l]) => [k, l === "Group photo" ? "All colours" : l]);
@@ -2382,6 +2399,8 @@ try{ const v = localStorage.getItem("yoyo-view"); if(v === "asc" || v === "desc"
 const numOf = s => { const m = /(\d+)\D*$/.exec(s); return m ? +m[1] : Infinity };
 const CI = Object.fromEntries(CATS.map((c,i) => [c.id, i]));
 function cmpCat(a, b){
+  /* once the owner has arranged the sections, their order inside a section wins over the overall range order */
+  if(st.sort === "look" && SECT_OV){ const la = LOOK[a.id] ?? Infinity, lb = LOOK[b.id] ?? Infinity; if(la !== lb) return la - lb }
   const oa = ORD.has(a.id) ? ORD.get(a.id) : Infinity, ob = ORD.has(b.id) ? ORD.get(b.id) : Infinity;
   if(oa !== ob) return oa - ob;
   if(st.sort === "look"){ const la = LOOK[a.id] ?? Infinity, lb = LOOK[b.id] ?? Infinity; if(la !== lb) return la - lb }

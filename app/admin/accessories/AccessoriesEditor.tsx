@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { confirmAction } from '@/components/admin/AdminDialogs';
 import {
-  DEFAULT_PAGE_INTRO, DEFAULT_PAGE_TITLE, DEFAULT_WHATSAPP, effectiveCatalogue, emptyOverrides, orderedRanges, serializeOverrides,
-  type AccessoryCatalogue, type AccessoryOverrides, type EffectiveRange, type EffectiveStyle, type RangeEdit, type StyleEdit
+  DEFAULT_PAGE_INTRO, DEFAULT_PAGE_TITLE, DEFAULT_WHATSAPP, effectiveCatalogue, effectiveSections, emptyOverrides, normalizeSections, orderedRanges, serializeOverrides,
+  type AccessoryCatalogue, type AccessoryOverrides, type EffectiveRange, type EffectiveSection, type EffectiveStyle, type RangeEdit, type SectionsEdit, type StyleEdit
 } from '@/lib/accessories/overrides';
 
 // Admin > Accessories: the Accessories page as buyers see it -- category
@@ -40,6 +40,7 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'cards' | 'sections'>('cards');
 
   const current = serializeOverrides(ov, catalogue);
   const dirty = current !== saved;
@@ -76,6 +77,40 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
     setOv((o) => ({ ...o, order: ids.join() === defaultOrder.join() ? [] : ids }));
     setStatus(null);
   }
+  // Shop sections: every change is stored as the smallest difference from the page's own sections.
+  const sections = useMemo(() => effectiveSections(ov.sections, catalogue), [ov.sections, catalogue]);
+  function setSections(fn: (s: SectionsEdit, layout: EffectiveSection[]) => SectionsEdit) {
+    setOv((o) => { const next = normalizeSections(fn(o.sections || {}, effectiveSections(o.sections, catalogue)), catalogue); const { sections: _, ...rest } = o; return next ? { ...rest, sections: next } : rest; });
+    setStatus(null);
+  }
+  const moveToSection = (id: string, to: string) => setSections((s, layout) => {
+    const target = layout.find((g) => g.id === to);
+    if (!target || target.cats.includes(id)) return s;
+    return { ...s, move: { ...s.move, [id]: to }, order: { ...s.order, [to]: [...target.cats, id] } };
+  });
+  const shiftInSection = (gid: string, id: string, delta: number) => setSections((s, layout) => {
+    const cats = [...(layout.find((g) => g.id === gid)?.cats || [])];
+    const from = cats.indexOf(id), to = from + delta;
+    if (from < 0 || to < 0 || to >= cats.length) return s;
+    [cats[from], cats[to]] = [cats[to], cats[from]];
+    return { ...s, order: { ...s.order, [gid]: cats } };
+  });
+  const shiftSection = (gid: string, delta: number) => setSections((s, layout) => {
+    const seq = layout.map((g) => g.id).filter((g) => g !== 'more');
+    const from = seq.indexOf(gid), to = from + delta;
+    if (from < 0 || to < 0 || to >= seq.length) return s;
+    [seq[from], seq[to]] = [seq[to], seq[from]];
+    return { ...s, seq };
+  });
+  const renameSection = (gid: string, patch: { name?: string; sub?: string }) => setSections((s) => {
+    const n = { ...(s.names?.[gid] || {}), ...patch };
+    return { ...s, names: { ...s.names, [gid]: n } };
+  });
+  async function resetSections() {
+    if (!(await confirmAction('Put every shop section back the way it was built (names, order and which categories are in each)? This takes effect when you save.'))) return;
+    setSections(() => ({}));
+  }
+
   async function deleteRange(r: EffectiveRange) {
     if (!(await confirmAction(`Delete ${r.name} (${r.series})? It comes off the Accessories page and out of this list once you save. You can restore it from Deleted.`))) return;
     setRange(r.id, { deleted: true });
@@ -150,7 +185,10 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
   const searchAll = <SearchBar value={query} onChange={setQuery} placeholder="Search any ID, code, name or colour — e.g. Y54-03, CTS, lilac" />;
 
   let body: React.ReactNode;
-  if (opened) {
+  if (mode === 'sections') {
+    body = <SectionsEditor sections={sections} ranges={rangeById} edited={!!ov.sections}
+      onMove={moveToSection} onShift={shiftInSection} onShiftSection={shiftSection} onRename={renameSection} onReset={resetSections} />;
+  } else if (opened) {
     const mine = stylesOf(opened.id);
     const list = mine.filter((s) => (opened.deleted || keepStyle(s)) && (!q || matches(styleHay(s), q)));
     const position = ranges.indexOf(opened);
@@ -208,13 +246,17 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
 
   return (
     <div className="acc-editor">
-      <div className="accx-filters" role="group" aria-label="Show">
+      <div className="accx-filters accx-modes" role="group" aria-label="Edit">
+        <button type="button" aria-pressed={mode === 'cards'} className={mode === 'cards' ? 'is-on' : ''} onClick={() => setMode('cards')}>Categories &amp; styles</button>
+        <button type="button" aria-pressed={mode === 'sections'} className={mode === 'sections' ? 'is-on' : ''} onClick={() => { setMode('sections'); setOpenId(null); }}>Shop sections{ov.sections ? <b>Edited</b> : null}</button>
+      </div>
+      {mode === 'cards' && <div className="accx-filters" role="group" aria-label="Show">
         {FILTERS.map(([k, label]) => (
           <button key={k} type="button" aria-pressed={filter === k} className={filter === k ? 'is-on' : ''} onClick={() => setFilter(k)}>
             {label}{k !== 'all' && counts[k] ? <b>{counts[k]}</b> : null}
           </button>
         ))}
-      </div>
+      </div>}
       <div className="accx">{body}</div>
       <div className={`hs-savebar${dirty ? ' is-dirty' : ''}`} role="region" aria-label="Save changes">
         <span className="hs-savebar-text" role="status">
@@ -224,6 +266,68 @@ export default function AccessoriesEditor({ catalogue, initial }: { catalogue: A
         <button type="button" className="btn" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
+  );
+}
+
+// Shop sections: the headings on the Accessories landing page ("Similar looks" view), each with
+// its categories in display order. Move a category up or down, or pick another section for it.
+function SectionsEditor({ sections, ranges, edited, onMove, onShift, onShiftSection, onRename, onReset }: {
+  sections: EffectiveSection[]; ranges: Map<string, EffectiveRange>; edited: boolean;
+  onMove: (id: string, to: string) => void; onShift: (gid: string, id: string, delta: number) => void;
+  onShiftSection: (gid: string, delta: number) => void; onRename: (gid: string, patch: { name?: string; sub?: string }) => void; onReset: () => void;
+}) {
+  const movable = sections.filter((g) => g.id !== 'more');
+  return (
+    <>
+      <section className="accx-intro">
+        <div className="accx-eyebrow">{plural(movable.length, 'section')} on the Accessories page</div>
+        <h1 className="accx-h1-static">Shop sections</h1>
+        <p className="accx-meta">Buyers see categories grouped under these headings (the &ldquo;Similar looks&rdquo; view). Use &uarr; &darr; to change the order,
+          and <strong>Move to</strong> to put a category in another section. Categories not in any section show under <strong>More styles</strong>, which is always last. New categories are placed for you by Claude.</p>
+        <div className="accx-actions">
+          <button type="button" className="btn-ghost" disabled={!edited} onClick={onReset}>Reset sections to default</button>
+          <a href="/po/accessories" target="_blank" rel="noopener">Open the page ↗</a>
+        </div>
+      </section>
+      {sections.map((g) => {
+        const si = movable.indexOf(g);
+        const cats = g.cats.map((id) => ranges.get(id)).filter((r): r is EffectiveRange => !!r && !r.deleted);
+        return (
+          <section key={g.id} className="accx-sec" aria-label={g.name}>
+            <div className="accx-sec-head">
+              <div className="accx-sec-titles">
+                <DraftInput className="accx-sec-name" label={`Section name (${g.id})`} value={g.name} max={80}
+                  onChange={(v) => onRename(g.id, { name: v.trim() && v !== g.original.name ? v : undefined })} />
+                <DraftInput className="accx-sec-sub" label={`Section subtitle (${g.id})`} value={g.sub} max={200} placeholder="Subtitle"
+                  onChange={(v) => onRename(g.id, { sub: v.trim() && v !== g.original.sub ? v : undefined })} />
+                {(g.name !== g.original.name || g.sub !== g.original.sub) && <small className="accx-was">Was: {g.original.name}{g.original.sub ? ` — ${g.original.sub}` : ''} <button type="button" className="accx-link" onClick={() => onRename(g.id, { name: undefined, sub: undefined })}>Put back</button></small>}
+              </div>
+              {g.id !== 'more' && <span className="accx-pos">
+                <button type="button" className="btn-ghost hs-icon" aria-label={`Move section ${g.name} up`} disabled={si === 0} onClick={() => onShiftSection(g.id, -1)}>&uarr;</button>
+                <button type="button" className="btn-ghost hs-icon" aria-label={`Move section ${g.name} down`} disabled={si === movable.length - 1} onClick={() => onShiftSection(g.id, 1)}>&darr;</button>
+              </span>}
+            </div>
+            {cats.length ? <ol className="accx-sec-list">
+              {cats.map((r, i) => (
+                <li key={r.id} className={`accx-sec-row${r.hidden ? ' is-hidden' : ''}`}>
+                  <span className="accx-sec-thumb">{r.cover ? <img src={r.cover} alt="" loading="lazy" decoding="async" /> : null}</span>
+                  <span className="accx-sec-label"><strong>{r.name}</strong><small>{r.series} · {r.id}{r.hidden ? ' · Hidden' : ''}</small></span>
+                  <span className="accx-pos">
+                    <button type="button" className="btn-ghost hs-icon" aria-label={`Move ${r.name} up`} disabled={i === 0} onClick={() => onShift(g.id, r.id, -1)}>&uarr;</button>
+                    <button type="button" className="btn-ghost hs-icon" aria-label={`Move ${r.name} down`} disabled={i === cats.length - 1} onClick={() => onShift(g.id, r.id, 1)}>&darr;</button>
+                  </span>
+                  <label className="accx-sec-move">Move to
+                    <select value={g.id} aria-label={`Section for ${r.name}`} onChange={(e) => onMove(r.id, e.target.value)}>
+                      {sections.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </label>
+                </li>
+              ))}
+            </ol> : <p className="accx-meta">No categories here{g.id === 'more' ? '' : ', so buyers do not see this section'}.</p>}
+          </section>
+        );
+      })}
+    </>
   );
 }
 

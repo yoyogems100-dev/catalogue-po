@@ -5,7 +5,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 // @ts-ignore -- plain .mjs helper shared with scripts/accessories-index.mjs
 import { extractAccessories } from '../lib/accessories/extract.mjs';
-import { ACCESSORIES, effectiveCatalogue, orderedRanges, parseOverrides, serializeOverrides, emptyOverrides } from '../lib/accessories/overrides';
+import { ACCESSORIES, effectiveCatalogue, effectiveSections, orderedRanges, parseOverrides, serializeOverrides, emptyOverrides } from '../lib/accessories/overrides';
 
 const html = fs.readFileSync(path.join(__dirname, '../public/po/accessories/index.html'), 'utf8');
 
@@ -86,4 +86,51 @@ test('with no edits the page is exactly as built', () => {
   vm.runInNewContext(`${html.slice(start, end)}\n;globalThis.__out = { n: P.length, c: CATS.length };`, ctx, { timeout: 20000 });
   assert.equal(ctx.__out.n, ACCESSORIES.styles.length);
   assert.equal(ctx.__out.c, ACCESSORIES.ranges.length);
+});
+
+// Runs the page's section code (GROUPS + the Admin sections block) with these edits and returns the sections it draws.
+function pageSections(sections?: unknown) {
+  const start = html.indexOf('const CATS = [');
+  const end = html.indexOf('const grpOf = c =>');
+  const ctx: any = { window: { ACC_OV: sections ? { sections } : {} }, document: { title: '' } };
+  vm.runInNewContext(`${html.slice(start, end)}\n;globalThis.__out = { GROUPS, GROUP_OF, LOOK };`, ctx, { timeout: 20000 });
+  return JSON.parse(JSON.stringify(ctx.__out)) as { GROUPS: [string, string, string, string][]; GROUP_OF: Record<string, string>; LOOK: Record<string, number> };
+}
+
+test('shop sections: with no edits the page keeps its built-in sections', () => {
+  const page = pageSections();
+  assert.deepEqual(page.GROUPS.map(([id, name, sub, ids]) => ({ id, name, sub, cats: ids.split(' ').filter(Boolean) })), JSON.parse(JSON.stringify(ACCESSORIES.groups)));
+  assert.equal(serializeOverrides({ ...emptyOverrides(), sections: {} }), serializeOverrides(emptyOverrides()));
+  assert.ok(!('sections' in JSON.parse(serializeOverrides(emptyOverrides()))));
+  assert.match(html, /Admin > Accessories sections \(OV\.sections\)/);
+});
+
+test('shop sections: moves, order, names and section order match between admin and page', () => {
+  const [g1, g2] = ACCESSORIES.groups!;
+  const moved = g1.cats[0], last = g2.cats[g2.cats.length - 1];
+  const edit = parseOverrides({
+    sections: { move: { [moved]: g2.id }, order: { [g2.id]: [last, ...g2.cats.slice(0, -1), moved] }, names: { [g2.id]: { name: 'Braids <b>' } }, seq: [g2.id, g1.id] }
+  });
+  const saved = JSON.parse(serializeOverrides(edit));
+  assert.equal(saved.sections.names[g2.id].name, 'Braids b');
+  const admin = effectiveSections(saved.sections);
+  assert.equal(admin[0].id, g2.id);
+  assert.deepEqual(admin[0].cats, [last, ...g2.cats.slice(0, -1), moved]);
+  assert.ok(!admin.find((g) => g.id === g1.id)!.cats.includes(moved));
+  assert.equal(admin[admin.length - 1].id, 'more', 'More styles stays last');
+  const page = pageSections(saved.sections);
+  const asAdmin = page.GROUPS.map(([id, name, , ids]) => ({ id, name, cats: ids.split(' ').filter(Boolean) }));
+  // the page also lists unlisted ranges under More styles, exactly like the admin view
+  assert.deepEqual(asAdmin, admin.map(({ id, name, cats }) => ({ id, name, cats })));
+  assert.equal(page.GROUP_OF[moved], g2.id);
+  assert.ok(page.LOOK[last] < page.LOOK[g2.cats[0]]);
+});
+
+test('shop sections: putting things back stores nothing, junk is ignored and the page survives it', () => {
+  const [g1] = ACCESSORIES.groups!;
+  const back = serializeOverrides({ ...emptyOverrides(), sections: { move: { [g1.cats[0]]: g1.id }, order: { [g1.id]: g1.cats }, names: { [g1.id]: { name: g1.name } }, seq: ACCESSORIES.groups!.map((g) => g.id) } });
+  assert.ok(!('sections' in JSON.parse(back)));
+  assert.equal(parseOverrides({ sections: { move: { 'bad id!': 'x', y4: 7 }, order: 'no', seq: {} } }).sections, undefined);
+  const page = pageSections({ move: 5, order: { [g1.id]: 'oops' }, names: [] });
+  assert.equal(page.GROUPS.length, ACCESSORIES.groups!.length);
 });

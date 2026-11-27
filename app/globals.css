@@ -4028,6 +4028,28 @@ input.cp-cell::placeholder { color: #b9bec6; }
 .accx-card-actions button { flex: 1 1 auto; min-height: 34px; padding: 0 8px; border: 1px solid rgba(28,45,80,.22); border-radius: 17px; background: #fff; color: var(--charcoal); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
 .accx-card-actions button:hover { border-color: var(--gold); }
 .accx-card-actions button.is-on { background: #F4E9E6; border-color: #e3c7bf; color: #8A2E1F; }
+/* Admin > Accessories > Shop sections */
+.accx-modes { position: static; padding-bottom: 0; }
+.accx-h1-static { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: clamp(26px, 4.4vw, 38px); line-height: 1.2; color: var(--ink); }
+.accx-sec { margin: 0 0 18px; background: #fff; border: 1px solid var(--line); }
+.accx-sec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fbf9f4; }
+.accx-sec-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.accx-sec-name, .accx-sec-sub { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; color: var(--ink); padding: 4px 6px; border: 1px dashed transparent; border-bottom-color: rgba(28,45,80,.22); background: transparent; }
+.accx-sec-name { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: 19px; }
+.accx-sec-sub { font-size: 13px; color: var(--text-dim); }
+.accx-sec-name:focus, .accx-sec-sub:focus { border: 1px solid var(--gold); background: #fff; outline: none; }
+.accx-sec-list { list-style: none; margin: 0; padding: 0; }
+.accx-sec-row { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 8px 14px; border-top: 1px solid var(--line); }
+.accx-sec-row:first-child { border-top: 0; }
+.accx-sec-row.is-hidden { opacity: .6; }
+.accx-sec-thumb { position: relative; flex: none; width: 52px; height: 40px; background: var(--ivory); overflow: hidden; }
+.accx-sec-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.accx-sec-label { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
+.accx-sec-label strong { font-weight: 500; font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.accx-sec-label small { font-size: 12px; color: var(--text-dim); }
+.accx-sec-move { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+.accx-sec-move select { max-width: 220px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid rgba(28,45,80,.22); border-radius: 6px; background: #fff; color: var(--ink); }
+@media (max-width: 560px) { .accx-sec-move { flex: 1 1 100%; } .accx-sec-move select { flex: 1; max-width: none; } }
 .accx-empty { display: flex; flex-direction: column; gap: 4px; align-items: center; border: 1px dashed rgba(28,45,80,.22); padding: 36px 16px; color: var(--text-dim); text-align: center; }
 .accx-empty strong { font-family: 'Playfair Display', Georgia, serif; color: var(--ink); font-size: 17px; }
 @media (max-width: 640px) {
