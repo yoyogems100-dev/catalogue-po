@@ -52,7 +52,7 @@ const nextConfig = {
       // let the signed-in browser keep it for a year instead of re-checking.
       // "private" because they sit behind the trade sign-in.
       {
-        source: '/po/accessories/:dir(f|t)/:file*',
+        source: '/po/accessories/:dir(f|t|c)/:file*',
         headers: [{ key: 'Cache-Control', value: 'private, max-age=31536000, immutable' }]
       }
     ]);
