@@ -365,7 +365,6 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
       <>
         <Box x={x} y={ytop - IMG} w={TW} h={IMG} style={{ backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: IG, borderRadius: 4 }} />
         <Pic src={img[p.thumb || '']} x={x} y={ytop - IMG} w={TW} h={IMG} pad={3} />
-        <Text style={{ position: 'absolute', left: x, top: H - ytop + IMG - 13, width: TW - 7, textAlign: 'right', ...FONT.J6, fontSize: 5.5, letterSpacing: 1.2, color: NAVY, opacity: 0.32 }}>YOYO GEMS</Text>
         {img[p.swatch || ''] ? <Image src={img[p.swatch!]} style={{ position: 'absolute', left: x, top: H - sy - 11, width: TW, height: 11, objectFit: 'fill', borderRadius: 5.5 }} /> : null}
         <Hot href={order} x0={x} y0={sy} x1={x + TW} y1={ytop} />
         <View style={{ position: 'absolute', left: x, top: H - ny - ASC * 8.6, width: TW }}>
