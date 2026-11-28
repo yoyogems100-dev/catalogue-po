@@ -502,7 +502,7 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
 function Watermark() {
   return (
     <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontFamily: 'Playfair', fontWeight: 600, fontSize: 84, letterSpacing: 10, color: NAVY, opacity: 0.07, transform: 'rotate(-35deg)' }}>YOYO GEMS</Text>
+      <Text style={{ fontFamily: 'Playfair', fontWeight: 600, fontSize: 84, letterSpacing: 10, color: NAVY, opacity: 0.05, transform: 'rotate(-35deg)' }}>YOYO GEMS</Text>
     </View>
   );
 }
