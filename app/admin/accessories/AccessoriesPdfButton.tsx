@@ -6,8 +6,8 @@ import { DEFAULT_WHATSAPP, type AccessoryCatalogue, type AccessoryOverrides } fr
 import { pdfSelection, picturesOf, planCatalogue, type PdfOptions } from '@/lib/accessories/pdf/plan';
 
 // Admin > Accessories > Download PDF: pick whole shop sections or single
-// categories and get the catalogue PDF for just those -- cover, contents,
-// category index, colour finder, the category pages and a How to order page.
+// categories and get the catalogue PDF for just those -- cover, contents
+// (every look and category with its colours), colour finder, the category pages and a How to order page.
 // Built in this browser from the saved Accessories page (names, sections,
 // hidden and out-of-stock as buyers see them), so nothing runs on the server.
 
@@ -79,7 +79,7 @@ export default function AccessoriesPdfButton({ catalogue, overrides }: { catalog
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [preparedFor, setPreparedFor] = useState('');
-  const [inc, setInc] = useState({ contents: true, index: true, finder: true, howToOrder: true });
+  const [inc, setInc] = useState({ index: true, finder: true, howToOrder: true });
   const [includeOut, setIncludeOut] = useState(false);
   const [quality, setQuality] = useState<Quality>('standard');
   const [progress, setProgress] = useState('');
@@ -232,7 +232,7 @@ export default function AccessoriesPdfButton({ catalogue, overrides }: { catalog
 
           <fieldset className="accpdf-opts">
             <legend>Include</legend>
-            {([['contents', 'Contents page'], ['index', 'Category index (every colour as a dot)'], ['finder', 'Colour finder'], ['howToOrder', 'How to order page']] as const).map(([k, label]) => (
+            {([['index', 'Contents (every look and category, colours as dots)'], ['finder', 'Colour finder'], ['howToOrder', 'How to order page']] as const).map(([k, label]) => (
               <label key={k}><input type="checkbox" checked={inc[k]} onChange={(e) => setInc((o) => ({ ...o, [k]: e.target.checked }))} /> {label}</label>
             ))}
             <label><input type="checkbox" checked={includeOut} onChange={(e) => setIncludeOut(e.target.checked)} /> Out-of-stock styles (marked “Out of stock”)</label>

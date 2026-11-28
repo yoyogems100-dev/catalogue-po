@@ -13,6 +13,9 @@ export const IMG = TW;
 export const TILE_H = IMG + 46;
 export const RH = TILE_H + 6, HB = 196, PAD = 20, BOT = 50, GAP = 22, CONT_TOP = H - 66;
 export const IDX_TOP = H - 118, IDX_BOT = 60, ROW_H = 40, SEC_H = 30;
+/** Room above the first index rows for the two-column "Jump to a look" list and the tip line (the index is also the Contents page). */
+export const JUMP_ROW = 15;
+export const jumpH = (looks: number) => 24 + Math.ceil(looks / 2) * JUMP_ROW + 30;
 export const GRID_ROW = 15.2, GRID_TOP0 = H - 150, GRID_TOPN = H - 106;
 
 export type PdfSection = { id: string; name: string; sub: string; cats: EffectiveRange[] };
@@ -20,7 +23,6 @@ export type PdfOptions = {
   title: string;
   subtitle: string;
   preparedFor: string;
-  contents: boolean;
   index: boolean;
   finder: boolean;
   howToOrder: boolean;
@@ -86,7 +88,7 @@ export type Plan = {
   catPages: CatPage[];
   indexPages: ListItem[][];
   gridPages: ListItem[][];
-  /** Page number of each destination: contents, index, finder, order, cat:<id>, sec:<id>. */
+  /** Page number of each destination: index (the Contents page), finder, order, cat:<id>, sec:<id>. */
   pg: Record<string, number>;
   total: number;
   styleCount: number;
@@ -97,7 +99,7 @@ export type Plan = {
  * page order; `styles` every style that should print. Categories with no
  * styles left are dropped, then empty sections.
  */
-export function planCatalogue(sectionsIn: PdfSection[], styles: EffectiveStyle[], opt: Pick<PdfOptions, 'contents' | 'index' | 'finder' | 'howToOrder'>): Plan {
+export function planCatalogue(sectionsIn: PdfSection[], styles: EffectiveStyle[], opt: Pick<PdfOptions, 'index' | 'finder' | 'howToOrder'>): Plan {
   const byCat = new Map<string, EffectiveStyle[]>();
   for (const s of styles) { const l = byCat.get(s.cat); if (l) l.push(s); else byCat.set(s.cat, [s]); }
   const sections: PdfSection[] = sectionsIn
@@ -146,7 +148,7 @@ export function planCatalogue(sectionsIn: PdfSection[], styles: EffectiveStyle[]
   const secOf = new Map(sections.flatMap((s) => s.cats.map((c) => [c.id, s] as const)));
 
   const indexPages: ListItem[][] = [];
-  { let y = IDX_TOP, cur: ListItem[] = [];
+  { let y = IDX_TOP - jumpH(sections.length), cur: ListItem[] = [];
     for (const s of sections) {
       if (y - SEC_H - ROW_H < IDX_BOT) { indexPages.push(cur); cur = []; y = H - 70; }
       cur.push({ kind: 'sec', sec: s }); y -= SEC_H;
@@ -170,7 +172,6 @@ export function planCatalogue(sectionsIn: PdfSection[], styles: EffectiveStyle[]
 
   const pg: Record<string, number> = { cover: 1 };
   let n = 2;
-  if (opt.contents) pg.contents = n++;
   if (opt.index) { pg.index = n; n += indexPages.length; }
   if (opt.finder) { pg.finder = n; n += gridPages.length; }
   catPages.forEach((p, i) => { for (const op of p.ops) if (op.kind === 'head') pg[`cat:${op.cat}`] = n + i; });
