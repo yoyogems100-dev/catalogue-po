@@ -10,7 +10,7 @@ export const DEFAULT_PAGE_INTRO = 'Choose a category to see every colour, or sea
 export const DEFAULT_WHATSAPP = '919079914601';
 
 export type AccessoryRange = { id: string; series: string; name: string; text: string; finish: string; views: string[]; cover?: string };
-export type AccessoryStyle = { sku: string; cat: string; code: string; name: string; style: string; colours: string[]; dots: string[]; families: string[]; thumb?: string };
+export type AccessoryStyle = { sku: string; cat: string; code: string; name: string; style: string; colours: string[]; dots: string[]; families: string[]; thumb?: string; swatch?: string };
 /** A shop section on the landing page (GROUPS in index.html): ranges in display order. `more` catches every range not listed. */
 export type AccessoryGroup = { id: string; name: string; sub: string; cats: string[] };
 export type AccessoryCatalogue = { ranges: AccessoryRange[]; styles: AccessoryStyle[]; groups?: AccessoryGroup[] };
