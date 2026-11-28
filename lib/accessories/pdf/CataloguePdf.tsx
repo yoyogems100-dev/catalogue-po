@@ -139,6 +139,7 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
       <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: H }} {...(id ? { id: dest(id) } : {})} {...(bookmark ? { bookmark: { title: bookmark, fit: true } } : {})}>
         {children}
       </View>
+      {bg === IVORY ? <Watermark /> : null}
     </Page>
   );
 
@@ -364,6 +365,7 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
       <>
         <Box x={x} y={ytop - IMG} w={TW} h={IMG} style={{ backgroundColor: '#FFFFFF', borderWidth: 0.5, borderColor: IG, borderRadius: 4 }} />
         <Pic src={img[p.thumb || '']} x={x} y={ytop - IMG} w={TW} h={IMG} pad={3} />
+        <Text style={{ position: 'absolute', left: x, top: H - ytop + IMG - 13, width: TW - 7, textAlign: 'right', ...FONT.J6, fontSize: 5.5, letterSpacing: 1.2, color: NAVY, opacity: 0.32 }}>YOYO GEMS</Text>
         {img[p.swatch || ''] ? <Image src={img[p.swatch!]} style={{ position: 'absolute', left: x, top: H - sy - 11, width: TW, height: 11, objectFit: 'fill', borderRadius: 5.5 }} /> : null}
         <Hot href={order} x0={x} y0={sy} x1={x + TW} y1={ytop} />
         <View style={{ position: 'absolute', left: x, top: H - ny - ASC * 8.6, width: TW }}>
@@ -490,6 +492,19 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
       {catPages}
       {howTo}
     </Document>
+  );
+}
+
+/**
+ * A faint diagonal YOYO GEMS across every ivory page, drawn over the photos so a
+ * screenshot or cropped picture still carries it (like the site's other PDFs, but
+ * on top, since the photo tiles would hide a mark underneath).
+ */
+function Watermark() {
+  return (
+    <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontFamily: 'Playfair', fontWeight: 600, fontSize: 84, letterSpacing: 10, color: NAVY, opacity: 0.07, transform: 'rotate(-35deg)' }}>YOYO GEMS</Text>
+    </View>
   );
 }
 
