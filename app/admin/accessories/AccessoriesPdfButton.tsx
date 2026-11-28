@@ -47,6 +47,13 @@ function loadJpeg(url: string, px: number, q: number): Promise<string> {
   }
   return hit;
 }
+/**
+ * The site's photos carry the tiled YOYO GEMS watermark; the PDF has its own page
+ * watermark, so it uses the clean copy of each photo the build keeps under c/,
+ * named after the watermarked file (thumbs and category covers; swatches are never
+ * marked). Falls back to the site file when there is no clean copy.
+ */
+const cleanOf = (url: string) => url.replace(/^\/po\/accessories\/[ft]\//, '/po/accessories/c/');
 async function loadPng(url: string) {
   const blob = await (await fetch(url)).blob();
   return new Promise<string>((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = bad; r.readAsDataURL(blob); });
@@ -119,13 +126,14 @@ export default function AccessoriesPdfButton({ catalogue, overrides }: { catalog
         ...pics.thumbs.map((u) => [u, z.thumb, z.q] as [string, number, number]),
         ...pics.swatches.map((u) => [u, z.swatch, Math.min(0.85, z.q + 0.08)] as [string, number, number])
       ];
+      const marked = new Set([...pics.covers, ...pics.thumbs]);
       const img: Record<string, string> = {};
       let done = 0, failed = 0;
       const queue = [...jobs];
       setProgress(`Loading photos 0 / ${jobs.length}`);
       await Promise.all(Array.from({ length: 8 }, async () => {
         for (let j = queue.shift(); j; j = queue.shift()) {
-          try { img[j[0]] = await loadJpeg(...j); } catch { failed++; }
+          try { img[j[0]] = await (marked.has(j[0]) && cleanOf(j[0]) !== j[0] ? loadJpeg(cleanOf(j[0]), j[1], j[2]).catch(() => loadJpeg(...j)) : loadJpeg(...j)); } catch { failed++; }
           done++;
           if (done % 10 === 0 || done === jobs.length) setProgress(`Loading photos ${done} / ${jobs.length}`);
         }
