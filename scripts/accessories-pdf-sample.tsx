@@ -31,7 +31,7 @@ function convertAll(jobs: [string, number, number][]) {
 (async () => {
   registerPdfFonts(path.join(root, 'public/po/pdf'));
   const { sections, styles } = pdfSelection(ACCESSORIES, emptyOverrides(), picked, false);
-  const opt = { title: 'Bracelets & Necklaces', subtitle: 'Cords, braids, leather, charms and chains', preparedFor: '', contents: true, index: true, finder: true, howToOrder: true, whatsapp: DEFAULT_WHATSAPP, edition: 'November 2026 edition' };
+  const opt = { title: 'Bracelets & Necklaces', subtitle: 'Cords, braids, leather, charms and chains', preparedFor: '', index: true, finder: true, howToOrder: true, whatsapp: DEFAULT_WHATSAPP, edition: 'November 2026 edition' };
   const plan = planCatalogue(sections, styles, opt);
   const pics = picturesOf(plan);
   const img: Record<string, string> = convertAll([...pics.covers.map((u) => [u, 700, 72]), ...pics.thumbs.map((u) => [u, 520, 72]), ...pics.swatches.map((u) => [u, 400, 80])] as [string, number, number][]);

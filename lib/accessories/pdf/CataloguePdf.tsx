@@ -6,7 +6,7 @@ import { Document, Font, Image, Link, Page, Path, Circle, Svg, Text, View } from
 import type { Style } from '@react-pdf/types';
 import type { EffectiveStyle } from '../overrides';
 import {
-  BOT, COLS, CONT_TOP, FIND, FNAME, GRID_ROW, GRID_TOP0, GRID_TOPN, H, HB, IDX_TOP, IMG, MX, ROW_H, RH, SEC_H, TW, W,
+  BOT, COLS, CONT_TOP, FIND, FNAME, GRID_ROW, GRID_TOP0, GRID_TOPN, H, HB, IDX_TOP, IMG, JUMP_ROW, jumpH, MX, ROW_H, RH, SEC_H, TW, W,
   coloursWord, coverOf, dotsOf, fams, prettyPhone, styleSummary, waLink, type CatPage, type Plan, type PdfOptions, type PdfSection
 } from './plan';
 
@@ -107,8 +107,7 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
 
   function Footer({ n, section }: { n: number; section?: PdfSection }) {
     const items: [string, string][] = [];
-    if (opt.contents) items.push(['Contents', 'contents']);
-    if (opt.index) items.push(['Category index', 'index']);
+    if (opt.index) items.push(['Contents', 'index']);
     if (opt.finder) items.push(['Colour finder', 'finder']);
     if (section) items.push([section.name, `sec:${section.id}`]);
     return (
@@ -186,78 +185,42 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
     </PageA4>
   );
 
-  // ================= CONTENTS =================
-  let contents: React.ReactNode = null;
-  if (opt.contents) {
-    const py = H - 210;
-    const tips: [string, string][] = [
-      ['Browse by look', 'Tap a section below, or open the bookmarks panel in your PDF viewer.'],
-      ...(opt.index ? [['See every colour at a glance', 'The Category index shows each category with a dot for every colour.'] as [string, string]] : []),
-      ...(opt.finder ? [['Shop by colour', 'The Colour finder shows which categories come in blue, pink, multicolour and more.'] as [string, string]] : []),
-      ['Search', 'Press Ctrl+F (⌘F on Mac, or the search icon on a phone): try a colour such as lavender, a name, or a style code.'],
-      ['Order', 'Tap any photo to send us that style on WhatsApp.']
-    ].slice(0, 4) as [string, string][];
-    let y = py - 34;
-    const guides = ([['Category index', 'index', 'Every category with its colours'], ['Colour finder', 'finder', 'Which categories come in which colour']] as const).filter(([, d]) => pg[d]);
-    const rowsStart = y - guides.length * 22 - 10;
-    contents = (
-      <PageA4 id="contents" bookmark="Contents">
-        <PageHead title="Contents" sub="Tap any line to jump straight to it" />
-        <Box x={MX} y={py} w={W - 2 * MX} h={100} style={{ backgroundColor: '#FFFFFF', borderWidth: 0.6, borderColor: IG, borderRadius: 8 }} />
-        <T x={MX + 18} y={py + 78} s="HOW TO FIND A STYLE" f="J6" size={7.5} color={GOLDT} cs={1.5} />
-        {tips.map(([a, b], i) => {
-          const x = MX + 18 + (i % 2) * 262, ty = py + 58 - Math.floor(i / 2) * 30;
+  // ================= CONTENTS: one index of every look and category =================
+  // (it used to be two pages: Shop by look, then the Category index. The index already lists
+  // the categories under each look, so it is the contents now.)
+  // Top of the first Contents page: every look in two columns with its page, so the whole
+  // catalogue is visible at a glance before the detailed list (what the old "Shop by look" page gave).
+  const Jump = () => {
+    const rows = Math.ceil(sections.length / 2), colW = (W - 2 * MX - 24) / 2;
+    const y0 = IDX_TOP - 22, tipY = y0 - rows * JUMP_ROW - 8;
+    return (
+      <>
+        <T x={MX} y={IDX_TOP - 4} s="JUMP TO A LOOK" f="J6" size={7.5} color={GOLDT} cs={1.5} />
+        {sections.map((v, i) => {
+          const x = MX + (i < rows ? 0 : colW + 24), y = y0 - (i % rows) * JUMP_ROW;
           return (
-            <React.Fragment key={a}>
-              <T x={x} y={ty} s={a} f="J6" size={8.5} color={NAVY} width={240} />
-              <T x={x} y={ty - 10.5} s={b} size={7.6} color={CHAR} width={240} lines={2} style={{ lineHeight: 1.12 }} />
+            <React.Fragment key={v.id}>
+              <T x={x} y={y} s={String(i + 1).padStart(2, '0')} f="J5" size={7.5} color={GOLDS} width={16} />
+              <T x={x + 18} y={y} s={v.name} f="J5" size={9} color={NAVY} width={colW - 50} />
+              <T x={x + colW} y={y} s={String(pg[`sec:${v.id}`])} f="J5" size={9} color={GOLDT} align="r" width={30} />
+              <Line x0={x + 18} x1={x + colW} y={y - 4} w={0.3} />
+              <Hot href={go(`sec:${v.id}`)} x0={x - 2} y0={y - 4} x1={x + colW + 2} y1={y + 10} />
             </React.Fragment>
           );
         })}
-        {guides.map(([label, d, note], i) => {
-          const gy = y - i * 22;
-          return (
-            <React.Fragment key={d}>
-              <T x={MX} y={gy} s={label} f="PF6" size={12.5} color={NAVY} width={118} />
-              <T x={MX + 120} y={gy} s={note} size={8.5} color={UMBER} width={300} />
-              <T x={W - MX} y={gy} s={String(pg[d])} f="J5" size={10} color={GOLDT} align="r" width={40} />
-              <Hot href={go(d)} x0={MX - 4} y0={gy - 6} x1={W - MX + 4} y1={gy + 14} />
-            </React.Fragment>
-          );
-        })}
-        <T x={MX} y={rowsStart} s="SHOP BY LOOK" f="J6" size={7.5} color={GOLDT} cs={1.5} />
-        <Line x0={MX} x1={W - MX} y={rowsStart - 8} />
-        {sections.map((s, i) => {
-          const sy = rowsStart - 12 - 23.5 * (i + 1);
-          const ns = s.cats.reduce((a, c) => a + byCat.get(c.id)!.length, 0);
-          return (
-            <React.Fragment key={s.id}>
-              <T x={MX} y={sy} s={String(i + 1).padStart(2, '0')} f="J5" size={8} color={GOLDS} width={20} />
-              <View style={{ position: 'absolute', left: MX + 22, top: H - sy - ASC * 11.5, width: 440, flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={{ ...FONT.PF6, fontSize: 11.5, color: NAVY, lineHeight: 1.18 }}>{s.name}</Text>
-                <Text style={{ ...FONT.J, fontSize: 8, color: UMBER, marginLeft: 8, marginBottom: 1.5, lineHeight: 1.18 }}>
-                  {`${s.cats.length} categor${s.cats.length === 1 ? 'y' : 'ies'} · ${ns} styles`}
-                </Text>
-              </View>
-              <T x={W - MX} y={sy} s={String(pg[`sec:${s.id}`])} f="J5" size={10} color={GOLDT} align="r" width={40} />
-              <Hot href={go(`sec:${s.id}`)} x0={MX - 4} y0={sy - 7} x1={W - MX + 4} y1={sy + 14} />
-              <Line x0={MX + 22} x1={W - MX} y={sy - 8} w={0.4} />
-            </React.Fragment>
-          );
-        })}
-        <Footer n={pg.contents} />
-      </PageA4>
+        <T x={MX} y={tipY} s={`Tap any line to jump to it  ·  Search a colour, name or style code with Ctrl+F (Cmd+F on a Mac, or the search icon on a phone)  ·  Tap a photo to order on WhatsApp`} size={7.4} color={UMBER} width={W - 2 * MX} />
+      </>
     );
-  }
+  };
 
   // ================= CATEGORY INDEX =================
   const index = opt.index ? plan.indexPages.map((items, k) => {
-    let y = k === 0 ? IDX_TOP : H - 70;
+    let y = k === 0 ? IDX_TOP - jumpH(sections.length) : H - 70;
     return (
-      <PageA4 key={`i${k}`} {...(k === 0 ? { id: 'index', bookmark: 'Category index' } : {})}>
+      <PageA4 key={`i${k}`} {...(k === 0 ? { id: 'index', bookmark: 'Contents' } : {})}>
         {k === 0
-          ? <PageHead title="Category index" sub="Each dot is one colour or pattern you can order. Tap a category to open it." />
-          : <T x={MX} y={H - 50} s="Category index (continued)" f="PF6" size={13} color={NAVY} />}
+          ? <><PageHead title="Contents" sub="Every look and its categories. Each dot is one colour or pattern you can order." /><Jump /></>
+          : <T x={MX} y={H - 50} s="Contents (continued)" f="PF6" size={13} color={NAVY} />}
         {items.map((it) => {
           if (it.kind === 'sec') {
             y -= SEC_H; const v = it.sec;
@@ -265,8 +228,11 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
               <React.Fragment key={`s${v.id}`}>
                 <View style={{ position: 'absolute', left: MX, top: H - (y + 9) - ASC * 12.5, width: W - 2 * MX, flexDirection: 'row', alignItems: 'flex-end' }}>
                   <Text style={{ ...FONT.PF6, fontSize: 12.5, color: NAVY, lineHeight: 1.18 }}>{v.name}</Text>
-                  {v.sub ? <Text style={{ ...FONT.J, fontSize: 7.6, color: UMBER, marginLeft: 10, marginBottom: 2, lineHeight: 1.18, maxWidth: 330, maxLines: 1, textOverflow: 'ellipsis' }}>{v.sub}</Text> : null}
+                  <Text style={{ ...FONT.J, fontSize: 7.6, color: UMBER, marginLeft: 10, marginBottom: 2, lineHeight: 1.18, maxWidth: 330, maxLines: 1, textOverflow: 'ellipsis' }}>
+                    {`${v.cats.length} categor${v.cats.length === 1 ? 'y' : 'ies'} · ${v.cats.reduce((a, c) => a + byCat.get(c.id)!.length, 0)} styles`}
+                  </Text>
                 </View>
+                <T x={W - MX} y={y + 9} s={String(pg[`sec:${v.id}`])} f="J5" size={10} color={GOLDT} align="r" width={40} />
                 <Line x0={MX} x1={W - MX} y={y + 3} color={GOLDS} />
                 <Hot href={go(`sec:${v.id}`)} x0={MX} y0={y + 2} x1={W - MX} y1={y + SEC_H - 4} />
               </React.Fragment>
@@ -425,7 +391,7 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
   }
 
   const catPages = plan.catPages.map((p: CatPage, i) => {
-    const n = (opt.contents ? 1 : 0) + (opt.index ? plan.indexPages.length : 0) + (opt.finder ? plan.gridPages.length : 0) + 2 + i;
+    const n = (opt.index ? plan.indexPages.length : 0) + (opt.finder ? plan.gridPages.length : 0) + 2 + i;
     return (
       <PageA4 key={`c${i}`}>
         {p.ops.map((op, j) => {
@@ -485,7 +451,6 @@ export default function CataloguePdf({ plan, opt, img }: PdfProps) {
     <Document title={`YOYO GEMS — ${opt.title}`} author="YOYO GEMS" subject="Accessories catalogue: categories, colours and style codes"
       keywords="YOYO GEMS bracelets necklaces cords charms colours catalogue" creator="YOYO GEMS" producer="YOYO GEMS" pageMode="useOutlines">
       {cover}
-      {contents}
       {index}
       {finder}
       {catPages}
