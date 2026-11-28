@@ -1,17 +1,20 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ACCESSORIES, ACCESSORIES_SETTING_KEY, parseOverrides } from '@/lib/accessories/overrides';
 import AccessoriesEditor from './AccessoriesEditor';
+import AccessoriesPdfButton from './AccessoriesPdfButton';
 
 // See app/admin/categories/page.tsx for why this is needed on every admin page.
 export const dynamic = 'force-dynamic';
 
 export default async function AccessoriesAdminPage() {
   const { data } = await supabaseAdmin.from('settings').select('value').eq('key', ACCESSORIES_SETTING_KEY).maybeSingle();
+  const saved = parseOverrides(data?.value ?? null);
   return (
     <>
       <div className="hs-page-head">
         <h1>Accessories page</h1>
         <div className="acc-head-actions">
+          <AccessoriesPdfButton catalogue={ACCESSORIES} overrides={saved} />
           <a className="btn-ghost" href="/api/admin/accessories/export" download>Download Excel</a>
           <a className="btn-ghost" href="/po/accessories" target="_blank" rel="noopener">View page ↗</a>
         </div>
@@ -22,7 +25,7 @@ export default async function AccessoriesAdminPage() {
         this list (restore it from <strong>Deleted</strong>). Nothing changes on the page until you press Save. New categories and photos
         are still added for you by Claude.
       </p>
-      <AccessoriesEditor catalogue={ACCESSORIES} initial={parseOverrides(data?.value ?? null)} />
+      <AccessoriesEditor catalogue={ACCESSORIES} initial={saved} />
     </>
   );
 }

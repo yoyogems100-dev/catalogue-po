@@ -3523,7 +3523,7 @@ button.drill-open:disabled { color: #9aa1aa; text-decoration: none; cursor: not-
 .price-list-dialog-foot button { min-height: 44px; min-width: 110px; }
 
 /* Admin PDF preview: a near full-screen look before downloading. */
-.pdf-preview-dialog { width: min(980px, calc(100vw - 24px)); height: 92dvh; max-height: 92dvh; padding: 0; border: 1px solid #d8d5cb; border-radius: 12px; background: #faf8f3; color: var(--ink); box-sizing: border-box; }
+.pdf-preview-dialog { margin: auto; width: min(980px, calc(100vw - 24px)); height: 92dvh; max-height: 92dvh; padding: 0; border: 1px solid #d8d5cb; border-radius: 12px; background: #faf8f3; color: var(--ink); box-sizing: border-box; }
 .pdf-preview-dialog[open] { display: flex; flex-direction: column; }
 .pdf-preview-dialog::backdrop { background: rgb(12 23 42 / 62%); }
 .pdf-preview-body { flex: 1; min-height: 0; background: #e9e6de; }
@@ -3968,6 +3968,32 @@ input.cp-cell::placeholder { color: #b9bec6; }
    faceted cards, Playfair headings), with its text editable in place. */
 .acc-editor { max-width: 1180px; padding-bottom: 96px; }
 .acc-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Admin > Accessories > Download PDF: pick sections / categories for the catalogue PDF. */
+.accpdf-dialog { width: min(600px, calc(100vw - 24px)); margin: auto; }
+.accpdf-pickhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 14px; color: var(--navy); }
+.accpdf-link { border: 0; background: none; color: var(--gold); font: inherit; font-size: 13px; font-weight: 500; padding: 6px 8px; min-height: 36px; cursor: pointer; border-radius: 6px; }
+.accpdf-link:hover { background: #efece3; }
+.accpdf-sections, .accpdf-cats { list-style: none; margin: 0; padding: 0; }
+.accpdf-sections { border: 1px solid #e8e3d6; border-radius: 10px; background: #fff; max-height: 42dvh; overflow: auto; }
+.accpdf-sections > li + li { border-top: 1px solid #efeadf; }
+.accpdf-sec { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; }
+.accpdf-sec label, .accpdf-cats label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 44px; cursor: pointer; }
+.accpdf-sec input, .accpdf-cats input, .accpdf-opts input { width: 18px; height: 18px; margin: 0; flex-shrink: 0; accent-color: var(--navy); }
+.accpdf-sec b { display: block; font-size: 14.5px; font-weight: 600; color: var(--navy); }
+.accpdf-sec small, .accpdf-cats small { font-size: 12px; color: var(--text-dim, #7a7466); }
+.accpdf-more { border: 0; background: none; color: var(--gold); font: inherit; font-size: 13px; padding: 8px 10px; min-height: 40px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.accpdf-more:hover { background: #efece3; }
+.accpdf-cats { padding: 0 12px 6px 40px; }
+.accpdf-cats label { min-height: 38px; font-size: 13.5px; }
+.accpdf-cats em { font-style: normal; font-weight: 600; font-size: 11.5px; color: var(--gold); letter-spacing: .4px; margin-right: 4px; }
+.accpdf-fields { margin-top: 14px; grid-template-columns: 1fr 1fr; }
+.accpdf-wide { grid-column: 1 / -1; }
+.accpdf-opts { margin: 14px 0 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 2px; }
+.accpdf-opts legend { padding: 0 0 4px; font-size: 12px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: .4px; }
+.accpdf-opts label { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 13.5px; cursor: pointer; }
+.accpdf-row { flex-direction: row; flex-wrap: wrap; column-gap: 18px; }
+.accpdf-progress { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #e8e3d6; font-size: 13.5px; color: var(--navy); }
+@media (max-width: 560px) { .accpdf-fields { grid-template-columns: 1fr; } .accpdf-cats { padding-left: 24px; } }
 .accx-filters { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 0; background: var(--ivory); }
 .accx-filters button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid rgba(28,45,80,.22); border-radius: 18px; background: #fff; color: var(--charcoal); font: inherit; font-size: 13px; cursor: pointer; }
 .accx-filters button.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
